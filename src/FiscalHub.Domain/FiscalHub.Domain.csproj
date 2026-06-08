@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    O núcleo do hexágono. NÃO referencia nenhum outro projeto: o domínio é a
+    "verdade" pura e não conhece Azure, Avalara, XML nem banco. Todas as
+    dependências apontam PARA dentro, em direção a este projeto.
+    (TargetFramework, Nullable, etc. herdados de Directory.Build.props.)
+  -->
+
+</Project>
