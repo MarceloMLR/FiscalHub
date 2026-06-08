@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    Configurações compartilhadas por TODOS os projetos da solução.
+    Centralizar aqui evita repetir o mesmo bloco em cada .csproj.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

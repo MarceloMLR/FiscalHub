@@ -1,0 +1,29 @@
+# ---- .NET ----
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+build/
+
+# ---- Segredos e config local (NUNCA commitar) ----
+appsettings.*.local.json
+*.local.json
+.env
+.env.*
+secrets.json
+*.pfx
+*.p12
+
+# ---- Ferramentas de agente ----
+.claude/
+.bmad*/
+
+# ---- SO / IDE ----
+.DS_Store
+Thumbs.db
+.idea/

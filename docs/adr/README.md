@@ -1,0 +1,22 @@
+# Architecture Decision Records (ADRs)
+
+Registro das decisões de arquitetura do FiscalHub — o "porquê" por trás de cada escolha.
+Cada ADR é curto, datado e imutável: se uma decisão muda, cria-se um novo ADR que
+substitui o anterior (em vez de reescrever a história).
+
+## Índice
+
+| ADR | Decisão | Status |
+|-----|---------|--------|
+| [0001](0001-modelos-de-dominio-por-tipo.md) | Modelos de domínio por tipo de documento, não um modelo canônico único | Aceito |
+
+## Planejados
+
+Decisões já tomadas em conversa, a serem registradas conforme as fatias avançam:
+
+- Ports & adapters (arquitetura hexagonal).
+- Blob + Azure SQL em vez de CosmosDB.
+- Esteira: event notification + claim-check.
+- Validação só de integração (sem revalidar XSD).
+- Customização por tenant: escada config → keyed → custom; isolamento por stamp.
+- Persistência do perfil do tenant em arquivo versionado por stamp.

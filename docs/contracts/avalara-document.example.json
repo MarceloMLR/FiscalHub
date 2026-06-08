@@ -1,0 +1,1432 @@
+{
+  "codigoEmpresa": "string",
+  "codigoContribuinte": "string",
+  "parceiro": {
+    "codigo": "string",
+    "nome": "string",
+    "nomeFantasia": "string",
+    "cnpj": "string",
+    "cpf": "string",
+    "inscricaoEstadual": "string",
+    "inscricaoMunicipal": "string",
+    "inscricaoSuframa": "string",
+    "codigoCNAE": 2147483647,
+    "indCPRB": 0,
+    "ativo": 0,
+    "endereco": "string",
+    "numero": "string",
+    "complemento": "string",
+    "bairro": "string",
+    "cep": "string",
+    "paisCodigoIBGE": 2147483647,
+    "municipioCodigoIBGE": 2147483647,
+    "ddd": "strin",
+    "telefone": "string",
+    "email": "string",
+    "indOptanteSimplesNacional": 0,
+    "indicadorNIF": 0,
+    "nif": "string",
+    "indicadorContribuinteICMS": "string",
+    "indicadorContribuinteIPI": "string",
+    "codigoFormaTribRendBeneficiarioEX": "strin",
+    "codigoInfBeneficiariosRendEX": "strin",
+    "tipoParceiro": 0,
+    "tipoClienteICMS11503": 0,
+    "obras": [
+      {
+        "codigo": "string",
+        "nome": "string",
+        "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+        "inscricaoMunicipal": "string",
+        "codigoCNO": "string"
+      }
+    ],
+    "cidadeEstrangeira": "string"
+  },
+  "inscricaoMunicipal": "string",
+  "inscricaoEstadualSubstituto": "string",
+  "operacao": 0,
+  "emitidaContribuinte": 0,
+  "finalidadeNotaFiscal": 0,
+  "tipoNotaDebitoCredito": "string",
+  "serie": "string",
+  "subserie": 2147483647,
+  "modelo": 0,
+  "modeloServico": 0,
+  "numeroDocumento": "123456789",
+  "chaveNFe": "string",
+  "dataEmissao": "2026-06-08T16:41:29.746Z",
+  "dataEntradaSaida": "2026-06-08T16:41:29.746Z",
+  "dataExecucaoServico": "2026-06-08T16:41:29.746Z",
+  "localExecucaoServico": 0,
+  "periodoEscrituracao": "2026-06-08T16:41:29.746Z",
+  "situacao": 0,
+  "dataCancelamento": "2026-06-08T16:41:29.746Z",
+  "motivoCancelamento": "string",
+  "tipoPagamento": 0,
+  "tipoConsumo": 0,
+  "codigoClasseConsumo": 2147483647,
+  "tipoLigacao": 0,
+  "grupoTensao": 0,
+  "codigoObra": "string",
+  "codigoObraFilial": "string",
+  "codigoCNO": "string",
+  "municipioRecolhimentoISSCodigoIBGE": 2147483647,
+  "municipioExecucaoServicoCodigoIBGE": 2147483647,
+  "operacaoConsumidor": 0,
+  "presencaComprador": 0,
+  "inscricaoEstadualDestinatario": 0,
+  "notaFiscalAtivo": 0,
+  "codigoReferenciaIntegracao": "string",
+  "numeroLancamentoContabil": "string",
+  "dataLancamentoContabil": "2026-06-08T16:41:29.746Z",
+  "categoriaDocFiscal": "string",
+  "indIntermediario": 0,
+  "numeroSerieEquipamentoSat": "string",
+  "dataInicioPrestacaoServico": "2026-06-08T16:41:29.746Z",
+  "dataTerminoPrestacaoServico": "2026-06-08T16:41:29.746Z",
+  "dataPrevistaEntrega": "2026-06-08T16:41:29.746Z",
+  "totais": {
+    "valorMercadorias": 0,
+    "valorServicos": 0,
+    "valorDocumento": 0,
+    "valorBaseIBSeCBS": 0,
+    "valorTotalComIBSCBSeIS": 0,
+    "icms": {
+      "valorBaseICMS": 0,
+      "valorICMS": 0,
+      "valorBaseICMSReduzido": 0,
+      "valorFCPUFDestino": 0,
+      "valorICMSUFDestino": 0,
+      "valorICMSUFRemetente": 0
+    },
+    "icmsst": {
+      "valorBaseICMSST": 0,
+      "valorICMSST": 0,
+      "valorICMSSTNaoTributado": 0,
+      "valorFCPST": 0,
+      "valorFCPSTRetido": 0
+    },
+    "ipi": {
+      "valorIPI": 0,
+      "valorIPINaoTributado": 0,
+      "valorDevolvidoIPI": 0
+    },
+    "pis": {
+      "valorPIS": 0,
+      "valorPISSTRetido": 0
+    },
+    "cofins": {
+      "valorCOFINS": 0,
+      "valorCOFINSSTRetido": 0
+    },
+    "inss": {
+      "valorINSS": 0,
+      "valorINSSDevido": 0
+    },
+    "issqn": {
+      "valorISSQN": 0
+    },
+    "irrf": {
+      "valorIRRF": 0,
+      "valorBaseIRRF": 0,
+      "aliquotaIRRF": 0
+    },
+    "descontoDespesaOutros": {
+      "valorDescontoLivreComercio": 0,
+      "valorDescontoZonaFranca": 0,
+      "valorTotalDesconto": 0,
+      "valorOutrasDespesas": 0,
+      "valorFrete": 0,
+      "valorSeguro": 0,
+      "valorDeducao": 0
+    },
+    "cbs": {
+      "valorCredPresumido": 0,
+      "valorCredPresumidoCondicaoSuspensiva": 0,
+      "valorDiferimento": 0,
+      "valorDevolucaoPersonalizada": 0,
+      "valorDesonerado": 0,
+      "valor": 0,
+      "valorMonofasico": 0
+    },
+    "is": {
+      "valorBaseCalculo": 0,
+      "valor": 0
+    },
+    "ibs": {
+      "valorDiferimentoEstadual": 0,
+      "valorDevolucaoPersonalizadaEstadual": 0,
+      "valorEstadualDesonerado": 0,
+      "valorEstadual": 0,
+      "valorDiferimentoMunicipal": 0,
+      "valorDevolucaoPersonalizadaMunicipal": 0,
+      "valorMunicipalDesonerado": 0,
+      "valorMunicipal": 0,
+      "valor": 0,
+      "valorCredPresumidoMunicipal": 0,
+      "valorCredPresumidoCondMunicipal": 0,
+      "valorMonofasico": 0
+    }
+  },
+  "transporte": {
+    "transportadora": {
+      "codigo": "string",
+      "nome": "string",
+      "nomeFantasia": "string",
+      "cnpj": "string",
+      "cpf": "string",
+      "inscricaoEstadual": "string",
+      "inscricaoMunicipal": "string",
+      "inscricaoSuframa": "string",
+      "codigoCNAE": 2147483647,
+      "indCPRB": 0,
+      "ativo": 0,
+      "endereco": "string",
+      "numero": "string",
+      "complemento": "string",
+      "bairro": "string",
+      "cep": "string",
+      "paisCodigoIBGE": 2147483647,
+      "municipioCodigoIBGE": 2147483647,
+      "ddd": "strin",
+      "telefone": "string",
+      "email": "string",
+      "indOptanteSimplesNacional": 0,
+      "indicadorNIF": 0,
+      "nif": "string",
+      "indicadorContribuinteICMS": "string",
+      "indicadorContribuinteIPI": "string",
+      "codigoFormaTribRendBeneficiarioEX": "strin",
+      "codigoInfBeneficiariosRendEX": "strin",
+      "tipoParceiro": 0,
+      "tipoClienteICMS11503": 0,
+      "obras": [
+        {
+          "codigo": "string",
+          "nome": "string",
+          "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+          "inscricaoMunicipal": "string",
+          "codigoCNO": "string"
+        }
+      ],
+      "cidadeEstrangeira": "string"
+    },
+    "placaVeiculo": "string",
+    "viaTransporte": "string",
+    "especieVolume": "string",
+    "quantidade": 0,
+    "pesoBruto": 0,
+    "pesoLiquido": 0,
+    "marca": "string",
+    "numero": "string",
+    "estado": 0,
+    "tipoFrete": 0,
+    "naturezaFrete": 0,
+    "tipoCTe": 0,
+    "chaveCTe": "string",
+    "chaveCTeReferencia": "string",
+    "exportacao": {
+      "paisEmbarqueCodigoIBGE": 2147483647,
+      "estadoEmbarque": 0,
+      "localEmbarque": "string",
+      "localDespacho": "string"
+    }
+  },
+  "cobranca": {
+    "fatura": {
+      "emitente": 0,
+      "tituloCredito": 0,
+      "numero": "string",
+      "valor": 0,
+      "numeroParcelas": 2147483647,
+      "descricaoComplementar": "string"
+    },
+    "parcelas": [
+      {
+        "numeroParcela": 2147483647,
+        "dataVencimento": "2026-06-08T16:41:29.746Z",
+        "dataPagamento": "2026-06-08T16:41:29.746Z",
+        "valorPrincipal": 0,
+        "valorMulta": 0,
+        "valorJuros": 0,
+        "valorPago": 0
+      }
+    ],
+    "pagamentos": [
+      {
+        "numeroSequencia": 2147483647,
+        "formaPagamento": 0,
+        "valorPagamento": 0,
+        "valorTroco": 0,
+        "tipoIntegracao": 0,
+        "cnpjCredenciadoraCartao": "string",
+        "bandeiraOperadoraCartao": 0,
+        "numeroAutorizacaoOperacaoCartao": "string"
+      }
+    ]
+  },
+  "informacoesAdicionais": {
+    "informacaoComplementar": {
+      "codigo": "string",
+      "descricao": "string",
+      "tipo": 0
+    },
+    "descricaoComplementar": "string",
+    "numeroTanque": "string",
+    "quantidadeCombustivel": 0,
+    "processosReferenciados": [
+      {
+        "origem": 0,
+        "numero": "string"
+      }
+    ],
+    "documentosArrecadacaoReferenciados": [
+      {
+        "modelo": 0,
+        "estadoBeneficiario": 0,
+        "dataVencimento": "2026-06-08T16:41:29.746Z",
+        "dataPagamento": "2026-06-08T16:41:29.746Z",
+        "numeroDocumento": "string",
+        "codigoAutenticacao": "string",
+        "valorDocumento": 0
+      }
+    ],
+    "documentosFiscaisReferenciados": [
+      {
+        "operacao": 0,
+        "emitente": 0,
+        "parceiro": {
+          "codigo": "string",
+          "nome": "string",
+          "nomeFantasia": "string",
+          "cnpj": "string",
+          "cpf": "string",
+          "inscricaoEstadual": "string",
+          "inscricaoMunicipal": "string",
+          "inscricaoSuframa": "string",
+          "codigoCNAE": 2147483647,
+          "indCPRB": 0,
+          "ativo": 0,
+          "endereco": "string",
+          "numero": "string",
+          "complemento": "string",
+          "bairro": "string",
+          "cep": "string",
+          "paisCodigoIBGE": 2147483647,
+          "municipioCodigoIBGE": 2147483647,
+          "ddd": "strin",
+          "telefone": "string",
+          "email": "string",
+          "indOptanteSimplesNacional": 0,
+          "indicadorNIF": 0,
+          "nif": "string",
+          "indicadorContribuinteICMS": "string",
+          "indicadorContribuinteIPI": "string",
+          "codigoFormaTribRendBeneficiarioEX": "strin",
+          "codigoInfBeneficiariosRendEX": "strin",
+          "tipoParceiro": 0,
+          "tipoClienteICMS11503": 0,
+          "obras": [
+            {
+              "codigo": "string",
+              "nome": "string",
+              "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+              "inscricaoMunicipal": "string",
+              "codigoCNO": "string"
+            }
+          ],
+          "cidadeEstrangeira": "string"
+        },
+        "modelo": 0,
+        "serie": "stri",
+        "subserie": 2147483647,
+        "numeroDocumento": 9223372036854776000,
+        "dataEmissao": "2026-06-08T16:41:29.746Z",
+        "chaveNFe": "string"
+      }
+    ],
+    "cuponsFiscaisReferenciados": [
+      {
+        "modelo": 0,
+        "numeroDocumento": 2147483647,
+        "serieFabricacaoECF": "string",
+        "numeroCaixaECF": 2147483647,
+        "dataEmissao": "2026-06-08T16:41:29.746Z"
+      }
+    ],
+    "locaisColetaEntrega": [
+      {
+        "tipoTransporte": 0,
+        "inscricaoEstadualContribuinteColeta": "string",
+        "cnpjContribuinteColeta": "string",
+        "cpfContribuinte": "string",
+        "municipioColetaCodigoIBGE": 2147483647,
+        "inscricaoEstadualContribuinteEntrega": "string",
+        "cnpjContribuinteEntrega": "string",
+        "cpfContribuinteEntrega": "string",
+        "municipioEntregaCodigoIBGE": 2147483647,
+        "nomeColeta": "string",
+        "enderecoColeta": "string",
+        "numeroColeta": "string",
+        "complementoColeta": "string",
+        "bairroColeta": "string",
+        "cepColeta": "string",
+        "telefoneColeta": "string",
+        "emailColeta": "string",
+        "nomeEntrega": "string",
+        "enderecoEntrega": "string",
+        "numeroEntrega": "string",
+        "complementoEntrega": "string",
+        "bairroEntrega": "string",
+        "cepEntrega": "string",
+        "telefoneEntrega": "string",
+        "emailEntrega": "string"
+      }
+    ]
+  },
+  "informacoesAdicionaisList": [
+    {
+      "informacaoComplementar": {
+        "codigo": "string",
+        "descricao": "string",
+        "tipo": 0
+      },
+      "descricaoComplementar": "string",
+      "numeroTanque": "string",
+      "quantidadeCombustivel": 0,
+      "processosReferenciados": [
+        {
+          "origem": 0,
+          "numero": "string"
+        }
+      ],
+      "documentosArrecadacaoReferenciados": [
+        {
+          "modelo": 0,
+          "estadoBeneficiario": 0,
+          "dataVencimento": "2026-06-08T16:41:29.746Z",
+          "dataPagamento": "2026-06-08T16:41:29.746Z",
+          "numeroDocumento": "string",
+          "codigoAutenticacao": "string",
+          "valorDocumento": 0
+        }
+      ],
+      "documentosFiscaisReferenciados": [
+        {
+          "operacao": 0,
+          "emitente": 0,
+          "parceiro": {
+            "codigo": "string",
+            "nome": "string",
+            "nomeFantasia": "string",
+            "cnpj": "string",
+            "cpf": "string",
+            "inscricaoEstadual": "string",
+            "inscricaoMunicipal": "string",
+            "inscricaoSuframa": "string",
+            "codigoCNAE": 2147483647,
+            "indCPRB": 0,
+            "ativo": 0,
+            "endereco": "string",
+            "numero": "string",
+            "complemento": "string",
+            "bairro": "string",
+            "cep": "string",
+            "paisCodigoIBGE": 2147483647,
+            "municipioCodigoIBGE": 2147483647,
+            "ddd": "strin",
+            "telefone": "string",
+            "email": "string",
+            "indOptanteSimplesNacional": 0,
+            "indicadorNIF": 0,
+            "nif": "string",
+            "indicadorContribuinteICMS": "string",
+            "indicadorContribuinteIPI": "string",
+            "codigoFormaTribRendBeneficiarioEX": "strin",
+            "codigoInfBeneficiariosRendEX": "strin",
+            "tipoParceiro": 0,
+            "tipoClienteICMS11503": 0,
+            "obras": [
+              {
+                "codigo": "string",
+                "nome": "string",
+                "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+                "inscricaoMunicipal": "string",
+                "codigoCNO": "string"
+              }
+            ],
+            "cidadeEstrangeira": "string"
+          },
+          "modelo": 0,
+          "serie": "stri",
+          "subserie": 2147483647,
+          "numeroDocumento": 9223372036854776000,
+          "dataEmissao": "2026-06-08T16:41:29.746Z",
+          "chaveNFe": "string"
+        }
+      ],
+      "cuponsFiscaisReferenciados": [
+        {
+          "modelo": 0,
+          "numeroDocumento": 2147483647,
+          "serieFabricacaoECF": "string",
+          "numeroCaixaECF": 2147483647,
+          "dataEmissao": "2026-06-08T16:41:29.746Z"
+        }
+      ],
+      "locaisColetaEntrega": [
+        {
+          "tipoTransporte": 0,
+          "inscricaoEstadualContribuinteColeta": "string",
+          "cnpjContribuinteColeta": "string",
+          "cpfContribuinte": "string",
+          "municipioColetaCodigoIBGE": 2147483647,
+          "inscricaoEstadualContribuinteEntrega": "string",
+          "cnpjContribuinteEntrega": "string",
+          "cpfContribuinteEntrega": "string",
+          "municipioEntregaCodigoIBGE": 2147483647,
+          "nomeColeta": "string",
+          "enderecoColeta": "string",
+          "numeroColeta": "string",
+          "complementoColeta": "string",
+          "bairroColeta": "string",
+          "cepColeta": "string",
+          "telefoneColeta": "string",
+          "emailColeta": "string",
+          "nomeEntrega": "string",
+          "enderecoEntrega": "string",
+          "numeroEntrega": "string",
+          "complementoEntrega": "string",
+          "bairroEntrega": "string",
+          "cepEntrega": "string",
+          "telefoneEntrega": "string",
+          "emailEntrega": "string"
+        }
+      ]
+    }
+  ],
+  "itens": [
+    {
+      "numeroSequencia": 2147483647,
+      "item": {
+        "codigo": "string",
+        "descricao": "string",
+        "unidadeMedida": {
+          "codigo": "string",
+          "descricao": "string"
+        },
+        "tipoItem": 0,
+        "codigoBarra": "string",
+        "origemItem": {
+          "codigo": "string",
+          "descricao": "string"
+        },
+        "genero": "st",
+        "classificacaoFiscal": {
+          "codigo": "string",
+          "codigoExcecaoTabelaIPI": "str"
+        },
+        "cest": {
+          "codigoCEST": "string",
+          "codigoNCM": "string",
+          "grupoNCM": "stri"
+        },
+        "codigoListaServico": "strin",
+        "idPortalItem": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        "origemPortal": true,
+        "aliquotaICMS": 0,
+        "codigoProdutoANVISA": "string",
+        "valorMaximoConsumidor": 0,
+        "motivoIsencaoANVISA": "string",
+        "classificacaoServicoPrestado": {
+          "codigo": "string"
+        },
+        "conversoesUnidadeMedida": [
+          {
+            "unidadeMedidaOrigem": {
+              "codigo": "string",
+              "descricao": "string"
+            },
+            "unidadeMedidaDestino": {
+              "codigo": "string",
+              "descricao": "string"
+            },
+            "fatorConversao": 0,
+            "operacaoConversao": 0,
+            "codigoBarras": "string"
+          }
+        ]
+      },
+      "descricaoComplementar": "string",
+      "codigoFCI": "string",
+      "codigoServicoMunicipal": "string",
+      "descricaoServicoMunicipal": "string",
+      "cfop": 2147483647,
+      "cfopEmitente": 2147483647,
+      "cfopComplemento": "string",
+      "naturezaOperacao": {
+        "codigo": "string",
+        "descricao": "string"
+      },
+      "codigoInformacaoAdicional": "string",
+      "unidadeMedida": {
+        "codigo": "string",
+        "descricao": "string"
+      },
+      "quantidade": 0,
+      "valorUnidade": 0,
+      "valorTotal": 0,
+      "valorDescontoComercial": 0,
+      "valorDescontoZonaFranca": 0,
+      "valorDespesaAduaneira": 0,
+      "valorFrete": 0,
+      "valorSeguro": 0,
+      "valorOutrasDespesas": 0,
+      "valorContabil": 0,
+      "valorDeducao": 0,
+      "valorMaterialTerceiro": 0,
+      "movimentacaoFisica": 0,
+      "controleMovimentacaoFiscal": 0,
+      "codigoEspecificoBeneficioFiscal": "string",
+      "tipoDocumentoImportacao": 0,
+      "numeroDocumentoImportacao": "string",
+      "atoConcessionarioDrawback": "string",
+      "registroExportacao": "string",
+      "origemCredito": 0,
+      "codigoNaturezaBaseCalculoCreditos": "st",
+      "rateioProporcionalCredito": 0,
+      "naturezaReceita": "str",
+      "naturezaFrete": 0,
+      "tipoFrete": 0,
+      "codigoContaContabilAnalitica": "string",
+      "centroCusto": {
+        "codigo": "string",
+        "descricao": "string",
+        "dataAtualizacaoSistemaContabil": "2026-06-08T16:41:29.747Z"
+      },
+      "categoriaDocumentoFiscal": "string",
+      "numeroPedidoCliente": "string",
+      "linhaPedidoCliente": 2147483647,
+      "codigoReferenciaIntegracao": "string",
+      "imposto": {
+        "icms": {
+          "situacaoTributariaICMSTabA": 0,
+          "situacaoTributariaICMSTabB": 0,
+          "valorBaseICMS": 0,
+          "aliquotaICMS": 0,
+          "valorICMS": 0,
+          "aliquotaReducaoICMS": 0,
+          "valorReduzidoICMS": 0,
+          "valorBaseTributadoICMS": 0,
+          "valorBaseIsentoICMS": 0,
+          "valorBaseOutrosICMS": 0,
+          "valorBaseICMSNaoCreditado": 0,
+          "valorICMSNaoCreditado": 0,
+          "ativoPermanente": {
+            "itemAtivo": 0,
+            "valorAtivoICMS": 0,
+            "valorAtivoICMSST": 0,
+            "valorAtivoICMSDIFAL": 0,
+            "valorAtivoICMSFrete": 0
+          },
+          "difal": {
+            "valorBaseICMSDIFAL": 0,
+            "aliquotaDestinoICMS": 0,
+            "aliquotaICMSDIFAL": 0,
+            "valorICMSDIFAL": 0,
+            "percentualPartilha": 2147483647,
+            "valorDestinoICMS": 0,
+            "valorOrigemICMS": 0,
+            "percentualFCP": 0,
+            "valorICMSFCP": 0
+          },
+          "creditoSimplesNacional": {
+            "valorBaseICMS": 0,
+            "aliquotaICMS": 0,
+            "valorICMS": 0
+          },
+          "desonerado": {
+            "valorDesoneradoICMS": 0,
+            "motivoDesoneradoICMS": "string"
+          },
+          "diferido": {
+            "aliquotaDiferidoICMS": 0,
+            "valorDiferidoICMS": 0,
+            "valorOperacaoICMS": 0
+          }
+        },
+        "icmsst": {
+          "valorBaseICMSST": 0,
+          "aliquotaMarkup": 0,
+          "aliquotaICMSST": 0,
+          "valorICMSST": 0,
+          "valorICMSSTNaoTributado": 0,
+          "baseCalculoFCPST": 0,
+          "percentualFCPST": 0,
+          "valorFCPST": 0,
+          "baseCalculoRetidoFCPST": 0,
+          "percentualRetidoFCPST": 0,
+          "valorFCPSTRetido": 0,
+          "valorBaseICMSSTNaoTributado": 0,
+          "valorBaseICMSFCPSTNaoTributado": 0,
+          "valorICMSFCPSTNaoTributado": 0
+        },
+        "ipi": {
+          "periodoApuracaoIPI": 0,
+          "situacaoTributariaIPI": 0,
+          "baseCalculoIPI": 0,
+          "aliquotaIPI": 0,
+          "quantidadePautadaIPI": 0,
+          "valorPautadoIPI": 0,
+          "valorIPI": 0,
+          "valorNaoTributadoIPI": 0,
+          "valorDevolvidoIPI": 0,
+          "valorBaseTributadoIPI": 0,
+          "valorBaseIsentoIPI": 0,
+          "valorBaseOutrosIPI": 0,
+          "seloControleIPI": "string",
+          "quantidadeSeloIPI": 0,
+          "enquandramentoLegalIPI": "str",
+          "classeEnquadramentoIPI": "strin"
+        },
+        "pis": {
+          "situacaoTributariaPIS": 0,
+          "baseCalculoPIS": 0,
+          "aliquotaPIS": 0,
+          "quantidadeBaseCalculoPIS": 0,
+          "valorPautadoPIS": 0,
+          "valorPIS": 0,
+          "valorImportacaoPIS": 0
+        },
+        "cofins": {
+          "situacaoTributariaCOFINS": 0,
+          "baseCalculoCOFINS": 0,
+          "aliquotaCOFINS": 0,
+          "quantidadeBaseCalculoCOFINS": 0,
+          "valorPautadoCOFINS": 0,
+          "valorCOFINS": 0,
+          "valorImportacaoCOFINS": 0
+        },
+        "issqn": {
+          "baseCalculoISSQN": 0,
+          "aliquotaISSQN": 0,
+          "valorISSQN": 0,
+          "valorISSRetido": 0,
+          "valorBaseISSRetido": 0,
+          "aliquotaISSRetido": 0,
+          "exigibilidadeISS": 0
+        },
+        "ii": {
+          "baseCalculoII": 0,
+          "aliquotaII": 0,
+          "valorII": 0,
+          "valorIOF": 0
+        },
+        "inss": {
+          "baseCalculoINSS": 0,
+          "aliquotaINSS": 0,
+          "valorINSS": 0,
+          "valorSubcontratadosINSS": 0,
+          "valorJuizoINSS": 0,
+          "valorAdicional": 0,
+          "valorAdicionalJuizo": 0,
+          "valorServicosAtivoAposentado15Anos": 0,
+          "valorServicosAtivoAposentado20Anos": 0,
+          "valorServicosAtivoAposentado25Anos": 0,
+          "valorBaseDespesasINSS": 0,
+          "aliquotaDespesasINSS": 0,
+          "valorDespesasINSS": 0
+        }
+      },
+      "operacao": {
+        "armas": [
+          {
+            "tipoArma": 0,
+            "numeroSerieFabricacao": "string",
+            "descricao": "string"
+          }
+        ],
+        "medicamentos": [
+          {
+            "numeroLoteFabricacao": "string",
+            "quantidadeItemLote": 0,
+            "dataFabricacao": "2026-06-08T16:41:29.747Z",
+            "dataExpiracao": "2026-06-08T16:41:29.747Z",
+            "tipoCalculoICMS": 0,
+            "tipoProduto": 0,
+            "valor": 0
+          }
+        ],
+        "veiculos": [
+          {
+            "tipoOperacao": 0,
+            "cnpjConcessionaria": "string",
+            "ufConcessionaria": 0,
+            "chassiVeiculo": "string"
+          }
+        ]
+      },
+      "ressarcimentosComplementosICMSST": [
+        {
+          "documentoRelativoUltimaEntrada": {
+            "chaveNFe": "string",
+            "modelo": 0,
+            "serie": "string",
+            "numeroDocumento": 0,
+            "parceiro": {
+              "codigo": "string",
+              "nome": "string",
+              "nomeFantasia": "string",
+              "cnpj": "string",
+              "cpf": "string",
+              "inscricaoEstadual": "string",
+              "inscricaoMunicipal": "string",
+              "inscricaoSuframa": "string",
+              "codigoCNAE": 2147483647,
+              "indCPRB": 0,
+              "ativo": 0,
+              "endereco": "string",
+              "numero": "string",
+              "complemento": "string",
+              "bairro": "string",
+              "cep": "string",
+              "paisCodigoIBGE": 2147483647,
+              "municipioCodigoIBGE": 2147483647,
+              "ddd": "strin",
+              "telefone": "string",
+              "email": "string",
+              "indOptanteSimplesNacional": 0,
+              "indicadorNIF": 0,
+              "nif": "string",
+              "indicadorContribuinteICMS": "string",
+              "indicadorContribuinteIPI": "string",
+              "codigoFormaTribRendBeneficiarioEX": "strin",
+              "codigoInfBeneficiariosRendEX": "strin",
+              "tipoParceiro": 0,
+              "tipoClienteICMS11503": 0,
+              "obras": [
+                {
+                  "codigo": "string",
+                  "nome": "string",
+                  "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+                  "inscricaoMunicipal": "string",
+                  "codigoCNO": "string"
+                }
+              ],
+              "cidadeEstrangeira": "string"
+            },
+            "dataEntrada": "2026-06-08T16:41:29.747Z",
+            "numeroSequencia": 0,
+            "quantidade": 0,
+            "valorUnitario": 0,
+            "valorUnitarioBaseICMSST": 0,
+            "aliquotaICMSST": 0,
+            "valorUnitarioBaseICMS": 0,
+            "aliquotaICMS": 0,
+            "valorLimiteBase": 0,
+            "valorICMS": 0
+          },
+          "documentoRetencao": {
+            "modelo": 0,
+            "chaveNFe": "string",
+            "serie": "string",
+            "numeroDocumento": 0,
+            "parceiro": {
+              "codigo": "string",
+              "nome": "string",
+              "nomeFantasia": "string",
+              "cnpj": "string",
+              "cpf": "string",
+              "inscricaoEstadual": "string",
+              "inscricaoMunicipal": "string",
+              "inscricaoSuframa": "string",
+              "codigoCNAE": 2147483647,
+              "indCPRB": 0,
+              "ativo": 0,
+              "endereco": "string",
+              "numero": "string",
+              "complemento": "string",
+              "bairro": "string",
+              "cep": "string",
+              "paisCodigoIBGE": 2147483647,
+              "municipioCodigoIBGE": 2147483647,
+              "ddd": "strin",
+              "telefone": "string",
+              "email": "string",
+              "indOptanteSimplesNacional": 0,
+              "indicadorNIF": 0,
+              "nif": "string",
+              "indicadorContribuinteICMS": "string",
+              "indicadorContribuinteIPI": "string",
+              "codigoFormaTribRendBeneficiarioEX": "strin",
+              "codigoInfBeneficiariosRendEX": "strin",
+              "tipoParceiro": 0,
+              "tipoClienteICMS11503": 0,
+              "obras": [
+                {
+                  "codigo": "string",
+                  "nome": "string",
+                  "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+                  "inscricaoMunicipal": "string",
+                  "codigoCNO": "string"
+                }
+              ],
+              "cidadeEstrangeira": "string"
+            },
+            "numeroSequencia": 0,
+            "dataEmissao": "2026-06-08T16:41:29.747Z"
+          },
+          "complemento": {
+            "responsavelRetencao": 0,
+            "modeloArrecadacao": 0,
+            "numeroDocumentoArrecadacao": "string",
+            "quantidadeConvertida": 0,
+            "unidadeMedidaConversao": {
+              "codigo": "string",
+              "descricao": "string"
+            },
+            "valorUnitarioConvertido": 0,
+            "valorUnitarioICMSConvertido": 0,
+            "valorUnitarioBaseICMSSTConvertido": 0,
+            "valorUnitarioICMSSTConvertido": 0,
+            "valorUnitarioFCPSTConvertido": 0
+          },
+          "estoque": {
+            "valorMedioBaseICMSST": 0,
+            "valorMedioICMSST": 0,
+            "valorMedioFCPST": 0
+          },
+          "complementoRestituicaoComplementacao": {
+            "motivoRestituicaoComplementacaoICMS": 0,
+            "motivoRessarcimento": 0,
+            "numeroSequencia": "string",
+            "valorUnitarioICMSST": 0,
+            "valorUnitarioFCP": 0,
+            "valorUnitarioICMSSTComplementar": 0,
+            "valorUnitarioFCPSTComplementar": 0
+          }
+        }
+      ],
+      "importacoes": [
+        {
+          "numeroSequencia": 2147483647,
+          "numeroDI": "string",
+          "dataDI": "2026-06-08T16:41:29.747Z",
+          "dataDesembaraco": "2026-06-08T16:41:29.747Z",
+          "ufDesembaraco": 0,
+          "localDesembarque": "string",
+          "exportador": {
+            "codigo": "string",
+            "nome": "string",
+            "nomeFantasia": "string",
+            "cnpj": "string",
+            "cpf": "string",
+            "inscricaoEstadual": "string",
+            "inscricaoMunicipal": "string",
+            "inscricaoSuframa": "string",
+            "codigoCNAE": 2147483647,
+            "indCPRB": 0,
+            "ativo": 0,
+            "endereco": "string",
+            "numero": "string",
+            "complemento": "string",
+            "bairro": "string",
+            "cep": "string",
+            "paisCodigoIBGE": 2147483647,
+            "municipioCodigoIBGE": 2147483647,
+            "ddd": "strin",
+            "telefone": "string",
+            "email": "string",
+            "indOptanteSimplesNacional": 0,
+            "indicadorNIF": 0,
+            "nif": "string",
+            "indicadorContribuinteICMS": "string",
+            "indicadorContribuinteIPI": "string",
+            "codigoFormaTribRendBeneficiarioEX": "strin",
+            "codigoInfBeneficiariosRendEX": "strin",
+            "tipoParceiro": 0,
+            "tipoClienteICMS11503": 0,
+            "obras": [
+              {
+                "codigo": "string",
+                "nome": "string",
+                "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+                "inscricaoMunicipal": "string",
+                "codigoCNO": "string"
+              }
+            ],
+            "cidadeEstrangeira": "string"
+          },
+          "cnpjIntermediario": "string",
+          "atoDrawback": "string",
+          "adicao": {
+            "numeroAdicao": "str",
+            "numeroSequencia": 2147483647,
+            "fabricante": {
+              "codigo": "string",
+              "nome": "string",
+              "nomeFantasia": "string",
+              "cnpj": "string",
+              "cpf": "string",
+              "inscricaoEstadual": "string",
+              "inscricaoMunicipal": "string",
+              "inscricaoSuframa": "string",
+              "codigoCNAE": 2147483647,
+              "indCPRB": 0,
+              "ativo": 0,
+              "endereco": "string",
+              "numero": "string",
+              "complemento": "string",
+              "bairro": "string",
+              "cep": "string",
+              "paisCodigoIBGE": 2147483647,
+              "municipioCodigoIBGE": 2147483647,
+              "ddd": "strin",
+              "telefone": "string",
+              "email": "string",
+              "indOptanteSimplesNacional": 0,
+              "indicadorNIF": 0,
+              "nif": "string",
+              "indicadorContribuinteICMS": "string",
+              "indicadorContribuinteIPI": "string",
+              "codigoFormaTribRendBeneficiarioEX": "strin",
+              "codigoInfBeneficiariosRendEX": "strin",
+              "tipoParceiro": 0,
+              "tipoClienteICMS11503": 0,
+              "obras": [
+                {
+                  "codigo": "string",
+                  "nome": "string",
+                  "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+                  "inscricaoMunicipal": "string",
+                  "codigoCNO": "string"
+                }
+              ],
+              "cidadeEstrangeira": "string"
+            },
+            "valorDesconto": 0,
+            "viaTransporte": 0,
+            "valorAdicionalFrete": 0,
+            "tipoIntermediario": 0
+          }
+        }
+      ],
+      "informacoesAdicionais": [
+        {
+          "informacaoComplementar": {
+            "codigo": "string",
+            "descricao": "string",
+            "tipo": 0
+          },
+          "descricaoComplementar": "string",
+          "numeroTanque": "string",
+          "quantidadeCombustivel": 0
+        }
+      ],
+      "impostos": [
+        {
+          "imposto": {
+            "codigo": "string"
+          },
+          "situacaoTributariaImposto": {
+            "imposto": {
+              "codigo": "string"
+            },
+            "codigo": "string"
+          },
+          "classificacaoTributariaImposto": {
+            "imposto": {
+              "codigo": "string"
+            },
+            "codigo": "string"
+          },
+          "valorBaseTributo": 0,
+          "aliquotaTributo": 100,
+          "aliquotaTributoUnidadeMedida": 0,
+          "quantidadeTributavel": 0,
+          "valorTributoBruto": 0,
+          "percentualCreditoPresumido": 100,
+          "valorCreditoPresumido": 0,
+          "valorCreditoPresumidoSuspenso": 0,
+          "classificacaoTributariaImpostoPresumido": {
+            "codigo": "string",
+            "descricao": "string"
+          },
+          "percentualDiferimento": 100,
+          "valorDiferimento": 0,
+          "devolucaoPersonalizada": true,
+          "percentualReducaoAliquota": 100,
+          "aliquotaEfetiva": 100,
+          "situacaoTributariaImpostoDesoneracao": {
+            "imposto": {
+              "codigo": "string"
+            },
+            "codigo": "string"
+          },
+          "classificacaoTributariaImpostoDesoneracao": {
+            "imposto": {
+              "codigo": "string"
+            },
+            "codigo": "string"
+          },
+          "valorBaseTributoDesoneracao": 0,
+          "aliquotaTributoDesoneracao": 0,
+          "valorTributoDesoneracao": 0,
+          "valorTributoLiquido": 0,
+          "quantidadeBaseCalculoMonofasica": 0,
+          "aliquotaAdRemMonofasica": 100,
+          "valorTributoBrutoMonofasica": 0,
+          "quantidadeBaseCalculoMonofasicaRetido": 0,
+          "aliquotaAdRemMonofasicaRetido": 100,
+          "valorAdRemMonofasicaRetido": 0,
+          "percentualCreditoPresumidoMonofasica": 100,
+          "valorCreditoPresumidoMonofasica": 0,
+          "percentualDiferimentoMonofasica": 100,
+          "valorDiferimentoMonofasica": 0,
+          "valorTributoMonofasica": 0,
+          "embasamentoLegal": "string",
+          "origemInformacao": 0
+        }
+      ],
+      "numeroItemEmitente": 2147483647,
+      "codigoProdutoEmitente": "string",
+      "descricaoProdutoEmitente": "string",
+      "ncmEmitente": "string",
+      "cestEmitente": "string",
+      "situacaoICMSTabAEmitente": 0,
+      "situacaoICMSTabBEmitente": 0,
+      "valorBaseICMSNaoCreditado": 0,
+      "aliquotaICMSNaoTributado": 0,
+      "valorICMSNaoCreditado": 0,
+      "valorBaseICMSSTNaoTributado": 0,
+      "aliquotaMarkupNaoTributado": 0,
+      "aliquotaICMSSubstNaoTributado": 0,
+      "valorICMSSubstNaoTributado": 0,
+      "valorBaseICMSFCPSTNaoTributado": 0,
+      "percentualFCPSTNaoTributado": 0,
+      "valorICMSFCPSTNaoTributado": 0,
+      "valorTotalSubEmpreitada": 0,
+      "valorTotalServicoNaoTributado": 0,
+      "valorMaterialProprio": 0,
+      "valorTotalCobradoNomeTerceiro": 0,
+      "valorDescontoEnergiaInjetada": 0,
+      "unidadesMedidasTributaveisComercioExteriorDescricao": "string",
+      "valorUnidadeTribComExt": 0,
+      "quantidadeItemTribComExt": 0,
+      "chaveDFeReferenciado": "string",
+      "numeroItemDocumentoReferenciado": 0
+    }
+  ],
+  "parceiros": [
+    {
+      "nome": "string",
+      "nomeFantasia": "string",
+      "tipoParceiro": 0,
+      "cnpj": "string",
+      "cpf": "string",
+      "inscricaoEstadual": "string",
+      "inscricaoMunicipal": "string",
+      "inscricaoSuframa": "string",
+      "endereco": "string",
+      "numero": "string",
+      "complemento": "string",
+      "bairro": "string",
+      "cep": "string",
+      "paisCodigoIBGE": 2147483647,
+      "municipioCodigoIBGE": 2147483647,
+      "ddd": "strin",
+      "telefone": "string",
+      "email": "string",
+      "indicadorContribuinteICMS": "string",
+      "indicadorContribuinteIPI": "string"
+    }
+  ],
+  "impostosRetidos": [
+    {
+      "tipoImposto": 0,
+      "codigoReceita": "string",
+      "dataVencimento": "2026-06-08T16:41:29.747Z",
+      "dataPagamento": "2026-06-08T16:41:29.747Z",
+      "valorBaseRetencao": 0,
+      "aliquotaRetencao": 0,
+      "valorRetido": 0,
+      "condicaoPessoaJuridica": 0,
+      "sequenciaItem": 2147483647,
+      "codigoReferenciaIntegracao": "string",
+      "varCodReceita": "st",
+      "naturezaRendimento": "string",
+      "observacao": "string",
+      "indicativoOrigemRendimento": 0,
+      "cnpjOrigemRendimento": "string"
+    }
+  ],
+  "dFeImpostoRetidoDTOMin": [
+    {
+      "documentoFiscalCabecalho": {
+        "codigoModelo": "string",
+        "dataEmissaoDocumentoFiscal": "2026-06-08T16:41:29.747Z",
+        "numeroDocumento": "123456789",
+        "numeroSerie": "string",
+        "tipoOperacao": 0,
+        "codigoReferenciaIntegracao": "string",
+        "companhia": {
+          "codigoCIA": "string"
+        },
+        "estabelecimentoFiscal": {
+          "codigo": "string"
+        },
+        "parceiro": {
+          "codigo": "string"
+        }
+      },
+      "retencoes": [
+        {
+          "tipoImposto": 0,
+          "codigoReceita": "string",
+          "varCodReceita": "string",
+          "dataVencimentoImpostoRetido": "2026-06-08T16:41:29.747Z",
+          "dataPagamento": "2026-06-08T16:41:29.747Z",
+          "valorBaseRetencao": 0,
+          "aliquotaRetencao": 0,
+          "valorRetido": 0,
+          "tipoIndicadorCondicaoPJ": 0,
+          "sequencia": 0,
+          "naturezaRendimento": {
+            "codigoNaturezaRendimento": "string"
+          }
+        }
+      ]
+    }
+  ],
+  "isIntegrationDFeImpostoRetidoDTOMin": true,
+  "complementosConhecimentoTransporte": [
+    {
+      "parceiroConsignatario": {
+        "codigo": "string",
+        "nome": "string",
+        "nomeFantasia": "string",
+        "cnpj": "string",
+        "cpf": "string",
+        "inscricaoEstadual": "string",
+        "inscricaoMunicipal": "string",
+        "inscricaoSuframa": "string",
+        "codigoCNAE": 2147483647,
+        "indCPRB": 0,
+        "ativo": 0,
+        "endereco": "string",
+        "numero": "string",
+        "complemento": "string",
+        "bairro": "string",
+        "cep": "string",
+        "paisCodigoIBGE": 2147483647,
+        "municipioCodigoIBGE": 2147483647,
+        "ddd": "strin",
+        "telefone": "string",
+        "email": "string",
+        "indOptanteSimplesNacional": 0,
+        "indicadorNIF": 0,
+        "nif": "string",
+        "indicadorContribuinteICMS": "string",
+        "indicadorContribuinteIPI": "string",
+        "codigoFormaTribRendBeneficiarioEX": "strin",
+        "codigoInfBeneficiariosRendEX": "strin",
+        "tipoParceiro": 0,
+        "tipoClienteICMS11503": 0,
+        "obras": [
+          {
+            "codigo": "string",
+            "nome": "string",
+            "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+            "inscricaoMunicipal": "string",
+            "codigoCNO": "string"
+          }
+        ],
+        "cidadeEstrangeira": "string"
+      },
+      "parceiroRedespeacho": {
+        "codigo": "string",
+        "nome": "string",
+        "nomeFantasia": "string",
+        "cnpj": "string",
+        "cpf": "string",
+        "inscricaoEstadual": "string",
+        "inscricaoMunicipal": "string",
+        "inscricaoSuframa": "string",
+        "codigoCNAE": 2147483647,
+        "indCPRB": 0,
+        "ativo": 0,
+        "endereco": "string",
+        "numero": "string",
+        "complemento": "string",
+        "bairro": "string",
+        "cep": "string",
+        "paisCodigoIBGE": 2147483647,
+        "municipioCodigoIBGE": 2147483647,
+        "ddd": "strin",
+        "telefone": "string",
+        "email": "string",
+        "indOptanteSimplesNacional": 0,
+        "indicadorNIF": 0,
+        "nif": "string",
+        "indicadorContribuinteICMS": "string",
+        "indicadorContribuinteIPI": "string",
+        "codigoFormaTribRendBeneficiarioEX": "strin",
+        "codigoInfBeneficiariosRendEX": "strin",
+        "tipoParceiro": 0,
+        "tipoClienteICMS11503": 0,
+        "obras": [
+          {
+            "codigo": "string",
+            "nome": "string",
+            "tipoPrestacaoServicoObraConstrucaoCivil": 0,
+            "inscricaoMunicipal": "string",
+            "codigoCNO": "string"
+          }
+        ],
+        "cidadeEstrangeira": "string"
+      },
+      "municipioOrigemCodigoIBGE": 2147483647,
+      "municipioDestinoCodigoIBGE": 2147483647,
+      "tipoFreteRedespacho": 0,
+      "estadoPlacaVeiculo": 0,
+      "placaVeiculo": "string",
+      "valorLiquidoFrete": 0,
+      "valorTotalFrete": 0,
+      "valorSECCAT": 0,
+      "valorDespacho": 0,
+      "valorPedagio": 0,
+      "valorOutros": 0
+    }
+  ],
+  "notasFiscaisConhecimentoTransporte": [
+    {
+      "tipoTransporte": 0,
+      "modelo": 0,
+      "serie": "stri",
+      "numero": 2147483647,
+      "dataEmissao": "2026-06-08T16:41:29.747Z",
+      "valorTotal": 0,
+      "valorMercadoria": 0,
+      "quantidadeVolumes": 2147483647,
+      "pesoBruto": 0,
+      "pesoLiquido": 0,
+      "numeroDespacho": "string",
+      "remetente": {
+        "cpfCnpj": "string",
+        "inscricaoEstadual": "string",
+        "municipioCodigoIBGE": 2147483647
+      },
+      "destinatario": {
+        "cpfCnpj": "string",
+        "inscricaoEstadual": "string",
+        "municipioCodigoIBGE": 2147483647
+      },
+      "coleta": {
+        "cpfCnpj": "string",
+        "inscricaoEstadual": "string",
+        "municipioCodigoIBGE": 2147483647
+      },
+      "entrega": {
+        "cpfCnpj": "string",
+        "inscricaoEstadual": "string",
+        "municipioCodigoIBGE": 2147483647
+      }
+    }
+  ],
+  "observacoes": [
+    {
+      "observacaoLancamentoFiscal": {
+        "codigo": "string",
+        "descricao": "string"
+      },
+      "detalhes": [
+        {
+          "numeroSequencia": 2147483647,
+          "codigoAjusteBeneficio": "stringstri",
+          "item": {
+            "codigo": "string",
+            "descricao": "string",
+            "unidadeMedida": {
+              "codigo": "string",
+              "descricao": "string"
+            },
+            "tipoItem": 0,
+            "codigoBarra": "string",
+            "origemItem": {
+              "codigo": "string",
+              "descricao": "string"
+            },
+            "genero": "st",
+            "classificacaoFiscal": {
+              "codigo": "string",
+              "codigoExcecaoTabelaIPI": "str"
+            },
+            "cest": {
+              "codigoCEST": "string",
+              "codigoNCM": "string",
+              "grupoNCM": "stri"
+            },
+            "codigoListaServico": "strin",
+            "idPortalItem": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "origemPortal": true,
+            "aliquotaICMS": 0,
+            "codigoProdutoANVISA": "string",
+            "valorMaximoConsumidor": 0,
+            "motivoIsencaoANVISA": "string",
+            "classificacaoServicoPrestado": {
+              "codigo": "string"
+            },
+            "conversoesUnidadeMedida": [
+              {
+                "unidadeMedidaOrigem": {
+                  "codigo": "string",
+                  "descricao": "string"
+                },
+                "unidadeMedidaDestino": {
+                  "codigo": "string",
+                  "descricao": "string"
+                },
+                "fatorConversao": 0,
+                "operacaoConversao": 0,
+                "codigoBarras": "string"
+              }
+            ]
+          },
+          "valorBaseICMS": 0,
+          "aliquotaICMS": 0,
+          "valorICMS": 0,
+          "valorOutros": 0,
+          "descricaoComplementar": "string"
+        }
+      ]
+    }
+  ],
+  "registrosPassagemVeicular": [
+    {
+      "idRegPassagemVeicular": 0,
+      "dataHoraServicoPrestado": "2026-06-08T16:41:29.747Z",
+      "nomeViaUsada": "string",
+      "sentidoViagem": "string",
+      "nomePracaPedagio": "string",
+      "serie": "string",
+      "modalidadePassagem": "string",
+      "placa": "string",
+      "categoria": "string",
+      "meioPagamento": "string",
+      "numeroEixos": 0
+    }
+  ],
+  "modoPrestacaoServico": 0,
+  "cib": "string",
+  "localIncidenciaIBSCBSCodigoIBGE": 0,
+  "paisPrestacaoServicoCodigoIBGE": 0,
+  "tipoCompraGovernamental": 0,
+  "percentualReducao": 0,
+  "tipoNotaCredito": "string",
+  "indicadorMultaJuros": 0,
+  "municipioIBSCBSCodigoIBGE": 0,
+  "indCompGov": 0,
+  "origemSistema": 0,
+  "codigoObraAlvara": "string"
+}
