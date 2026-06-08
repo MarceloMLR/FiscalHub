@@ -13,12 +13,12 @@ A tentação natural é criar um único "modelo canônico" que represente qualqu
 
 ## Decisão
 
-Cada tipo de documento tem seu **próprio modelo de domínio coeso** (`Mercadoria` para a
-NF-e 55, e futuramente `Transporte` para o CT-e 57, etc.). Não existe um modelo único que
+Cada tipo de documento tem seu **próprio modelo de domínio coeso** (`GoodsInvoice` para a
+NF-e 55, e futuramente `Transport` para o CT-e 57, etc.). Não existe um modelo único que
 sirva para todos.
 
 Para a esteira tratar todos de forma uniforme, existe um **envelope fino** comum
-(`DocumentoEnvelope`) que carrega só o mínimo (id, tipo, tenant, status, chave natural,
+(`DocumentEnvelope`) que carrega só o mínimo (id, tipo, tenant, status, chave natural,
 correlação, timestamps) — e **não** o corpo do documento.
 
 ## Alternativas consideradas
