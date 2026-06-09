@@ -9,6 +9,8 @@ substitui o anterior (em vez de reescrever a história).
 | ADR | Decisão | Status |
 |-----|---------|--------|
 | [0001](0001-modelos-de-dominio-por-tipo.md) | Modelos de domínio por tipo de documento, não um modelo canônico único | Aceito |
+| [0002](0002-entrada-gatilho-descoberta-busca.md) | Entrada: separação gatilho / descoberta / busca, com portas genéricas | Aceito |
+| [0003](0003-despacho-assincrono-status-integracao.md) | Despacho assíncrono e status de integração normalizado | Aceito |
 
 ## Planejados
 

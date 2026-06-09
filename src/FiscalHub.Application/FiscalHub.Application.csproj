@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Camada de aplicação: define as PORTAS (interfaces) e, depois, a orquestração da esteira.
+    Referencia só o Domínio — nunca Azure, Avalara ou XML. Os adapters é que vão referenciar
+    este projeto para implementar as portas.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\FiscalHub.Domain\FiscalHub.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
