@@ -1,24 +1,18 @@
 namespace FiscalHub.Application.Outbound;
 
 /// <summary>
-/// Porta de SAÍDA (destino agnóstico). Despacha um documento de domínio para uma plataforma de
-/// compliance em DUAS fases, para suportar integrações assíncronas:
-/// <list type="number">
-///   <item><see cref="SubmitAsync"/> — envia e recebe um recibo (id externo + status inicial);</item>
-///   <item><see cref="CheckStatusAsync"/> — consulta o status final pelo id externo.</item>
-/// </list>
-/// Plataforma síncrona implementa a fase 2 como trivial; por webhook, o status chega por callback.
-/// Cada implementação é uma camada anticorrupção: traduz o nosso modelo limpo para o formato
-/// externo, e o status externo de volta para o nosso <see cref="IntegrationStatus"/>.
+/// Envia um documento a uma plataforma de compliance e consulta o resultado. Envio e consulta são
+/// separados para suportar plataformas assíncronas; cada implementação traduz documento e status
+/// para o formato da plataforma.
 /// </summary>
 public interface IComplianceDispatcher<TDocument>
 {
-    /// <summary>Identifica o destino (ex.: "Avalara") para o perfil do tenant selecionar.</summary>
+    /// <summary>Identificador do destino, usado pelo perfil do tenant para selecionar a implementação.</summary>
     string Destination { get; }
 
-    Task<IntegrationReceipt> SubmitAsync(
-        TDocument document, DispatchContext context, CancellationToken ct = default);
+    /// <summary>Envia o documento e retorna o recibo com o identificador externo.</summary>
+    Task<IntegrationReceipt> SubmitAsync(TDocument document, DispatchContext context, CancellationToken ct = default);
 
-    Task<IntegrationResult> CheckStatusAsync(
-        string externalId, DispatchContext context, CancellationToken ct = default);
+    /// <summary>Consulta o status atual da integração pelo identificador externo.</summary>
+    Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default);
 }

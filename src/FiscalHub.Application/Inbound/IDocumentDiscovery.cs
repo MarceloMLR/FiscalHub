@@ -1,17 +1,14 @@
 namespace FiscalHub.Application.Inbound;
 
 /// <summary>
-/// Porta de DESCOBERTA (modo pull). Dado um conjunto de critérios, devolve as referências dos
-/// documentos que existem na origem — sem trazer o conteúdo ainda.
-///
-/// Implementada por adapters que consultam a origem (views de banco, OData do ERP...). Adapters
-/// dirigidos por evento (push) não precisam dela: o evento já entrega a referência.
+/// Localiza documentos na origem por critérios (modo pull) e devolve suas referências, sem o
+/// conteúdo. Implementada por adapters que consultam a origem; adapters por evento não a usam.
 /// </summary>
 public interface IDocumentDiscovery
 {
-    /// <summary>Identifica a origem (ex.: "D365", "Views") para o perfil do tenant selecionar.</summary>
+    /// <summary>Identificador da origem, usado pelo perfil do tenant para selecionar a implementação.</summary>
     string Origin { get; }
 
-    Task<IReadOnlyList<DocumentReference>> DiscoverAsync(
-        DiscoveryCriteria criteria, CancellationToken ct = default);
+    /// <summary>Retorna as referências dos documentos que atendem aos critérios.</summary>
+    Task<IReadOnlyList<DocumentReference>> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default);
 }

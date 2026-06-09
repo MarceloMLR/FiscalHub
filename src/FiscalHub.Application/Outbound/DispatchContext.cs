@@ -2,20 +2,18 @@ using FiscalHub.Domain.Envelope;
 
 namespace FiscalHub.Application.Outbound;
 
-/// <summary>
-/// Contexto que acompanha um despacho: a quem pertence, como correlacionar nos logs, e qual a
-/// operação fiscal (carga x cancelamento). É aqui que o status fiscal cumpre seu papel funcional
-/// — definir O QUE enviar à plataforma —, sem ser protagonista do dashboard.
-/// </summary>
+/// <summary>Informações que acompanham um despacho ao destino.</summary>
 public sealed record DispatchContext
 {
+    /// <summary>Tenant dono do documento.</summary>
     public required string TenantId { get; init; }
 
+    /// <summary>Identificador de correlação do fluxo.</summary>
     public required string CorrelationId { get; init; }
 
     /// <summary>
-    /// Operação derivada do status fiscal: <see cref="DocumentStatus.Issued"/> → carga;
-    /// <see cref="DocumentStatus.Cancelled"/> → cancelamento.
+    /// Operação a executar no destino: carga (<see cref="DocumentStatus.Issued"/>) ou cancelamento
+    /// (<see cref="DocumentStatus.Cancelled"/>).
     /// </summary>
     public required DocumentStatus Operation { get; init; }
 }

@@ -2,31 +2,30 @@ using FiscalHub.Domain.Envelope;
 
 namespace FiscalHub.Application.Inbound;
 
-/// <summary>
-/// Critérios de uma busca agendada ou manual (modo pull): "ache os documentos deste tenant, neste
-/// período, desta companhia/estabelecimento". Usado pela porta de descoberta.
-/// </summary>
+/// <summary>Filtros de uma busca de documentos na origem (modo pull). Apenas o período é obrigatório.</summary>
 public sealed record DiscoveryCriteria
 {
+    /// <summary>Tenant alvo da busca.</summary>
     public required string TenantId { get; init; }
 
+    /// <summary>Início do período.</summary>
     public required DateTimeOffset Start { get; init; }
 
+    /// <summary>Fim do período.</summary>
     public required DateTimeOffset End { get; init; }
 
+    /// <summary>Companhia.</summary>
     public string? Company { get; init; }
 
+    /// <summary>Estabelecimento.</summary>
     public string? Establishment { get; init; }
 
-    /// <summary>
-    /// Filtro opcional por número específico do documento (integrar uma nota só). Como o número não
-    /// é único entre séries, costuma vir acompanhado de <see cref="Series"/>.
-    /// </summary>
+    /// <summary>Número de um documento específico. Acompanha <see cref="Series"/>, pois não é único entre séries.</summary>
     public string? DocumentNumber { get; init; }
 
-    /// <summary>Série do documento — desambígua o <see cref="DocumentNumber"/>.</summary>
+    /// <summary>Série do documento.</summary>
     public string? Series { get; init; }
 
-    /// <summary>Filtro opcional por tipo de documento.</summary>
+    /// <summary>Tipo do documento.</summary>
     public DocumentType? Type { get; init; }
 }

@@ -1,17 +1,14 @@
 namespace FiscalHub.Application.Inbound;
 
 /// <summary>
-/// Porta de ENTRADA (origem agnóstica). Dado uma referência, busca o documento completo e o
-/// devolve já no modelo de domínio. É o "fetch" do claim-check.
-///
-/// Genérica em <typeparamref name="TDocument"/> para que a esteira seja escrita UMA vez e sirva a
-/// qualquer tipo (mercadoria hoje; CT-e, NFS-e no futuro). Para um mesmo tipo pode haver várias
-/// implementações (XML, D365...), selecionadas pelo perfil do tenant via <see cref="Origin"/>.
+/// Busca um documento completo na origem a partir de sua referência e o devolve no modelo de
+/// domínio (o "fetch" do claim-check). Genérica no tipo do documento.
 /// </summary>
 public interface IInboundSource<TDocument>
 {
-    /// <summary>Identifica a origem (ex.: "Xml", "D365") para o perfil do tenant selecionar.</summary>
+    /// <summary>Identificador da origem, usado pelo perfil do tenant para selecionar a implementação.</summary>
     string Origin { get; }
 
+    /// <summary>Busca e retorna o documento referenciado.</summary>
     Task<TDocument> FetchAsync(DocumentReference reference, CancellationToken ct = default);
 }

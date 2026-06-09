@@ -2,22 +2,18 @@ using FiscalHub.Domain.Envelope;
 
 namespace FiscalHub.Application.Inbound;
 
-/// <summary>
-/// Endereço de um documento na origem. É o que viaja "magro" pela esteira (claim-check): o evento
-/// carrega a referência; o consumidor usa ela para buscar o documento completo.
-/// </summary>
+/// <summary>Referência leve a um documento na origem, usada pela esteira para buscá-lo (claim-check).</summary>
 public sealed record DocumentReference
 {
+    /// <summary>Tenant dono do documento.</summary>
     public required string TenantId { get; init; }
 
+    /// <summary>Tipo do documento.</summary>
     public required DocumentType Type { get; init; }
 
-    /// <summary>Chave de negócio (ex.: chave de acesso da NF-e). Base da idempotência/dedup.</summary>
+    /// <summary>Chave de negócio da origem (ex.: chave de acesso da NF-e).</summary>
     public required string NaturalKey { get; init; }
 
-    /// <summary>
-    /// Localizador específico da origem — o que aquele adapter precisa para achar o documento
-    /// (caminho no Blob, id no ERP, etc.). Só o adapter da origem sabe interpretá-lo.
-    /// </summary>
+    /// <summary>Localizador interpretado pelo adapter da origem (caminho no Blob, id no ERP, etc.).</summary>
     public required string Locator { get; init; }
 }
