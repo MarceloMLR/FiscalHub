@@ -1,13 +1,13 @@
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
+using FiscalHub.Application.Validation;
 using FiscalHub.Domain.Envelope;
-using Xunit;
 
 namespace FiscalHub.Application.Tests;
 
 /// <summary>
-/// Prova que o núcleo da esteira funciona sem Azure nem plataforma real: as três portas são
+/// Prova que o núcleo da esteira funciona sem Azure nem plataforma real: as portas são
 /// substituídas por implementações falsas. Documento usado é um dummy, pois o pipeline é genérico.
 /// </summary>
 public class DocumentPipelineTests
@@ -20,7 +20,7 @@ public class DocumentPipelineTests
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = false };
-        var pipeline = new DocumentPipeline<TestDocument>(source, dispatcher, store);
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store);
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -36,13 +36,29 @@ public class DocumentPipelineTests
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = true };
-        var pipeline = new DocumentPipeline<TestDocument>(source, dispatcher, store);
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store);
 
         await pipeline.ProcessAsync(Reference(), Context());
 
         Assert.Equal(0, source.FetchCount);       // não buscou
         Assert.Equal(0, dispatcher.SubmitCount);  // não reenviou
         Assert.Equal(0, store.RecordCount);       // não registrou de novo
+    }
+
+    [Fact]
+    public async Task Invalid_document_is_rejected_and_not_submitted()
+    {
+        var source = new FakeSource();
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore { AlreadySubmitted = false };
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator { Valid = false }, dispatcher, store);
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(1, source.FetchCount);       // buscou
+        Assert.Equal(0, dispatcher.SubmitCount);  // NÃO enviou
+        Assert.Equal(0, store.RecordCount);       // não registrou envio
+        Assert.Equal(1, store.RejectionCount);    // registrou a rejeição
     }
 
     private static DocumentReference Reference() => new()
@@ -72,6 +88,14 @@ public class DocumentPipelineTests
         }
     }
 
+    private sealed class FakeValidator : IDocumentValidator<TestDocument>
+    {
+        public bool Valid { get; init; } = true;
+
+        public ValidationResult Validate(TestDocument document)
+            => Valid ? ValidationResult.Valid() : ValidationResult.Invalid(["problema de teste"]);
+    }
+
     private sealed class FakeDispatcher : IComplianceDispatcher<TestDocument>
     {
         public string Destination => "fake";
@@ -95,6 +119,7 @@ public class DocumentPipelineTests
     {
         public bool AlreadySubmitted { get; init; }
         public int RecordCount { get; private set; }
+        public int RejectionCount { get; private set; }
         public IntegrationReceipt? Recorded { get; private set; }
 
         public Task<bool> AlreadySubmittedAsync(string tenantId, string naturalKey, CancellationToken ct = default)
@@ -104,6 +129,12 @@ public class DocumentPipelineTests
         {
             RecordCount++;
             Recorded = receipt;
+            return Task.CompletedTask;
+        }
+
+        public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+        {
+            RejectionCount++;
             return Task.CompletedTask;
         }
     }

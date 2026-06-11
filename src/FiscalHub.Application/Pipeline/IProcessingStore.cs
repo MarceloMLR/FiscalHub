@@ -17,4 +17,7 @@ public interface IProcessingStore
 
     /// <summary>Registra o resultado do envio: status de integração e identificador externo.</summary>
     Task RecordSubmissionAsync(DocumentReference reference, IntegrationReceipt receipt, CancellationToken ct = default);
+
+    /// <summary>Registra que o documento foi rejeitado na validação de integração, com o motivo.</summary>
+    Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default);
 }
