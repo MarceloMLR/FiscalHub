@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\FiscalHub.Adapters.Inbound.Xml\FiscalHub.Adapters.Inbound.Xml.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Adapters\Inbound\FiscalHub.Adapters.Inbound.Xml\FiscalHub.Adapters.Inbound.Xml.csproj" />
   </ItemGroup>
 
   <ItemGroup>

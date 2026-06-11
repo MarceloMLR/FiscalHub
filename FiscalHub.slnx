@@ -1,11 +1,15 @@
 <Solution>
-  <Project Path="src/FiscalHub.Domain/FiscalHub.Domain.csproj" />
   <Folder Name="/src/">
-    <Project Path="src/FiscalHub.Adapters.Inbound.Xml/FiscalHub.Adapters.Inbound.Xml.csproj" />
+    <Project Path="src/FiscalHub.Domain/FiscalHub.Domain.csproj" />
+    <Project Path="src/FiscalHub.Application/FiscalHub.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Adapters/Inbound/">
+    <Project Path="src/Adapters/Inbound/FiscalHub.Adapters.Inbound.Xml/FiscalHub.Adapters.Inbound.Xml.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/FiscalHub.Adapters.Inbound.Xml.Tests/FiscalHub.Adapters.Inbound.Xml.Tests.csproj" />
     <Project Path="tests/FiscalHub.Application.Tests/FiscalHub.Application.Tests.csproj" />
   </Folder>
-  <Project Path="src/FiscalHub.Application/FiscalHub.Application.csproj" />
+  <Folder Name="/tests/Adapters/Inbound/">
+    <Project Path="tests/Adapters/Inbound/FiscalHub.Adapters.Inbound.Xml.Tests/FiscalHub.Adapters.Inbound.Xml.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\FiscalHub.Application\FiscalHub.Application.csproj" />
-    <ProjectReference Include="..\FiscalHub.Domain\FiscalHub.Domain.csproj" />
+    <ProjectReference Include="..\..\..\FiscalHub.Application\FiscalHub.Application.csproj" />
+    <ProjectReference Include="..\..\..\FiscalHub.Domain\FiscalHub.Domain.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
