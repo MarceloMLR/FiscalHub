@@ -1,4 +1,7 @@
 <Solution>
   <Project Path="src/FiscalHub.Domain/FiscalHub.Domain.csproj" />
+  <Folder Name="/tests/">
+    <Project Path="tests/FiscalHub.Application.Tests/FiscalHub.Application.Tests.csproj" />
+  </Folder>
   <Project Path="src/FiscalHub.Application/FiscalHub.Application.csproj" />
 </Solution>
