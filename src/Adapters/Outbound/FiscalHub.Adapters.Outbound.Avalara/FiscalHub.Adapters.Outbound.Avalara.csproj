@@ -5,6 +5,11 @@
     <ProjectReference Include="..\..\..\FiscalHub.Domain\FiscalHub.Domain.csproj" />
   </ItemGroup>
 
+  <!-- IHttpClientFactory + IOptions + registro no DI. Traz DI/Options transitivamente. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+  </ItemGroup>
+
   <!-- DTOs do contrato da Avalara ficam internal; o projeto de teste enxerga via isto. -->
   <ItemGroup>
     <InternalsVisibleTo Include="FiscalHub.Adapters.Outbound.Avalara.Tests" />
