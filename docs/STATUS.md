@@ -40,6 +40,6 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 
 ## Threads abertas
 
-- Versionar `docs/infrastructure-brief.md` e ignorar `_bmad-output/` no `.gitignore`.
 - Documento na DLQ não grava `IntegrationError` no store — resolver na fatia de dashboard/DLQ.
 - Seção "como construí com agentes" no README (narrativa do diferencial).
+- (Opcional) mock simular 204 num primeiro GET, para demonstrar o fluxo assíncrono localmente.
