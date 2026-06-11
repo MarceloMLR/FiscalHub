@@ -31,7 +31,7 @@ Ports & adapters (hexagonal). No centro, um modelo de domínio por tipo de docum
 representação interna que não muda quando se troca o ERP de origem ou a plataforma de destino.
 Nas bordas, adapters plugáveis traduzem de e para os formatos externos. Entre origem e
 destino, uma esteira assíncrona (fila + claim-check) move os documentos com idempotência,
-retry e fila de mortos.
+retry e dead queue.
 
 ```mermaid
 flowchart LR
@@ -58,7 +58,7 @@ O raciocínio por trás de cada decisão está em [`docs/adr`](docs/adr).
 
 Recebe, traduz e despacha. **Não** emite notas, **não** assina com certificado, **não**
 transmite à SEFAZ e **não** calcula imposto — isso é responsabilidade de quem emite e de quem
-apura. O hub assume que a nota já foi autorizada (cStat 100) e cuida do transporte confiável
+apura. O hub assume que a nota já foi autorizada (cStat 100) e cuida do envio confiável
 dela até o destino.
 
 ## Estado atual
@@ -101,5 +101,5 @@ Instruções completas serão adicionadas conforme os módulos forem entrando.
 ## Reforma Tributária
 
 O modelo de mercadoria carrega o grupo de IBS, CBS e Imposto Seletivo (com CST e cClassTrib)
-por item, conforme a NT 2025.002. O objetivo é transportar esses campos sem perda da origem
+por item, conforme a NT 2025.002. O objetivo é enviar esses campos sem perda da origem
 até o destino — a apuração em si fica com a plataforma de compliance.
