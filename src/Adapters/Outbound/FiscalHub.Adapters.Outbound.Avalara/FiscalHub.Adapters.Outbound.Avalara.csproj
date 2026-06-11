@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\FiscalHub.Application\FiscalHub.Application.csproj" />
+    <ProjectReference Include="..\..\..\FiscalHub.Domain\FiscalHub.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- DTOs do contrato da Avalara ficam internal; o projeto de teste enxerga via isto. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="FiscalHub.Adapters.Outbound.Avalara.Tests" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
