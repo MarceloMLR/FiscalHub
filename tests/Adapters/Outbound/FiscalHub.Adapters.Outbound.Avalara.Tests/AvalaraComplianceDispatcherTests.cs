@@ -64,6 +64,18 @@ public class AvalaraComplianceDispatcherTests
     }
 
     [Fact]
+    public async Task CheckStatus_treats_204_no_content_as_still_pending()
+    {
+        // A Avalara devolve 204 (sem corpo) quando a nota ainda não foi processada.
+        var handler = new StubHttpMessageHandler(string.Empty, HttpStatusCode.NoContent);
+        var dispatcher = Build(handler);
+
+        IntegrationResult result = await dispatcher.CheckStatusAsync("ext-guid-1", Context());
+
+        Assert.Equal(IntegrationStatus.Submitted, result.Status);
+    }
+
+    [Fact]
     public async Task Submit_applies_bearer_token_when_provider_returns_one()
     {
         var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");

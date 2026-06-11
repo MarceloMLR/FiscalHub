@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -64,6 +65,13 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
+
+        // 204 No Content = a plataforma ainda não processou o documento → segue pendente
+        // (a consulta de status acontece de novo mais tarde). Não é erro.
+        if (response.StatusCode == HttpStatusCode.NoContent)
+        {
+            return new IntegrationResult { Status = IntegrationStatus.Submitted };
+        }
 
         AvalaraStatusResponse body = await ReadJsonAsync<AvalaraStatusResponse>(response, ct);
         IntegrationStatus status = Translate(body.Status);
