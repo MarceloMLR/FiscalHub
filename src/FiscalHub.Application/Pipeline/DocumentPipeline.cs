@@ -1,5 +1,6 @@
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
+using FiscalHub.Application.Validation;
 
 namespace FiscalHub.Application.Pipeline;
 
@@ -11,23 +12,26 @@ namespace FiscalHub.Application.Pipeline;
 public sealed class DocumentPipeline<TDocument>
 {
     private readonly IInboundSource<TDocument> _source;
+    private readonly IDocumentValidator<TDocument> _validator;
     private readonly IComplianceDispatcher<TDocument> _dispatcher;
     private readonly IProcessingStore _store;
 
     public DocumentPipeline(
         IInboundSource<TDocument> source,
+        IDocumentValidator<TDocument> validator,
         IComplianceDispatcher<TDocument> dispatcher,
         IProcessingStore store)
     {
         _source = source;
+        _validator = validator;
         _dispatcher = dispatcher;
         _store = store;
     }
 
     /// <summary>
-    /// Processa um documento: verifica idempotência, busca o conteúdo na origem, envia ao destino
-    /// e registra o resultado. Qualquer falha propaga como exceção, deixando o retry/DLQ a cargo
-    /// do transporte; a checagem de idempotência torna a reentrega segura.
+    /// Processa um documento: idempotência, busca, validação de integração, envio e registro.
+    /// Documento inválido é rejeitado (registrado com o motivo) e não é enviado. Qualquer falha
+    /// propaga como exceção, deixando o retry/DLQ a cargo do transporte.
     /// </summary>
     public async Task ProcessAsync(
         DocumentReference reference, DispatchContext context, CancellationToken ct = default)
@@ -37,7 +41,12 @@ public sealed class DocumentPipeline<TDocument>
 
         TDocument document = await _source.FetchAsync(reference, ct);
 
-        // Validação de integração (completude, mapeabilidade) entra aqui — fatia futura.
+        ValidationResult validation = _validator.Validate(document);
+        if (!validation.IsValid)
+        {
+            await _store.RecordRejectionAsync(reference, string.Join("; ", validation.Problems), ct);
+            return;
+        }
 
         IntegrationReceipt receipt = await _dispatcher.SubmitAsync(document, context, ct);
 
