@@ -1,0 +1,13 @@
+# Normaliza fim de linha: LF no repositório, nativo no working dir.
+# Evita diffs fantasma (CRLF x LF) quando arquivos são escritos por ferramentas diferentes.
+* text=auto
+
+# Binários — nunca normalizar
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.pfx binary
+*.p12 binary
