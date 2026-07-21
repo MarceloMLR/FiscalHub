@@ -4,7 +4,13 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-06-11
+**Última atualização:** 2026-07-21
+
+## Ferramentas da sessão
+
+- **`gh` CLI autenticado** — o Claude cria PR, mostra o diff e mergeia (sempre com aval do Marcelo).
+- **Windows MCP (PowerShell)** — o Claude roda `dotnet build`/`dotnet test` e comandos git direto.
+- **Azure MCP** — consulta de recursos, Bicep, best practices e **preços** (útil na fase de infra).
 
 ## Onde estamos
 
