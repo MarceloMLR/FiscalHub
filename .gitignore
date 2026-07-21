@@ -22,7 +22,7 @@ secrets.json
 # ---- Ferramentas de agente ----
 .claude/
 .bmad*/
-_bmad-output/
+_bmad*/
 
 # ---- SO / IDE ----
 .DS_Store
