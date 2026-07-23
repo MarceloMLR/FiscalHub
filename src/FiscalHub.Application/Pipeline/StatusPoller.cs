@@ -31,39 +31,52 @@ public sealed class StatusPoller<TDocument>
         {
             ct.ThrowIfCancellationRequested();
 
-            var context = new DispatchContext
+            try
             {
-                TenantId = doc.TenantId,
-                NaturalKey = doc.NaturalKey,
-                CorrelationId = Guid.NewGuid().ToString(),
-                Operation = DocumentStatus.Issued,
-            };
-
-            IntegrationResult result = await _dispatcher.CheckStatusAsync(doc.ExternalId, context, ct);
-            int attempts = doc.Attempts + 1;
-
-            switch (result.Status)
+                await PollOneAsync(doc, ct);
+            }
+            catch (Exception) when (!ct.IsCancellationRequested)
             {
-                case IntegrationStatus.Confirmed:
-                    await _store.MarkPolledAsync(doc.TenantId, doc.NaturalKey, IntegrationStatus.Confirmed, null, attempts, ct);
-                    break;
-
-                case IntegrationStatus.IntegrationError:
-                    await _store.MarkPolledAsync(doc.TenantId, doc.NaturalKey, IntegrationStatus.IntegrationError, result.Message, attempts, ct);
-                    break;
-
-                default: // ainda em processamento na plataforma (Submitted/Pending)
-                    bool giveUp = attempts >= _options.MaxAttempts;
-                    await _store.MarkPolledAsync(
-                        doc.TenantId, doc.NaturalKey,
-                        giveUp ? IntegrationStatus.Unconfirmed : IntegrationStatus.Submitted,
-                        giveUp ? "Sem resposta da plataforma após o limite de consultas." : null,
-                        attempts, ct);
-                    break;
+                // Falha ao consultar UM documento não pode derrubar o lote inteiro. Deixa pra
+                // próxima passada; se persistir, o limite de tentativas o move pra Unconfirmed.
             }
         }
 
         return pending.Count;
+    }
+
+    private async Task PollOneAsync(PendingIntegration doc, CancellationToken ct)
+    {
+        var context = new DispatchContext
+        {
+            TenantId = doc.TenantId,
+            NaturalKey = doc.NaturalKey,
+            CorrelationId = Guid.NewGuid().ToString(),
+            Operation = DocumentStatus.Issued,
+        };
+
+        IntegrationResult result = await _dispatcher.CheckStatusAsync(doc.ExternalId, context, ct);
+        int attempts = doc.Attempts + 1;
+
+        switch (result.Status)
+        {
+            case IntegrationStatus.Confirmed:
+                await _store.MarkPolledAsync(doc.TenantId, doc.NaturalKey, IntegrationStatus.Confirmed, null, attempts, ct);
+                break;
+
+            case IntegrationStatus.IntegrationError:
+                await _store.MarkPolledAsync(doc.TenantId, doc.NaturalKey, IntegrationStatus.IntegrationError, result.Message, attempts, ct);
+                break;
+
+            default: // ainda em processamento na plataforma (Submitted/Pending)
+                bool giveUp = attempts >= _options.MaxAttempts;
+                await _store.MarkPolledAsync(
+                    doc.TenantId, doc.NaturalKey,
+                    giveUp ? IntegrationStatus.Unconfirmed : IntegrationStatus.Submitted,
+                    giveUp ? "Sem resposta da plataforma após o limite de consultas." : null,
+                    attempts, ct);
+                break;
+        }
     }
 }
 

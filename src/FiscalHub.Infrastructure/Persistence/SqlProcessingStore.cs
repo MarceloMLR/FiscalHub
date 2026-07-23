@@ -30,6 +30,9 @@ internal sealed class SqlProcessingStore : IProcessingStore
     public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         => UpsertAsync(reference, IntegrationStatus.IntegrationError, externalId: null, reason, ct);
 
+    public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+        => UpsertAsync(reference, IntegrationStatus.DeadLettered, externalId: null, reason, ct);
+
     public async Task<IReadOnlyList<PendingIntegration>> ListPendingAsync(int batchSize, CancellationToken ct = default)
         => await _db.ProcessedDocuments
             .Where(d => d.Status == IntegrationStatus.Submitted && d.ExternalId != null)

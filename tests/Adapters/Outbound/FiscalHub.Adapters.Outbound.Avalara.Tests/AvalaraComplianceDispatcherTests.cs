@@ -77,6 +77,18 @@ public class AvalaraComplianceDispatcherTests
     }
 
     [Fact]
+    public async Task CheckStatus_treats_404_not_found_as_still_pending()
+    {
+        // 404 = a plataforma ainda não conhece o identificador → pendente, não estoura o poll do lote.
+        var handler = new StubHttpMessageHandler(string.Empty, HttpStatusCode.NotFound);
+        var dispatcher = Build(handler);
+
+        IntegrationResult result = await dispatcher.CheckStatusAsync("ext-guid-1", Context());
+
+        Assert.Equal(IntegrationStatus.Submitted, result.Status);
+    }
+
+    [Fact]
     public async Task Submit_applies_bearer_token_when_provider_returns_one()
     {
         var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");

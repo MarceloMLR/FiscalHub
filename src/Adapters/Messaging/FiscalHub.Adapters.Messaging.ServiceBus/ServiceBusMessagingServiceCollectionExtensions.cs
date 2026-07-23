@@ -24,7 +24,9 @@ public static class ServiceBusMessagingServiceCollectionExtensions
 
         services.AddSingleton<IDocumentQueue, ServiceBusDocumentQueue>();
         services.AddScoped<QueuedDocumentProcessor>();
+        services.AddScoped<DeadLetterHandler>();
         services.AddHostedService<ServiceBusTriggerService>();
+        services.AddHostedService<DeadLetterTriggerService>();
 
         return services;
     }

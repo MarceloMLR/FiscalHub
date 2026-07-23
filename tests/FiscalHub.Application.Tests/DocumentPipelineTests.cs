@@ -151,6 +151,9 @@ public class DocumentPipelineTests
 
         public Task MarkPolledAsync(string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 
     private sealed class RecordingTrace : IProcessingTrace

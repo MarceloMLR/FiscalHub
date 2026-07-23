@@ -112,6 +112,18 @@ public class SqlProcessingStoreTests
         Assert.Equal(0, pending[0].Attempts);
     }
 
+    [Fact]
+    public async Task Dead_lettered_document_is_recorded_and_reopens_for_resubmission()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+
+        await h.Store.RecordDeadLetterAsync(Reference("nfe-1"), "MaxDeliveryCountExceeded");
+
+        Assert.False(await h.Store.AlreadySubmittedAsync("tenant-a", "nfe-1")); // dead-letter libera reenvio
+        Assert.Empty(await h.Store.ListPendingAsync(50));                        // saiu da fila de poll
+    }
+
     private static Harness NewStore()
     {
         var conn = new SqliteConnection("DataSource=:memory:");

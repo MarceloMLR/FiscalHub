@@ -72,6 +72,19 @@ public class StatusPollerTests
         Assert.Null(store.LastMark);
     }
 
+    [Fact]
+    public async Task One_failing_document_does_not_block_the_rest_of_the_batch()
+    {
+        var store = new FakeStore(Pending("nfe-bad", attempts: 0), Pending("nfe-good", attempts: 0));
+        var poller = new StatusPoller<TestDocument>(store, new SelectiveDispatcher("guid-nfe-bad"), new StatusPollerOptions());
+
+        int count = await poller.PollOnceAsync();
+
+        Assert.Equal(2, count);
+        Assert.Contains(store.Marks, m => m.Key == "nfe-good" && m.Status == IntegrationStatus.Confirmed);
+        Assert.DoesNotContain(store.Marks, m => m.Key == "nfe-bad");   // o que estourou nao foi marcado
+    }
+
     private static PendingIntegration Pending(string key, int attempts) => new()
     {
         TenantId = "tenant-a",
@@ -91,6 +104,19 @@ public class StatusPollerTests
             => Task.FromResult(new IntegrationResult { Status = status, Message = message });
     }
 
+    private sealed class SelectiveDispatcher(string failingExternalId) : IComplianceDispatcher<TestDocument>
+    {
+        public string Destination => "fake";
+
+        public Task<IntegrationReceipt> SubmitAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
+        public Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
+            => externalId == failingExternalId
+                ? throw new InvalidOperationException("falha simulada na consulta")
+                : Task.FromResult(new IntegrationResult { Status = IntegrationStatus.Confirmed });
+    }
+
     private sealed class FakeStore : IProcessingStore
     {
         private readonly List<PendingIntegration> _pending;
@@ -99,14 +125,20 @@ public class StatusPollerTests
 
         public (IntegrationStatus Status, string? Reason, int Attempts)? LastMark { get; private set; }
 
+        public List<(string Key, IntegrationStatus Status, string? Reason, int Attempts)> Marks { get; } = [];
+
         public Task<IReadOnlyList<PendingIntegration>> ListPendingAsync(int batchSize, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<PendingIntegration>>(_pending);
 
         public Task MarkPolledAsync(string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default)
         {
             LastMark = (status, reason, attempts);
+            Marks.Add((naturalKey, status, reason, attempts));
             return Task.CompletedTask;
         }
+
+        public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
 
         public Task<bool> AlreadySubmittedAsync(string tenantId, string naturalKey, CancellationToken ct = default)
             => Task.FromResult(false);

@@ -72,14 +72,16 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         await ApplyAuthAsync(request, context.TenantId, ct);
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
-        response.EnsureSuccessStatusCode();
 
-        // 204 No Content = a plataforma ainda não processou o documento → segue pendente
-        // (a consulta de status acontece de novo mais tarde). Não é erro.
-        if (response.StatusCode == HttpStatusCode.NoContent)
+        // 204 (sem conteúdo) e 404 (identificador ainda desconhecido) = a plataforma não processou
+        // o documento ainda → segue pendente, não é erro. A consulta se repete e, no limite de
+        // tentativas, vira Unconfirmed. Assim um GUID problemático não trava o poll do lote.
+        if (response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotFound)
         {
             return new IntegrationResult { Status = IntegrationStatus.Submitted };
         }
+
+        response.EnsureSuccessStatusCode();
 
         AvalaraStatusResponse body = await ReadJsonAsync<AvalaraStatusResponse>(response, ct);
         IntegrationStatus status = Translate(body.Status);
