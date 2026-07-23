@@ -53,6 +53,20 @@
           "response": []
         },
         {
+          "name": "POST /drop/{key}",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hostUrl}}/drop/{{naturalKey}}",
+              "host": ["{{hostUrl}}"],
+              "path": ["drop", "{{naturalKey}}"]
+            },
+            "description": "Simula um arquivo caindo na zona de drop: copia o XML de exemplo pra 'drop/tenant-a/{key}.xml'. O watcher de ingestao pega, move pro container duravel e enfileira sozinho — sem /ingest manual. Depois use o GET /trace."
+          },
+          "response": []
+        },
+        {
           "name": "GET /trace/{tenant}/{chave}",
           "request": {
             "method": "GET",
