@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FiscalHub.Adapters.Inbound.Xml;
@@ -47,6 +48,10 @@ builder.Services.AddHostedService<StatusPollingService>();
 // CORS liberado pro dashboard local. Em produção, restringir a origem.
 builder.Services.AddCors(options => options.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+// Enums como texto no JSON das respostas (status/tipo legíveis pro dashboard, não números).
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 var app = builder.Build();
 
