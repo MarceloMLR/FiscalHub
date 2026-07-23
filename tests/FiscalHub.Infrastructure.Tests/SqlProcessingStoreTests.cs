@@ -113,6 +113,21 @@ public class SqlProcessingStoreTests
     }
 
     [Fact]
+    public async Task Queries_list_recent_returns_documents_newest_first()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+        await h.Store.RecordSubmissionAsync(Reference("nfe-2"), Receipt());
+
+        var queries = new SqlDocumentQueries(h.Db);
+        var list = await queries.ListRecentAsync(10);
+
+        Assert.Equal(2, list.Count);
+        Assert.Equal("nfe-2", list[0].NaturalKey);   // mais novo primeiro
+        Assert.Equal("nfe-1", list[1].NaturalKey);
+    }
+
+    [Fact]
     public async Task Dead_lettered_document_is_recorded_and_reopens_for_resubmission()
     {
         using var h = NewStore();

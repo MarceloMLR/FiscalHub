@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using FiscalHub.Application.Pipeline;
+using FiscalHub.Application.Queries;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Infrastructure.Persistence;
 using FiscalHub.Infrastructure.Tracing;
@@ -18,6 +19,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddDbContext<ProcessingDbContext>(options => options.UseSqlServer(connectionString));
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IProcessingStore, SqlProcessingStore>();
+        services.AddScoped<IDocumentQueries, SqlDocumentQueries>();
         return services;
     }
 

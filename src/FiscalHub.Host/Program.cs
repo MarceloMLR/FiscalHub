@@ -8,6 +8,7 @@ using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
+using FiscalHub.Application.Queries;
 using FiscalHub.Application.Validation;
 using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
@@ -43,7 +44,13 @@ builder.Services.AddSingleton(new StatusPollerOptions());
 builder.Services.AddScoped<StatusPoller<GoodsInvoice>>();
 builder.Services.AddHostedService<StatusPollingService>();
 
+// CORS liberado pro dashboard local. Em produção, restringir a origem.
+builder.Services.AddCors(options => options.AddDefaultPolicy(p =>
+    p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
 var app = builder.Build();
+
+app.UseCors();
 
 // Dev local: cria o schema no SQL, o container no Blob e sobe um XML de exemplo.
 await app.Services.EnsureProcessingSchemaAsync();
@@ -115,6 +122,11 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
         ? Results.NotFound(new { tenantId, naturalKey, message = "sem fotos para esse documento." })
         : Results.Ok(snapshots);
 });
+
+// Leitura pro dashboard: os documentos mais recentes com status. Em produção, atrás de auth e
+// filtrado por tenant.
+app.MapGet("/documents", async (IDocumentQueries queries, CancellationToken ct) =>
+    Results.Ok(await queries.ListRecentAsync(100, ct)));
 
 app.Run();
 
