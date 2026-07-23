@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -16,6 +17,7 @@ public static class XmlInboundServiceCollectionExtensions
     {
         services.TryAddSingleton<NfeXmlParser>();
         services.TryAddSingleton<IBlobReader, AzureBlobReader>();
+        services.TryAddSingleton<IProcessingTrace, NoOpProcessingTrace>();
         services.AddSingleton<IInboundSource<GoodsInvoice>, XmlGoodsInvoiceSource>();
         return services;
     }

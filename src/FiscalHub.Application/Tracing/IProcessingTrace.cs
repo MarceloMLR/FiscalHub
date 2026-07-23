@@ -1,13 +1,16 @@
 namespace FiscalHub.Application.Tracing;
 
 /// <summary>
-/// Guarda as "fotos" de um documento ao longo do processamento, para rastreabilidade em chamados:
-/// o layout do domínio (nosso padrão) e o payload enviado ao destino. A fonte crua (XML) já fica
-/// no Blob pelo claim-check. Com as três, isola-se onde uma informação se perdeu:
-/// fonte → domínio → destino.
+/// Guarda as três "fotos" de um documento para rastreabilidade em chamados: a fonte crua recebida
+/// do cliente, o documento no nosso modelo de domínio, e o payload enviado ao destino. Com as três,
+/// isola-se onde uma informação se perdeu: fonte → domínio → destino. Cada camada fotografa o
+/// artefato que é dona (entrada → fonte, esteira → domínio, saída → destino).
 /// </summary>
 public interface IProcessingTrace
 {
+    /// <summary>Registra a fonte crua recebida do cliente (ex.: o XML do ERP), no formato original.</summary>
+    Task SaveSourceAsync(string tenantId, string naturalKey, string content, string format, CancellationToken ct = default);
+
     /// <summary>Registra o documento já no nosso modelo de domínio (JSON).</summary>
     Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default);
 
@@ -18,6 +21,9 @@ public interface IProcessingTrace
 /// <summary>Trace desligado (no-op). Padrão quando a rastreabilidade não está configurada.</summary>
 public sealed class NoOpProcessingTrace : IProcessingTrace
 {
+    public Task SaveSourceAsync(string tenantId, string naturalKey, string content, string format, CancellationToken ct = default)
+        => Task.CompletedTask;
+
     public Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default)
         => Task.CompletedTask;
 

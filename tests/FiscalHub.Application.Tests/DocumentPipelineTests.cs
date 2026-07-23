@@ -1,6 +1,7 @@
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Application.Validation;
 using FiscalHub.Domain.Envelope;
 
@@ -20,7 +21,8 @@ public class DocumentPipelineTests
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = false };
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store);
+        var trace = new RecordingTrace();
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace);
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -28,6 +30,7 @@ public class DocumentPipelineTests
         Assert.Equal(1, dispatcher.SubmitCount);  // enviou ao destino
         Assert.Equal(1, store.RecordCount);       // registrou o resultado
         Assert.Equal("guid-123", store.Recorded!.ExternalId);
+        Assert.Equal("nfe-key-1", trace.DomainKey); // fotografou o domínio
     }
 
     [Fact]
@@ -36,13 +39,15 @@ public class DocumentPipelineTests
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = true };
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store);
+        var trace = new RecordingTrace();
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace);
 
         await pipeline.ProcessAsync(Reference(), Context());
 
         Assert.Equal(0, source.FetchCount);       // não buscou
         Assert.Equal(0, dispatcher.SubmitCount);  // não reenviou
         Assert.Equal(0, store.RecordCount);       // não registrou de novo
+        Assert.Null(trace.DomainKey);             // nem fotografou (parou na idempotência)
     }
 
     [Fact]
@@ -51,7 +56,8 @@ public class DocumentPipelineTests
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = false };
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator { Valid = false }, dispatcher, store);
+        var trace = new RecordingTrace();
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator { Valid = false }, dispatcher, store, trace);
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -59,6 +65,7 @@ public class DocumentPipelineTests
         Assert.Equal(0, dispatcher.SubmitCount);  // NÃO enviou
         Assert.Equal(0, store.RecordCount);       // não registrou envio
         Assert.Equal(1, store.RejectionCount);    // registrou a rejeição
+        Assert.Equal("nfe-key-1", trace.DomainKey); // fotografou o domínio mesmo rejeitando
     }
 
     private static DocumentReference Reference() => new()
@@ -136,6 +143,31 @@ public class DocumentPipelineTests
         public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         {
             RejectionCount++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingTrace : IProcessingTrace
+    {
+        public string? SourceKey { get; private set; }
+        public string? DomainKey { get; private set; }
+        public string? OutboundKey { get; private set; }
+
+        public Task SaveSourceAsync(string tenantId, string naturalKey, string content, string format, CancellationToken ct = default)
+        {
+            SourceKey = naturalKey;
+            return Task.CompletedTask;
+        }
+
+        public Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default)
+        {
+            DomainKey = naturalKey;
+            return Task.CompletedTask;
+        }
+
+        public Task SaveOutboundAsync(string tenantId, string naturalKey, string destination, string json, CancellationToken ct = default)
+        {
+            OutboundKey = naturalKey;
             return Task.CompletedTask;
         }
     }

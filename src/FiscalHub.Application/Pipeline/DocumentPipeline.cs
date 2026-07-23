@@ -1,5 +1,7 @@
+using System.Text.Json;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Application.Validation;
 
 namespace FiscalHub.Application.Pipeline;
@@ -11,21 +13,26 @@ namespace FiscalHub.Application.Pipeline;
 /// </summary>
 public sealed class DocumentPipeline<TDocument>
 {
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+
     private readonly IInboundSource<TDocument> _source;
     private readonly IDocumentValidator<TDocument> _validator;
     private readonly IComplianceDispatcher<TDocument> _dispatcher;
     private readonly IProcessingStore _store;
+    private readonly IProcessingTrace _trace;
 
     public DocumentPipeline(
         IInboundSource<TDocument> source,
         IDocumentValidator<TDocument> validator,
         IComplianceDispatcher<TDocument> dispatcher,
-        IProcessingStore store)
+        IProcessingStore store,
+        IProcessingTrace trace)
     {
         _source = source;
         _validator = validator;
         _dispatcher = dispatcher;
         _store = store;
+        _trace = trace;
     }
 
     /// <summary>
@@ -40,6 +47,10 @@ public sealed class DocumentPipeline<TDocument>
             return;
 
         TDocument document = await _source.FetchAsync(reference, ct);
+
+        // Foto do domínio (ADR-0006): o documento já no nosso modelo, antes de validar — assim até
+        // uma nota rejeitada deixa registrado o que a gente entendeu dela.
+        await _trace.SaveDomainAsync(reference.TenantId, reference.NaturalKey, JsonSerializer.Serialize(document, JsonOpts), ct);
 
         ValidationResult validation = _validator.Validate(document);
         if (!validation.IsValid)

@@ -102,7 +102,7 @@ public class AvalaraComplianceDispatcherTests
     }
 
     [Fact]
-    public async Task Submit_traces_domain_and_outbound_before_send()
+    public async Task Submit_traces_outbound_payload_before_send()
     {
         var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
         var trace = new RecordingTrace();
@@ -110,12 +110,8 @@ public class AvalaraComplianceDispatcherTests
 
         await dispatcher.SubmitAsync(SampleInvoice(), Context());
 
-        // Foto do domínio (nosso padrão): camelCase, chave natural preservada.
-        Assert.NotNull(trace.Domain);
-        Assert.Equal("nfe-1", trace.Domain!.Value.Key);
-        Assert.Contains("\"accessKey\"", trace.Domain.Value.Json);
-
-        // Foto do payload que foi ao destino (formato Avalara).
+        // O dispatcher fotografa só o destino; o domínio é responsabilidade da esteira.
+        Assert.Null(trace.Domain);
         Assert.NotNull(trace.Outbound);
         Assert.Equal("avalara", trace.Outbound!.Value.Destination);
         Assert.Contains("\"chaveNFe\"", trace.Outbound.Value.Json);
@@ -176,6 +172,9 @@ public class AvalaraComplianceDispatcherTests
     {
         public (string Tenant, string Key, string Json)? Domain { get; private set; }
         public (string Tenant, string Key, string Destination, string Json)? Outbound { get; private set; }
+
+        public Task SaveSourceAsync(string tenantId, string naturalKey, string content, string format, CancellationToken ct = default)
+            => Task.CompletedTask;
 
         public Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default)
         {

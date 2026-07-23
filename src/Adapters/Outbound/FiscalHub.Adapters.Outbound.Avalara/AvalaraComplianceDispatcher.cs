@@ -43,10 +43,8 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     {
         AvalaraDocument payload = GoodsInvoiceToAvalara.Map(document);
 
-        // Rastreabilidade (ADR-0006): guarda a foto do domínio (nosso padrão) e do payload que vai
-        // ao destino, antes do envio. Num chamado, permite isolar onde uma informação se perdeu —
-        // no mapeamento origem→domínio ou domínio→destino.
-        await _trace.SaveDomainAsync(context.TenantId, context.NaturalKey, JsonSerializer.Serialize(document, JsonOpts), ct);
+        // Foto do destino (ADR-0006): o payload no formato Avalara, antes do envio. A foto do
+        // domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
         await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, JsonOpts), ct);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, _options.DocumentsPath)

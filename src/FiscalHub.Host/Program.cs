@@ -65,7 +65,7 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
         return Results.NotFound(new { message = "container 'traces' ainda nao existe — rode um /ingest antes." });
     }
 
-    var snapshots = new Dictionary<string, JsonElement>();
+    var snapshots = new Dictionary<string, object>();
     await foreach (BlobItem item in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{tenantId}/", ct))
     {
         if (!item.Name.Contains($"/{naturalKey}/", StringComparison.Ordinal))
@@ -74,7 +74,10 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
         }
 
         BlobDownloadResult blob = await container.GetBlobClient(item.Name).DownloadContentAsync(ct);
-        snapshots[item.Name] = blob.Content.ToObjectFromJson<JsonElement>();
+        // JSON entra aninhado (legível); a fonte crua (XML) entra como string.
+        snapshots[item.Name] = item.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+            ? blob.Content.ToObjectFromJson<JsonElement>()
+            : blob.Content.ToString();
     }
 
     return snapshots.Count == 0
