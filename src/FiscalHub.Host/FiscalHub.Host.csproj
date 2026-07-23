@@ -6,6 +6,7 @@
     <ProjectReference Include="..\FiscalHub.Infrastructure\FiscalHub.Infrastructure.csproj" />
     <ProjectReference Include="..\Adapters\Inbound\FiscalHub.Adapters.Inbound.Xml\FiscalHub.Adapters.Inbound.Xml.csproj" />
     <ProjectReference Include="..\Adapters\Outbound\FiscalHub.Adapters.Outbound.Avalara\FiscalHub.Adapters.Outbound.Avalara.csproj" />
+    <ProjectReference Include="..\Adapters\Messaging\FiscalHub.Adapters.Messaging.ServiceBus\FiscalHub.Adapters.Messaging.ServiceBus.csproj" />
   </ItemGroup>
 
   <ItemGroup>

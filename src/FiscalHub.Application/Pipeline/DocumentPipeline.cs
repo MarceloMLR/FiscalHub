@@ -11,7 +11,7 @@ namespace FiscalHub.Application.Pipeline;
 /// conhecer fila, Azure ou plataforma de destino. A casca de infraestrutura (gatilho do Service
 /// Bus) apenas chama <see cref="ProcessAsync"/>; o retry e a DLQ ficam por conta do transporte.
 /// </summary>
-public sealed class DocumentPipeline<TDocument>
+public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 

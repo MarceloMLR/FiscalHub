@@ -2,6 +2,7 @@ using System.Text.Json;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FiscalHub.Adapters.Inbound.Xml;
+using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
@@ -22,7 +23,15 @@ builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
-builder.Services.AddScoped<DocumentPipeline<GoodsInvoice>>();
+builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
+
+// Gatilho por fila (Etapa 2): /ingest enfileira; o consumidor do Service Bus chama a esteira,
+// com retry e dead-letter nativos do transporte.
+builder.Services.AddServiceBusDocumentQueue(options =>
+{
+    options.ConnectionString = cfg.GetConnectionString("ServiceBus")!;
+    options.QueueName = cfg["ServiceBus:Queue"] ?? "documents-in";
+});
 
 // Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).
 builder.Services.AddSingleton(new StatusPollerOptions());
@@ -38,8 +47,9 @@ await LocalSeed.RunAsync(app.Services);
 app.MapGet("/", () =>
     $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.");
 
-// Etapa 1 (sem fila): dispara a esteira para um documento. A fila entra na Etapa 2.
-app.MapPost("/ingest", async (IngestRequest req, DocumentPipeline<GoodsInvoice> pipeline, CancellationToken ct) =>
+// Etapa 2: enfileira a referência (claim-check). O consumidor do Service Bus processa a esteira;
+// retry e dead-letter ficam por conta do transporte.
+app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, CancellationToken ct) =>
 {
     var reference = new DocumentReference
     {
@@ -48,16 +58,9 @@ app.MapPost("/ingest", async (IngestRequest req, DocumentPipeline<GoodsInvoice> 
         NaturalKey = req.NaturalKey,
         Locator = req.Locator,
     };
-    var context = new DispatchContext
-    {
-        TenantId = req.TenantId,
-        NaturalKey = req.NaturalKey,
-        CorrelationId = Guid.NewGuid().ToString(),
-        Operation = DocumentStatus.Issued,
-    };
 
-    await pipeline.ProcessAsync(reference, context, ct);
-    return Results.Ok(new { ingested = req.NaturalKey });
+    await queue.EnqueueAsync(reference, ct);
+    return Results.Accepted($"/trace/{req.TenantId}/{req.NaturalKey}", new { queued = req.NaturalKey });
 });
 
 // Debug (dev local): devolve as fotos de rastreabilidade de um documento — dominio e destino,

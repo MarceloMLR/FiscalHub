@@ -11,6 +11,9 @@
   <Folder Name="/src/Adapters/Outbound/">
     <Project Path="src/Adapters/Outbound/FiscalHub.Adapters.Outbound.Avalara/FiscalHub.Adapters.Outbound.Avalara.csproj" />
   </Folder>
+  <Folder Name="/src/Adapters/Messaging/">
+    <Project Path="src/Adapters/Messaging/FiscalHub.Adapters.Messaging.ServiceBus/FiscalHub.Adapters.Messaging.ServiceBus.csproj" />
+  </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/MockComplianceApi/MockComplianceApi.csproj" />
   </Folder>
@@ -23,5 +26,8 @@
   </Folder>
   <Folder Name="/tests/Adapters/Outbound/">
     <Project Path="tests/Adapters/Outbound/FiscalHub.Adapters.Outbound.Avalara.Tests/FiscalHub.Adapters.Outbound.Avalara.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Adapters/Messaging/">
+    <Project Path="tests/Adapters/Messaging/FiscalHub.Adapters.Messaging.ServiceBus.Tests/FiscalHub.Adapters.Messaging.ServiceBus.Tests.csproj" />
   </Folder>
 </Solution>
