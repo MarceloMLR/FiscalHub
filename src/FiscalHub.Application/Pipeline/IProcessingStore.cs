@@ -26,6 +26,9 @@ public interface IProcessingStore
 
     /// <summary>Atualiza o desfecho de uma consulta de status: novo estado, motivo e nº de tentativas.</summary>
     Task MarkPolledAsync(string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default);
+
+    /// <summary>Registra que a mensagem do documento foi pra dead-letter após esgotar as tentativas.</summary>
+    Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default);
 }
 
 /// <summary>Documento em voo a consultar: identidade, GUID externo e tentativas já feitas.</summary>

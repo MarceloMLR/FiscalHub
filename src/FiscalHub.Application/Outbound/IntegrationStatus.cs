@@ -17,4 +17,7 @@ public enum IntegrationStatus
 
     /// <summary>Consultado além do limite sem resposta da plataforma (ex.: 204 eterno). Item em aberto.</summary>
     Unconfirmed,
+
+    /// <summary>Processamento falhou repetidamente e a mensagem foi pra dead-letter. Item em aberto.</summary>
+    DeadLettered,
 }
