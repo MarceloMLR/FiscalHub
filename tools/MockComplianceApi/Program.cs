@@ -7,15 +7,15 @@ using System.Collections.Concurrent;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-// guid -> status nativo ("carregado" | "erro" | "processando")
-var documents = new ConcurrentDictionary<string, string>();
+// guid -> (status nativo, corpo JSON recebido)
+var documents = new ConcurrentDictionary<string, (string Status, string Body)>();
 
 // Fase 1 — recebe o "god json" e devolve um identificador externo (GUID).
 // O resultado da consulta é controlável via ?resultado=carregado|erro para exercitar os dois ramos.
 app.MapPost("/documents", async (HttpRequest request, string? resultado) =>
 {
     using var reader = new StreamReader(request.Body);
-    _ = await reader.ReadToEndAsync(); // corpo aceito como-está; o mock não valida o conteúdo.
+    var body = await reader.ReadToEndAsync();
 
     var status = resultado?.Trim().ToLowerInvariant() switch
     {
@@ -25,14 +25,20 @@ app.MapPost("/documents", async (HttpRequest request, string? resultado) =>
     };
 
     var id = Guid.NewGuid().ToString();
-    documents[id] = status;
+    documents[id] = (status, body);
     return Results.Ok(new { id });
 });
 
 // Fase 2 — consulta o status final pelo GUID.
 app.MapGet("/documents/{id}/status", (string id) =>
-    documents.TryGetValue(id, out var status)
-        ? Results.Ok(new { id, status })
+    documents.TryGetValue(id, out var doc)
+        ? Results.Ok(new { id, status = doc.Status })
         : Results.NotFound(new { id, status = "desconhecido" }));
+
+// Inspeção: devolve o JSON exato que o hub enviou (para ver o payload gerado).
+app.MapGet("/documents/{id}", (string id) =>
+    documents.TryGetValue(id, out var doc)
+        ? Results.Content(doc.Body, "application/json")
+        : Results.NotFound());
 
 app.Run();
