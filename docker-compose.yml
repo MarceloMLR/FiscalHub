@@ -27,6 +27,21 @@ services:
     volumes:
       - sql-data:/var/opt/mssql
 
+  # Emulador do Azure Service Bus (fila local). Depende do SQL Server como backing store.
+  servicebus:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    depends_on:
+      - sql
+    ports:
+      - "5672:5672"   # AMQP
+      - "5300:5300"   # health/admin
+    environment:
+      ACCEPT_EULA: "Y"
+      SQL_SERVER: sql
+      MSSQL_SA_PASSWORD: "Local_Dev_123!"
+    volumes:
+      - ./docker/servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
+
 volumes:
   azurite-data:
   sql-data:
