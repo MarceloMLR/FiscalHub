@@ -112,6 +112,20 @@
             "description": "Status nativo do documento no mock (carregado/erro). É o que o CheckStatusAsync consulta na fase 2."
           },
           "response": []
+        },
+        {
+          "name": "POST /admin/result/{value} (forcar erro/carregado)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{mockUrl}}/admin/result/erro",
+              "host": ["{{mockUrl}}"],
+              "path": ["admin", "result", "erro"]
+            },
+            "description": "Forca o resultado dos PROXIMOS documentos no mock. Troque 'erro' por 'carregado' no path pra voltar ao normal. Demo: POST erro -> /drop ou /ingest com chave nova -> a nota vira IntegrationError; depois POST carregado + reenvie a MESMA chave -> reprocessa e confirma."
+          },
+          "response": []
         }
       ]
     }
