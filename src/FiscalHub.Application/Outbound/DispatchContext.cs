@@ -8,6 +8,9 @@ public sealed record DispatchContext
     /// <summary>Tenant dono do documento.</summary>
     public required string TenantId { get; init; }
 
+    /// <summary>Chave natural do documento — nomeia as fotos de rastreabilidade.</summary>
+    public required string NaturalKey { get; init; }
+
     /// <summary>Identificador de correlação do fluxo.</summary>
     public required string CorrelationId { get; init; }
 

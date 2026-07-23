@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FiscalHub.Application.Outbound;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
 using Microsoft.Extensions.Options;
 
@@ -20,15 +21,18 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     private readonly HttpClient _http;
     private readonly AvalaraOptions _options;
     private readonly IAvalaraTokenProvider _tokenProvider;
+    private readonly IProcessingTrace _trace;
 
     public AvalaraComplianceDispatcher(
         HttpClient http,
         IOptions<AvalaraOptions> options,
-        IAvalaraTokenProvider tokenProvider)
+        IAvalaraTokenProvider tokenProvider,
+        IProcessingTrace trace)
     {
         _http = http;
         _options = options.Value;
         _tokenProvider = tokenProvider;
+        _trace = trace;
     }
 
     /// <inheritdoc/>
@@ -38,6 +42,12 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     public async Task<IntegrationReceipt> SubmitAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
     {
         AvalaraDocument payload = GoodsInvoiceToAvalara.Map(document);
+
+        // Rastreabilidade (ADR-0006): guarda a foto do domínio (nosso padrão) e do payload que vai
+        // ao destino, antes do envio. Num chamado, permite isolar onde uma informação se perdeu —
+        // no mapeamento origem→domínio ou domínio→destino.
+        await _trace.SaveDomainAsync(context.TenantId, context.NaturalKey, JsonSerializer.Serialize(document, JsonOpts), ct);
+        await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, JsonOpts), ct);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, _options.DocumentsPath)
         {

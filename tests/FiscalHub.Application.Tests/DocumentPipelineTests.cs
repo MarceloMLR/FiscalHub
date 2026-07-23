@@ -72,6 +72,7 @@ public class DocumentPipelineTests
     private static DispatchContext Context() => new()
     {
         TenantId = "tenant-a",
+        NaturalKey = "nfe-key-1",
         CorrelationId = "corr-1",
         Operation = DocumentStatus.Issued,
     };

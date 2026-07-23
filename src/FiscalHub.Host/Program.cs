@@ -15,6 +15,7 @@ var cfg = builder.Configuration;
 
 // Composição: Blob (Azurite) + adapters + store + validação + esteira.
 builder.Services.AddSingleton(new BlobServiceClient(cfg.GetConnectionString("Blob")));
+builder.Services.AddBlobProcessingTrace("traces");
 builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
@@ -43,6 +44,7 @@ app.MapPost("/ingest", async (IngestRequest req, DocumentPipeline<GoodsInvoice> 
     var context = new DispatchContext
     {
         TenantId = req.TenantId,
+        NaturalKey = req.NaturalKey,
         CorrelationId = Guid.NewGuid().ToString(),
         Operation = DocumentStatus.Issued,
     };
