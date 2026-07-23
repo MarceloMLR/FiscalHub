@@ -23,6 +23,9 @@ internal sealed class ProcessedDocument
 
     public string? Reason { get; set; }
 
+    /// <summary>Quantas vezes o status já foi consultado (para o limite do 204 eterno).</summary>
+    public int Attempts { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }

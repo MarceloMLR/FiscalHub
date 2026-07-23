@@ -145,6 +145,12 @@ public class DocumentPipelineTests
             RejectionCount++;
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<PendingIntegration>> ListPendingAsync(int batchSize, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<PendingIntegration>>([]);
+
+        public Task MarkPolledAsync(string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 
     private sealed class RecordingTrace : IProcessingTrace

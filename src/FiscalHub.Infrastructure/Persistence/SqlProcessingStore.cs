@@ -30,6 +30,38 @@ internal sealed class SqlProcessingStore : IProcessingStore
     public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         => UpsertAsync(reference, IntegrationStatus.IntegrationError, externalId: null, reason, ct);
 
+    public async Task<IReadOnlyList<PendingIntegration>> ListPendingAsync(int batchSize, CancellationToken ct = default)
+        => await _db.ProcessedDocuments
+            .Where(d => d.Status == IntegrationStatus.Submitted && d.ExternalId != null)
+            .OrderBy(d => d.Id)   // ordem de inserção (FIFO); Id ordena nos dois providers, DateTimeOffset não no SQLite
+            .Take(batchSize)
+            .Select(d => new PendingIntegration
+            {
+                TenantId = d.TenantId,
+                NaturalKey = d.NaturalKey,
+                ExternalId = d.ExternalId!,
+                Attempts = d.Attempts,
+            })
+            .ToListAsync(ct);
+
+    public async Task MarkPolledAsync(
+        string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default)
+    {
+        ProcessedDocument? row = await _db.ProcessedDocuments.FirstOrDefaultAsync(
+            d => d.TenantId == tenantId && d.NaturalKey == naturalKey, ct);
+
+        if (row is null)
+        {
+            return;
+        }
+
+        row.Status = status;
+        row.Reason = reason;
+        row.Attempts = attempts;
+        row.UpdatedAt = _clock.GetUtcNow();
+        await _db.SaveChangesAsync(ct);
+    }
+
     private async Task UpsertAsync(
         DocumentReference reference, IntegrationStatus status, string? externalId, string? reason, CancellationToken ct)
     {
@@ -57,6 +89,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
             row.Status = status;
             row.ExternalId = externalId ?? row.ExternalId;
             row.Reason = reason;
+            row.Attempts = 0;   // (re)submissão reinicia a contagem de consultas
             row.UpdatedAt = now;
         }
 
