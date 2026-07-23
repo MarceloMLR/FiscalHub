@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Inbound;
@@ -51,6 +53,33 @@ app.MapPost("/ingest", async (IngestRequest req, DocumentPipeline<GoodsInvoice> 
 
     await pipeline.ProcessAsync(reference, context, ct);
     return Results.Ok(new { ingested = req.NaturalKey });
+});
+
+// Debug (dev local): devolve as fotos de rastreabilidade de um documento — dominio e destino,
+// direto do Blob, sem Storage Explorer. A fonte crua (XML) fica no container de entrada.
+app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string naturalKey, BlobServiceClient blobs, CancellationToken ct) =>
+{
+    BlobContainerClient container = blobs.GetBlobContainerClient("traces");
+    if (!(await container.ExistsAsync(ct)).Value)
+    {
+        return Results.NotFound(new { message = "container 'traces' ainda nao existe — rode um /ingest antes." });
+    }
+
+    var snapshots = new Dictionary<string, JsonElement>();
+    await foreach (BlobItem item in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{tenantId}/", ct))
+    {
+        if (!item.Name.Contains($"/{naturalKey}/", StringComparison.Ordinal))
+        {
+            continue;
+        }
+
+        BlobDownloadResult blob = await container.GetBlobClient(item.Name).DownloadContentAsync(ct);
+        snapshots[item.Name] = blob.Content.ToObjectFromJson<JsonElement>();
+    }
+
+    return snapshots.Count == 0
+        ? Results.NotFound(new { tenantId, naturalKey, message = "sem fotos para esse documento." })
+        : Results.Ok(snapshots);
 });
 
 app.Run();
