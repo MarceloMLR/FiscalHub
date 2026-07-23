@@ -63,12 +63,13 @@ dela até o destino.
 
 ## Estado atual
 
-Implementado: o núcleo de domínio da NF-e de mercadoria (modelo 55), com o grupo de tributos
-da Reforma por item, e o envelope comum da esteira.
+Implementado e testado: o domínio (NF-e 55 com IBS/CBS/IS), as portas, a esteira (idempotência,
+validação, despacho), o parser de XML, o mapper e o dispatcher da Avalara (com cache de token) e o
+store em SQL. O fluxo **roda de ponta a ponta localmente** (XML no Blob → esteira → mock → SQL) —
+veja [docs/RUNNING.md](docs/RUNNING.md).
 
-Em sequência: as portas de entrada e saída, a esteira resiliente, o adapter de XML, o adapter
-para o formato da Avalara e o painel de acompanhamento. O histórico de commits acompanha essa
-evolução.
+Em sequência: o gatilho de Service Bus (fila + retry/DLQ), o painel de acompanhamento, e novos
+tipos de documento (CT-e, NFS-e). O histórico de commits acompanha a evolução.
 
 ## Limites conscientes
 
@@ -90,13 +91,19 @@ ponta a ponta num caminho vertical real, não cobrir toda a superfície fiscal.
 
 ## Rodando localmente
 
-Pré-requisito: SDK do .NET 10.
+O fluxo roda de ponta a ponta na sua máquina, sem Azure (Azurite + SQL em containers, mock de
+compliance local). Passo a passo completo em **[docs/RUNNING.md](docs/RUNNING.md)**.
 
-```bash
-dotnet build FiscalHub.slnx
+Resumo:
+
+```powershell
+docker compose up -d                                              # Blob (Azurite) + SQL
+dotnet run --project tools/MockComplianceApi --urls http://localhost:5100
+dotnet run --project src/FiscalHub.Host      --urls http://localhost:5200
 ```
 
-Instruções completas serão adicionadas conforme os módulos forem entrando.
+Depois, `POST http://localhost:5200/ingest` dispara a esteira: lê o XML do Blob, valida, despacha
+pro mock e grava o status no SQL.
 
 ## Reforma Tributária
 
