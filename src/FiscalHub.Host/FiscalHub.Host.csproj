@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\FiscalHub.Application\FiscalHub.Application.csproj" />
+    <ProjectReference Include="..\FiscalHub.Domain\FiscalHub.Domain.csproj" />
+    <ProjectReference Include="..\FiscalHub.Infrastructure\FiscalHub.Infrastructure.csproj" />
+    <ProjectReference Include="..\Adapters\Inbound\FiscalHub.Adapters.Inbound.Xml\FiscalHub.Adapters.Inbound.Xml.csproj" />
+    <ProjectReference Include="..\Adapters\Outbound\FiscalHub.Adapters.Outbound.Avalara\FiscalHub.Adapters.Outbound.Avalara.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-07-21
+**Última atualização:** 2026-07-23
 
 ## Ferramentas da sessão
 
@@ -14,27 +14,28 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 
 ## Onde estamos
 
-**Marco 1 — núcleo COMPLETO e testado (sem Azure):**
-- Domínio `GoodsInvoice` (NF-e 55) + bloco da Reforma IBS/CBS/IS; envelope fino; 5 portas.
-- Esteira `DocumentPipeline<T>.ProcessAsync`: idempotência → busca → validação → envio → registro.
-- Lógica real testada: `NfeXmlParser` (XML→domínio), `GoodsInvoiceToAvalara` (domínio→Avalara),
-  `GoodsInvoiceValidator` (validação de integração).
-- Adapter de saída Avalara: `AvalaraComplianceDispatcher` + mock (`tools/MockComplianceApi`),
-  tradução de status, gancho de token no-op, tratamento de 204.
-- **24 testes verdes.** 4 ADRs (0001–0004). Estrutura hexagonal visível (`src/Adapters/{Inbound,Outbound}`).
-- BMAD instalado; `project-context.md` gerado; fluxo de orquestração em uso.
+**Núcleo (Marco 1) completo e testado, sem Azure:** domínio `GoodsInvoice` (NF-e 55) com a Reforma
+(IBS/CBS/IS), envelope fino, 5 portas, esteira `ProcessAsync` (idempotência → busca → validação →
+envio → registro), `NfeXmlParser`, `GoodsInvoiceToAvalara`, `GoodsInvoiceValidator`.
 
-## Em andamento
+**Adapters e infra reais:**
+- `XmlGoodsInvoiceSource` — lê XML do Blob via `IBlobReader`.
+- `AvalaraComplianceDispatcher` + mock, tradução de status, 204, **token cache** por tenant (semáforo).
+- `SqlProcessingStore` — EF Core, idempotência por índice único `(TenantId, NaturalKey)`.
+- Composição no `FiscalHub.Host` + `docker-compose` (Azurite + SQL).
 
-- **Fase de Infrastructure** (a casca de Azure), conduzida no BMAD com revisão de arquitetura.
+**E2E local (Etapa 1) RODANDO:** `POST /ingest` → lê XML do Blob → valida → despacha pro mock → grava
+`Submitted` no SQL. Idempotência confirmada ao vivo (2º POST não duplica linha).
+
+**35 testes verdes. 5 ADRs.** `gh` + Windows MCP em uso (Claude roda build/test/git/docker).
 
 ## Próximos passos
 
-1. **Cache de token Avalara** — feito à mão (concorrência + expiração + por tenant). _Próxima sessão._
-2. Poll worker de status (com limite de consulta + status `Unconfirmed` — ver brief).
-3. `XmlGoodsInvoiceSource` (Blob), `SqlProcessingStore` (Azure SQL), trigger de Service Bus.
-4. Composição/DI + roteamento por tipo. Dev local (Docker + Azurite).
-5. Dashboard React; adapters de prova de extensão (D365 mock, file export).
+1. **Etapa 2 — Service Bus:** emulador do Service Bus + trigger (a casca chama `ProcessAsync`) +
+   ingresso (drop de XML no Blob → Event Grid → enfileira). Retry/DLQ nativos.
+2. Poll worker de status (limite de consulta + status `Unconfirmed` — ver brief).
+3. Roteamento por tipo no composition root; Dashboard React.
+4. Marco 2: CT-e (57) e NFS-e como tipos novos (prova de extensibilidade).
 
 ## Decisões recentes
 
