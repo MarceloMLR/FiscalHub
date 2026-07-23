@@ -1,5 +1,6 @@
 using System.Net;
 using FiscalHub.Application.Outbound;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
 using FiscalHub.Domain.Goods.Reform;
@@ -101,6 +102,22 @@ public class AvalaraComplianceDispatcherTests
     }
 
     [Fact]
+    public async Task Submit_traces_outbound_payload_before_send()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
+        var trace = new RecordingTrace();
+        var dispatcher = Build(handler, trace: trace);
+
+        await dispatcher.SubmitAsync(SampleInvoice(), Context());
+
+        // O dispatcher fotografa só o destino; o domínio é responsabilidade da esteira.
+        Assert.Null(trace.Domain);
+        Assert.NotNull(trace.Outbound);
+        Assert.Equal("avalara", trace.Outbound!.Value.Destination);
+        Assert.Contains("\"chaveNFe\"", trace.Outbound.Value.Json);
+    }
+
+    [Fact]
     public async Task Submit_propagates_on_non_success_status()
     {
         var handler = new StubHttpMessageHandler("""{"error":"boom"}""", HttpStatusCode.InternalServerError);
@@ -136,11 +153,14 @@ public class AvalaraComplianceDispatcherTests
         await Assert.ThrowsAsync<HttpRequestException>(() => dispatcher.CheckStatusAsync("ext-guid-1", Context()));
     }
 
-    private static AvalaraComplianceDispatcher Build(StubHttpMessageHandler handler, IAvalaraTokenProvider? token = null)
+    private static AvalaraComplianceDispatcher Build(
+        StubHttpMessageHandler handler,
+        IAvalaraTokenProvider? token = null,
+        IProcessingTrace? trace = null)
     {
         var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
         var options = Options.Create(new AvalaraOptions { BaseUrl = "http://localhost/", Destination = "avalara" });
-        return new AvalaraComplianceDispatcher(http, options, token ?? new NoOpAvalaraTokenProvider());
+        return new AvalaraComplianceDispatcher(http, options, token ?? new NoOpAvalaraTokenProvider(), trace ?? new NoOpProcessingTrace());
     }
 
     private sealed class FakeTokenProvider(string token) : IAvalaraTokenProvider
@@ -148,9 +168,31 @@ public class AvalaraComplianceDispatcherTests
         public Task<string> GetTokenAsync(string tenantId, CancellationToken ct = default) => Task.FromResult(token);
     }
 
+    private sealed class RecordingTrace : IProcessingTrace
+    {
+        public (string Tenant, string Key, string Json)? Domain { get; private set; }
+        public (string Tenant, string Key, string Destination, string Json)? Outbound { get; private set; }
+
+        public Task SaveSourceAsync(string tenantId, string naturalKey, string content, string format, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default)
+        {
+            Domain = (tenantId, naturalKey, json);
+            return Task.CompletedTask;
+        }
+
+        public Task SaveOutboundAsync(string tenantId, string naturalKey, string destination, string json, CancellationToken ct = default)
+        {
+            Outbound = (tenantId, naturalKey, destination, json);
+            return Task.CompletedTask;
+        }
+    }
+
     private static DispatchContext Context() => new()
     {
         TenantId = "tenant-a",
+        NaturalKey = "nfe-1",
         CorrelationId = "corr-1",
         Operation = DocumentStatus.Issued,
     };

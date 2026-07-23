@@ -1,0 +1,105 @@
+{
+  "info": {
+    "_postman_id": "b7d3f2a1-4c6e-4a8b-9f10-fiscalhublocal",
+    "name": "FiscalHub - Local",
+    "description": "Coleção para exercitar o FiscalHub rodando localmente (host na 5200, mock de compliance na 5100).\n\nFluxo típico:\n1. `POST /ingest` — dispara a esteira para um documento (lê o XML do Blob, valida, despacha pro mock, grava no SQL).\n2. `GET /trace/{tenant}/{chave}` — mostra as fotos de rastreabilidade (domínio + destino) direto do Blob.\n\nAjuste as variáveis da coleção (aba Variables) se mudar tenant, chave ou portas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "hostUrl", "value": "http://localhost:5200", "type": "string" },
+    { "key": "mockUrl", "value": "http://localhost:5100", "type": "string" },
+    { "key": "tenantId", "value": "tenant-a", "type": "string" },
+    { "key": "naturalKey", "value": "nfe-trace", "type": "string" },
+    { "key": "locator", "value": "nfe/nfe-exemplo.xml", "type": "string" },
+    { "key": "externalId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Host",
+      "item": [
+        {
+          "name": "GET / (health)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hostUrl}}/",
+              "host": ["{{hostUrl}}"],
+              "path": [""]
+            },
+            "description": "Sanity check: confirma que o host está de pé e mostra o locator do XML semeado."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /ingest",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"naturalKey\": \"{{naturalKey}}\",\n  \"locator\": \"{{locator}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{hostUrl}}/ingest",
+              "host": ["{{hostUrl}}"],
+              "path": ["ingest"]
+            },
+            "description": "Dispara a esteira para um documento. Idempotente: um segundo POST com a mesma naturalKey não duplica a linha no SQL."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /trace/{tenant}/{chave}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hostUrl}}/trace/{{tenantId}}/{{naturalKey}}",
+              "host": ["{{hostUrl}}"],
+              "path": ["trace", "{{tenantId}}", "{{naturalKey}}"]
+            },
+            "description": "Fotos de rastreabilidade do documento, lidas do Blob:\n- `.../domain.json` — a nota no nosso modelo de domínio.\n- `.../avalara.json` — o payload enviado ao destino.\n\nA terceira foto (XML cru) fica no container de entrada, no locator usado no /ingest."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mock de compliance (opcional)",
+      "item": [
+        {
+          "name": "GET /documents/{externalId} (payload enviado)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{mockUrl}}/documents/{{externalId}}",
+              "host": ["{{mockUrl}}"],
+              "path": ["documents", "{{externalId}}"]
+            },
+            "description": "Devolve o god json exato que o host enviou ao mock. Preencha a variável externalId com o GUID gravado no SQL (coluna ExternalId). Redundante com o avalara.json do /trace, mas útil pra confirmar o que a plataforma realmente recebeu."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /documents/{externalId}/status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{mockUrl}}/documents/{{externalId}}/status",
+              "host": ["{{mockUrl}}"],
+              "path": ["documents", "{{externalId}}", "status"]
+            },
+            "description": "Status nativo do documento no mock (carregado/erro). É o que o CheckStatusAsync consulta na fase 2."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

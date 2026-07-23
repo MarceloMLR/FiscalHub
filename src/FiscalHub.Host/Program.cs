@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Inbound;
@@ -15,6 +17,7 @@ var cfg = builder.Configuration;
 
 // Composição: Blob (Azurite) + adapters + store + validação + esteira.
 builder.Services.AddSingleton(new BlobServiceClient(cfg.GetConnectionString("Blob")));
+builder.Services.AddBlobProcessingTrace("traces");
 builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
@@ -43,12 +46,43 @@ app.MapPost("/ingest", async (IngestRequest req, DocumentPipeline<GoodsInvoice> 
     var context = new DispatchContext
     {
         TenantId = req.TenantId,
+        NaturalKey = req.NaturalKey,
         CorrelationId = Guid.NewGuid().ToString(),
         Operation = DocumentStatus.Issued,
     };
 
     await pipeline.ProcessAsync(reference, context, ct);
     return Results.Ok(new { ingested = req.NaturalKey });
+});
+
+// Debug (dev local): devolve as fotos de rastreabilidade de um documento — dominio e destino,
+// direto do Blob, sem Storage Explorer. A fonte crua (XML) fica no container de entrada.
+app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string naturalKey, BlobServiceClient blobs, CancellationToken ct) =>
+{
+    BlobContainerClient container = blobs.GetBlobContainerClient("traces");
+    if (!(await container.ExistsAsync(ct)).Value)
+    {
+        return Results.NotFound(new { message = "container 'traces' ainda nao existe — rode um /ingest antes." });
+    }
+
+    var snapshots = new Dictionary<string, object>();
+    await foreach (BlobItem item in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{tenantId}/", ct))
+    {
+        if (!item.Name.Contains($"/{naturalKey}/", StringComparison.Ordinal))
+        {
+            continue;
+        }
+
+        BlobDownloadResult blob = await container.GetBlobClient(item.Name).DownloadContentAsync(ct);
+        // JSON entra aninhado (legível); a fonte crua (XML) entra como string.
+        snapshots[item.Name] = item.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+            ? blob.Content.ToObjectFromJson<JsonElement>()
+            : blob.Content.ToString();
+    }
+
+    return snapshots.Count == 0
+        ? Results.NotFound(new { tenantId, naturalKey, message = "sem fotos para esse documento." })
+        : Results.Ok(snapshots);
 });
 
 app.Run();

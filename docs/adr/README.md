@@ -13,6 +13,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0003](0003-despacho-assincrono-status-integracao.md) | Despacho assíncrono e status de integração normalizado | Aceito |
 | [0004](0004-esteira-nucleo-puro-retry-nativo.md) | Esteira: núcleo puro, retry/DLQ nativos, envio direto | Aceito |
 | [0005](0005-idempotencia-no-banco.md) | Idempotência no banco (índice único) para o rastreio | Aceito |
+| [0006](0006-rastreabilidade-fotos-no-blob.md) | Rastreabilidade por "fotos" (domínio/destino) no Blob | Aceito |
 
 ## Planejados
 

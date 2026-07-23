@@ -1,5 +1,8 @@
+using Azure.Storage.Blobs;
 using FiscalHub.Application.Pipeline;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Infrastructure.Persistence;
+using FiscalHub.Infrastructure.Tracing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -15,6 +18,20 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddDbContext<ProcessingDbContext>(options => options.UseSqlServer(connectionString));
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IProcessingStore, SqlProcessingStore>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registra a rastreabilidade em Blob (fotos domínio/destino). Requer um <c>BlobServiceClient</c>
+    /// já registrado. A retenção é controlada por lifecycle policy no container, não por código.
+    /// </summary>
+    public static IServiceCollection AddBlobProcessingTrace(this IServiceCollection services, string containerName)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+        services.Replace(ServiceDescriptor.Singleton<IProcessingTrace>(sp => new BlobProcessingTrace(
+            sp.GetRequiredService<BlobServiceClient>(),
+            containerName,
+            sp.GetRequiredService<TimeProvider>())));
         return services;
     }
 

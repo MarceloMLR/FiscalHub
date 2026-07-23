@@ -1,4 +1,5 @@
 using FiscalHub.Application.Outbound;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -22,6 +23,7 @@ public static class AvalaraServiceCollectionExtensions
     {
         services.Configure(configure);
         services.TryAddSingleton<IAvalaraTokenProvider, NoOpAvalaraTokenProvider>();
+        services.TryAddSingleton<IProcessingTrace, NoOpProcessingTrace>();
 
         services.AddHttpClient<IComplianceDispatcher<GoodsInvoice>, AvalaraComplianceDispatcher>(
             (sp, client) => client.BaseAddress = ResolveBaseAddress(sp));
