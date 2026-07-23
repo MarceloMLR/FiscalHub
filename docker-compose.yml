@@ -1,0 +1,32 @@
+# Infra local para rodar o FiscalHub "Azure sem Azure".
+# Blob e SQL sobem como containers; o mock de compliance e o host rodam via `dotnet run`
+# na máquina, apontando para estes serviços.
+#
+#   docker compose up -d
+#
+services:
+  # Emula o Azure Blob Storage (e Queue). Equivalente local do Blob de produção.
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --location /data --loose --skipApiVersionCheck
+    ports:
+      - "10000:10000" # blob
+      - "10001:10001" # queue
+    volumes:
+      - azurite-data:/data
+
+  # Equivalente local do Azure SQL. Edition Developer (gratuita).
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Local_Dev_123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+
+volumes:
+  azurite-data:
+  sql-data:

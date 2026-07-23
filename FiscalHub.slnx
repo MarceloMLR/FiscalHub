@@ -3,6 +3,7 @@
     <Project Path="src/FiscalHub.Domain/FiscalHub.Domain.csproj" />
     <Project Path="src/FiscalHub.Application/FiscalHub.Application.csproj" />
     <Project Path="src/FiscalHub.Infrastructure/FiscalHub.Infrastructure.csproj" />
+    <Project Path="src/FiscalHub.Host/FiscalHub.Host.csproj" />
   </Folder>
   <Folder Name="/src/Adapters/Inbound/">
     <Project Path="src/Adapters/Inbound/FiscalHub.Adapters.Inbound.Xml/FiscalHub.Adapters.Inbound.Xml.csproj" />
