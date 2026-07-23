@@ -14,6 +14,9 @@
   <Folder Name="/src/Adapters/Messaging/">
     <Project Path="src/Adapters/Messaging/FiscalHub.Adapters.Messaging.ServiceBus/FiscalHub.Adapters.Messaging.ServiceBus.csproj" />
   </Folder>
+  <Folder Name="/src/Adapters/Ingress/">
+    <Project Path="src/Adapters/Ingress/FiscalHub.Adapters.Ingress.BlobDrop/FiscalHub.Adapters.Ingress.BlobDrop.csproj" />
+  </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/MockComplianceApi/MockComplianceApi.csproj" />
   </Folder>
@@ -29,5 +32,8 @@
   </Folder>
   <Folder Name="/tests/Adapters/Messaging/">
     <Project Path="tests/Adapters/Messaging/FiscalHub.Adapters.Messaging.ServiceBus.Tests/FiscalHub.Adapters.Messaging.ServiceBus.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/Adapters/Ingress/">
+    <Project Path="tests/Adapters/Ingress/FiscalHub.Adapters.Ingress.BlobDrop.Tests/FiscalHub.Adapters.Ingress.BlobDrop.Tests.csproj" />
   </Folder>
 </Solution>

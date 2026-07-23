@@ -2,6 +2,7 @@ using System.Text.Json;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FiscalHub.Adapters.Inbound.Xml;
+using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Inbound;
@@ -33,6 +34,10 @@ builder.Services.AddServiceBusDocumentQueue(options =>
     options.QueueName = cfg["ServiceBus:Queue"] ?? "documents-in";
 });
 
+// Gatilho de ingestão (dev local): observa a zona de drop no Blob e enfileira sozinho.
+// No cloud, este watcher é trocado por Event Grid.
+builder.Services.AddBlobDropIngress();
+
 // Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).
 builder.Services.AddSingleton(new StatusPollerOptions());
 builder.Services.AddScoped<StatusPoller<GoodsInvoice>>();
@@ -61,6 +66,24 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
 
     await queue.EnqueueAsync(reference, ct);
     return Results.Accepted($"/trace/{req.TenantId}/{req.NaturalKey}", new { queued = req.NaturalKey });
+});
+
+// Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
+// Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual.
+app.MapPost("/drop/{key}", async (string key, BlobServiceClient blobs, CancellationToken ct) =>
+{
+    BlobClient sample = blobs.GetBlobContainerClient(LocalSeed.Container).GetBlobClient(LocalSeed.BlobName);
+    if (!(await sample.ExistsAsync(ct)).Value)
+    {
+        return Results.NotFound(new { message = "XML de exemplo ainda não semeado." });
+    }
+
+    BlobDownloadResult content = await sample.DownloadContentAsync(ct);
+    BlobContainerClient drop = blobs.GetBlobContainerClient("drop");
+    await drop.CreateIfNotExistsAsync(cancellationToken: ct);
+    await drop.GetBlobClient($"tenant-a/{key}.xml").UploadAsync(content.Content.ToStream(), overwrite: true, ct);
+
+    return Results.Accepted($"/trace/tenant-a/{key}", new { dropped = $"tenant-a/{key}.xml" });
 });
 
 // Debug (dev local): devolve as fotos de rastreabilidade de um documento — dominio e destino,
