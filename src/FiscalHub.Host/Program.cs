@@ -24,6 +24,11 @@ builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
 builder.Services.AddScoped<DocumentPipeline<GoodsInvoice>>();
 
+// Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).
+builder.Services.AddSingleton(new StatusPollerOptions());
+builder.Services.AddScoped<StatusPoller<GoodsInvoice>>();
+builder.Services.AddHostedService<StatusPollingService>();
+
 var app = builder.Build();
 
 // Dev local: cria o schema no SQL, o container no Blob e sobe um XML de exemplo.

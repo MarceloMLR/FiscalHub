@@ -14,4 +14,7 @@ public enum IntegrationStatus
 
     /// <summary>Rejeitado pela plataforma.</summary>
     IntegrationError,
+
+    /// <summary>Consultado além do limite sem resposta da plataforma (ex.: 204 eterno). Item em aberto.</summary>
+    Unconfirmed,
 }
