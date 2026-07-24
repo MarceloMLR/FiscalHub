@@ -61,7 +61,7 @@ var app = builder.Build();
 app.UseCors();
 
 // Dev local: cria o schema no SQL, o container no Blob e sobe um XML de exemplo.
-await app.Services.EnsureProcessingSchemaAsync();
+await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
 
 app.MapGet("/", () =>

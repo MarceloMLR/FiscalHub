@@ -19,6 +19,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0009](0009-gatilho-de-ingestao-por-drop.md) | Gatilho de ingestão por drop no Blob (local; Event Grid no cloud) | Aceito |
 | [0010](0010-dead-letter-visivel-e-poll-resiliente.md) | Dead-letter visível e poll resiliente | Aceito |
 | [0011](0011-stack-do-dashboard.md) | Stack do dashboard (Vite + React + MUI + TanStack Query) | Aceito |
+| [0012](0012-ef-migrations.md) | Migrations de schema (EF Core) no lugar de EnsureCreated | Aceito |
 
 ## Planejados
 
