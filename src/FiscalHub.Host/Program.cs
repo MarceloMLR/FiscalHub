@@ -133,6 +133,9 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
 app.MapGet("/documents", async (IDocumentQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
+// Ambiente do conector (sandbox/produção) — o dashboard exibe no topo.
+app.MapGet("/info", () => Results.Ok(new { environment = cfg["Connector:Environment"] ?? "Sandbox" }));
+
 app.Run();
 
 /// <summary>Corpo do POST /ingest.</summary>

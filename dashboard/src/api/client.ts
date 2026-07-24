@@ -14,4 +14,5 @@ export const api = {
   documents: () => getJson<DocumentSummary[]>('/documents'),
   trace: (tenantId: string, naturalKey: string) =>
     getJson<TraceResponse>(`/trace/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}`),
+  info: () => getJson<{ environment: string }>('/info'),
 };
