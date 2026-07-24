@@ -14,7 +14,9 @@
     { "key": "externalId", "value": "", "type": "string" },
     { "key": "companyCode", "value": "12345678", "type": "string" },
     { "key": "branchCode", "value": "0001", "type": "string" },
-    { "key": "referenceDate", "value": "2026-06-01", "type": "string" }
+    { "key": "referenceDate", "value": "2026-06-01", "type": "string" },
+    { "key": "periodStart", "value": "2026-06-01T00:00:00-03:00", "type": "string" },
+    { "key": "periodEnd", "value": "2026-06-30T23:59:59-03:00", "type": "string" }
   ],
   "item": [
     {
@@ -138,6 +140,51 @@
             "header": [],
             "url": { "raw": "{{hostUrl}}/info", "host": ["{{hostUrl}}"], "path": ["info"] },
             "description": "Ambiente do conector (Sandbox/Producao) — o dashboard mostra no rodape da sidebar."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /companies (diretorio)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{hostUrl}}/companies", "host": ["{{hostUrl}}"], "path": ["companies"] },
+            "description": "Empresas do diretorio (dev: lidas do companies.json). Alimenta o dropdown de empresa da integracao manual. Em producao, vem da Avalara por tras da mesma porta."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /companies/{code}/branches (filiais)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hostUrl}}/companies/{{companyCode}}/branches",
+              "host": ["{{hostUrl}}"],
+              "path": ["companies", "{{companyCode}}", "branches"]
+            },
+            "description": "Filiais de uma empresa. Alimenta o dropdown de filial. Empresa inexistente devolve []."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /integrations/manual",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyCode\": \"{{companyCode}}\",\n  \"branchCode\": null,\n  \"periodStart\": \"{{periodStart}}\",\n  \"periodEnd\": \"{{periodEnd}}\",\n  \"tenantId\": \"{{tenantId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{hostUrl}}/integrations/manual",
+              "host": ["{{hostUrl}}"],
+              "path": ["integrations", "manual"]
+            },
+            "description": "Integracao manual (pull): a descoberta lista as notas do periodo/empresa na origem e enfileira cada uma. branchCode null = todas as filiais. Reprocessar o mesmo periodo e idempotente (regra por estado). Depois use GET /documents ou /groups pra ver o resultado."
           },
           "response": []
         }
