@@ -47,7 +47,11 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
     public async Task ProcessAsync(
         DocumentReference reference, DispatchContext context, CancellationToken ct = default)
     {
-        if (await _store.AlreadySubmittedAsync(reference.TenantId, reference.NaturalKey, ct))
+        // Idempotência por gatilho: evento dedupa (nota já enviada não reentra — evento pode chegar
+        // duas vezes, e a NF-e autorizada é imutável). Recarga manual é intenção explícita do
+        // cliente e fura o bloqueio, reprocessando mesmo estado terminal.
+        if (reference.Trigger != IngestionTrigger.Manual
+            && await _store.AlreadySubmittedAsync(reference.TenantId, reference.NaturalKey, ct))
             return;
 
         TDocument document = await _source.FetchAsync(reference, ct);

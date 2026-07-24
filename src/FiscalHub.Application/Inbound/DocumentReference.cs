@@ -16,4 +16,11 @@ public sealed record DocumentReference
 
     /// <summary>Localizador interpretado pelo adapter da origem (caminho no Blob, id no ERP, etc.).</summary>
     public required string Locator { get; init; }
+
+    /// <summary>
+    /// Gatilho que originou o disparo. Define a política de idempotência: <c>Event</c> (padrão)
+    /// dedupa; <c>Manual</c> reprocessa mesmo em estado terminal. Mensagens antigas, sem o campo,
+    /// caem no padrão <c>Event</c>.
+    /// </summary>
+    public IngestionTrigger Trigger { get; init; } = IngestionTrigger.Event;
 }
