@@ -31,6 +31,31 @@ export interface DocumentTrace {
   destination?: { name: string; payload: unknown };
 }
 
+// Diretorio de empresas/filiais (GET /companies, /companies/{code}/branches) — dropdowns da manual.
+export interface Company {
+  code: string;
+  name: string;
+}
+
+export interface Branch {
+  code: string;
+  name: string;
+}
+
+// Integracao manual (POST /integrations/manual). branchCode null = todas as filiais.
+export interface ManualIntegrationRequest {
+  companyCode: string;
+  branchCode: string | null;
+  periodStart: string;
+  periodEnd: string;
+  tenantId?: string | null;
+}
+
+export interface ManualIntegrationResult {
+  discovered: number;
+  keys: string[];
+}
+
 // Grupo (empresa/filial/dia) com contagens — a linha principal do dashboard.
 export interface DocumentGroup {
   companyCode: string;

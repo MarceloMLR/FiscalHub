@@ -59,7 +59,7 @@ export function DocumentsPage() {
           getRowId={(row) => `${row.tenantId}:${row.naturalKey}`}
           loading={isLoading}
           onRowClick={(params) => setSelected(params.row as DocumentSummary)}
-          slots={{ loadingOverlay: LinearProgress }}
+          slots={{ loadingOverlay: () => <LinearProgress /> }}
           initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
           pageSizeOptions={[25, 50, 100]}
           disableRowSelectionOnClick
