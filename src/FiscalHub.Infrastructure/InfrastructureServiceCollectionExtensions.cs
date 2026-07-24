@@ -37,11 +37,14 @@ public static class InfrastructureServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Cria o schema do store se ainda não existir (dev local; produção usa migrations).</summary>
-    public static async Task EnsureProcessingSchemaAsync(this IServiceProvider services, CancellationToken ct = default)
+    /// <summary>
+    /// Aplica as migrations pendentes (cria o schema se não existe, evolui se já existe). Substitui
+    /// o antigo EnsureCreated — que não migrava schema existente e exigia dropar o banco a cada mudança.
+    /// </summary>
+    public static async Task MigrateProcessingSchemaAsync(this IServiceProvider services, CancellationToken ct = default)
     {
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         ProcessingDbContext db = scope.ServiceProvider.GetRequiredService<ProcessingDbContext>();
-        await db.Database.EnsureCreatedAsync(ct);
+        await db.Database.MigrateAsync(ct);
     }
 }
