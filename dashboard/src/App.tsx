@@ -9,12 +9,10 @@ import Typography from '@mui/material/Typography';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
-import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import { GroupsPage } from './features/groups/GroupsPage';
-import { ManualIntegrationPage } from './features/manual/ManualIntegrationPage';
-import { SchedulesPage } from './features/schedules/SchedulesPage';
+import { IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { useInfo } from './features/useInfo';
 
 const drawerWidth = 224;
@@ -25,8 +23,7 @@ const user = { name: 'Marcelo Lima' };
 // Nav sem router: troca a view por estado. As telas ainda-nao-feitas ficam desabilitadas.
 const nav = [
   { key: 'documents', label: 'Documentos', icon: <DescriptionOutlinedIcon fontSize="small" /> },
-  { key: 'manual', label: 'Integração manual', icon: <BoltOutlinedIcon fontSize="small" /> },
-  { key: 'schedules', label: 'Agendamentos', icon: <ScheduleOutlinedIcon fontSize="small" /> },
+  { key: 'integrations', label: 'Integrações', icon: <BoltOutlinedIcon fontSize="small" /> },
   { key: 'metrics', label: 'Métricas', icon: <BarChartOutlinedIcon fontSize="small" />, disabled: true },
   { key: 'connectors', label: 'Conectores', icon: <HubOutlinedIcon fontSize="small" />, disabled: true },
   { key: 'settings', label: 'Configurações', icon: <SettingsOutlinedIcon fontSize="small" />, disabled: true },
@@ -34,8 +31,7 @@ const nav = [
 
 const titles: Record<string, { title: string; subtitle: string }> = {
   documents: { title: 'Documentos', subtitle: 'Notas integradas e seus status' },
-  manual: { title: 'Integração manual', subtitle: 'Dispare a carga de um período por empresa' },
-  schedules: { title: 'Agendamentos', subtitle: 'Integrações recorrentes e agendadas, e suas execuções' },
+  integrations: { title: 'Integrações', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
 };
 
 export default function App() {
@@ -179,13 +175,7 @@ export default function App() {
             </Box>
           </Box>
         </Box>
-        {view === 'manual' ? (
-          <ManualIntegrationPage />
-        ) : view === 'schedules' ? (
-          <SchedulesPage />
-        ) : (
-          <GroupsPage />
-        )}
+        {view === 'integrations' ? <IntegrationsPage /> : <GroupsPage />}
       </Box>
     </Box>
   );

@@ -21,6 +21,9 @@ public sealed record RunRequest
     /// <summary>Filial alvo; <c>null</c> = todas.</summary>
     public string? BranchCode { get; init; }
 
+    /// <summary>Número (nNF) de uma nota específica; <c>null</c> = todas as do período.</summary>
+    public string? DocumentNumber { get; init; }
+
     public required DateTimeOffset PeriodStart { get; init; }
     public required DateTimeOffset PeriodEnd { get; init; }
 

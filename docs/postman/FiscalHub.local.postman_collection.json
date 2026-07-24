@@ -177,7 +177,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyCode\": \"{{companyCode}}\",\n  \"branchCode\": null,\n  \"periodStart\": \"{{periodStart}}\",\n  \"periodEnd\": \"{{periodEnd}}\",\n  \"tenantId\": \"{{tenantId}}\"\n}",
+              "raw": "{\n  \"companyCode\": \"{{companyCode}}\",\n  \"branchCode\": null,\n  \"periodStart\": \"{{periodStart}}\",\n  \"periodEnd\": \"{{periodEnd}}\",\n  \"tenantId\": \"{{tenantId}}\",\n  \"documentNumber\": null\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -185,7 +185,7 @@
               "host": ["{{hostUrl}}"],
               "path": ["integrations", "manual"]
             },
-            "description": "Integracao manual (pull): a descoberta lista as notas do periodo/empresa na origem e enfileira cada uma. branchCode null = todas as filiais. Reprocessar o mesmo periodo reintegra (idempotencia por conteudo; manual fura). Depois use GET /documents ou /executions."
+            "description": "Integracao manual/imediata (pull): a descoberta lista as notas do periodo/empresa na origem e enfileira cada uma. branchCode null = todas as filiais. documentNumber preenchido (ex.: \"456\") restringe a uma nota especifica dentro do periodo. Reprocessar reintegra (idempotencia por conteudo; manual fura). Depois use GET /documents ou /executions."
           },
           "response": []
         },

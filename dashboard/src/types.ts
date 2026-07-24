@@ -49,6 +49,7 @@ export interface ManualIntegrationRequest {
   periodStart: string;
   periodEnd: string;
   tenantId?: string | null;
+  documentNumber?: string | null;   // preenchido = uma nota específica (nNF)
 }
 
 export interface ManualIntegrationResult {

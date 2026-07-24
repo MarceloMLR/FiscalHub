@@ -7,26 +7,30 @@ import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
+import AlertTitle from '@mui/material/AlertTitle';
 import CircularProgress from '@mui/material/CircularProgress';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
 import TableBody from '@mui/material/TableBody';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
+import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useCompanies, useBranches } from '../manual/useDirectory';
-import { useSchedules, useExecutions } from './useScheduling';
+import { useSchedules, useExecutions } from '../schedules/useScheduling';
 import type { CreateScheduleRequest, IntegrationModeName } from '../../types';
 
 const ALL_BRANCHES = '__all__';
 
 const MODE_LABEL: Record<IntegrationModeName, string> = {
-  Manual: 'Manual',
+  Manual: 'Imediata',
   ScheduledDaily: 'Diária (D-1)',
   ScheduledOnce: 'Agendada',
 };
+
+type Mode = 'now' | 'daily' | 'once';
 
 function fmt(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -34,35 +38,55 @@ function fmt(d: Date): string {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
+function firstOfPreviousMonth(): string {
+  const n = new Date();
+  return fmt(new Date(n.getFullYear(), n.getMonth() - 1, 1));
+}
+
 function dateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
 
-export function SchedulesPage() {
+export function IntegrationsPage() {
   const qc = useQueryClient();
   const companies = useCompanies();
   const schedules = useSchedules();
   const executions = useExecutions();
 
-  const [mode, setMode] = useState<'ScheduledDaily' | 'ScheduledOnce'>('ScheduledDaily');
+  const [mode, setMode] = useState<Mode>('now');
+  const [scope, setScope] = useState<'period' | 'note'>('period');
   const [company, setCompany] = useState('');
   const [branch, setBranch] = useState(ALL_BRANCHES);
+  const [documentNumber, setDocumentNumber] = useState('');
+  const [start, setStart] = useState(firstOfPreviousMonth());
+  const [end, setEnd] = useState(fmt(new Date()));
   const [timeOfDay, setTimeOfDay] = useState('06:00');
   const [runAt, setRunAt] = useState('');
-  const [start, setStart] = useState(fmt(new Date()));
-  const [end, setEnd] = useState(fmt(new Date()));
   const branches = useBranches(company);
 
-  const create = useMutation({
+  const branchCode = () => (branch === ALL_BRANCHES ? null : branch);
+
+  const runNow = useMutation({
+    mutationFn: () =>
+      api.runManualIntegration({
+        companyCode: company,
+        branchCode: branchCode(),
+        documentNumber: scope === 'note' ? documentNumber : null,
+        periodStart: `${start}T00:00:00-03:00`,
+        periodEnd: `${end}T23:59:59-03:00`,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['executions'] }),
+  });
+
+  const createSchedule = useMutation({
     mutationFn: () => {
-      const branchCode = branch === ALL_BRANCHES ? null : branch;
       const body: CreateScheduleRequest =
-        mode === 'ScheduledDaily'
-          ? { mode, companyCode: company, branchCode, timeOfDay }
+        mode === 'daily'
+          ? { mode: 'ScheduledDaily', companyCode: company, branchCode: branchCode(), timeOfDay }
           : {
-              mode,
+              mode: 'ScheduledOnce',
               companyCode: company,
-              branchCode,
+              branchCode: branchCode(),
               runAt: `${runAt}:00-03:00`,
               periodStart: `${start}T00:00:00-03:00`,
               periodEnd: `${end}T23:59:59-03:00`,
@@ -77,32 +101,49 @@ export function SchedulesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
   });
 
+  const onModeChange = (m: Mode) => {
+    setMode(m);
+    runNow.reset();
+    createSchedule.reset();
+  };
+
   const onCompanyChange = (code: string) => {
     setCompany(code);
     setBranch(ALL_BRANCHES);
-    create.reset();
+    runNow.reset();
+    createSchedule.reset();
   };
 
+  const periodOk = start !== '' && end !== '' && start <= end;
+  const pending = runNow.isPending || createSchedule.isPending;
   const canSubmit =
     company !== '' &&
-    (mode === 'ScheduledDaily' ? timeOfDay !== '' : runAt !== '' && start !== '' && end !== '' && start <= end) &&
-    !create.isPending;
+    !pending &&
+    (mode === 'now'
+      ? periodOk && (scope === 'period' || documentNumber.trim() !== '')
+      : mode === 'daily'
+        ? timeOfDay !== ''
+        : runAt !== '' && periodOk);
+
+  const submit = () => (mode === 'now' ? runNow.mutate() : createSchedule.mutate());
 
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2.5, maxWidth: 1040, mx: 'auto' }}>
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: 1, borderColor: 'divider' }}>
         <Typography variant="h6" sx={{ mb: 0.5 }}>
-          Novo agendamento
+          Nova integração
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-          A <strong>diária (D-1)</strong> roda todo dia no horário escolhido, processando as notas do dia
-          anterior. A <strong>agendada</strong> roda uma vez, na data/hora marcada, sobre o período informado.
+          <strong>Imediata</strong> dispara agora — um período inteiro ou uma nota pelo número.
+          <strong> Diária (D-1)</strong> roda todo dia processando o dia anterior.
+          <strong> Agendada</strong> roda uma vez, na data/hora marcada.
         </Typography>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-          <TextField select label="Tipo" size="small" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
-            <MenuItem value="ScheduledDaily">Diária (D-1)</MenuItem>
-            <MenuItem value="ScheduledOnce">Agendada (única)</MenuItem>
+          <TextField select label="Modo" size="small" value={mode} onChange={(e) => onModeChange(e.target.value as Mode)}>
+            <MenuItem value="now">Imediata (agora)</MenuItem>
+            <MenuItem value="daily">Agendada — diária (D-1)</MenuItem>
+            <MenuItem value="once">Agendada — única</MenuItem>
           </TextField>
 
           <TextField
@@ -136,7 +177,24 @@ export function SchedulesPage() {
             ))}
           </TextField>
 
-          {mode === 'ScheduledDaily' ? (
+          {mode === 'now' && (
+            <TextField select label="Escopo" size="small" value={scope} onChange={(e) => setScope(e.target.value as 'period' | 'note')}>
+              <MenuItem value="period">Período inteiro</MenuItem>
+              <MenuItem value="note">Nota específica</MenuItem>
+            </TextField>
+          )}
+
+          {mode === 'now' && scope === 'note' && (
+            <TextField
+              label="Número da nota (nNF)"
+              size="small"
+              value={documentNumber}
+              onChange={(e) => setDocumentNumber(e.target.value)}
+              placeholder="ex.: 456"
+            />
+          )}
+
+          {mode === 'daily' && (
             <TextField
               type="time"
               label="Horário"
@@ -145,16 +203,21 @@ export function SchedulesPage() {
               onChange={(e) => setTimeOfDay(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          ) : (
+          )}
+
+          {mode === 'once' && (
+            <TextField
+              type="datetime-local"
+              label="Disparar em"
+              size="small"
+              value={runAt}
+              onChange={(e) => setRunAt(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          )}
+
+          {mode !== 'daily' && (
             <>
-              <TextField
-                type="datetime-local"
-                label="Disparar em"
-                size="small"
-                value={runAt}
-                onChange={(e) => setRunAt(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
               <TextField
                 type="date"
                 label="Período — início"
@@ -162,6 +225,7 @@ export function SchedulesPage() {
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                error={!periodOk}
               />
               <TextField
                 type="date"
@@ -170,36 +234,59 @@ export function SchedulesPage() {
                 value={end}
                 onChange={(e) => setEnd(e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                error={!periodOk}
+                helperText={!periodOk ? 'O início deve ser anterior ao fim.' : ' '}
               />
             </>
           )}
         </Box>
 
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 1.5 }}>
           <Button
             variant="contained"
             disableElevation
-            startIcon={create.isPending ? <CircularProgress size={16} color="inherit" /> : <AddOutlinedIcon />}
+            startIcon={
+              pending ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : mode === 'now' ? (
+                <BoltOutlinedIcon />
+              ) : (
+                <AddOutlinedIcon />
+              )
+            }
             disabled={!canSubmit}
-            onClick={() => create.mutate()}
+            onClick={submit}
           >
-            Criar agendamento
+            {mode === 'now' ? 'Integrar agora' : 'Criar agendamento'}
           </Button>
         </Box>
 
-        {create.isError && (
+        {runNow.isError && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            Falha ao criar: {(create.error as Error)?.message}.
+            Falha ao integrar: {(runNow.error as Error)?.message}.
           </Alert>
         )}
-        {create.isSuccess && (
+        {runNow.isSuccess && (
+          <Alert severity={runNow.data.discovered > 0 ? 'success' : 'info'} sx={{ mt: 2 }}>
+            <AlertTitle>
+              {runNow.data.discovered > 0 ? `${runNow.data.discovered} nota(s) enfileirada(s)` : 'Nenhuma nota encontrada'}
+            </AlertTitle>
+            {runNow.data.discovered > 0 ? 'Acompanhe em Documentos.' : 'Ajuste empresa, período ou número.'}
+          </Alert>
+        )}
+        {createSchedule.isError && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            Falha ao agendar: {(createSchedule.error as Error)?.message}.
+          </Alert>
+        )}
+        {createSchedule.isSuccess && (
           <Alert severity="success" sx={{ mt: 2 }}>
             Agendamento criado. O host executa no horário; acompanhe nas execuções abaixo.
           </Alert>
         )}
       </Paper>
 
-      <Paper elevation={0} sx={{ p: 0, borderRadius: 3, border: 1, borderColor: 'divider', overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ borderRadius: 3, border: 1, borderColor: 'divider', overflow: 'hidden' }}>
         <Typography variant="subtitle1" sx={{ p: 2, pb: 1.5 }}>
           Agendamentos
         </Typography>
@@ -225,11 +312,7 @@ export function SchedulesPage() {
                   <Chip
                     size="small"
                     label={s.active ? 'Ativo' : 'Inativo'}
-                    sx={{
-                      bgcolor: s.active ? '#e7f6ec' : '#f1f2f4',
-                      color: s.active ? '#15803d' : '#6b7280',
-                      fontWeight: 600,
-                    }}
+                    sx={{ bgcolor: s.active ? '#e7f6ec' : '#f1f2f4', color: s.active ? '#15803d' : '#6b7280', fontWeight: 600 }}
                   />
                 </TableCell>
                 <TableCell align="right">
@@ -252,7 +335,7 @@ export function SchedulesPage() {
         </Table>
       </Paper>
 
-      <Paper elevation={0} sx={{ p: 0, borderRadius: 3, border: 1, borderColor: 'divider', overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ borderRadius: 3, border: 1, borderColor: 'divider', overflow: 'hidden' }}>
         <Typography variant="subtitle1" sx={{ p: 2, pb: 1.5 }}>
           Execuções recentes
         </Typography>

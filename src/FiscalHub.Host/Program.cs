@@ -114,6 +114,7 @@ app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegr
         TenantId = req.TenantId ?? "tenant-a",
         CompanyCode = req.CompanyCode,
         BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
+        DocumentNumber = string.IsNullOrWhiteSpace(req.DocumentNumber) ? null : req.DocumentNumber,
         PeriodStart = req.PeriodStart,
         PeriodEnd = req.PeriodEnd,
     }, ct);
@@ -298,13 +299,17 @@ app.Run();
 /// <summary>Corpo do POST /ingest.</summary>
 public sealed record IngestRequest(string TenantId, string NaturalKey, string Locator);
 
-/// <summary>Corpo do POST /integrations/manual. Filial vazia = todas; tenant nulo cai no de dev.</summary>
+/// <summary>
+/// Corpo do POST /integrations/manual. Filial vazia = todas; tenant nulo cai no de dev.
+/// <c>DocumentNumber</c> preenchido restringe a uma nota específica (dentro do período).
+/// </summary>
 public sealed record ManualIntegrationRequest(
     string CompanyCode,
     string? BranchCode,
     DateTimeOffset PeriodStart,
     DateTimeOffset PeriodEnd,
-    string? TenantId);
+    string? TenantId,
+    string? DocumentNumber);
 
 /// <summary>
 /// Corpo do POST /schedules. Diário (ScheduledDaily): informe <c>TimeOfDay</c> "HH:mm" (roda D-1).
