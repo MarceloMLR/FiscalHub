@@ -14,7 +14,8 @@ const columns: GridColDef<DocumentGroup>[] = [
   {
     field: 'companyCode',
     headerName: 'Empresa',
-    width: 150,
+    flex: 1,
+    minWidth: 150,
     renderCell: (params) => (
       <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>{params.value as string}</span>
     ),
@@ -27,7 +28,8 @@ const columns: GridColDef<DocumentGroup>[] = [
   {
     field: 'periodo',
     headerName: 'Período',
-    width: 150,
+    flex: 1,
+    minWidth: 140,
     sortable: false,
     renderCell: () => <span style={{ color: '#9aa1ab' }}>—</span>,
   },
