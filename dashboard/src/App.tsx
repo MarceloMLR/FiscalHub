@@ -10,7 +10,7 @@ import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import { DocumentsPage } from './features/documents/DocumentsPage';
+import { GroupsPage } from './features/groups/GroupsPage';
 import { useInfo } from './features/useInfo';
 
 const drawerWidth = 224;
@@ -157,7 +157,7 @@ export default function App() {
             </Box>
           </Box>
         </Box>
-        <DocumentsPage />
+        <GroupsPage />
       </Box>
     </Box>
   );

@@ -28,3 +28,15 @@ export interface DocumentTrace {
   domain?: unknown;
   destination?: { name: string; payload: unknown };
 }
+
+// Grupo (empresa/filial/dia) com contagens — a linha principal do dashboard.
+export interface DocumentGroup {
+  companyCode: string;
+  branchCode: string;
+  referenceDate: string;
+  type: string;
+  total: number;
+  finalizadas: number;
+  emProcessamento: number;
+  comErro: number;
+}
