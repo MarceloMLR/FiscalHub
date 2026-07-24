@@ -21,7 +21,7 @@ public class DocumentPipelineTests
     {
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
-        var store = new FakeStore { AlreadySubmitted = false };
+        var store = new FakeStore { AlreadyProcessed = false };
         var trace = new RecordingTrace();
         var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
@@ -35,20 +35,20 @@ public class DocumentPipelineTests
     }
 
     [Fact]
-    public async Task Already_submitted_document_is_skipped()
+    public async Task Duplicate_content_is_skipped()
     {
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
-        var store = new FakeStore { AlreadySubmitted = true };
+        var store = new FakeStore { AlreadyProcessed = true };   // mesmo cru já processado
         var trace = new RecordingTrace();
         var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
-        Assert.Equal(0, source.FetchCount);       // não buscou
-        Assert.Equal(0, dispatcher.SubmitCount);  // não reenviou
+        Assert.Equal(1, source.FetchCount);       // buscou pra conhecer o cru (é ele que decide)
+        Assert.Equal(0, dispatcher.SubmitCount);  // não reenviou (conteúdo idêntico)
         Assert.Equal(0, store.RecordCount);       // não registrou de novo
-        Assert.Null(trace.DomainKey);             // nem fotografou (parou na idempotência)
+        Assert.Null(trace.DomainKey);             // parou na idempotência, antes da foto de domínio
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class DocumentPipelineTests
     {
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
-        var store = new FakeStore { AlreadySubmitted = true };   // nota já confirmada
+        var store = new FakeStore { AlreadyProcessed = true };   // nota já confirmada
         var trace = new RecordingTrace();
         var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
@@ -72,7 +72,7 @@ public class DocumentPipelineTests
     {
         var source = new FakeSource();
         var dispatcher = new FakeDispatcher();
-        var store = new FakeStore { AlreadySubmitted = false };
+        var store = new FakeStore { AlreadyProcessed = false };
         var trace = new RecordingTrace();
         var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator { Valid = false }, dispatcher, store, trace, new FakeExtractor());
 
@@ -106,10 +106,10 @@ public class DocumentPipelineTests
         public string Origin => "fake";
         public int FetchCount { get; private set; }
 
-        public Task<TestDocument> FetchAsync(DocumentReference reference, CancellationToken ct = default)
+        public Task<FetchResult<TestDocument>> FetchAsync(DocumentReference reference, CancellationToken ct = default)
         {
             FetchCount++;
-            return Task.FromResult(new TestDocument("doc-1"));
+            return Task.FromResult(new FetchResult<TestDocument> { Document = new TestDocument("doc-1"), ContentHash = "hash-1" });
         }
     }
 
@@ -154,13 +154,13 @@ public class DocumentPipelineTests
 
     private sealed class FakeStore : IProcessingStore
     {
-        public bool AlreadySubmitted { get; init; }
+        public bool AlreadyProcessed { get; init; }
         public int RecordCount { get; private set; }
         public int RejectionCount { get; private set; }
         public IntegrationReceipt? Recorded { get; private set; }
 
-        public Task<bool> AlreadySubmittedAsync(string tenantId, string naturalKey, CancellationToken ct = default)
-            => Task.FromResult(AlreadySubmitted);
+        public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default)
+            => Task.FromResult(AlreadyProcessed);
 
         public Task RecordSubmissionAsync(DocumentReference reference, IntegrationReceipt receipt, CancellationToken ct = default)
         {
@@ -184,7 +184,7 @@ public class DocumentPipelineTests
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Task.CompletedTask;
 
-        public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default)
+        public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
             => Task.CompletedTask;
     }
 

@@ -18,10 +18,11 @@ internal sealed class SqlProcessingStore : IProcessingStore
         _clock = clock;
     }
 
-    public Task<bool> AlreadySubmittedAsync(string tenantId, string naturalKey, CancellationToken ct = default)
+    public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default)
         => _db.ProcessedDocuments.AnyAsync(
             d => d.TenantId == tenantId
                  && d.NaturalKey == naturalKey
+                 && d.ContentHash == contentHash   // mesmo cru; se mudou (correção), não bloqueia
                  && (d.Status == IntegrationStatus.Submitted || d.Status == IntegrationStatus.Confirmed),
             ct);
 
@@ -34,7 +35,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
     public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         => UpsertAsync(reference, IntegrationStatus.DeadLettered, externalId: null, reason, ct);
 
-    public async Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default)
+    public async Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
     {
         ProcessedDocument? row = await _db.ProcessedDocuments.FirstOrDefaultAsync(
             d => d.TenantId == reference.TenantId && d.NaturalKey == reference.NaturalKey, ct);
@@ -55,6 +56,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 ReferenceDate = refDate,
                 DocumentNumber = metadata.DocumentNumber,
                 DocumentModel = metadata.DocumentModel,
+                ContentHash = contentHash,
                 CreatedAt = now,
                 UpdatedAt = now,
             });
@@ -66,6 +68,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
             row.ReferenceDate = refDate;
             row.DocumentNumber = metadata.DocumentNumber;
             row.DocumentModel = metadata.DocumentModel;
+            row.ContentHash = contentHash;   // correção reintegrando: grava o hash do cru novo
             row.UpdatedAt = now;
         }
 

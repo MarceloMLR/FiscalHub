@@ -19,13 +19,15 @@ public class XmlGoodsInvoiceSourceTests
         var trace = new RecordingTrace();
         var source = new XmlGoodsInvoiceSource(reader, new NfeXmlParser(), trace);
 
-        GoodsInvoice invoice = await source.FetchAsync(Reference("nfe/nfe-1.xml"));
+        FetchResult<GoodsInvoice> result = await source.FetchAsync(Reference("nfe/nfe-1.xml"));
+        GoodsInvoice invoice = result.Document;
 
         Assert.Equal("35260612345678000190550010000001231000000123", invoice.AccessKey);
         Assert.Single(invoice.Items);
         Assert.Equal("nfe/nfe-1.xml", reader.LastLocator);   // usou o Locator da referência
         Assert.Equal(fixture, trace.SourceContent);          // fotografou a fonte crua, intacta
         Assert.Equal("xml", trace.SourceFormat);
+        Assert.Equal(ContentFingerprint.Of(fixture), result.ContentHash);   // hash do cru, pra idempotência
     }
 
     [Fact]
