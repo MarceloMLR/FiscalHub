@@ -53,6 +53,8 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 CompanyCode = metadata.CompanyCode,
                 BranchCode = metadata.BranchCode,
                 ReferenceDate = refDate,
+                DocumentNumber = metadata.DocumentNumber,
+                DocumentModel = metadata.DocumentModel,
                 CreatedAt = now,
                 UpdatedAt = now,
             });
@@ -62,6 +64,8 @@ internal sealed class SqlProcessingStore : IProcessingStore
             row.CompanyCode = metadata.CompanyCode;
             row.BranchCode = metadata.BranchCode;
             row.ReferenceDate = refDate;
+            row.DocumentNumber = metadata.DocumentNumber;
+            row.DocumentModel = metadata.DocumentModel;
             row.UpdatedAt = now;
         }
 

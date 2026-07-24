@@ -31,6 +31,8 @@ public sealed record DocumentSummary
     public required int Attempts { get; init; }
     public string? ExternalId { get; init; }
     public string? Reason { get; init; }
+    public string? Number { get; init; }
+    public string? Model { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
 }
 

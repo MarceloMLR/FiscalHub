@@ -20,4 +20,10 @@ public sealed record DocumentMetadata
 
     /// <summary>Data de referência (dia) usada no agrupamento.</summary>
     public required DateOnly ReferenceDate { get; init; }
+
+    /// <summary>Número do documento (ex.: nNF da NF-e).</summary>
+    public required string DocumentNumber { get; init; }
+
+    /// <summary>Modelo do documento (ex.: "55").</summary>
+    public required string DocumentModel { get; init; }
 }

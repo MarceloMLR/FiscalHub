@@ -27,5 +27,7 @@ public class GoodsInvoiceMetadataExtractorTests
         Assert.Equal("12345678", meta.CompanyCode);            // raiz do CNPJ
         Assert.Equal("0002", meta.BranchCode);                 // ordem do estabelecimento (filial 02)
         Assert.Equal(new DateOnly(2026, 6, 1), meta.ReferenceDate);
+        Assert.Equal("123", meta.DocumentNumber);              // nNF
+        Assert.Equal("55", meta.DocumentModel);
     }
 }

@@ -112,6 +112,8 @@ public class DocumentPipelineTests
             CompanyCode = "12345678",
             BranchCode = "0001",
             ReferenceDate = new DateOnly(2026, 7, 23),
+            DocumentNumber = "1",
+            DocumentModel = "55",
         };
     }
 

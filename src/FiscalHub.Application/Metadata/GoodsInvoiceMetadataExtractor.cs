@@ -20,6 +20,8 @@ public sealed class GoodsInvoiceMetadataExtractor : IDocumentMetadataExtractor<G
             CompanyCode = company,
             BranchCode = branch,
             ReferenceDate = DateOnly.FromDateTime(document.IssueDate.Date),
+            DocumentNumber = document.Number,
+            DocumentModel = document.Model,
         };
     }
 }
