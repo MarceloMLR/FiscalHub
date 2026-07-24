@@ -93,7 +93,7 @@ export function GroupsPage() {
           getRowId={(row) => `${row.companyCode}:${row.branchCode}:${row.referenceDate}`}
           loading={isLoading}
           onRowClick={(params) => setGroup(params.row as DocumentGroup)}
-          slots={{ loadingOverlay: LinearProgress }}
+          slots={{ loadingOverlay: () => <LinearProgress /> }}
           initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
           pageSizeOptions={[25, 50, 100]}
           disableRowSelectionOnClick
