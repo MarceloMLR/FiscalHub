@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
@@ -11,6 +12,7 @@ import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import { GroupsPage } from './features/groups/GroupsPage';
+import { ManualIntegrationPage } from './features/manual/ManualIntegrationPage';
 import { useInfo } from './features/useInfo';
 
 const drawerWidth = 224;
@@ -18,15 +20,22 @@ const drawerWidth = 224;
 // Placeholder — vem da autenticação numa fatia futura.
 const user = { name: 'Marcelo Lima' };
 
+// Nav sem router: troca a view por estado. As telas ainda-nao-feitas ficam desabilitadas.
 const nav = [
-  { label: 'Documentos', icon: <DescriptionOutlinedIcon fontSize="small" />, active: true },
-  { label: 'Integração manual', icon: <BoltOutlinedIcon fontSize="small" />, active: false },
-  { label: 'Métricas', icon: <BarChartOutlinedIcon fontSize="small" />, active: false },
-  { label: 'Conectores', icon: <HubOutlinedIcon fontSize="small" />, active: false },
-  { label: 'Configurações', icon: <SettingsOutlinedIcon fontSize="small" />, active: false },
+  { key: 'documents', label: 'Documentos', icon: <DescriptionOutlinedIcon fontSize="small" /> },
+  { key: 'manual', label: 'Integração manual', icon: <BoltOutlinedIcon fontSize="small" /> },
+  { key: 'metrics', label: 'Métricas', icon: <BarChartOutlinedIcon fontSize="small" />, disabled: true },
+  { key: 'connectors', label: 'Conectores', icon: <HubOutlinedIcon fontSize="small" />, disabled: true },
+  { key: 'settings', label: 'Configurações', icon: <SettingsOutlinedIcon fontSize="small" />, disabled: true },
 ];
 
+const titles: Record<string, { title: string; subtitle: string }> = {
+  documents: { title: 'Documentos', subtitle: 'Notas integradas e seus status' },
+  manual: { title: 'Integração manual', subtitle: 'Dispare a carga de um período por empresa' },
+};
+
 export default function App() {
+  const [view, setView] = useState('documents');
   const { data: info } = useInfo();
   const env = info?.environment ?? 'Sandbox';
   const isProd = /produ|production/i.test(env);
@@ -73,21 +82,30 @@ export default function App() {
         </Box>
 
         <List sx={{ px: 1 }}>
-          {nav.map((item) => (
-            <ListItemButton key={item.label} selected={item.active} sx={{ borderRadius: 2, mb: 0.5 }}>
-              <ListItemIcon sx={{ minWidth: 34, color: item.active ? 'primary.main' : 'text.secondary' }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{
-                  fontSize: 14,
-                  fontWeight: item.active ? 600 : 400,
-                  color: item.active ? 'primary.main' : 'text.primary',
-                }}
-              />
-            </ListItemButton>
-          ))}
+          {nav.map((item) => {
+            const active = view === item.key;
+            return (
+              <ListItemButton
+                key={item.key}
+                selected={active}
+                disabled={item.disabled}
+                onClick={() => setView(item.key)}
+                sx={{ borderRadius: 2, mb: 0.5 }}
+              >
+                <ListItemIcon sx={{ minWidth: 34, color: active ? 'primary.main' : 'text.secondary' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontSize: 14,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? 'primary.main' : 'text.primary',
+                  }}
+                />
+              </ListItemButton>
+            );
+          })}
         </List>
 
         <Box sx={{ mt: 'auto', p: 1.5 }}>
@@ -129,9 +147,9 @@ export default function App() {
           }}
         >
           <Box>
-            <Typography variant="h6">Documentos</Typography>
+            <Typography variant="h6">{titles[view].title}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Notas integradas e seus status
+              {titles[view].subtitle}
             </Typography>
           </Box>
 
@@ -157,7 +175,7 @@ export default function App() {
             </Box>
           </Box>
         </Box>
-        <GroupsPage />
+        {view === 'manual' ? <ManualIntegrationPage /> : <GroupsPage />}
       </Box>
     </Box>
   );
