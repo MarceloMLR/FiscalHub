@@ -9,6 +9,8 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
 
     public DbSet<IntegrationExecutionRow> IntegrationExecutions => Set<IntegrationExecutionRow>();
 
+    public DbSet<ScheduledIntegrationRow> ScheduledIntegrations => Set<ScheduledIntegrationRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var doc = modelBuilder.Entity<ProcessedDocument>();
@@ -41,5 +43,15 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         exec.Property(e => e.BranchCode).HasMaxLength(10);
         exec.Property(e => e.PeriodStart).HasMaxLength(10);
         exec.Property(e => e.PeriodEnd).HasMaxLength(10);
+
+        var sched = modelBuilder.Entity<ScheduledIntegrationRow>();
+        sched.ToTable("ScheduledIntegrations");
+        sched.HasKey(s => s.Id);
+        sched.Property(s => s.Mode).HasConversion<string>().HasMaxLength(20);
+        sched.Property(s => s.TenantId).HasMaxLength(100);
+        sched.Property(s => s.CompanyCode).HasMaxLength(20);
+        sched.Property(s => s.BranchCode).HasMaxLength(10);
+        sched.Property(s => s.PeriodStart).HasMaxLength(10);
+        sched.Property(s => s.PeriodEnd).HasMaxLength(10);
     }
 }

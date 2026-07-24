@@ -64,6 +64,10 @@ builder.Services.AddSingleton(new StatusPollerOptions());
 builder.Services.AddScoped<StatusPoller<GoodsInvoice>>();
 builder.Services.AddHostedService<StatusPollingService>();
 
+// Agendador: um timer executa os agendamentos vencidos (D-1 recorrente / único) pelo mesmo runner.
+builder.Services.AddScoped<IntegrationScheduler>();
+builder.Services.AddHostedService<SchedulerHostedService>();
+
 // CORS liberado pro dashboard local. Em produção, restringir a origem.
 builder.Services.AddCors(options => options.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
@@ -120,6 +124,65 @@ app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegr
 // Execuções recentes (manuais/agendadas) pro painel: modo, empresa/filial, período e nº de notas.
 app.MapGet("/executions", async (IExecutionQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListRecentAsync(100, ct)));
+
+// Agendamentos: cria (D-1 recorrente ou único), lista e desativa. O timer do host executa os vencidos.
+app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, TimeProvider clock, CancellationToken ct) =>
+{
+    if (!Enum.TryParse(req.Mode, out IntegrationMode mode) || mode == IntegrationMode.Manual)
+    {
+        return Results.BadRequest(new { message = "Modo inválido. Use ScheduledDaily ou ScheduledOnce." });
+    }
+
+    var brt = TimeSpan.FromHours(-3);
+    DateTimeOffset nextRun;
+    string? periodStart = null;
+    string? periodEnd = null;
+
+    if (mode == IntegrationMode.ScheduledDaily)
+    {
+        if (!TimeOnly.TryParse(req.TimeOfDay, out TimeOnly timeOfDay))
+        {
+            return Results.BadRequest(new { message = "Informe timeOfDay no formato HH:mm." });
+        }
+
+        DateTimeOffset nowBrt = clock.GetUtcNow().ToOffset(brt);
+        var todayRun = new DateTimeOffset(nowBrt.Date.Add(timeOfDay.ToTimeSpan()), brt);
+        nextRun = todayRun > nowBrt ? todayRun : todayRun.AddDays(1);   // hoje se ainda vem, senão amanhã
+    }
+    else // ScheduledOnce
+    {
+        if (req.RunAt is null || req.PeriodStart is null || req.PeriodEnd is null)
+        {
+            return Results.BadRequest(new { message = "Agendamento único exige runAt, periodStart e periodEnd." });
+        }
+
+        nextRun = req.RunAt.Value;
+        periodStart = req.PeriodStart.Value.ToString("yyyy-MM-dd");
+        periodEnd = req.PeriodEnd.Value.ToString("yyyy-MM-dd");
+    }
+
+    int id = await store.CreateAsync(new ScheduledIntegration
+    {
+        Mode = mode,
+        TenantId = req.TenantId ?? "tenant-a",
+        CompanyCode = req.CompanyCode,
+        BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
+        PeriodStart = periodStart,
+        PeriodEnd = periodEnd,
+        NextRunAt = nextRun,
+    }, ct);
+
+    return Results.Created($"/schedules/{id}", new { id, nextRunAt = nextRun });
+});
+
+app.MapGet("/schedules", async (IScheduleStore store, CancellationToken ct) =>
+    Results.Ok(await store.ListAsync(ct)));
+
+app.MapPost("/schedules/{id:int}/deactivate", async (int id, IScheduleStore store, CancellationToken ct) =>
+{
+    await store.DeactivateAsync(id, ct);
+    return Results.NoContent();
+});
 
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
 // Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual.
@@ -241,4 +304,18 @@ public sealed record ManualIntegrationRequest(
     string? BranchCode,
     DateTimeOffset PeriodStart,
     DateTimeOffset PeriodEnd,
+    string? TenantId);
+
+/// <summary>
+/// Corpo do POST /schedules. Diário (ScheduledDaily): informe <c>TimeOfDay</c> "HH:mm" (roda D-1).
+/// Único (ScheduledOnce): informe <c>RunAt</c> e o par <c>PeriodStart</c>/<c>PeriodEnd</c>.
+/// </summary>
+public sealed record ScheduleRequest(
+    string Mode,
+    string CompanyCode,
+    string? BranchCode,
+    string? TimeOfDay,
+    DateTimeOffset? RunAt,
+    DateTimeOffset? PeriodStart,
+    DateTimeOffset? PeriodEnd,
     string? TenantId);
