@@ -7,6 +7,8 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
 {
     public DbSet<ProcessedDocument> ProcessedDocuments => Set<ProcessedDocument>();
 
+    public DbSet<IntegrationExecutionRow> IntegrationExecutions => Set<IntegrationExecutionRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var doc = modelBuilder.Entity<ProcessedDocument>();
@@ -29,5 +31,15 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         doc.Property(d => d.ReferenceDate).HasMaxLength(10);
         doc.Property(d => d.DocumentNumber).HasMaxLength(20);
         doc.Property(d => d.DocumentModel).HasMaxLength(5);
+
+        var exec = modelBuilder.Entity<IntegrationExecutionRow>();
+        exec.ToTable("IntegrationExecutions");
+        exec.HasKey(e => e.Id);
+        exec.Property(e => e.Mode).HasConversion<string>().HasMaxLength(20);
+        exec.Property(e => e.TenantId).HasMaxLength(100);
+        exec.Property(e => e.CompanyCode).HasMaxLength(20);
+        exec.Property(e => e.BranchCode).HasMaxLength(10);
+        exec.Property(e => e.PeriodStart).HasMaxLength(10);
+        exec.Property(e => e.PeriodEnd).HasMaxLength(10);
     }
 }

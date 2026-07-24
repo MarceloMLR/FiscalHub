@@ -184,7 +184,17 @@
               "host": ["{{hostUrl}}"],
               "path": ["integrations", "manual"]
             },
-            "description": "Integracao manual (pull): a descoberta lista as notas do periodo/empresa na origem e enfileira cada uma. branchCode null = todas as filiais. Reprocessar o mesmo periodo e idempotente (regra por estado). Depois use GET /documents ou /groups pra ver o resultado."
+            "description": "Integracao manual (pull): a descoberta lista as notas do periodo/empresa na origem e enfileira cada uma. branchCode null = todas as filiais. Reprocessar o mesmo periodo reintegra (idempotencia por conteudo; manual fura). Depois use GET /documents ou /executions."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /executions (manuais/agendadas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{hostUrl}}/executions", "host": ["{{hostUrl}}"], "path": ["executions"] },
+            "description": "Execucoes recentes de integracao (manual/agendada): modo, empresa/filial, periodo e quantas notas foram descobertas/enfileiradas. Alimenta a tela de Agendamentos/Execucoes."
           },
           "response": []
         }
