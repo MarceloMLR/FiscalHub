@@ -111,7 +111,9 @@ app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IDocume
     IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(criteria, ct);
     foreach (DocumentReference reference in found)
     {
-        await queue.EnqueueAsync(reference, ct);
+        // Recarga manual: marca o gatilho pra furar a idempotência por estado — reprocessa mesmo
+        // notas já confirmadas (o cliente pode ter corrigido algo na origem e quer reenviar).
+        await queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Manual }, ct);
     }
 
     return Results.Accepted("/documents", new { discovered = found.Count, keys = found.Select(f => f.NaturalKey) });

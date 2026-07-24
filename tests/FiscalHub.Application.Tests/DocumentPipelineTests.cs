@@ -52,6 +52,22 @@ public class DocumentPipelineTests
     }
 
     [Fact]
+    public async Task Manual_reload_reprocesses_even_if_already_submitted()
+    {
+        var source = new FakeSource();
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore { AlreadySubmitted = true };   // nota já confirmada
+        var trace = new RecordingTrace();
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
+
+        await pipeline.ProcessAsync(Reference() with { Trigger = IngestionTrigger.Manual }, Context());
+
+        Assert.Equal(1, source.FetchCount);       // buscou de novo (furou a idempotência)
+        Assert.Equal(1, dispatcher.SubmitCount);  // reenviou de propósito
+        Assert.Equal(1, store.RecordCount);       // registrou o reenvio
+    }
+
+    [Fact]
     public async Task Invalid_document_is_rejected_and_not_submitted()
     {
         var source = new FakeSource();
