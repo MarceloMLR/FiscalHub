@@ -55,12 +55,23 @@ export function ManualIntegrationPage() {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 720 }}>
-      <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: 1, borderColor: 'divider' }}>
-        <Typography variant="subtitle1" sx={{ mb: 0.5 }}>
+    <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 4,
+          borderRadius: 3,
+          border: 1,
+          borderColor: 'divider',
+          width: '100%',
+          maxWidth: 860,
+          mt: { xs: 0, md: 6 },
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 0.5 }}>
           Carregar um período
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Escolha a empresa, a filial e o intervalo. As notas do período são buscadas na origem e
           enfileiradas para integração. Recarregar o mesmo período reprocessa as notas — inclusive as
           já finalizadas.
