@@ -7,6 +7,7 @@ internal static class LocalSeed
 {
     public const string Container = "nfe";
     public const string BlobName = "nfe-exemplo.xml";
+    public const string BlobName2 = "nfe-exemplo-2.xml";
 
     public static string Locator => $"{Container}/{BlobName}";
 
@@ -17,6 +18,7 @@ internal static class LocalSeed
         await container.CreateIfNotExistsAsync();
 
         await container.GetBlobClient(BlobName).UploadAsync(BinaryData.FromString(SampleXml), overwrite: true);
+        await container.GetBlobClient(BlobName2).UploadAsync(BinaryData.FromString(SampleXml2), overwrite: true);
     }
 
     private const string SampleXml =
@@ -77,6 +79,71 @@ internal static class LocalSeed
               <total>
                 <ICMSTot>
                   <vNF>100.00</vNF>
+                </ICMSTot>
+              </total>
+            </infNFe>
+          </NFe>
+        </nfeProc>
+        """;
+
+    private const string SampleXml2 =
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+          <NFe>
+            <infNFe Id="NFe35260698765432000188550010000004561000000456" versao="4.00">
+              <ide>
+                <mod>55</mod>
+                <serie>1</serie>
+                <nNF>456</nNF>
+                <dhEmi>2026-06-02T14:30:00-03:00</dhEmi>
+                <cMunFGIBS>3304557</cMunFGIBS>
+              </ide>
+              <emit>
+                <CNPJ>98765432000188</CNPJ>
+                <xNome>Distribuidora Beta SA</xNome>
+                <IE>987654321</IE>
+              </emit>
+              <dest>
+                <CNPJ>12345678000190</CNPJ>
+                <xNome>Cliente Destinatario LTDA</xNome>
+              </dest>
+              <det nItem="1">
+                <prod>
+                  <cProd>PROD-777</cProd>
+                  <xProd>Produto Beta</xProd>
+                  <NCM>87654321</NCM>
+                  <CFOP>6102</CFOP>
+                  <qCom>5.0000</qCom>
+                  <vUnCom>40.0000</vUnCom>
+                  <vProd>200.00</vProd>
+                </prod>
+                <imposto>
+                  <IBSCBS>
+                    <CST>000</CST>
+                    <cClassTrib>000001</cClassTrib>
+                    <gIBSCBS>
+                      <vBC>200.00</vBC>
+                      <gIBSUF>
+                        <pIBSUF>8.50</pIBSUF>
+                        <vIBSUF>17.00</vIBSUF>
+                      </gIBSUF>
+                      <gIBSMun>
+                        <pIBSMun>2.00</pIBSMun>
+                        <vIBSMun>4.00</vIBSMun>
+                      </gIBSMun>
+                      <vIBS>21.00</vIBS>
+                      <gCBS>
+                        <pCBS>0.90</pCBS>
+                        <vCBS>1.80</vCBS>
+                      </gCBS>
+                    </gIBSCBS>
+                  </IBSCBS>
+                </imposto>
+              </det>
+              <total>
+                <ICMSTot>
+                  <vNF>200.00</vNF>
                 </ICMSTot>
               </total>
             </infNFe>

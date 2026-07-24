@@ -23,5 +23,9 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         // Enums como texto: legíveis direto no banco (auditoria/consulta).
         doc.Property(d => d.Type).HasConversion<string>().HasMaxLength(20);
         doc.Property(d => d.Status).HasConversion<string>().HasMaxLength(20);
+
+        doc.Property(d => d.CompanyCode).HasMaxLength(20);
+        doc.Property(d => d.BranchCode).HasMaxLength(10);
+        doc.Property(d => d.ReferenceDate).HasMaxLength(10);
     }
 }

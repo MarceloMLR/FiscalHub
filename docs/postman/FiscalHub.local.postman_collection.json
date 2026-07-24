@@ -11,7 +11,10 @@
     { "key": "tenantId", "value": "tenant-a", "type": "string" },
     { "key": "naturalKey", "value": "nfe-trace", "type": "string" },
     { "key": "locator", "value": "nfe/nfe-exemplo.xml", "type": "string" },
-    { "key": "externalId", "value": "", "type": "string" }
+    { "key": "externalId", "value": "", "type": "string" },
+    { "key": "companyCode", "value": "12345678", "type": "string" },
+    { "key": "branchCode", "value": "0001", "type": "string" },
+    { "key": "referenceDate", "value": "2026-06-01", "type": "string" }
   ],
   "item": [
     {
@@ -77,6 +80,64 @@
               "path": ["trace", "{{tenantId}}", "{{naturalKey}}"]
             },
             "description": "Fotos de rastreabilidade do documento, lidas do Blob:\n- `.../domain.json` — a nota no nosso modelo de domínio.\n- `.../avalara.json` — o payload enviado ao destino.\n\nA terceira foto (XML cru) fica no container de entrada, no locator usado no /ingest."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /groups (empresa/filial/dia)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{hostUrl}}/groups", "host": ["{{hostUrl}}"], "path": ["groups"] },
+            "description": "Grupos por empresa/filial/dia com contagens por status. Tela principal do dashboard."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /groups/{empresa}/{filial}/{dia}/documents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hostUrl}}/groups/{{companyCode}}/{{branchCode}}/{{referenceDate}}/documents",
+              "host": ["{{hostUrl}}"],
+              "path": ["groups", "{{companyCode}}", "{{branchCode}}", "{{referenceDate}}", "documents"]
+            },
+            "description": "Notas de um grupo especifico. Ajuste companyCode/branchCode/referenceDate nas variaveis (o XML de exemplo usa empresa 12345678, filial 0001, data 2026-06-01)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /documents (lista recente)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{hostUrl}}/documents", "host": ["{{hostUrl}}"], "path": ["documents"] },
+            "description": "Lista as notas recentes com status (dado bruto que alimenta o dashboard)."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /documents/{tenant}/{chave}/download (zip)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{hostUrl}}/documents/{{tenantId}}/{{naturalKey}}/download",
+              "host": ["{{hostUrl}}"],
+              "path": ["documents", "{{tenantId}}", "{{naturalKey}}", "download"]
+            },
+            "description": "Baixa as 3 fotos (fonte/dominio/destino) zipadas. No Postman use 'Send and Download' pra salvar o .zip."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /info (ambiente)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{hostUrl}}/info", "host": ["{{hostUrl}}"], "path": ["info"] },
+            "description": "Ambiente do conector (Sandbox/Producao) — o dashboard mostra no rodape da sidebar."
           },
           "response": []
         }

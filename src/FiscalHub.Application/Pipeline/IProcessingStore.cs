@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 
 namespace FiscalHub.Application.Pipeline;
@@ -29,6 +30,9 @@ public interface IProcessingStore
 
     /// <summary>Registra que a mensagem do documento foi pra dead-letter após esgotar as tentativas.</summary>
     Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default);
+
+    /// <summary>Registra empresa/filial/data do documento (para agrupamento), na primeira passada.</summary>
+    Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default);
 }
 
 /// <summary>Documento em voo a consultar: identidade, GUID externo e tentativas já feitas.</summary>

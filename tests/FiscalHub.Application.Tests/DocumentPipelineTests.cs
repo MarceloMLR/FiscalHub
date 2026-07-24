@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Tracing;
@@ -22,7 +23,7 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = false };
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace);
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -40,7 +41,7 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = true };
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace);
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -57,7 +58,7 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadySubmitted = false };
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator { Valid = false }, dispatcher, store, trace);
+        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator { Valid = false }, dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -102,6 +103,16 @@ public class DocumentPipelineTests
 
         public ValidationResult Validate(TestDocument document)
             => Valid ? ValidationResult.Valid() : ValidationResult.Invalid(["problema de teste"]);
+    }
+
+    private sealed class FakeExtractor : IDocumentMetadataExtractor<TestDocument>
+    {
+        public DocumentMetadata Extract(TestDocument document) => new()
+        {
+            CompanyCode = "12345678",
+            BranchCode = "0001",
+            ReferenceDate = new DateOnly(2026, 7, 23),
+        };
     }
 
     private sealed class FakeDispatcher : IComplianceDispatcher<TestDocument>
@@ -153,6 +164,9 @@ public class DocumentPipelineTests
             => Task.CompletedTask;
 
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default)
             => Task.CompletedTask;
     }
 

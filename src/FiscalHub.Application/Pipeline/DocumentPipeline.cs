@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Application.Validation;
@@ -20,19 +21,22 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
     private readonly IComplianceDispatcher<TDocument> _dispatcher;
     private readonly IProcessingStore _store;
     private readonly IProcessingTrace _trace;
+    private readonly IDocumentMetadataExtractor<TDocument> _metadata;
 
     public DocumentPipeline(
         IInboundSource<TDocument> source,
         IDocumentValidator<TDocument> validator,
         IComplianceDispatcher<TDocument> dispatcher,
         IProcessingStore store,
-        IProcessingTrace trace)
+        IProcessingTrace trace,
+        IDocumentMetadataExtractor<TDocument> metadata)
     {
         _source = source;
         _validator = validator;
         _dispatcher = dispatcher;
         _store = store;
         _trace = trace;
+        _metadata = metadata;
     }
 
     /// <summary>
@@ -51,6 +55,10 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
         // Foto do domínio (ADR-0006): o documento já no nosso modelo, antes de validar — assim até
         // uma nota rejeitada deixa registrado o que a gente entendeu dela.
         await _trace.SaveDomainAsync(reference.TenantId, reference.NaturalKey, JsonSerializer.Serialize(document, JsonOpts), ct);
+
+        // Metadados de agrupamento (empresa/filial/data) na primeira passada — assim até uma nota
+        // rejeitada aparece no grupo certo do dashboard.
+        await _store.RecordMetadataAsync(reference, _metadata.Extract(document), ct);
 
         ValidationResult validation = _validator.Validate(document);
         if (!validation.IsValid)

@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FiscalHub.Adapters.Inbound.Xml;
@@ -6,6 +8,7 @@ using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
@@ -25,6 +28,7 @@ builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
+builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInvoiceMetadataExtractor>();
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
 
 // Gatilho por fila (Etapa 2): /ingest enfileira; o consumidor do Service Bus chama a esteira,
@@ -47,6 +51,10 @@ builder.Services.AddHostedService<StatusPollingService>();
 // CORS liberado pro dashboard local. Em produção, restringir a origem.
 builder.Services.AddCors(options => options.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+
+// Enums como texto no JSON das respostas (status/tipo legíveis pro dashboard, não números).
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 var app = builder.Build();
 
@@ -77,9 +85,10 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
 
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
 // Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual.
-app.MapPost("/drop/{key}", async (string key, BlobServiceClient blobs, CancellationToken ct) =>
+app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient blobs, CancellationToken ct) =>
 {
-    BlobClient sample = blobs.GetBlobContainerClient(LocalSeed.Container).GetBlobClient(LocalSeed.BlobName);
+    string sampleName = string.Equals(empresa, "b", StringComparison.OrdinalIgnoreCase) ? LocalSeed.BlobName2 : LocalSeed.BlobName;
+    BlobClient sample = blobs.GetBlobContainerClient(LocalSeed.Container).GetBlobClient(sampleName);
     if (!(await sample.ExistsAsync(ct)).Value)
     {
         return Results.NotFound(new { message = "XML de exemplo ainda não semeado." });
@@ -123,10 +132,58 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
         : Results.Ok(snapshots);
 });
 
+// Download: zipa as fotos (fonte/domínio/destino) de um documento pra baixar de uma vez.
+app.MapGet("/documents/{tenantId}/{naturalKey}/download", async (string tenantId, string naturalKey, BlobServiceClient blobs, CancellationToken ct) =>
+{
+    BlobContainerClient container = blobs.GetBlobContainerClient("traces");
+    if (!(await container.ExistsAsync(ct)).Value)
+    {
+        return Results.NotFound(new { message = "sem arquivos para esse documento." });
+    }
+
+    var zipStream = new MemoryStream();
+    var added = 0;
+    using (var zip = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
+    {
+        await foreach (BlobItem item in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{tenantId}/", ct))
+        {
+            if (!item.Name.Contains($"/{naturalKey}/", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            BlobDownloadResult blob = await container.GetBlobClient(item.Name).DownloadContentAsync(ct);
+            ZipArchiveEntry entry = zip.CreateEntry(item.Name.Split('/')[^1], CompressionLevel.Optimal);
+            await using Stream entryStream = entry.Open();
+            using Stream source = blob.Content.ToStream();
+            await source.CopyToAsync(entryStream, ct);
+            added++;
+        }
+    }
+
+    if (added == 0)
+    {
+        return Results.NotFound(new { message = "sem arquivos para esse documento." });
+    }
+
+    return Results.File(zipStream.ToArray(), "application/zip", $"{naturalKey}.zip");
+});
+
 // Leitura pro dashboard: os documentos mais recentes com status. Em produção, atrás de auth e
 // filtrado por tenant.
 app.MapGet("/documents", async (IDocumentQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListRecentAsync(100, ct)));
+
+// Dashboard: grupos (empresa/filial/dia) com contagens, e os documentos de um grupo.
+app.MapGet("/groups", async (IDocumentQueries queries, CancellationToken ct) =>
+    Results.Ok(await queries.ListGroupsAsync(200, ct)));
+
+app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
+    async (string companyCode, string branchCode, string referenceDate, IDocumentQueries queries, CancellationToken ct) =>
+        Results.Ok(await queries.ListByGroupAsync(companyCode, branchCode, referenceDate, ct)));
+
+// Ambiente do conector (sandbox/produção) — o dashboard exibe no topo.
+app.MapGet("/info", () => Results.Ok(new { environment = cfg["Connector:Environment"] ?? "Sandbox" }));
 
 app.Run();
 
