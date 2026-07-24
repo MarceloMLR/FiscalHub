@@ -19,7 +19,7 @@ public class SqlProcessingStoreTests
     {
         using var h = NewStore();
 
-        Assert.False(await h.Store.AlreadySubmittedAsync("tenant-a", "nfe-1"));
+        Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
     }
 
     [Fact]
@@ -27,9 +27,10 @@ public class SqlProcessingStoreTests
     {
         using var h = NewStore();
 
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
         await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
 
-        Assert.True(await h.Store.AlreadySubmittedAsync("tenant-a", "nfe-1"));
+        Assert.True(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
     }
 
     [Fact]
@@ -39,7 +40,7 @@ public class SqlProcessingStoreTests
 
         await h.Store.RecordRejectionAsync(Reference("nfe-1"), "Item 1: CFOP invalido");
 
-        Assert.False(await h.Store.AlreadySubmittedAsync("tenant-a", "nfe-1"));
+        Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
     }
 
     [Fact]
@@ -81,12 +82,13 @@ public class SqlProcessingStoreTests
     public async Task Confirmed_document_leaves_the_poll_queue_but_still_blocks_resubmission()
     {
         using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
         await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
 
         await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Confirmed, null, 1);
 
-        Assert.Empty(await h.Store.ListPendingAsync(50));                     // saiu da fila de poll
-        Assert.True(await h.Store.AlreadySubmittedAsync("tenant-a", "nfe-1")); // confirmado ainda bloqueia reenvio
+        Assert.Empty(await h.Store.ListPendingAsync(50));                              // saiu da fila de poll
+        Assert.True(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));   // mesmo cru confirmado ainda bloqueia
     }
 
     [Fact]
@@ -97,7 +99,20 @@ public class SqlProcessingStoreTests
 
         await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.IntegrationError, "campo X ausente", 1);
 
-        Assert.False(await h.Store.AlreadySubmittedAsync("tenant-a", "nfe-1")); // erro libera reenvio
+        Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash)); // erro libera reenvio
+    }
+
+    [Fact]
+    public async Task Same_key_with_corrected_content_is_not_blocked()
+    {
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Confirmed, null, 1);
+
+        // Mesma chave, mesmo cru (duplicata de evento): bloqueia. Cru corrigido (hash novo): reintegra.
+        Assert.True(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
+        Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", "hash-corrigido"));
     }
 
     [Fact]
@@ -117,9 +132,9 @@ public class SqlProcessingStoreTests
     public async Task Queries_group_by_company_branch_and_day()
     {
         using var h = NewStore();
-        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta());
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
         await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
-        await h.Store.RecordMetadataAsync(Reference("nfe-2"), Meta());
+        await h.Store.RecordMetadataAsync(Reference("nfe-2"), Meta(), Hash);
         await h.Store.RecordSubmissionAsync(Reference("nfe-2"), Receipt());
         await h.Store.MarkPolledAsync("tenant-a", "nfe-2", IntegrationStatus.Confirmed, null, 1);
 
@@ -156,7 +171,7 @@ public class SqlProcessingStoreTests
 
         await h.Store.RecordDeadLetterAsync(Reference("nfe-1"), "MaxDeliveryCountExceeded");
 
-        Assert.False(await h.Store.AlreadySubmittedAsync("tenant-a", "nfe-1")); // dead-letter libera reenvio
+        Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash)); // dead-letter libera reenvio
         Assert.Empty(await h.Store.ListPendingAsync(50));                        // saiu da fila de poll
     }
 
@@ -169,6 +184,8 @@ public class SqlProcessingStoreTests
         db.Database.EnsureCreated();
         return new Harness(db, conn, new SqlProcessingStore(db, TimeProvider.System));
     }
+
+    private const string Hash = "sha256-do-cru-1";
 
     private static DocumentReference Reference(string key) => new()
     {

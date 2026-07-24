@@ -53,11 +53,11 @@ public class DeadLetterHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task<bool> AlreadySubmittedAsync(string tenantId, string naturalKey, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default) => Task.FromResult(false);
         public Task RecordSubmissionAsync(DocumentReference reference, IntegrationReceipt receipt, CancellationToken ct = default) => Task.CompletedTask;
         public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<PendingIntegration>> ListPendingAsync(int batchSize, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<PendingIntegration>>([]);
         public Task MarkPolledAsync(string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default) => Task.CompletedTask;
-        public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default) => Task.CompletedTask;
+        public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default) => Task.CompletedTask;
     }
 }
