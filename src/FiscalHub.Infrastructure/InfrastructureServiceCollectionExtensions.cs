@@ -23,6 +23,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IDocumentQueries, SqlDocumentQueries>();
         services.AddScoped<IExecutionStore, SqlExecutionStore>();
         services.AddScoped<IExecutionQueries, SqlExecutionQueries>();
+        services.AddScoped<IScheduleStore, SqlScheduleStore>();
         return services;
     }
 

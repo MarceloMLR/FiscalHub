@@ -38,6 +38,17 @@ public class LocalDocumentDiscoveryTests
     }
 
     [Fact]
+    public async Task Filters_by_document_number()
+    {
+        var discovery = new LocalDocumentDiscovery();
+
+        IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(Junho() with { DocumentNumber = "456" });
+
+        DocumentReference only = Assert.Single(found);   // só a nota nNF 456
+        Assert.StartsWith("35260698765432", only.NaturalKey);
+    }
+
+    [Fact]
     public async Task Empty_when_period_has_no_documents()
     {
         var discovery = new LocalDocumentDiscovery();

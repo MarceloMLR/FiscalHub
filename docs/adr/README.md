@@ -24,6 +24,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0014](0014-integracao-manual-por-descoberta-pull.md) | Integração manual por descoberta pull (porta genérica, adapter local no dev) | Aceito |
 | [0015](0015-idempotencia-por-gatilho.md) | Idempotência por gatilho (evento dedupa, manual recarrega) | Aceito |
 | [0016](0016-idempotencia-por-conteudo.md) | Idempotência por conteúdo (nota de entrada pode ser corrigida) | Aceito |
+| [0017](0017-agendador-e-execucao-compartilhada.md) | Agendador in-process + execução compartilhada (runner) | Aceito |
 
 ## Planejados
 

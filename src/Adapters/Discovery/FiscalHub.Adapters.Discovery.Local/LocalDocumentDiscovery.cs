@@ -22,6 +22,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
             Tenant = "tenant-a",
             Company = "12345678",
             Branch = "0001",
+            Number = "123",
             IssuedAt = DateTimeOffset.Parse("2026-06-01T10:00:00-03:00"),
             AccessKey = "35260612345678000190550010000001231000000123",
             Locator = "nfe/nfe-exemplo.xml",
@@ -31,6 +32,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
             Tenant = "tenant-a",
             Company = "98765432",
             Branch = "0001",
+            Number = "456",
             IssuedAt = DateTimeOffset.Parse("2026-06-02T14:30:00-03:00"),
             AccessKey = "35260698765432000188550010000004561000000456",
             Locator = "nfe/nfe-exemplo-2.xml",
@@ -44,6 +46,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
             .Where(d => d.IssuedAt >= criteria.Start && d.IssuedAt <= criteria.End)
             .Where(d => criteria.Company is null || d.Company == criteria.Company)
             .Where(d => criteria.Establishment is null || d.Branch == criteria.Establishment)
+            .Where(d => criteria.DocumentNumber is null || d.Number == criteria.DocumentNumber)
             .Select(d => new DocumentReference
             {
                 TenantId = d.Tenant,
@@ -61,6 +64,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
         public required string Tenant { get; init; }
         public required string Company { get; init; }
         public required string Branch { get; init; }
+        public required string Number { get; init; }
         public required DateTimeOffset IssuedAt { get; init; }
         public required string AccessKey { get; init; }
         public required string Locator { get; init; }

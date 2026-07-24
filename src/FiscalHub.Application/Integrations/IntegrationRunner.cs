@@ -29,6 +29,7 @@ public sealed class IntegrationRunner : IIntegrationRunner
             End = request.PeriodEnd,
             Company = request.CompanyCode,
             Establishment = request.BranchCode,
+            DocumentNumber = request.DocumentNumber,
         };
 
         IReadOnlyList<DocumentReference> found = await _discovery.DiscoverAsync(criteria, ct);

@@ -1,10 +1,13 @@
 import type {
   Branch,
   Company,
+  CreateScheduleRequest,
   DocumentGroup,
   DocumentSummary,
+  ExecutionSummary,
   ManualIntegrationRequest,
   ManualIntegrationResult,
+  Schedule,
   TraceResponse,
 } from '../types';
 
@@ -46,4 +49,13 @@ export const api = {
   branches: (code: string) => getJson<Branch[]>(`/companies/${encodeURIComponent(code)}/branches`),
   runManualIntegration: (body: ManualIntegrationRequest) =>
     postJson<ManualIntegrationResult>('/integrations/manual', body),
+  executions: () => getJson<ExecutionSummary[]>('/executions'),
+  schedules: () => getJson<Schedule[]>('/schedules'),
+  createSchedule: (body: CreateScheduleRequest) => postJson<{ id: number }>('/schedules', body),
+  deactivateSchedule: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE}/schedules/${id}/deactivate`, { method: 'POST' });
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  },
 };

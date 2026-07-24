@@ -16,7 +16,8 @@
     { "key": "branchCode", "value": "0001", "type": "string" },
     { "key": "referenceDate", "value": "2026-06-01", "type": "string" },
     { "key": "periodStart", "value": "2026-06-01T00:00:00-03:00", "type": "string" },
-    { "key": "periodEnd", "value": "2026-06-30T23:59:59-03:00", "type": "string" }
+    { "key": "periodEnd", "value": "2026-06-30T23:59:59-03:00", "type": "string" },
+    { "key": "scheduleId", "value": "1", "type": "string" }
   ],
   "item": [
     {
@@ -176,7 +177,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyCode\": \"{{companyCode}}\",\n  \"branchCode\": null,\n  \"periodStart\": \"{{periodStart}}\",\n  \"periodEnd\": \"{{periodEnd}}\",\n  \"tenantId\": \"{{tenantId}}\"\n}",
+              "raw": "{\n  \"companyCode\": \"{{companyCode}}\",\n  \"branchCode\": null,\n  \"periodStart\": \"{{periodStart}}\",\n  \"periodEnd\": \"{{periodEnd}}\",\n  \"tenantId\": \"{{tenantId}}\",\n  \"documentNumber\": null\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -184,7 +185,7 @@
               "host": ["{{hostUrl}}"],
               "path": ["integrations", "manual"]
             },
-            "description": "Integracao manual (pull): a descoberta lista as notas do periodo/empresa na origem e enfileira cada uma. branchCode null = todas as filiais. Reprocessar o mesmo periodo reintegra (idempotencia por conteudo; manual fura). Depois use GET /documents ou /executions."
+            "description": "Integracao manual/imediata (pull): a descoberta lista as notas do periodo/empresa na origem e enfileira cada uma. branchCode null = todas as filiais. documentNumber preenchido (ex.: \"456\") restringe a uma nota especifica dentro do periodo. Reprocessar reintegra (idempotencia por conteudo; manual fura). Depois use GET /documents ou /executions."
           },
           "response": []
         },
@@ -195,6 +196,45 @@
             "header": [],
             "url": { "raw": "{{hostUrl}}/executions", "host": ["{{hostUrl}}"], "path": ["executions"] },
             "description": "Execucoes recentes de integracao (manual/agendada): modo, empresa/filial, periodo e quantas notas foram descobertas/enfileiradas. Alimenta a tela de Agendamentos/Execucoes."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /schedules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{hostUrl}}/schedules", "host": ["{{hostUrl}}"], "path": ["schedules"] },
+            "description": "Agendamentos cadastrados (diario D-1 / unico), com modo, empresa/filial, proximo disparo e se esta ativo."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /schedules (unico)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"ScheduledOnce\",\n  \"companyCode\": \"{{companyCode}}\",\n  \"branchCode\": null,\n  \"runAt\": \"2026-07-25T09:00:00-03:00\",\n  \"periodStart\": \"{{periodStart}}\",\n  \"periodEnd\": \"{{periodEnd}}\",\n  \"tenantId\": \"{{tenantId}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{hostUrl}}/schedules", "host": ["{{hostUrl}}"], "path": ["schedules"] },
+            "description": "Agendamento unico: roda uma vez em runAt sobre o periodo informado. Para o diario D-1, troque mode por ScheduledDaily e envie timeOfDay (ex.: \"06:00\") no lugar de runAt/periodStart/periodEnd (o periodo vira o dia anterior automaticamente)."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /schedules/{id}/deactivate",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{hostUrl}}/schedules/{{scheduleId}}/deactivate",
+              "host": ["{{hostUrl}}"],
+              "path": ["schedules", "{{scheduleId}}", "deactivate"]
+            },
+            "description": "Desativa um agendamento (soft): ele para de disparar, mas o historico de execucoes fica."
           },
           "response": []
         }

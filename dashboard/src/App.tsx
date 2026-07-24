@@ -12,7 +12,7 @@ import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import { GroupsPage } from './features/groups/GroupsPage';
-import { ManualIntegrationPage } from './features/manual/ManualIntegrationPage';
+import { IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { useInfo } from './features/useInfo';
 
 const drawerWidth = 224;
@@ -23,7 +23,7 @@ const user = { name: 'Marcelo Lima' };
 // Nav sem router: troca a view por estado. As telas ainda-nao-feitas ficam desabilitadas.
 const nav = [
   { key: 'documents', label: 'Documentos', icon: <DescriptionOutlinedIcon fontSize="small" /> },
-  { key: 'manual', label: 'Integração manual', icon: <BoltOutlinedIcon fontSize="small" /> },
+  { key: 'integrations', label: 'Integrações', icon: <BoltOutlinedIcon fontSize="small" /> },
   { key: 'metrics', label: 'Métricas', icon: <BarChartOutlinedIcon fontSize="small" />, disabled: true },
   { key: 'connectors', label: 'Conectores', icon: <HubOutlinedIcon fontSize="small" />, disabled: true },
   { key: 'settings', label: 'Configurações', icon: <SettingsOutlinedIcon fontSize="small" />, disabled: true },
@@ -31,7 +31,7 @@ const nav = [
 
 const titles: Record<string, { title: string; subtitle: string }> = {
   documents: { title: 'Documentos', subtitle: 'Notas integradas e seus status' },
-  manual: { title: 'Integração manual', subtitle: 'Dispare a carga de um período por empresa' },
+  integrations: { title: 'Integrações', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
 };
 
 export default function App() {
@@ -175,7 +175,7 @@ export default function App() {
             </Box>
           </Box>
         </Box>
-        {view === 'manual' ? <ManualIntegrationPage /> : <GroupsPage />}
+        {view === 'integrations' ? <IntegrationsPage /> : <GroupsPage />}
       </Box>
     </Box>
   );
