@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using FiscalHub.Application.Integrations;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
 using FiscalHub.Application.Tracing;
@@ -20,6 +21,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IProcessingStore, SqlProcessingStore>();
         services.AddScoped<IDocumentQueries, SqlDocumentQueries>();
+        services.AddScoped<IExecutionStore, SqlExecutionStore>();
+        services.AddScoped<IExecutionQueries, SqlExecutionQueries>();
         return services;
     }
 

@@ -11,6 +11,7 @@ using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Directory;
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Integrations;
 using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
@@ -53,6 +54,10 @@ builder.Services.AddJsonCompanyDirectory(o =>
 // Descoberta pull (dev local): busca as notas de um período na "origem". No cloud, vira um adapter
 // que consulta a Avalara/ERP — a porta e o endpoint de integração manual não mudam.
 builder.Services.AddLocalDocumentDiscovery();
+
+// Runner de integração: descobre → enfileira → registra a execução. Compartilhado pela integração
+// manual e pelo agendador.
+builder.Services.AddScoped<IIntegrationRunner, IntegrationRunner>();
 
 // Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).
 builder.Services.AddSingleton(new StatusPollerOptions());
@@ -97,27 +102,24 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
 // Integração manual (modo pull): o cliente escolhe empresa/filial/período; a descoberta lista as
 // notas daquele recorte na origem e o conector enfileira cada referência no padrão claim-check.
 // Reprocessar o mesmo período é idempotente — a mesma chave de acesso cai na regra por estado.
-app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IDocumentDiscovery discovery, IDocumentQueue queue, CancellationToken ct) =>
+app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegrationRunner runner, CancellationToken ct) =>
 {
-    var criteria = new DiscoveryCriteria
+    int discovered = await runner.RunAsync(new RunRequest
     {
+        Mode = IntegrationMode.Manual,
         TenantId = req.TenantId ?? "tenant-a",
-        Start = req.PeriodStart,
-        End = req.PeriodEnd,
-        Company = req.CompanyCode,
-        Establishment = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
-    };
+        CompanyCode = req.CompanyCode,
+        BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
+        PeriodStart = req.PeriodStart,
+        PeriodEnd = req.PeriodEnd,
+    }, ct);
 
-    IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(criteria, ct);
-    foreach (DocumentReference reference in found)
-    {
-        // Recarga manual: marca o gatilho pra furar a idempotência por estado — reprocessa mesmo
-        // notas já confirmadas (o cliente pode ter corrigido algo na origem e quer reenviar).
-        await queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Manual }, ct);
-    }
-
-    return Results.Accepted("/documents", new { discovered = found.Count, keys = found.Select(f => f.NaturalKey) });
+    return Results.Accepted("/documents", new { discovered });
 });
+
+// Execuções recentes (manuais/agendadas) pro painel: modo, empresa/filial, período e nº de notas.
+app.MapGet("/executions", async (IExecutionQueries queries, CancellationToken ct) =>
+    Results.Ok(await queries.ListRecentAsync(100, ct)));
 
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
 // Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual.
