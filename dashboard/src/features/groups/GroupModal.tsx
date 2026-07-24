@@ -14,6 +14,8 @@ import { StatusChip } from '../documents/StatusChip';
 import { NoteDialog } from './NoteDialog';
 import type { DocumentGroup, DocumentSummary } from '../../types';
 
+const modelo = (type: string) => (type === 'GoodsInvoice55' ? '55' : type);
+
 export function GroupModal({ group, onClose }: { group: DocumentGroup | null; onClose: () => void }) {
   const { data: docs } = useGroupDocuments(group?.companyCode, group?.branchCode, group?.referenceDate);
   const [note, setNote] = useState<DocumentSummary | null>(null);
@@ -35,10 +37,10 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Chave</TableCell>
-                  <TableCell>Tipo</TableCell>
+                  <TableCell>Número</TableCell>
+                  <TableCell>Modelo</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell align="right">Consultas</TableCell>
+                  <TableCell align="right">Consulta</TableCell>
                   <TableCell align="right">Atualizado</TableCell>
                 </TableRow>
               </TableHead>
@@ -46,7 +48,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
                 {rows.map((d) => (
                   <TableRow key={d.naturalKey} hover sx={{ cursor: 'pointer' }} onClick={() => setNote(d)}>
                     <TableCell sx={{ fontFamily: 'ui-monospace, monospace' }}>{d.naturalKey}</TableCell>
-                    <TableCell>{d.type}</TableCell>
+                    <TableCell>{modelo(d.type)}</TableCell>
                     <TableCell><StatusChip status={d.status} /></TableCell>
                     <TableCell align="right">{d.attempts}</TableCell>
                     <TableCell align="right">{new Date(d.updatedAt).toLocaleString('pt-BR')}</TableCell>
