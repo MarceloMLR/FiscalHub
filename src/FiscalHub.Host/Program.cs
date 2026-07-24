@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
@@ -7,6 +8,7 @@ using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
@@ -127,6 +129,43 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
     return snapshots.Count == 0
         ? Results.NotFound(new { tenantId, naturalKey, message = "sem fotos para esse documento." })
         : Results.Ok(snapshots);
+});
+
+// Download: zipa as fotos (fonte/domínio/destino) de um documento pra baixar de uma vez.
+app.MapGet("/documents/{tenantId}/{naturalKey}/download", async (string tenantId, string naturalKey, BlobServiceClient blobs, CancellationToken ct) =>
+{
+    BlobContainerClient container = blobs.GetBlobContainerClient("traces");
+    if (!(await container.ExistsAsync(ct)).Value)
+    {
+        return Results.NotFound(new { message = "sem arquivos para esse documento." });
+    }
+
+    var zipStream = new MemoryStream();
+    var added = 0;
+    using (var zip = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
+    {
+        await foreach (BlobItem item in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{tenantId}/", ct))
+        {
+            if (!item.Name.Contains($"/{naturalKey}/", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            BlobDownloadResult blob = await container.GetBlobClient(item.Name).DownloadContentAsync(ct);
+            ZipArchiveEntry entry = zip.CreateEntry(item.Name.Split('/')[^1], CompressionLevel.Optimal);
+            await using Stream entryStream = entry.Open();
+            using Stream source = blob.Content.ToStream();
+            await source.CopyToAsync(entryStream, ct);
+            added++;
+        }
+    }
+
+    if (added == 0)
+    {
+        return Results.NotFound(new { message = "sem arquivos para esse documento." });
+    }
+
+    return Results.File(zipStream.ToArray(), "application/zip", $"{naturalKey}.zip");
 });
 
 // Leitura pro dashboard: os documentos mais recentes com status. Em produção, atrás de auth e
