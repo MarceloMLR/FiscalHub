@@ -56,6 +56,46 @@ export interface ManualIntegrationResult {
   keys: string[];
 }
 
+// Modo de uma execução/agendamento (espelha IntegrationMode do backend).
+export type IntegrationModeName = 'Manual' | 'ScheduledDaily' | 'ScheduledOnce';
+
+// Execução de integração (GET /executions) — linha da tela de Agendamentos.
+export interface ExecutionSummary {
+  id: number;
+  mode: IntegrationModeName;
+  companyCode: string;
+  branchCode?: string | null;
+  periodStart: string;
+  periodEnd: string;
+  discoveredCount: number;
+  runAt: string;
+}
+
+// Agendamento cadastrado (GET /schedules).
+export interface Schedule {
+  id: number;
+  mode: IntegrationModeName;
+  tenantId: string;
+  companyCode: string;
+  branchCode?: string | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  nextRunAt: string;
+  active: boolean;
+}
+
+// Corpo do POST /schedules. Diária: timeOfDay "HH:mm". Única: runAt + periodStart/periodEnd.
+export interface CreateScheduleRequest {
+  mode: 'ScheduledDaily' | 'ScheduledOnce';
+  companyCode: string;
+  branchCode: string | null;
+  timeOfDay?: string | null;
+  runAt?: string | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  tenantId?: string | null;
+}
+
 // Grupo (empresa/filial/dia) com contagens — a linha principal do dashboard.
 export interface DocumentGroup {
   companyCode: string;
