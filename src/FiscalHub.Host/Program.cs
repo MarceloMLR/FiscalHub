@@ -3,10 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using FiscalHub.Adapters.Directory.Json;
 using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
+using FiscalHub.Application.Directory;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
@@ -42,6 +44,10 @@ builder.Services.AddServiceBusDocumentQueue(options =>
 // Gatilho de ingestão (dev local): observa a zona de drop no Blob e enfileira sozinho.
 // No cloud, este watcher é trocado por Event Grid.
 builder.Services.AddBlobDropIngress();
+
+// Diretório de empresas/filiais (dev local, via JSON) — alimenta os dropdowns da integração manual.
+builder.Services.AddJsonCompanyDirectory(o =>
+    o.FilePath = Path.Combine(builder.Environment.ContentRootPath, "companies.json"));
 
 // Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).
 builder.Services.AddSingleton(new StatusPollerOptions());
@@ -181,6 +187,13 @@ app.MapGet("/groups", async (IDocumentQueries queries, CancellationToken ct) =>
 app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
     async (string companyCode, string branchCode, string referenceDate, IDocumentQueries queries, CancellationToken ct) =>
         Results.Ok(await queries.ListByGroupAsync(companyCode, branchCode, referenceDate, ct)));
+
+// Diretório de empresas e filiais (dropdowns da integração manual).
+app.MapGet("/companies", async (ICompanyDirectory dir, CancellationToken ct) =>
+    Results.Ok(await dir.ListCompaniesAsync(ct)));
+
+app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory dir, CancellationToken ct) =>
+    Results.Ok(await dir.ListBranchesAsync(code, ct)));
 
 // Ambiente do conector (sandbox/produção) — o dashboard exibe no topo.
 app.MapGet("/info", () => Results.Ok(new { environment = cfg["Connector:Environment"] ?? "Sandbox" }));

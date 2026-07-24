@@ -20,6 +20,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0010](0010-dead-letter-visivel-e-poll-resiliente.md) | Dead-letter visível e poll resiliente | Aceito |
 | [0011](0011-stack-do-dashboard.md) | Stack do dashboard (Vite + React + MUI + TanStack Query) | Aceito |
 | [0012](0012-ef-migrations.md) | Migrations de schema (EF Core) no lugar de EnsureCreated | Aceito |
+| [0013](0013-diretorio-de-empresas-como-porta.md) | Diretório de empresas/filiais como porta (JSON no dev, Avalara no cloud) | Aceito |
 
 ## Planejados
 
