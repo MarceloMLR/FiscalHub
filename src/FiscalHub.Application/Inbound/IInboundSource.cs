@@ -9,6 +9,6 @@ public interface IInboundSource<TDocument>
     /// <summary>Identificador da origem, usado pelo perfil do tenant para selecionar a implementação.</summary>
     string Origin { get; }
 
-    /// <summary>Busca e retorna o documento referenciado.</summary>
-    Task<TDocument> FetchAsync(DocumentReference reference, CancellationToken ct = default);
+    /// <summary>Busca o documento referenciado e devolve o domínio junto da impressão do cru.</summary>
+    Task<FetchResult<TDocument>> FetchAsync(DocumentReference reference, CancellationToken ct = default);
 }

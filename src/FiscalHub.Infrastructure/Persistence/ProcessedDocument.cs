@@ -38,6 +38,9 @@ internal sealed class ProcessedDocument
     /// <summary>Modelo do documento (ex.: "55").</summary>
     public string? DocumentModel { get; set; }
 
+    /// <summary>Impressão (SHA-256) do conteúdo cru já processado — chave da idempotência por conteúdo.</summary>
+    public string? ContentHash { get; set; }
+
     /// <summary>Quantas vezes o status já foi consultado (para o limite do 204 eterno).</summary>
     public int Attempts { get; set; }
 

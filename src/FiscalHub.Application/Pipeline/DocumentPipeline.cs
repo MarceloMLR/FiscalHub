@@ -47,22 +47,25 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
     public async Task ProcessAsync(
         DocumentReference reference, DispatchContext context, CancellationToken ct = default)
     {
-        // Idempotência por gatilho: evento dedupa (nota já enviada não reentra — evento pode chegar
-        // duas vezes, e a NF-e autorizada é imutável). Recarga manual é intenção explícita do
-        // cliente e fura o bloqueio, reprocessando mesmo estado terminal.
-        if (reference.Trigger != IngestionTrigger.Manual
-            && await _store.AlreadySubmittedAsync(reference.TenantId, reference.NaturalKey, ct))
-            return;
+        // Busca primeiro pra conhecer o conteúdo cru — é ele que decide a idempotência.
+        FetchResult<TDocument> fetched = await _source.FetchAsync(reference, ct);
+        TDocument document = fetched.Document;
 
-        TDocument document = await _source.FetchAsync(reference, ct);
+        // Idempotência por conteúdo (ADR-0016): já processei ESTE cru (mesmo hash, estado terminal)?
+        // Evento redisparado com o cru idêntico é duplicata de entrega — ignora. Se o cliente
+        // corrigiu a nota (ex.: nota de entrada com valor errado), o cru muda, o hash muda e ela
+        // reintegra. Recarga manual (ADR-0015) fura de propósito.
+        if (reference.Trigger != IngestionTrigger.Manual
+            && await _store.AlreadyProcessedAsync(reference.TenantId, reference.NaturalKey, fetched.ContentHash, ct))
+            return;
 
         // Foto do domínio (ADR-0006): o documento já no nosso modelo, antes de validar — assim até
         // uma nota rejeitada deixa registrado o que a gente entendeu dela.
         await _trace.SaveDomainAsync(reference.TenantId, reference.NaturalKey, JsonSerializer.Serialize(document, JsonOpts), ct);
 
-        // Metadados de agrupamento (empresa/filial/data) na primeira passada — assim até uma nota
-        // rejeitada aparece no grupo certo do dashboard.
-        await _store.RecordMetadataAsync(reference, _metadata.Extract(document), ct);
+        // Metadados de agrupamento (empresa/filial/data) + hash do cru na primeira passada — assim até
+        // uma nota rejeitada aparece no grupo certo do dashboard.
+        await _store.RecordMetadataAsync(reference, _metadata.Extract(document), fetched.ContentHash, ct);
 
         ValidationResult validation = _validator.Validate(document);
         if (!validation.IsValid)

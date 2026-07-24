@@ -11,10 +11,12 @@ namespace FiscalHub.Application.Pipeline;
 public interface IProcessingStore
 {
     /// <summary>
-    /// Indica se o documento já foi enviado com sucesso ao destino. Usada para evitar reenvio
-    /// quando a mesma mensagem é reentregue (retry ou entrega duplicada do Service Bus).
+    /// Indica se ESTE conteúdo do documento já foi processado (mesmo <paramref name="contentHash"/>,
+    /// em estado terminal). Idempotência por conteúdo: mesma nota reentregue com o cru idêntico é
+    /// ignorada; se o cliente corrigir a nota (cru diferente, hash diferente), não bloqueia — a nota
+    /// reintegra com o valor novo.
     /// </summary>
-    Task<bool> AlreadySubmittedAsync(string tenantId, string naturalKey, CancellationToken ct = default);
+    Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default);
 
     /// <summary>Registra o resultado do envio: status de integração e identificador externo.</summary>
     Task RecordSubmissionAsync(DocumentReference reference, IntegrationReceipt receipt, CancellationToken ct = default);
@@ -31,8 +33,11 @@ public interface IProcessingStore
     /// <summary>Registra que a mensagem do documento foi pra dead-letter após esgotar as tentativas.</summary>
     Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default);
 
-    /// <summary>Registra empresa/filial/data do documento (para agrupamento), na primeira passada.</summary>
-    Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default);
+    /// <summary>
+    /// Registra empresa/filial/data (agrupamento) e a impressão do cru (idempotência por conteúdo),
+    /// na primeira passada da esteira. Numa reintegração por correção, atualiza o hash gravado.
+    /// </summary>
+    Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default);
 }
 
 /// <summary>Documento em voo a consultar: identidade, GUID externo e tentativas já feitas.</summary>

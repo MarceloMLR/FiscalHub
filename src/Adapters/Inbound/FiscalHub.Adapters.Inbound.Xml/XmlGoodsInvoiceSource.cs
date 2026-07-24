@@ -23,7 +23,7 @@ internal sealed class XmlGoodsInvoiceSource : IInboundSource<GoodsInvoice>
 
     public string Origin => "Xml";
 
-    public async Task<GoodsInvoice> FetchAsync(DocumentReference reference, CancellationToken ct = default)
+    public async Task<FetchResult<GoodsInvoice>> FetchAsync(DocumentReference reference, CancellationToken ct = default)
     {
         string xml = await _blobReader.ReadTextAsync(reference.Locator, ct);
 
@@ -31,6 +31,11 @@ internal sealed class XmlGoodsInvoiceSource : IInboundSource<GoodsInvoice>
         // antes do parse de propósito — se o parse falhar, o XML problemático já está salvo.
         await _trace.SaveSourceAsync(reference.TenantId, reference.NaturalKey, xml, "xml", ct);
 
-        return _parser.Parse(xml);
+        // Impressão do cru (ADR-0016): decide idempotência por conteúdo lá na esteira.
+        return new FetchResult<GoodsInvoice>
+        {
+            Document = _parser.Parse(xml),
+            ContentHash = ContentFingerprint.Of(xml),
+        };
     }
 }
