@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Adapters\Messaging\FiscalHub.Adapters.Messaging.ServiceBus\FiscalHub.Adapters.Messaging.ServiceBus.csproj" />
     <ProjectReference Include="..\Adapters\Ingress\FiscalHub.Adapters.Ingress.BlobDrop\FiscalHub.Adapters.Ingress.BlobDrop.csproj" />
     <ProjectReference Include="..\Adapters\Directory\FiscalHub.Adapters.Directory.Json\FiscalHub.Adapters.Directory.Json.csproj" />
+    <ProjectReference Include="..\Adapters\Discovery\FiscalHub.Adapters.Discovery.Local\FiscalHub.Adapters.Discovery.Local.csproj" />
   </ItemGroup>
 
   <ItemGroup>

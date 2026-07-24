@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FiscalHub.Adapters.Directory.Json;
+using FiscalHub.Adapters.Discovery.Local;
 using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
@@ -49,6 +50,10 @@ builder.Services.AddBlobDropIngress();
 builder.Services.AddJsonCompanyDirectory(o =>
     o.FilePath = Path.Combine(builder.Environment.ContentRootPath, "companies.json"));
 
+// Descoberta pull (dev local): busca as notas de um período na "origem". No cloud, vira um adapter
+// que consulta a Avalara/ERP — a porta e o endpoint de integração manual não mudam.
+builder.Services.AddLocalDocumentDiscovery();
+
 // Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).
 builder.Services.AddSingleton(new StatusPollerOptions());
 builder.Services.AddScoped<StatusPoller<GoodsInvoice>>();
@@ -87,6 +92,29 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
 
     await queue.EnqueueAsync(reference, ct);
     return Results.Accepted($"/trace/{req.TenantId}/{req.NaturalKey}", new { queued = req.NaturalKey });
+});
+
+// Integração manual (modo pull): o cliente escolhe empresa/filial/período; a descoberta lista as
+// notas daquele recorte na origem e o conector enfileira cada referência no padrão claim-check.
+// Reprocessar o mesmo período é idempotente — a mesma chave de acesso cai na regra por estado.
+app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IDocumentDiscovery discovery, IDocumentQueue queue, CancellationToken ct) =>
+{
+    var criteria = new DiscoveryCriteria
+    {
+        TenantId = req.TenantId ?? "tenant-a",
+        Start = req.PeriodStart,
+        End = req.PeriodEnd,
+        Company = req.CompanyCode,
+        Establishment = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
+    };
+
+    IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(criteria, ct);
+    foreach (DocumentReference reference in found)
+    {
+        await queue.EnqueueAsync(reference, ct);
+    }
+
+    return Results.Accepted("/documents", new { discovered = found.Count, keys = found.Select(f => f.NaturalKey) });
 });
 
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
@@ -202,3 +230,11 @@ app.Run();
 
 /// <summary>Corpo do POST /ingest.</summary>
 public sealed record IngestRequest(string TenantId, string NaturalKey, string Locator);
+
+/// <summary>Corpo do POST /integrations/manual. Filial vazia = todas; tenant nulo cai no de dev.</summary>
+public sealed record ManualIntegrationRequest(
+    string CompanyCode,
+    string? BranchCode,
+    DateTimeOffset PeriodStart,
+    DateTimeOffset PeriodEnd,
+    string? TenantId);
