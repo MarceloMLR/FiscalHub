@@ -85,9 +85,10 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
 
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
 // Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual.
-app.MapPost("/drop/{key}", async (string key, BlobServiceClient blobs, CancellationToken ct) =>
+app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient blobs, CancellationToken ct) =>
 {
-    BlobClient sample = blobs.GetBlobContainerClient(LocalSeed.Container).GetBlobClient(LocalSeed.BlobName);
+    string sampleName = string.Equals(empresa, "b", StringComparison.OrdinalIgnoreCase) ? LocalSeed.BlobName2 : LocalSeed.BlobName;
+    BlobClient sample = blobs.GetBlobContainerClient(LocalSeed.Container).GetBlobClient(sampleName);
     if (!(await sample.ExistsAsync(ct)).Value)
     {
         return Results.NotFound(new { message = "XML de exemplo ainda não semeado." });

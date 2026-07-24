@@ -14,19 +14,27 @@ const columns: GridColDef<DocumentGroup>[] = [
   {
     field: 'companyCode',
     headerName: 'Empresa',
-    flex: 1,
-    minWidth: 140,
+    width: 150,
     renderCell: (params) => (
       <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>{params.value as string}</span>
     ),
   },
-  { field: 'branchCode', headerName: 'Filial', width: 100 },
-  { field: 'referenceDate', headerName: 'Dia', width: 120 },
-  { field: 'type', headerName: 'Tipo', width: 150 },
+  { field: 'branchCode', headerName: 'Filial', width: 90 },
+  { field: 'referenceDate', headerName: 'Data', width: 110 },
+  // Hoje toda ingestao e por evento (realtime). Quando entrar o agendador, o "Tipo" refletira o
+  // modo (Em Tempo Real / Agendada / D-1...) e o "Periodo" mostrara inicio-fim das agendadas.
+  { field: 'mode', headerName: 'Tipo', width: 140, sortable: false, renderCell: () => 'Em Tempo Real' },
+  {
+    field: 'periodo',
+    headerName: 'Período',
+    width: 150,
+    sortable: false,
+    renderCell: () => <span style={{ color: '#9aa1ab' }}>—</span>,
+  },
   {
     field: 'total',
     headerName: 'Processadas',
-    width: 140,
+    width: 130,
     sortable: false,
     renderCell: (params) => `${params.row.finalizadas} / ${params.row.total}`,
   },
