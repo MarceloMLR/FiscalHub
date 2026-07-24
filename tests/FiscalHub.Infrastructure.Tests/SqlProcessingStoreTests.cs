@@ -189,6 +189,8 @@ public class SqlProcessingStoreTests
         CompanyCode = "12345678",
         BranchCode = "0001",
         ReferenceDate = new DateOnly(2026, 7, 23),
+        DocumentNumber = "123",
+        DocumentModel = "55",
     };
 
     private static ProcessedDocument Row(string key) => new()

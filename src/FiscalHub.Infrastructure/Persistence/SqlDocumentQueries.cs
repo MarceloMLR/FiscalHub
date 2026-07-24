@@ -24,6 +24,8 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 Attempts = d.Attempts,
                 ExternalId = d.ExternalId,
                 Reason = d.Reason,
+                Number = d.DocumentNumber,
+                Model = d.DocumentModel,
                 UpdatedAt = d.UpdatedAt,
             })
             .ToListAsync(ct);
@@ -67,6 +69,8 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 Attempts = d.Attempts,
                 ExternalId = d.ExternalId,
                 Reason = d.Reason,
+                Number = d.DocumentNumber,
+                Model = d.DocumentModel,
                 UpdatedAt = d.UpdatedAt,
             })
             .ToListAsync(ct);

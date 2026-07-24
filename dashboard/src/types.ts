@@ -16,6 +16,8 @@ export interface DocumentSummary {
   attempts: number;
   externalId?: string | null;
   reason?: string | null;
+  number?: string | null;
+  model?: string | null;
   updatedAt: string;
 }
 

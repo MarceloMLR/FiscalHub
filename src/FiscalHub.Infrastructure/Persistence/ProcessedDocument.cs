@@ -32,6 +32,12 @@ internal sealed class ProcessedDocument
     /// <summary>Data de referência (yyyy-MM-dd) usada no agrupamento.</summary>
     public string? ReferenceDate { get; set; }
 
+    /// <summary>Número do documento (nNF).</summary>
+    public string? DocumentNumber { get; set; }
+
+    /// <summary>Modelo do documento (ex.: "55").</summary>
+    public string? DocumentModel { get; set; }
+
     /// <summary>Quantas vezes o status já foi consultado (para o limite do 204 eterno).</summary>
     public int Attempts { get; set; }
 
