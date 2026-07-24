@@ -29,9 +29,11 @@ A regra "chave já confirmada → ignora" barraria exatamente a correção legí
   texto cru, sem normalizar.
 - Recarga **manual** (ADR-0015) segue furando a idempotência de propósito.
 
-Assim os dois casos se resolvem sem olhar entrada/saída na hora de decidir: a nota de saída imutável
-nunca muda de hash (dedupa sozinha); a de entrada corrigida muda de hash (reintegra). A direção
-(entrada/saída) vira informação de exibição, não regra.
+A regra é **única** e não olha se a nota é de entrada ou de saída, nem se "deveria" poder mudar:
+**mesmo cru = duplicata (ignora); cru diferente = o cliente mudou algo (reintegra)**. Não cabe ao
+conector policiar se uma nota pode ou não ser alterada — isso é decisão do cliente no ERP dele; se
+mudou lá, a gente integra o que veio. A direção (entrada/saída) é só informação de exibição, nunca
+entra na decisão.
 
 ## Alternativas consideradas
 
