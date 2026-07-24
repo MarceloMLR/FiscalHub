@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Domain.Envelope;
 using FiscalHub.Infrastructure.Persistence;
@@ -113,6 +114,26 @@ public class SqlProcessingStoreTests
     }
 
     [Fact]
+    public async Task Queries_group_by_company_branch_and_day()
+    {
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta());
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+        await h.Store.RecordMetadataAsync(Reference("nfe-2"), Meta());
+        await h.Store.RecordSubmissionAsync(Reference("nfe-2"), Receipt());
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-2", IntegrationStatus.Confirmed, null, 1);
+
+        var queries = new SqlDocumentQueries(h.Db);
+        var groups = await queries.ListGroupsAsync(50);
+
+        Assert.Single(groups);                       // mesma empresa/filial/dia
+        Assert.Equal(2, groups[0].Total);
+        Assert.Equal(1, groups[0].Finalizadas);      // nfe-2 confirmada
+        Assert.Equal(1, groups[0].EmProcessamento);  // nfe-1 ainda submitted
+        Assert.Equal("12345678", groups[0].CompanyCode);
+    }
+
+    [Fact]
     public async Task Queries_list_recent_returns_documents_newest_first()
     {
         using var h = NewStore();
@@ -161,6 +182,13 @@ public class SqlProcessingStoreTests
     {
         ExternalId = "guid-1",
         Status = IntegrationStatus.Submitted,
+    };
+
+    private static DocumentMetadata Meta() => new()
+    {
+        CompanyCode = "12345678",
+        BranchCode = "0001",
+        ReferenceDate = new DateOnly(2026, 7, 23),
     };
 
     private static ProcessedDocument Row(string key) => new()

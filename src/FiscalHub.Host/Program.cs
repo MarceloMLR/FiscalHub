@@ -134,6 +134,14 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
 app.MapGet("/documents", async (IDocumentQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
+// Dashboard: grupos (empresa/filial/dia) com contagens, e os documentos de um grupo.
+app.MapGet("/groups", async (IDocumentQueries queries, CancellationToken ct) =>
+    Results.Ok(await queries.ListGroupsAsync(200, ct)));
+
+app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
+    async (string companyCode, string branchCode, string referenceDate, IDocumentQueries queries, CancellationToken ct) =>
+        Results.Ok(await queries.ListByGroupAsync(companyCode, branchCode, referenceDate, ct)));
+
 // Ambiente do conector (sandbox/produção) — o dashboard exibe no topo.
 app.MapGet("/info", () => Results.Ok(new { environment = cfg["Connector:Environment"] ?? "Sandbox" }));
 
