@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,40 @@ internal sealed class SqlProcessingStore : IProcessingStore
 
     public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         => UpsertAsync(reference, IntegrationStatus.DeadLettered, externalId: null, reason, ct);
+
+    public async Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default)
+    {
+        ProcessedDocument? row = await _db.ProcessedDocuments.FirstOrDefaultAsync(
+            d => d.TenantId == reference.TenantId && d.NaturalKey == reference.NaturalKey, ct);
+
+        DateTimeOffset now = _clock.GetUtcNow();
+        string refDate = metadata.ReferenceDate.ToString("yyyy-MM-dd");
+
+        if (row is null)
+        {
+            _db.ProcessedDocuments.Add(new ProcessedDocument
+            {
+                TenantId = reference.TenantId,
+                NaturalKey = reference.NaturalKey,
+                Type = reference.Type,
+                Status = IntegrationStatus.Pending,
+                CompanyCode = metadata.CompanyCode,
+                BranchCode = metadata.BranchCode,
+                ReferenceDate = refDate,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
+        else
+        {
+            row.CompanyCode = metadata.CompanyCode;
+            row.BranchCode = metadata.BranchCode;
+            row.ReferenceDate = refDate;
+            row.UpdatedAt = now;
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
 
     public async Task<IReadOnlyList<PendingIntegration>> ListPendingAsync(int batchSize, CancellationToken ct = default)
         => await _db.ProcessedDocuments

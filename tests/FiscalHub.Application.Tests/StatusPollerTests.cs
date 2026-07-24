@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 
@@ -138,6 +139,9 @@ public class StatusPollerTests
         }
 
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default)
             => Task.CompletedTask;
 
         public Task<bool> AlreadySubmittedAsync(string tenantId, string naturalKey, CancellationToken ct = default)

@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Domain.Envelope;
@@ -57,5 +58,6 @@ public class DeadLetterHandlerTests
         public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<PendingIntegration>> ListPendingAsync(int batchSize, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<PendingIntegration>>([]);
         public Task MarkPolledAsync(string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default) => Task.CompletedTask;
+        public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

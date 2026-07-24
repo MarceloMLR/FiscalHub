@@ -26,6 +26,7 @@ builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
+builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInvoiceMetadataExtractor>();
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
 
 // Gatilho por fila (Etapa 2): /ingest enfileira; o consumidor do Service Bus chama a esteira,
