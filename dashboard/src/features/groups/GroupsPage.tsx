@@ -25,6 +25,9 @@ const columns: GridColDef<DocumentGroup>[] = [
   // Hoje toda ingestao e por evento (realtime). Quando entrar o agendador, o "Tipo" refletira o
   // modo (Em Tempo Real / Agendada / D-1...) e o "Periodo" mostrara inicio-fim das agendadas.
   { field: 'mode', headerName: 'Tipo', width: 140, sortable: false, renderCell: () => 'Em Tempo Real' },
+  // Categoria da integracao. Hoje so "Documento Fiscal"; vira dado quando surgirem outras
+  // (cadastro de parceiros, itens, etc.).
+  { field: 'grupo', headerName: 'Grupo', width: 150, sortable: false, renderCell: () => 'Documento Fiscal' },
   {
     field: 'periodo',
     headerName: 'Período',
