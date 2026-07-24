@@ -1,0 +1,19 @@
+[
+  {
+    "code": "12345678",
+    "name": "Empresa Emitente LTDA",
+    "branches": [
+      { "code": "0001", "name": "Matriz" },
+      { "code": "0002", "name": "Filial São Paulo" }
+    ]
+  },
+  {
+    "code": "98765432",
+    "name": "Distribuidora Beta SA",
+    "branches": [
+      { "code": "0001", "name": "Matriz" },
+      { "code": "0002", "name": "Filial Rio de Janeiro" },
+      { "code": "0003", "name": "Filial Belo Horizonte" }
+    ]
+  }
+]
