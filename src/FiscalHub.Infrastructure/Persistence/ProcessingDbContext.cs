@@ -11,6 +11,8 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
 
     public DbSet<ScheduledIntegrationRow> ScheduledIntegrations => Set<ScheduledIntegrationRow>();
 
+    public DbSet<UserRow> Users => Set<UserRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var doc = modelBuilder.Entity<ProcessedDocument>();
@@ -53,5 +55,15 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         sched.Property(s => s.BranchCode).HasMaxLength(10);
         sched.Property(s => s.PeriodStart).HasMaxLength(10);
         sched.Property(s => s.PeriodEnd).HasMaxLength(10);
+
+        var usr = modelBuilder.Entity<UserRow>();
+        usr.ToTable("Users");
+        usr.HasKey(u => u.Id);
+        usr.HasIndex(u => u.Email).IsUnique();   // e-mail é a identidade de login
+        usr.Property(u => u.Email).HasMaxLength(200);
+        usr.Property(u => u.Name).HasMaxLength(200);
+        usr.Property(u => u.PasswordHash).HasMaxLength(400);
+        usr.Property(u => u.TenantId).HasMaxLength(100);
+        usr.Property(u => u.Role).HasMaxLength(50);
     }
 }

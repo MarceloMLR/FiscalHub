@@ -1,3 +1,4 @@
+using FiscalHub.Application.Auth;
 using FiscalHub.Application.Integrations;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,11 +9,13 @@ internal sealed class SqlScheduleStore : IScheduleStore
 {
     private readonly ProcessingDbContext _db;
     private readonly TimeProvider _clock;
+    private readonly ITenantContext _tenant;
 
-    public SqlScheduleStore(ProcessingDbContext db, TimeProvider clock)
+    public SqlScheduleStore(ProcessingDbContext db, TimeProvider clock, ITenantContext tenant)
     {
         _db = db;
         _clock = clock;
+        _tenant = tenant;
     }
 
     public async Task<int> CreateAsync(ScheduledIntegration schedule, CancellationToken ct = default)
@@ -37,7 +40,12 @@ internal sealed class SqlScheduleStore : IScheduleStore
 
     public async Task<IReadOnlyList<ScheduledIntegration>> ListAsync(CancellationToken ct = default)
     {
-        List<ScheduledIntegrationRow> rows = await _db.ScheduledIntegrations.OrderByDescending(s => s.Id).ToListAsync(ct);
+        // Lista da UI: só os agendamentos do tenant logado. (O agendador, que roda os vencidos, usa
+        // ListDueAsync — esse é do sistema, varre todos os tenants.)
+        List<ScheduledIntegrationRow> rows = await _db.ScheduledIntegrations
+            .Where(s => s.TenantId == _tenant.TenantId)
+            .OrderByDescending(s => s.Id)
+            .ToListAsync(ct);
         return rows.Select(Map).ToList();
     }
 

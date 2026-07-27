@@ -138,7 +138,7 @@ public class SqlProcessingStoreTests
         await h.Store.RecordSubmissionAsync(Reference("nfe-2"), Receipt());
         await h.Store.MarkPolledAsync("tenant-a", "nfe-2", IntegrationStatus.Confirmed, null, 1);
 
-        var queries = new SqlDocumentQueries(h.Db);
+        var queries = new SqlDocumentQueries(h.Db, new StubTenantContext("tenant-a"));
         var groups = await queries.ListGroupsAsync(50);
 
         Assert.Single(groups);                       // mesma empresa/filial/dia
@@ -155,7 +155,7 @@ public class SqlProcessingStoreTests
         await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
         await h.Store.RecordSubmissionAsync(Reference("nfe-2"), Receipt());
 
-        var queries = new SqlDocumentQueries(h.Db);
+        var queries = new SqlDocumentQueries(h.Db, new StubTenantContext("tenant-a"));
         var list = await queries.ListRecentAsync(10);
 
         Assert.Equal(2, list.Count);
