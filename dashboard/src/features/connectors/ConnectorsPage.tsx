@@ -7,38 +7,95 @@ import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 import Alert from '@mui/material/Alert';
 import CircularProgress from '@mui/material/CircularProgress';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useConnector } from './useConnector';
-import type { ConnectorProfile } from '../../types';
+import { INBOUND_ADAPTERS, OUTBOUND_ADAPTERS, ENVIRONMENTS, type AdapterField } from './adapterSchemas';
+
+type Values = Record<string, string>;
+
+function parseObj(json: string): Record<string, unknown> {
+  try {
+    return JSON.parse(json || '{}') as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function pick(schema: AdapterField[], values: Values): Values {
+  return Object.fromEntries(schema.map((f) => [f.key, values[f.key] ?? '']));
+}
+
+// Renderiza os campos de um adapter num grid, lendo/escrevendo num objeto de valores.
+function Fields({ schema, values, onChange }: { schema: AdapterField[]; values: Values; onChange: (v: Values) => void }) {
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+      {schema.map((f) => (
+        <TextField
+          key={f.key}
+          label={f.label}
+          size="small"
+          value={values[f.key] ?? ''}
+          onChange={(e) => onChange({ ...values, [f.key]: e.target.value })}
+          placeholder={f.placeholder}
+          sx={{ gridColumn: f.key === 'baseUrl' || f.key === 'url' ? '1 / -1' : undefined }}
+        />
+      ))}
+    </Box>
+  );
+}
 
 export function ConnectorsPage() {
   const qc = useQueryClient();
   const { data, isLoading, isError } = useConnector();
-  const [form, setForm] = useState<ConnectorProfile | null>(null);
+
+  const [tab, setTab] = useState(0);
+  const [environment, setEnvironment] = useState('Sandbox');
+  const [realtime, setRealtime] = useState(false);
+  const [inboundAdapter, setInboundAdapter] = useState('Dynamics365');
+  const [outboundAdapter, setOutboundAdapter] = useState('Avalara');
+  const [inboundValues, setInboundValues] = useState<Values>({});
+  const [sandboxValues, setSandboxValues] = useState<Values>({});
+  const [productionValues, setProductionValues] = useState<Values>({});
 
   useEffect(() => {
-    if (data) {
-      setForm(data);
+    if (!data) {
+      return;
     }
+    setEnvironment(data.environment);
+    setRealtime(data.realtime);
+    setInboundAdapter(data.inboundAdapter in INBOUND_ADAPTERS ? data.inboundAdapter : 'Dynamics365');
+    setOutboundAdapter(data.outboundAdapter in OUTBOUND_ADAPTERS ? data.outboundAdapter : 'Avalara');
+    setInboundValues(parseObj(data.inboundSettings) as Values);
+    const out = parseObj(data.outboundSettings);
+    setSandboxValues((out.sandbox as Values) ?? {});
+    setProductionValues((out.production as Values) ?? {});
   }, [data]);
 
   const save = useMutation({
-    mutationFn: () =>
-      api.saveConnector({
-        environment: form!.environment,
-        realtime: form!.realtime,
-        inboundAdapter: form!.inboundAdapter,
-        inboundSettings: form!.inboundSettings,
-        outboundAdapter: form!.outboundAdapter,
-        outboundSettings: form!.outboundSettings,
-      }),
+    mutationFn: () => {
+      const inSchema = INBOUND_ADAPTERS[inboundAdapter] ?? [];
+      const outSchema = OUTBOUND_ADAPTERS[outboundAdapter] ?? [];
+      return api.saveConnector({
+        environment,
+        realtime,
+        inboundAdapter,
+        inboundSettings: JSON.stringify(pick(inSchema, inboundValues)),
+        outboundAdapter,
+        outboundSettings: JSON.stringify({
+          sandbox: pick(outSchema, sandboxValues),
+          production: pick(outSchema, productionValues),
+        }),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['connector'] });
-      qc.invalidateQueries({ queryKey: ['info'] }); // o ambiente do badge vem do perfil
+      qc.invalidateQueries({ queryKey: ['info'] });
     },
   });
 
@@ -49,8 +106,7 @@ export function ConnectorsPage() {
       </Box>
     );
   }
-
-  if (isLoading || !form) {
+  if (isLoading || !data) {
     return (
       <Box sx={{ p: 3, display: 'flex', justifyContent: 'center' }}>
         <CircularProgress />
@@ -58,7 +114,7 @@ export function ConnectorsPage() {
     );
   }
 
-  const set = (patch: Partial<ConnectorProfile>) => setForm({ ...form, ...patch });
+  const outSchema = OUTBOUND_ADAPTERS[outboundAdapter] ?? [];
 
   return (
     <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
@@ -67,65 +123,86 @@ export function ConnectorsPage() {
           Perfil de conector
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-          Como este tenant integra: adapters de entrada (ERP) e saída (compliance), ambiente e settings.
-          Segredos entram como <strong>referência</strong> (<code>kv:...</code>), nunca o valor — resolvidos
-          no Key Vault.
+          Como este tenant integra. Escolha os adapters e preencha os campos de cada um. Segredos entram
+          como <strong>referência</strong> (<code>kv:...</code>), nunca o valor — resolvidos no Key Vault.
         </Typography>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-          <TextField
-            select
-            label="Ambiente"
-            size="small"
-            value={form.environment}
-            onChange={(e) => set({ environment: e.target.value })}
-          >
-            <MenuItem value="Sandbox">Sandbox</MenuItem>
-            <MenuItem value="Production">Production</MenuItem>
-          </TextField>
+        <TextField
+          select
+          label="Ambiente ativo"
+          size="small"
+          value={environment}
+          onChange={(e) => setEnvironment(e.target.value)}
+          sx={{ minWidth: 220, mb: 2 }}
+        >
+          {ENVIRONMENTS.map((e) => (
+            <MenuItem key={e} value={e}>
+              {e}
+            </MenuItem>
+          ))}
+        </TextField>
 
-          <FormControlLabel
-            control={<Switch checked={form.realtime} onChange={(e) => set({ realtime: e.target.checked })} />}
-            label="Integração em tempo real"
-            sx={{ ml: 0.5 }}
-          />
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2.5 }}>
+          <Tab label="Entrada (ERP)" />
+          <Tab label="Saída (compliance)" />
+        </Tabs>
 
-          <TextField
-            label="Adapter de entrada (ERP)"
-            size="small"
-            value={form.inboundAdapter}
-            onChange={(e) => set({ inboundAdapter: e.target.value })}
-            placeholder="Dynamics365, iScala…"
-          />
-          <TextField
-            label="Adapter de saída (compliance)"
-            size="small"
-            value={form.outboundAdapter}
-            onChange={(e) => set({ outboundAdapter: e.target.value })}
-            placeholder="Avalara, ThomsonReuters…"
-          />
+        {tab === 0 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <TextField
+                select
+                label="ERP"
+                size="small"
+                value={inboundAdapter}
+                onChange={(e) => setInboundAdapter(e.target.value)}
+                sx={{ minWidth: 220 }}
+              >
+                {Object.keys(INBOUND_ADAPTERS).map((name) => (
+                  <MenuItem key={name} value={name}>
+                    {name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <FormControlLabel
+                control={<Switch checked={realtime} onChange={(e) => setRealtime(e.target.checked)} />}
+                label="Integração em tempo real"
+              />
+            </Box>
+            <Fields schema={INBOUND_ADAPTERS[inboundAdapter] ?? []} values={inboundValues} onChange={setInboundValues} />
+          </Box>
+        )}
 
-          <TextField
-            label="Settings da entrada (JSON)"
-            size="small"
-            value={form.inboundSettings}
-            onChange={(e) => set({ inboundSettings: e.target.value })}
-            multiline
-            minRows={4}
-            sx={{ gridColumn: '1 / -1', '& textarea': { fontFamily: 'ui-monospace, monospace', fontSize: 13 } }}
-          />
-          <TextField
-            label="Settings da saída (JSON — por ambiente)"
-            size="small"
-            value={form.outboundSettings}
-            onChange={(e) => set({ outboundSettings: e.target.value })}
-            multiline
-            minRows={5}
-            sx={{ gridColumn: '1 / -1', '& textarea': { fontFamily: 'ui-monospace, monospace', fontSize: 13 } }}
-          />
-        </Box>
+        {tab === 1 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              select
+              label="Plataforma"
+              size="small"
+              value={outboundAdapter}
+              onChange={(e) => setOutboundAdapter(e.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              {Object.keys(OUTBOUND_ADAPTERS).map((name) => (
+                <MenuItem key={name} value={name}>
+                  {name}
+                </MenuItem>
+              ))}
+            </TextField>
 
-        <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" color="text.secondary">
+              Sandbox
+            </Typography>
+            <Fields schema={outSchema} values={sandboxValues} onChange={setSandboxValues} />
+
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
+              Produção
+            </Typography>
+            <Fields schema={outSchema} values={productionValues} onChange={setProductionValues} />
+          </Box>
+        )}
+
+        <Box sx={{ mt: 3 }}>
           <Button
             variant="contained"
             disableElevation
