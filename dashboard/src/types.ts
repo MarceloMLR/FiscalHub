@@ -71,6 +71,26 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+// Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores.
+export interface ConnectorProfile {
+  tenantId: string;
+  environment: string;
+  realtime: boolean;
+  inboundAdapter: string;
+  inboundSettings: string;
+  outboundAdapter: string;
+  outboundSettings: string;
+}
+
+export interface ConnectorProfileRequest {
+  environment: string;
+  realtime: boolean;
+  inboundAdapter: string;
+  inboundSettings: string | null;
+  outboundAdapter: string;
+  outboundSettings: string | null;
+}
+
 // Modo de uma execução/agendamento (espelha IntegrationMode do backend).
 export type IntegrationModeName = 'Manual' | 'ScheduledDaily' | 'ScheduledOnce';
 
