@@ -1,4 +1,5 @@
 using System.Net;
+using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Envelope;
@@ -32,6 +33,27 @@ public class AvalaraComplianceDispatcherTests
         Assert.Contains("\"chaveNFe\"", handler.LastRequestBody);
         Assert.Contains("\"itens\"", handler.LastRequestBody);
         Assert.DoesNotContain("ChaveNFe", handler.LastRequestBody);
+    }
+
+    [Fact]
+    public async Task Submit_uses_base_url_from_tenant_profile()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
+        var profiles = new FakeProfileStore(new TenantConnectorProfile
+        {
+            TenantId = "tenant-a",
+            Environment = "Sandbox",
+            Realtime = true,
+            InboundAdapter = "Dynamics365",
+            OutboundAdapter = "Avalara",
+            OutboundSettings = """{"sandbox":{"baseUrl":"http://avalara-a/"},"production":{"baseUrl":"http://avalara-a-prod/"}}""",
+        });
+        var dispatcher = Build(handler, profiles: profiles);
+
+        await dispatcher.SubmitAsync(SampleInvoice(), Context());
+
+        // A base veio do perfil do tenant (ambiente sandbox), não da config do adapter.
+        Assert.Equal("http://avalara-a/documents", handler.LastRequest!.RequestUri!.ToString());
     }
 
     [Theory]
@@ -168,11 +190,20 @@ public class AvalaraComplianceDispatcherTests
     private static AvalaraComplianceDispatcher Build(
         StubHttpMessageHandler handler,
         IAvalaraTokenProvider? token = null,
-        IProcessingTrace? trace = null)
+        IProcessingTrace? trace = null,
+        IConnectorProfileStore? profiles = null)
     {
         var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
         var options = Options.Create(new AvalaraOptions { BaseUrl = "http://localhost/", Destination = "avalara" });
-        return new AvalaraComplianceDispatcher(http, options, token ?? new NoOpAvalaraTokenProvider(), trace ?? new NoOpProcessingTrace());
+        return new AvalaraComplianceDispatcher(
+            http, options, token ?? new NoOpAvalaraTokenProvider(), trace ?? new NoOpProcessingTrace(),
+            profiles ?? new FakeProfileStore(null));   // sem perfil → cai na BaseUrl das options
+    }
+
+    private sealed class FakeProfileStore(TenantConnectorProfile? profile) : IConnectorProfileStore
+    {
+        public Task<TenantConnectorProfile?> GetAsync(string tenantId, CancellationToken ct = default) => Task.FromResult(profile);
+        public Task UpsertAsync(TenantConnectorProfile p, CancellationToken ct = default) => Task.CompletedTask;
     }
 
     private sealed class FakeTokenProvider(string token) : IAvalaraTokenProvider

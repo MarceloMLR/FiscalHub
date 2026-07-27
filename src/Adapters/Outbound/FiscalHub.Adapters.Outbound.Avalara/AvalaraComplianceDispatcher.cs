@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
@@ -22,17 +23,20 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     private readonly AvalaraOptions _options;
     private readonly IAvalaraTokenProvider _tokenProvider;
     private readonly IProcessingTrace _trace;
+    private readonly IConnectorProfileStore _profiles;
 
     public AvalaraComplianceDispatcher(
         HttpClient http,
         IOptions<AvalaraOptions> options,
         IAvalaraTokenProvider tokenProvider,
-        IProcessingTrace trace)
+        IProcessingTrace trace,
+        IConnectorProfileStore profiles)
     {
         _http = http;
         _options = options.Value;
         _tokenProvider = tokenProvider;
         _trace = trace;
+        _profiles = profiles;
     }
 
     /// <inheritdoc/>
@@ -47,7 +51,8 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         // domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
         await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, JsonOpts), ct);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, _options.DocumentsPath)
+        Uri baseUri = await ResolveBaseAsync(context.TenantId, ct);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, _options.DocumentsPath))
         {
             Content = JsonContent.Create(payload, options: JsonOpts),
         };
@@ -66,9 +71,10 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     /// <inheritdoc/>
     public async Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
     {
-        var path = $"{_options.DocumentsPath}/{Uri.EscapeDataString(externalId)}/status";
+        Uri baseUri = await ResolveBaseAsync(context.TenantId, ct);
+        var statusUri = new Uri(baseUri, $"{_options.DocumentsPath}/{Uri.EscapeDataString(externalId)}/status");
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        using var request = new HttpRequestMessage(HttpMethod.Get, statusUri);
         await ApplyAuthAsync(request, context.TenantId, ct);
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
@@ -102,6 +108,44 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         "erro" => IntegrationStatus.IntegrationError,
         _ => IntegrationStatus.Submitted,
     };
+
+    // Resolução por tenant (ADR-0019): a URL base vem do perfil do tenant (ambiente ativo). Sem
+    // perfil ou settings, cai na config do adapter. Em produção o secret/token seguem o mesmo padrão,
+    // resolvidos no Key Vault pelas referências das settings.
+    private async Task<Uri> ResolveBaseAsync(string tenantId, CancellationToken ct)
+    {
+        TenantConnectorProfile? profile = await _profiles.GetAsync(tenantId, ct);
+        string? fromProfile = ExtractBaseUrl(profile);
+        string effective = string.IsNullOrWhiteSpace(fromProfile) ? _options.BaseUrl : fromProfile!;
+        return new Uri(effective, UriKind.Absolute);
+    }
+
+    // Lê a baseUrl do ambiente ativo nas OutboundSettings (schema deste adapter). Settings ausentes
+    // ou malformadas → null (cai no fallback). Segredos ficam por referência, resolvidos fora daqui.
+    private static string? ExtractBaseUrl(TenantConnectorProfile? profile)
+    {
+        if (profile is null || string.IsNullOrWhiteSpace(profile.OutboundSettings))
+        {
+            return null;
+        }
+
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(profile.OutboundSettings);
+            string envKey = profile.Environment.ToLowerInvariant();   // "sandbox" / "production"
+            if (doc.RootElement.TryGetProperty(envKey, out JsonElement env)
+                && env.TryGetProperty("baseUrl", out JsonElement url))
+            {
+                return url.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Settings malformadas não podem derrubar o envio — usa o fallback.
+        }
+
+        return null;
+    }
 
     // Gancho de token: aplica Bearer por-requisição (thread-safe; não mexe no HttpClient compartilhado).
     // Stub no-op devolve cadeia vazia → sem header.
