@@ -6,19 +6,24 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Divider from '@mui/material/Divider';
+import CircularProgress from '@mui/material/CircularProgress';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import { GroupsPage } from './features/groups/GroupsPage';
 import { IntegrationsPage } from './features/integrations/IntegrationsPage';
+import { LoginPage } from './features/auth/LoginPage';
+import { useAuth } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
 
 const drawerWidth = 224;
-
-// Placeholder — vem da autenticação numa fatia futura.
-const user = { name: 'Marcelo Lima' };
 
 // Nav sem router: troca a view por estado. As telas ainda-nao-feitas ficam desabilitadas.
 const nav = [
@@ -34,12 +39,30 @@ const titles: Record<string, { title: string; subtitle: string }> = {
   integrations: { title: 'Integrações', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
 };
 
+// Porteiro: enquanto restaura a sessão, mostra loading; sem usuário, o login; com usuário, o painel.
 export default function App() {
+  const { user, ready } = useAuth();
+
+  if (!ready) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return user ? <Dashboard /> : <LoginPage />;
+}
+
+function Dashboard() {
+  const { user, logout } = useAuth();
   const [view, setView] = useState('documents');
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const { data: info } = useInfo();
+
   const env = info?.environment ?? 'Sandbox';
   const isProd = /produ|production/i.test(env);
-  const initial = user.name.trim().charAt(0).toUpperCase();
+  const initial = (user?.name ?? '?').trim().charAt(0).toUpperCase();
   const envFg = isProd ? '#15803d' : '#b45309';
   const envDot = isProd ? '#16a34a' : '#d97706';
   const envBg = isProd ? '#e7f6ec' : '#fdf2e3';
@@ -155,24 +178,54 @@ export default function App() {
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {user.name}
+              {user?.name}
             </Typography>
-            <Box
-              sx={{
-                width: 34,
-                height: 34,
-                borderRadius: '50%',
-                bgcolor: '#e6f0fd',
-                color: '#1d4ed8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 600,
-                fontSize: 14,
-              }}
+            <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} sx={{ p: 0 }} aria-label="Conta">
+              <Box
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: '50%',
+                  bgcolor: '#e6f0fd',
+                  color: '#1d4ed8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                {initial}
+              </Box>
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={() => setMenuAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-              {initial}
-            </Box>
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {user?.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {user?.email}
+                </Typography>
+              </Box>
+              <Divider />
+              <MenuItem
+                onClick={() => {
+                  setMenuAnchor(null);
+                  logout();
+                }}
+              >
+                <ListItemIcon>
+                  <LogoutOutlinedIcon fontSize="small" />
+                </ListItemIcon>
+                Sair
+              </MenuItem>
+            </Menu>
           </Box>
         </Box>
         {view === 'integrations' ? <IntegrationsPage /> : <GroupsPage />}

@@ -57,6 +57,20 @@ export interface ManualIntegrationResult {
   keys: string[];
 }
 
+// Usuário autenticado (GET /auth/me e POST /auth/login).
+export interface AuthUser {
+  email: string;
+  name: string;
+  tenantId: string;
+  role: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  expiresAt: string;
+  user: AuthUser;
+}
+
 // Modo de uma execução/agendamento (espelha IntegrationMode do backend).
 export type IntegrationModeName = 'Manual' | 'ScheduledDaily' | 'ScheduledOnce';
 

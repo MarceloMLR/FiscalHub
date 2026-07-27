@@ -27,8 +27,7 @@ export function NoteDialog({ note, onClose }: { note: DocumentSummary | null; on
             <Button
               variant="outlined"
               startIcon={<DownloadOutlinedIcon />}
-              component="a"
-              href={api.downloadUrl(note.tenantId, note.naturalKey)}
+              onClick={() => api.downloadTrace(note.tenantId, note.naturalKey)}
             >
               Baixar arquivos
             </Button>
