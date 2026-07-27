@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #f5f7f9; -webkit-font-smoothing: antialiased; }
+  a { color: #0b5c7a; text-decoration: none; font-weight: 500; }
+  a:hover { color: #094a63; text-decoration: underline; }
+  input, textarea, select, button { font-family: inherit; }
+  ::placeholder { color: #9aa5b4; }
+</style>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+</helmet>
+
+<section style="font-family:Manrope,system-ui,sans-serif;color:#0b1220;background:#f5f7f9;padding:56px 64px 96px;display:flex;flex-direction:column;gap:56px;width:1560px;box-sizing:border-box">
+
+  <div style="display:flex;flex-direction:column;gap:11px;max-width:780px">
+    <div style="display:flex;align-items:center;gap:9px">
+      <span style="width:14px;height:14px;border-radius:4px;background:#0b5c7a"></span>
+      <span style="font-size:11px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#6b7788">FiscalHub · Design System v3</span>
+    </div>
+    <div style="font-size:34px;font-weight:700;letter-spacing:-0.028em;line-height:1.12">Fiscal moderno, orientado a contagem</div>
+    <div style="font-size:15px;line-height:1.65;color:#4d5a6c;text-wrap:pretty">Neutros de fundo azulado, acento petróleo, elevação suave. O dado no centro: contagens em tabular, chave e número em Manrope com dígitos de largura fixa, chips de status com ponto e borda. Só existe aqui o que existe no conector — grupo (empresa, filial, data, modo), nota (número, chave, modelo, consultas, atualizado, status), execução (período, descobertas) e conector (ambiente, tempo real, adapters, settings).</div>
+    <div style="display:flex;gap:10px;padding-top:6px;flex-wrap:wrap">
+      <span style="font-size:11.5px;font-weight:500;color:#4d5a6c;background:#fff;border:1px solid #e3e8ee;border-radius:6px;padding:4px 9px">Manrope · tabular-nums</span>
+      <span style="font-size:11.5px;font-weight:500;color:#4d5a6c;background:#fff;border:1px solid #e3e8ee;border-radius:6px;padding:4px 9px">DM Mono só em código</span>
+      <span style="font-size:11.5px;font-weight:500;color:#4d5a6c;background:#fff;border:1px solid #e3e8ee;border-radius:6px;padding:4px 9px">raio 8px · controle 32px</span>
+      <span style="font-size:11.5px;font-weight:500;color:#4d5a6c;background:#fff;border:1px solid #e3e8ee;border-radius:6px;padding:4px 9px">acento #0B5C7A</span>
+    </div>
+  </div>
+
+  <!-- ============ PALETA ============ -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:5px;height:16px;border-radius:2px;background:#0b5c7a"></span>
+      <div style="font-size:17px;font-weight:700;letter-spacing:-0.015em">Paleta</div>
+      <div style="font-size:13px;color:#7c8899">neutro azulado · acento petróleo · semânticas de status</div>
+    </div>
+
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:stretch">
+      <div style="flex:1 1 620px;min-width:560px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:22px 24px;display:flex;flex-direction:column;gap:22px">
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Neutros</div>
+          <div style="display:flex;border:1px solid #e3e8ee;border-radius:7px;overflow:hidden;height:44px">
+            <div style="flex:1;background:#f8fafb"></div><div style="flex:1;background:#f5f7f9"></div><div style="flex:1;background:#eef1f5"></div><div style="flex:1;background:#e3e8ee"></div><div style="flex:1;background:#cfd7e0"></div><div style="flex:1;background:#9aa5b4"></div><div style="flex:1;background:#6b7788"></div><div style="flex:1;background:#4d5a6c"></div><div style="flex:1;background:#33415c"></div><div style="flex:1;background:#0b1220"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10.5px;color:#6b7788">
+            <div>F8FAFB</div><div>E3E8EE</div><div>6B7788</div><div>0B1220</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:18px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Acento — petróleo</div>
+            <div style="display:flex;border:1px solid #e3e8ee;border-radius:7px;overflow:hidden;height:44px">
+              <div style="flex:1;background:#e6f1f6"></div><div style="flex:1;background:#bcd9e4"></div><div style="flex:1;background:#0b5c7a"></div><div style="flex:1;background:#094a63"></div>
+            </div>
+            <div style="font-family:'DM Mono',monospace;font-size:11px;color:#4d5a6c">#0B5C7A · ação, foco, ativo</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:9px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Semânticas</div>
+            <div style="display:flex;border:1px solid #e3e8ee;border-radius:7px;overflow:hidden;height:44px">
+              <div style="flex:1;background:#17864a"></div><div style="flex:1;background:#2b7f9e"></div><div style="flex:1;background:#a86a00"></div><div style="flex:1;background:#c05621"></div><div style="flex:1;background:#c0342e"></div>
+            </div>
+            <div style="font-family:'DM Mono',monospace;font-size:11px;color:#4d5a6c">ok · info · aviso · atenção · erro</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card de contagem aplicado -->
+      <div style="flex:1 1 420px;min-width:400px;display:flex;flex-direction:column;gap:14px">
+        <div style="background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Notas descobertas</div>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:#e7f5ec;border:1px solid #c3e5d1;color:#17864a;white-space:nowrap">92,8% finalizadas</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:9px">
+            <span style="font-size:32px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">1.284</span>
+            <span style="font-size:13px;font-weight:500;color:#6b7788">em 128 grupos</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:3px;height:34px">
+            <div style="flex:1;height:38%;background:#e6f1f6;border-radius:2px"></div>
+            <div style="flex:1;height:52%;background:#e6f1f6;border-radius:2px"></div>
+            <div style="flex:1;height:44%;background:#e6f1f6;border-radius:2px"></div>
+            <div style="flex:1;height:71%;background:#bcd9e4;border-radius:2px"></div>
+            <div style="flex:1;height:63%;background:#bcd9e4;border-radius:2px"></div>
+            <div style="flex:1;height:88%;background:#0b5c7a;border-radius:2px"></div>
+            <div style="flex:1;height:100%;background:#0b5c7a;border-radius:2px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:500;color:#6b7788;font-variant-numeric:tabular-nums">
+            <div>18/07</div><div>24/07</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e7f5ec;border:1px solid #c3e5d1;color:#17864a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#17864a"></span>Finalizado</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e8f3f8;border:1px solid #c3ddea;color:#236c86;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#2b7f9e"></span>Processando</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdeee6;border:1px solid #f6d3bf;color:#c05621;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#c05621"></span>Com pendências</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TOKENS ============ -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:5px;height:16px;border-radius:2px;background:#0b5c7a"></span>
+      <div style="font-size:17px;font-weight:700;letter-spacing:-0.015em">Tokens</div>
+      <div style="font-size:13px;color:#7c8899">Manrope em tudo, com dígitos tabulares · DM Mono só em código, settings e hex</div>
+    </div>
+
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1 1 640px;min-width:580px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:22px 24px;display:flex;flex-direction:column;gap:0">
+        <div style="display:flex;align-items:baseline;gap:22px;padding-bottom:16px;border-bottom:1px solid #eef1f5">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">display / 34 / 700</div>
+          <div style="font-size:34px;font-weight:700;letter-spacing:-0.028em;line-height:1.12">Documentos fiscais</div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:22px;padding:16px 0;border-bottom:1px solid #eef1f5">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">title / 20 / 700</div>
+          <div style="font-size:20px;font-weight:700;letter-spacing:-0.02em">Notas integradas e status</div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:22px;padding:16px 0;border-bottom:1px solid #eef1f5">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">heading / 15 / 600</div>
+          <div style="font-size:15px;font-weight:600;letter-spacing:-0.008em">Empresa 12345678 · Filial 0001</div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:22px;padding:16px 0;border-bottom:1px solid #eef1f5">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">body / 14 / 400</div>
+          <div style="font-size:14px;line-height:1.6;color:#33415c">Recebe notas dos ERPs e despacha para a plataforma de compliance.</div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:22px;padding:16px 0;border-bottom:1px solid #eef1f5">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">label / 11 / 700 / 0.075em</div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Escopo da integração</div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:22px;padding:16px 0;border-bottom:1px solid #eef1f5">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">contagem / 26 / 700 tabular</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-size:26px;font-weight:700;letter-spacing:-0.025em;font-variant-numeric:tabular-nums">180</span>
+            <span style="font-size:20px;font-weight:500;color:#6b7788;font-variant-numeric:tabular-nums">/ 194</span>
+            <span style="font-size:13px;font-weight:500;color:#6b7788">processadas</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:22px;padding:16px 0;border-bottom:1px solid #eef1f5">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">número / 14 / 600 tabular</div>
+          <div style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001234 <span style="font-weight:500;color:#6b7788">· modelo 55</span></div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:22px;padding-top:16px">
+          <div style="width:170px;flex-shrink:0;font-size:10.5px;font-weight:600;color:#6b7788">chave / 13 / 500 tabular</div>
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:0.035em;color:#0b1220">3524 0912 3456 7800 0199 5500 1000 0012 341</span>
+            <button style="width:24px;height:24px;border-radius:5px;border:1px solid #e3e8ee;background:#fff;color:#6b7788;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0" style-hover="background:#f5f7f9;color:#0b1220"><i data-lucide="copy" width="12" height="12" stroke-width="2"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1 1 340px;min-width:320px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:22px 24px;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Espaço &amp; raio</div>
+          <div style="display:flex;gap:10px;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:44px;height:38px;background:#eef1f5;border:1px solid #e3e8ee;border-radius:5px"></div><div style="font-size:10.5px;font-weight:600;color:#6b7788">5</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:44px;height:38px;background:#eef1f5;border:1px solid #e3e8ee;border-radius:6px"></div><div style="font-size:10.5px;font-weight:600;color:#6b7788">6</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:44px;height:38px;background:#eef1f5;border:1px solid #e3e8ee;border-radius:8px"></div><div style="font-size:10.5px;font-weight:600;color:#6b7788">8</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:44px;height:38px;background:#eef1f5;border:1px solid #e3e8ee;border-radius:10px"></div><div style="font-size:10.5px;font-weight:600;color:#6b7788">10</div></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:center"><div style="width:44px;height:38px;background:#eef1f5;border:1px solid #e3e8ee;border-radius:999px"></div><div style="font-size:10.5px;font-weight:600;color:#6b7788">full</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px;padding-top:6px">
+            <div style="display:flex;align-items:center;gap:12px"><div style="width:30px;font-size:10.5px;font-weight:600;color:#6b7788">8</div><div style="height:8px;width:8px;background:#bcd9e4;border-radius:2px"></div></div>
+            <div style="display:flex;align-items:center;gap:12px"><div style="width:30px;font-size:10.5px;font-weight:600;color:#6b7788">12</div><div style="height:8px;width:12px;background:#bcd9e4;border-radius:2px"></div></div>
+            <div style="display:flex;align-items:center;gap:12px"><div style="width:30px;font-size:10.5px;font-weight:600;color:#6b7788">20</div><div style="height:8px;width:20px;background:#bcd9e4;border-radius:2px"></div></div>
+            <div style="display:flex;align-items:center;gap:12px"><div style="width:30px;font-size:10.5px;font-weight:600;color:#6b7788">32</div><div style="height:8px;width:32px;background:#bcd9e4;border-radius:2px"></div></div>
+            <div style="display:flex;align-items:center;gap:12px"><div style="width:30px;font-size:10.5px;font-weight:600;color:#6b7788">56</div><div style="height:8px;width:56px;background:#bcd9e4;border-radius:2px"></div></div>
+          </div>
+        </div>
+        <div style="height:1px;background:#eef1f5"></div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Elevação</div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:58px;height:40px;background:#fff;border:1px solid #e3e8ee;border-radius:8px;box-shadow:0 1px 2px rgba(11,18,32,0.05)"></div>
+            <div><div style="font-size:13px;font-weight:600">card</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;color:#6b7788">0 1px 2px /5%</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:58px;height:40px;background:#fff;border:1px solid #e3e8ee;border-radius:8px;box-shadow:0 6px 16px -4px rgba(11,18,32,0.12)"></div>
+            <div><div style="font-size:13px;font-weight:600">popover</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;color:#6b7788">0 6px 16px -4px /12%</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:58px;height:40px;background:#fff;border:1px solid #e3e8ee;border-radius:8px;box-shadow:0 20px 48px -16px rgba(11,18,32,0.28)"></div>
+            <div><div style="font-size:13px;font-weight:600">modal</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;color:#6b7788">0 20px 48px -16px /28%</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:58px;height:40px;border:1px solid #0b5c7a;border-radius:8px;box-shadow:0 0 0 3px #e6f1f6;background:#fff"></div>
+            <div><div style="font-size:13px;font-weight:600">foco</div><div style="font-family:'DM Mono',monospace;font-size:10.5px;color:#6b7788">ring 3px #E6F1F6</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ STATUS ============ -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:5px;height:16px;border-radius:2px;background:#0b5c7a"></span>
+      <div style="font-size:17px;font-weight:700;letter-spacing:-0.015em">Status</div>
+      <div style="font-size:13px;color:#7c8899">chip com ponto + borda — legível em linha densa e em fundo tingido</div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);overflow:hidden">
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;padding:11px 22px;background:#f8fafb;border-bottom:1px solid #e3e8ee;font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">
+        <div>Chip</div><div>Significado</div><div>Backend</div><div>Tokens</div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;align-items:center;padding:13px 22px;border-bottom:1px solid #eef1f5">
+        <div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e7f5ec;border:1px solid #c3e5d1;color:#17864a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#17864a"></span>Finalizado</span></div>
+        <div style="font-size:13.5px;color:#33415c">Compliance confirmou o recebimento da nota.</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#4d5a6c">Confirmed</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7788">17864A · E7F5EC · C3E5D1</div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;align-items:center;padding:13px 22px;border-bottom:1px solid #eef1f5">
+        <div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e8f3f8;border:1px solid #c3ddea;color:#236c86;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#2b7f9e"></span>Processando</span></div>
+        <div style="font-size:13.5px;color:#33415c">Despachada, aguardando retorno do poll de status.</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#4d5a6c">Submitted</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7788">236C86 · E8F3F8 · C3DDEA</div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;align-items:center;padding:13px 22px;border-bottom:1px solid #eef1f5">
+        <div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#eef1f5;border:1px solid #dde3ea;color:#4d5a6c;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#9aa5b4"></span>Pendente</span></div>
+        <div style="font-size:13.5px;color:#33415c">Na esteira, ainda não despachada.</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#4d5a6c">Pending</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7788">4D5A6C · EEF1F5 · DDE3EA</div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;align-items:center;padding:13px 22px;border-bottom:1px solid #eef1f5">
+        <div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdecea;border:1px solid #f5cdc9;color:#c0342e;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#c0342e"></span>Rejeitado</span></div>
+        <div style="font-size:13.5px;color:#33415c">Compliance recusou — o motivo vem no campo <span style="font-family:'DM Mono',monospace;font-size:12px">reason</span>.</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#4d5a6c">IntegrationError</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7788">C0342E · FDECEA · F5CDC9</div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;align-items:center;padding:13px 22px;border-bottom:1px solid #eef1f5">
+        <div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdf4e3;border:1px solid #f0dcb4;color:#a86a00;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#d59109"></span>Sem retorno</span></div>
+        <div style="font-size:13.5px;color:#33415c">Esgotou as consultas sem resposta definitiva.</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#4d5a6c">Unconfirmed</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7788">A86A00 · FDF4E3 · F0DCB4</div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;align-items:center;padding:13px 22px;border-bottom:1px solid #eef1f5">
+        <div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e7eaf0;border:1px solid #d3d9e2;color:#33415c;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#33415c"></span>Falha</span></div>
+        <div style="font-size:13.5px;color:#33415c">Dead-letter: quebrou antes de integrar, exige intervenção.</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#4d5a6c">DeadLettered</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7788">33415C · E7EAF0 · D3D9E2</div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr 190px 220px;align-items:center;padding:13px 22px">
+        <div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdeee6;border:1px solid #f6d3bf;color:#c05621;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#c05621"></span>Com pendências</span></div>
+        <div style="font-size:13.5px;color:#33415c">Agregado do grupo: parte das notas não fechou.</div>
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:#4d5a6c">comErro &gt; 0</div>
+        <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b7788">C05621 · FDEEE6 · F6D3BF</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RESPONSIVIDADE ============ -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:5px;height:16px;border-radius:2px;background:#0b5c7a"></span>
+      <div style="font-size:17px;font-weight:700;letter-spacing:-0.015em">Responsividade</div>
+      <div style="font-size:13px;color:#7c8899">base fluida de uma coluna · md 768 · lg 1024</div>
+    </div>
+
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:stretch">
+      <div style="flex:1 1 300px;min-width:280px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Base — até 767</div>
+          <span style="font-size:11.5px;font-weight:600;color:#0b5c7a;background:#e6f1f6;border:1px solid #bcd9e4;border-radius:6px;padding:2px 8px">mobile</span>
+        </div>
+        <div style="border:1px solid #e3e8ee;border-radius:8px;overflow:hidden">
+          <div style="height:22px;background:#f8fafb;border-bottom:1px solid #e3e8ee;display:flex;align-items:center;gap:4px;padding:0 8px">
+            <span style="width:14px;height:8px;border-radius:2px;background:#bcd9e4"></span><span style="width:22px;height:6px;border-radius:2px;background:#e3e8ee"></span><span style="width:22px;height:6px;border-radius:2px;background:#e3e8ee"></span>
+          </div>
+          <div style="padding:8px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div style="height:26px;background:#eef1f5;border-radius:4px"></div><div style="height:26px;background:#eef1f5;border-radius:4px"></div></div>
+            <div style="height:34px;background:#f8fafb;border:1px solid #e3e8ee;border-radius:4px"></div>
+            <div style="height:34px;background:#f8fafb;border:1px solid #e3e8ee;border-radius:4px"></div>
+          </div>
+        </div>
+        <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;font-size:12.5px;color:#33415c;line-height:1.5">
+          <li>Sidebar vira barra horizontal rolável no topo; rótulos de seção somem.</li>
+          <li>Topbar deixa de ser sticky para não roubar altura.</li>
+          <li>Métricas em 2 colunas.</li>
+          <li>Tabela vira lista de cards: cabeçalho oculto e cada célula com o próprio rótulo (<span style="font-family:'DM Mono',monospace;font-size:11.5px">data-l</span>).</li>
+          <li>Modal ocupa a tela inteira, com corpo rolável.</li>
+        </ul>
+      </div>
+
+      <div style="flex:1 1 300px;min-width:280px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">md — 768 a 1023</div>
+          <span style="font-size:11.5px;font-weight:600;color:#4d5a6c;background:#f8fafb;border:1px solid #e3e8ee;border-radius:6px;padding:2px 8px">tablet</span>
+        </div>
+        <div style="border:1px solid #e3e8ee;border-radius:8px;overflow:hidden;display:flex">
+          <div style="width:34px;background:#f8fafb;border-right:1px solid #e3e8ee;padding:8px 6px;display:flex;flex-direction:column;gap:5px">
+            <span style="height:6px;border-radius:2px;background:#bcd9e4"></span><span style="height:6px;border-radius:2px;background:#e3e8ee"></span><span style="height:6px;border-radius:2px;background:#e3e8ee"></span>
+          </div>
+          <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div style="height:24px;background:#eef1f5;border-radius:4px"></div><div style="height:24px;background:#eef1f5;border-radius:4px"></div></div>
+            <div style="height:44px;background:#f8fafb;border:1px solid #e3e8ee;border-radius:4px"></div>
+          </div>
+        </div>
+        <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;font-size:12.5px;color:#33415c;line-height:1.5">
+          <li>Sidebar de 232px volta, fixa à esquerda.</li>
+          <li>Métricas em 2 colunas; formulários em 1.</li>
+          <li>Tabela volta a ser tabela, com rolagem horizontal quando preciso.</li>
+          <li>Padding de página em 18px.</li>
+        </ul>
+      </div>
+
+      <div style="flex:1 1 300px;min-width:280px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">lg — 1024+</div>
+          <span style="font-size:11.5px;font-weight:600;color:#4d5a6c;background:#f8fafb;border:1px solid #e3e8ee;border-radius:6px;padding:2px 8px">desktop</span>
+        </div>
+        <div style="border:1px solid #e3e8ee;border-radius:8px;overflow:hidden;display:flex">
+          <div style="width:44px;background:#f8fafb;border-right:1px solid #e3e8ee;padding:8px 6px;display:flex;flex-direction:column;gap:5px">
+            <span style="height:6px;border-radius:2px;background:#bcd9e4"></span><span style="height:6px;border-radius:2px;background:#e3e8ee"></span><span style="height:6px;border-radius:2px;background:#e3e8ee"></span>
+          </div>
+          <div style="flex:1;padding:8px;display:flex;flex-direction:column;gap:6px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px"><div style="height:22px;background:#eef1f5;border-radius:4px"></div><div style="height:22px;background:#eef1f5;border-radius:4px"></div><div style="height:22px;background:#eef1f5;border-radius:4px"></div><div style="height:22px;background:#eef1f5;border-radius:4px"></div></div>
+            <div style="height:46px;background:#f8fafb;border:1px solid #e3e8ee;border-radius:4px"></div>
+          </div>
+        </div>
+        <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;font-size:12.5px;color:#33415c;line-height:1.5">
+          <li>Métricas em 4 colunas; formulários em 2.</li>
+          <li>Faixas da tabela em <span style="font-family:'DM Mono',monospace;font-size:11.5px">minmax(px, fr)</span> — esticam sem esticar o texto.</li>
+          <li>Conteúdo de formulário limitado a 1080px para a linha de leitura não ficar longa.</li>
+          <li>Modais centralizados: 620px (formulário) e 900px (tabela).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:18px 22px;display:flex;gap:12px">
+      <i data-lucide="info" width="16" height="16" stroke-width="2" style="color:#6b7788;flex-shrink:0;margin-top:2px"></i>
+      <div style="font-size:12.5px;color:#4d5a6c;line-height:1.6;text-wrap:pretty">Regra de implementação: nenhum componente carrega largura fixa de layout — quem posiciona é o contêiner. Os únicos <span style="font-family:'DM Mono',monospace;font-size:11.5px">px</span> fixos permitidos são altura de controle (32px), raio, borda e o teto de leitura (1080px). Alvos de toque nunca abaixo de 44px no mobile: no breakpoint base, linha de tabela e item de nav crescem para essa altura.</div>
+    </div>
+  </div>
+
+  <!-- ============ COMPONENTES ============ -->
+  <div style="display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:5px;height:16px;border-radius:2px;background:#0b5c7a"></span>
+      <div style="font-size:17px;font-weight:700;letter-spacing:-0.015em">Componentes</div>
+      <div style="font-size:13px;color:#7c8899">controle 32px · campos com add-on · tabela fechada por contagem</div>
+    </div>
+
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+
+      <!-- Botões, tabs, badges -->
+      <div style="flex:1 1 420px;min-width:400px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:22px 24px;display:flex;flex-direction:column;gap:20px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Botão</div>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+            <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#0b5c7a;color:#fff;border:1px solid #0b5c7a;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 1px 2px rgba(11,18,32,0.08)" style-hover="background:#094a63;border-color:#094a63"><i data-lucide="play" width="13" height="13" stroke-width="2.3"></i>Integrar</button>
+            <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#fff;color:#33415c;border:1px solid #cfd7e0;cursor:pointer;box-shadow:0 1px 2px rgba(11,18,32,0.04)" style-hover="background:#f8fafb;border-color:#9aa5b4">Secundário</button>
+            <button style="height:32px;padding:0 11px;font-size:13px;font-weight:600;border-radius:7px;background:transparent;color:#4d5a6c;border:1px solid transparent;cursor:pointer" style-hover="background:#eef1f5;color:#0b1220">Ghost</button>
+            <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#fff;color:#c0342e;border:1px solid #f5cdc9;cursor:pointer" style-hover="background:#fdecea">Desativar</button>
+          </div>
+          <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+            <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#eef1f5;color:#9aa5b4;border:1px solid #e3e8ee;cursor:not-allowed">Desabilitado</button>
+            <button style="height:28px;padding:0 11px;font-size:12px;font-weight:600;border-radius:6px;background:#fff;color:#33415c;border:1px solid #cfd7e0;cursor:pointer" style-hover="background:#f8fafb">Pequeno</button>
+            <button style="width:32px;height:32px;border-radius:7px;background:#fff;border:1px solid #cfd7e0;color:#6b7788;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 2px rgba(11,18,32,0.04)" style-hover="background:#f8fafb;color:#0b1220"><i data-lucide="refresh-cw" width="14" height="14" stroke-width="2.1"></i></button>
+          </div>
+        </div>
+
+        <div style="height:1px;background:#eef1f5"></div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Tabs &amp; modo</div>
+        <div style="display:flex;gap:22px;border-bottom:1px solid #e3e8ee">
+          <div style="font-size:13.5px;font-weight:600;color:#0b1220;padding-bottom:10px;border-bottom:2px solid #0b5c7a;margin-bottom:-1px;cursor:pointer">Entrada (ERP)</div>
+          <div style="font-size:13.5px;font-weight:500;color:#7c8899;padding-bottom:10px;cursor:pointer" style-hover="color:#33415c">Saída (compliance)</div>
+        </div>
+        <div style="display:inline-flex;padding:3px;background:#eef1f5;border-radius:8px;align-self:flex-start">
+          <div style="font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:6px;background:#fff;color:#0b1220;box-shadow:0 1px 2px rgba(11,18,32,0.08);cursor:pointer">Imediata</div>
+          <div style="font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:6px;color:#4d5a6c;cursor:pointer" style-hover="color:#0b1220">Diária</div>
+          <div style="font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:6px;color:#4d5a6c;cursor:pointer" style-hover="color:#0b1220">Agendada</div>
+        </div>
+
+        <div style="height:1px;background:#eef1f5"></div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Badge, ambiente &amp; avatar</div>
+        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:11.5px;font-weight:600;color:#4d5a6c;background:#f8fafb;border:1px solid #e3e8ee;border-radius:6px;padding:3px 8px;white-space:nowrap">Modelo 55</span>
+          <span style="font-size:11.5px;font-weight:600;color:#4d5a6c;background:#f8fafb;border:1px solid #e3e8ee;border-radius:6px;padding:3px 8px;white-space:nowrap">Em Tempo Real</span>
+          <span style="font-family:'DM Mono',monospace;font-size:11.5px;color:#0b5c7a;background:#e6f1f6;border:1px solid #bcd9e4;border-radius:6px;padding:3px 8px;white-space:nowrap">acme-fiscal</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdf4e3;border:1px solid #f0dcb4;color:#a86a00;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#d59109"></span>Sandbox</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e7f5ec;border:1px solid #c3e5d1;color:#17864a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#17864a"></span>Produção</span>
+          <span style="width:30px;height:30px;border-radius:8px;background:#0b5c7a;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">ML</span>
+          <span style="width:30px;height:30px;border-radius:8px;background:#eef1f5;border:1px solid #e3e8ee;color:#4d5a6c;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">RS</span>
+        </div>
+      </div>
+
+      <!-- Formulário: só campos do conector -->
+      <div style="flex:1 1 420px;min-width:400px;background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:22px 24px;display:flex;flex-direction:column;gap:18px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Formulário</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="font-size:12.5px;font-weight:600;color:#33415c">Empresa</label>
+          <div style="position:relative">
+            <select style="height:32px;padding:0 28px 0 11px;font-size:13px;color:#0b1220;background:#fff;border:1px solid #cfd7e0;border-radius:7px;outline:none;width:100%;box-sizing:border-box;appearance:none;cursor:pointer" style-focus="border-color:#0b5c7a;box-shadow:0 0 0 3px #e6f1f6">
+              <option>12345678 — Empresa Emitente LTDA</option>
+              <option>98765432 — Distribuidora Beta SA</option>
+            </select>
+            <i data-lucide="chevron-down" width="14" height="14" stroke-width="2.1" style="position:absolute;right:9px;top:9px;color:#6b7788;pointer-events:none"></i>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12.5px;font-weight:600;color:#33415c">Filial</label>
+            <div style="position:relative">
+              <select style="height:32px;padding:0 28px 0 11px;font-size:13px;color:#0b1220;background:#fff;border:1px solid #cfd7e0;border-radius:7px;outline:none;width:100%;box-sizing:border-box;appearance:none;cursor:pointer" style-focus="border-color:#0b5c7a;box-shadow:0 0 0 3px #e6f1f6">
+                <option>Todas as filiais</option>
+                <option>0001 — Matriz</option>
+                <option>0002 — Filial São Paulo</option>
+              </select>
+              <i data-lucide="chevron-down" width="14" height="14" stroke-width="2.1" style="position:absolute;right:9px;top:9px;color:#6b7788;pointer-events:none"></i>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12.5px;font-weight:600;color:#33415c">Nota específica</label>
+            <div style="display:flex;border:1px solid #cfd7e0;border-radius:7px;overflow:hidden;background:#fff" style-focus-within="border-color:#0b5c7a;box-shadow:0 0 0 3px #e6f1f6">
+              <span style="display:flex;align-items:center;padding:0 9px;background:#f8fafb;border-right:1px solid #e3e8ee;font-size:11.5px;font-weight:600;color:#6b7788">nNF</span>
+              <input placeholder="opcional" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#0b1220;background:transparent;border:none;outline:none;flex:1;min-width:0">
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="font-size:12.5px;font-weight:600;color:#33415c">Período</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;display:flex;border:1px solid #cfd7e0;border-radius:7px;overflow:hidden;background:#fff" style-focus-within="border-color:#0b5c7a;box-shadow:0 0 0 3px #e6f1f6">
+              <span style="display:flex;align-items:center;padding:0 9px;background:#f8fafb;border-right:1px solid #e3e8ee;color:#6b7788"><i data-lucide="calendar" width="13" height="13" stroke-width="2"></i></span>
+              <input value="01/07/2026" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#0b1220;background:transparent;border:none;outline:none;flex:1;min-width:0">
+            </div>
+            <span style="color:#6b7788;font-size:13px">–</span>
+            <div style="flex:1;display:flex;border:1px solid #cfd7e0;border-radius:7px;overflow:hidden;background:#fff" style-focus-within="border-color:#0b5c7a;box-shadow:0 0 0 3px #e6f1f6">
+              <span style="display:flex;align-items:center;padding:0 9px;background:#f8fafb;border-right:1px solid #e3e8ee;color:#6b7788"><i data-lucide="calendar" width="13" height="13" stroke-width="2"></i></span>
+              <input value="24/07/2026" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#0b1220;background:transparent;border:none;outline:none;flex:1;min-width:0">
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="font-size:12.5px;font-weight:600;color:#33415c">Settings do adapter</label>
+          <textarea rows="3" style="padding:9px 11px;font-family:'DM Mono',monospace;font-size:12.5px;line-height:1.6;color:#0b1220;background:#f8fafb;border:1px solid #cfd7e0;border-radius:7px;outline:none;width:100%;box-sizing:border-box;resize:vertical" style-focus="border-color:#0b5c7a;box-shadow:0 0 0 3px #e6f1f6;background:#fff">{ "apiKey": "kv:avalara-prod-key" }</textarea>
+          <div style="font-size:12px;color:#6b7788;line-height:1.5">Segredo só como referência <span style="font-family:'DM Mono',monospace;color:#4d5a6c">kv:…</span> — nunca o valor.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="font-size:12.5px;font-weight:600;color:#c0342e">Horário da diária</label>
+          <input value="25:00" style="height:32px;padding:0 11px;font-size:13px;font-variant-numeric:tabular-nums;color:#0b1220;background:#fff;border:1px solid #c0342e;border-radius:7px;outline:none;box-shadow:0 0 0 3px #fdecea;box-sizing:border-box">
+          <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#c0342e"><i data-lucide="alert-circle" width="12" height="12" stroke-width="2.2"></i>Use o formato HH:mm.</div>
+        </div>
+        <div style="height:1px;background:#eef1f5"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div>
+            <div style="font-size:13.5px;font-weight:600">Tempo real</div>
+            <div style="font-size:12px;color:#6b7788;margin-top:1px">ingestão por evento do Service Bus</div>
+          </div>
+          <div style="width:38px;height:22px;border-radius:999px;background:#0b5c7a;padding:2px;box-sizing:border-box;display:flex;justify-content:flex-end;cursor:pointer">
+            <div style="width:18px;height:18px;border-radius:999px;background:#fff;box-shadow:0 1px 2px rgba(11,18,32,0.25)"></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:9px">
+          <span style="width:16px;height:16px;border-radius:4px;background:#0b5c7a;display:inline-flex;align-items:center;justify-content:center;color:#fff"><i data-lucide="check" width="11" height="11" stroke-width="3"></i></span>
+          <span style="font-size:13.5px;color:#33415c">Agendamento ativo</span>
+        </div>
+      </div>
+
+      <!-- Navegação -->
+      <div style="flex:1 1 300px;min-width:290px;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);overflow:hidden">
+          <div style="display:flex;align-items:center;gap:10px;padding:15px 14px;border-bottom:1px solid #eef1f5">
+            <div style="width:28px;height:28px;border-radius:8px;background:#0b5c7a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">F</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:700;letter-spacing:-0.015em">FiscalHub</div>
+              <div style="font-family:'DM Mono',monospace;font-size:10.5px;color:#6b7788">acme-fiscal</div>
+            </div>
+            <i data-lucide="chevrons-up-down" width="14" height="14" stroke-width="2" style="color:#9aa5b4"></i>
+          </div>
+          <div style="padding:10px 8px 12px;display:flex;flex-direction:column;gap:2px">
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#6b7788;padding:6px 8px">Operação</div>
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;background:#e6f1f6;font-size:13.5px;font-weight:600;color:#0b5c7a;cursor:pointer">
+              <i data-lucide="file-text" width="15" height="15" stroke-width="2"></i>Documentos
+              <span style="margin-left:auto;font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums">128</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13.5px;font-weight:500;color:#33415c;cursor:pointer" style-hover="background:#f5f7f9">
+              <i data-lucide="zap" width="15" height="15" stroke-width="2" style="color:#6b7788"></i>Integrações
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13.5px;font-weight:500;color:#33415c;cursor:pointer" style-hover="background:#f5f7f9">
+              <i data-lucide="git-fork" width="15" height="15" stroke-width="2" style="color:#6b7788"></i>Conectores
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13.5px;font-weight:500;color:#c3ccd6;cursor:not-allowed">
+              <i data-lucide="bar-chart-3" width="15" height="15" stroke-width="2" style="color:#cfd7e0"></i>Métricas
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px">
+          <div style="min-width:0">
+            <div style="font-size:16px;font-weight:700;letter-spacing:-0.018em">Documentos</div>
+            <div style="font-size:12px;color:#6b7788;margin-top:1px;font-variant-numeric:tabular-nums">1.284 notas · 128 grupos</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#fdf4e3;border:1px solid #f0dcb4;color:#a86a00;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#d59109"></span>Sandbox</span>
+            <span style="width:30px;height:30px;border-radius:8px;background:#0b5c7a;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">ML</span>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #f0dcb4;border-radius:10px;padding:13px 15px;display:flex;gap:10px">
+          <i data-lucide="clock" width="15" height="15" stroke-width="2" style="color:#a86a00;flex-shrink:0;margin-top:1px"></i>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#8a5700">3 notas sem retorno após 6 consultas</div>
+            <div style="font-size:12.5px;color:#6b7788;line-height:1.5;margin-top:2px">O poll esgotou as tentativas. <a href="#">Revisar agora</a></div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px dashed #cfd7e0;border-radius:10px;padding:26px 18px;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center">
+          <i data-lucide="inbox" width="20" height="20" stroke-width="1.8" style="color:#9aa5b4"></i>
+          <div style="font-size:13.5px;font-weight:600">Sem notas neste grupo</div>
+          <div style="font-size:12.5px;color:#6b7788;line-height:1.5">Ajuste o período ou dispare uma integração.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabela: campos reais de DocumentSummary -->
+    <div style="background:#fff;border:1px solid #e3e8ee;border-radius:10px;box-shadow:0 1px 2px rgba(11,18,32,0.05);overflow:hidden">
+      <div style="padding:15px 20px;border-bottom:1px solid #e3e8ee;display:flex;align-items:center;justify-content:space-between;gap:16px">
+        <div>
+          <div style="font-size:14.5px;font-weight:700;letter-spacing:-0.012em">Notas do grupo</div>
+          <div style="font-size:12px;color:#6b7788;margin-top:1px;font-variant-numeric:tabular-nums">Empresa 12345678 · Filial 0002 · 24/07/2026</div>
+        </div>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdeee6;border:1px solid #f6d3bf;color:#c05621;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#c05621"></span>Com pendências</span>
+      </div>
+      <div style="overflow-x:auto"><div style="min-width:960px">
+        <div style="display:grid;grid-template-columns:minmax(130px,0.9fr) minmax(200px,1.5fr) 84px 96px 130px minmax(140px,1fr);padding:10px 20px;background:#f8fafb;border-bottom:1px solid #e3e8ee;font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">
+          <div>Número</div><div>Chave</div><div>Modelo</div><div style="text-align:right">Consultas</div><div style="text-align:right">Atualizado</div><div style="text-align:right">Status</div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(130px,0.9fr) minmax(200px,1.5fr) 84px 96px 130px minmax(140px,1fr);align-items:center;padding:12px 20px;border-bottom:1px solid #eef1f5;font-size:13.5px;cursor:pointer" style-hover="background:#f8fafb">
+          <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001234</div>
+          <div style="font-size:12.5px;font-weight:500;color:#4d5a6c;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…0199 5500 1000 0012 341</div>
+          <div style="color:#4d5a6c;font-variant-numeric:tabular-nums">55</div>
+          <div style="text-align:right;font-variant-numeric:tabular-nums;color:#33415c">2</div>
+          <div style="text-align:right;font-size:12.5px;color:#4d5a6c;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:02</div>
+          <div style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e7f5ec;border:1px solid #c3e5d1;color:#17864a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#17864a"></span>Finalizado</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(130px,0.9fr) minmax(200px,1.5fr) 84px 96px 130px minmax(140px,1fr);align-items:center;padding:12px 20px;border-bottom:1px solid #eef1f5;font-size:13.5px;cursor:pointer" style-hover="background:#f8fafb">
+          <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001235</div>
+          <div style="font-size:12.5px;font-weight:500;color:#4d5a6c;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…0199 5500 1000 0012 359</div>
+          <div style="color:#4d5a6c;font-variant-numeric:tabular-nums">55</div>
+          <div style="text-align:right;font-variant-numeric:tabular-nums;color:#33415c">1</div>
+          <div style="text-align:right;font-size:12.5px;color:#4d5a6c;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:03</div>
+          <div style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdecea;border:1px solid #f5cdc9;color:#c0342e;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#c0342e"></span>Rejeitado</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(130px,0.9fr) minmax(200px,1.5fr) 84px 96px 130px minmax(140px,1fr);align-items:center;padding:12px 20px;border-bottom:1px solid #eef1f5;font-size:13.5px;cursor:pointer" style-hover="background:#f8fafb">
+          <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001236</div>
+          <div style="font-size:12.5px;font-weight:500;color:#4d5a6c;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…0199 5500 1000 0012 367</div>
+          <div style="color:#4d5a6c;font-variant-numeric:tabular-nums">55</div>
+          <div style="text-align:right;font-variant-numeric:tabular-nums;color:#33415c">6</div>
+          <div style="text-align:right;font-size:12.5px;color:#4d5a6c;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:11</div>
+          <div style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#fdf4e3;border:1px solid #f0dcb4;color:#a86a00;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#d59109"></span>Sem retorno</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(130px,0.9fr) minmax(200px,1.5fr) 84px 96px 130px minmax(140px,1fr);align-items:center;padding:12px 20px;border-bottom:1px solid #eef1f5;font-size:13.5px;cursor:pointer" style-hover="background:#f8fafb">
+          <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001237</div>
+          <div style="font-size:12.5px;font-weight:500;color:#4d5a6c;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…0199 5500 1000 0012 375</div>
+          <div style="color:#4d5a6c;font-variant-numeric:tabular-nums">55</div>
+          <div style="text-align:right;font-variant-numeric:tabular-nums;color:#33415c">3</div>
+          <div style="text-align:right;font-size:12.5px;color:#4d5a6c;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:14</div>
+          <div style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#e8f3f8;border:1px solid #c3ddea;color:#236c86;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#2b7f9e"></span>Processando</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(130px,0.9fr) minmax(200px,1.5fr) 84px 96px 130px minmax(140px,1fr);align-items:center;padding:13px 20px;background:#f8fafb;border-top:1px solid #cfd7e0;font-size:13px;font-weight:700">
+          <div style="font-variant-numeric:tabular-nums">4 notas</div>
+          <div style="font-size:12.5px;font-weight:600;color:#4d5a6c;font-variant-numeric:tabular-nums">1 finalizada · 1 rejeitada · 1 sem retorno · 1 processando</div>
+          <div></div>
+          <div style="text-align:right;font-variant-numeric:tabular-nums">12</div>
+          <div style="text-align:right;font-size:12px;font-weight:600;color:#6b7788">consultas acumuladas</div>
+          <div></div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- Dialog -->
+    <div style="background:#eef1f5;border:1px solid #e3e8ee;border-radius:10px;padding:34px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#6b7788">Dialog</div>
+      <div style="max-width:560px;background:#fff;border:1px solid #e3e8ee;border-radius:12px;box-shadow:0 20px 48px -16px rgba(11,18,32,0.3);overflow:hidden">
+        <div style="padding:20px 22px 16px;display:flex;gap:14px">
+          <span style="width:34px;height:34px;border-radius:9px;background:#fdeee6;border:1px solid #f6d3bf;color:#c05621;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"><i data-lucide="rotate-ccw" width="16" height="16" stroke-width="2.1"></i></span>
+          <div>
+            <div style="font-size:15.5px;font-weight:700;letter-spacing:-0.012em">Reprocessar 14 notas pendentes?</div>
+            <div style="font-size:13px;color:#4d5a6c;line-height:1.55;margin-top:5px;text-wrap:pretty">As notas voltam para a esteira e são despachadas de novo ao compliance. As três fotos das tentativas anteriores são preservadas.</div>
+          </div>
+        </div>
+        <div style="margin:0 22px;padding:12px 14px;background:#f8fafb;border:1px solid #e3e8ee;border-radius:8px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:#4d5a6c">Grupo</span><span style="font-weight:600;font-variant-numeric:tabular-nums">12345678 · 0002 · 24/07/2026</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:#4d5a6c">Escopo</span><span style="font-weight:600;font-variant-numeric:tabular-nums">14 de 194 notas</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:#4d5a6c">Modo</span><span style="font-weight:600">Agendada · 01/07 – 24/07</span></div>
+        </div>
+        <div style="padding:18px 22px 20px;display:flex;justify-content:flex-end;gap:9px">
+          <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#fff;color:#33415c;border:1px solid #cfd7e0;cursor:pointer" style-hover="background:#f8fafb">Cancelar</button>
+          <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#0b5c7a;color:#fff;border:1px solid #0b5c7a;cursor:pointer" style-hover="background:#094a63">Reprocessar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{}">
+class Component extends DCLogic {
+  componentDidMount() {
+    this.icons();
+    this._t = setInterval(() => this.icons(), 400);
+    setTimeout(() => clearInterval(this._t), 6000);
+  }
+  componentWillUnmount() { clearInterval(this._t); }
+  componentDidUpdate() { this.icons(); }
+  icons() { try { window.lucide && window.lucide.createIcons(); } catch (e) {} }
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

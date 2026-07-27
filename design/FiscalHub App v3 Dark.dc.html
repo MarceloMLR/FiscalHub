@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #0d1117; -webkit-font-smoothing: antialiased; }
+  a { color: #3d9dc4; text-decoration: none; font-weight: 500; }
+  a:hover { color: #57b0d4; text-decoration: underline; }
+  input, textarea, select, button { font-family: inherit; }
+  ::placeholder { color: #5f6a79; }
+  @keyframes fh-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  /* Responsivo — base fluida; md 768, lg 1024 */
+  @media (max-width: 1023px) {
+    [data-r="kpis"] { grid-template-columns: repeat(2, 1fr) !important; }
+    [data-r="form2"] { grid-template-columns: 1fr !important; }
+    [data-r="page"] { padding: 18px 18px 32px !important; }
+  }
+  @media (max-width: 767px) {
+    [data-r="shell"] { flex-direction: column !important; }
+    [data-r="sidebar"] { width: 100% !important; height: auto !important; position: static !important; flex-direction: row !important; align-items: center !important; border-right: none !important; border-bottom: 1px solid #262d37 !important; overflow-x: auto !important; }
+    [data-r="brand"] { border-bottom: none !important; padding: 12px 14px !important; flex-shrink: 0; }
+    [data-r="nav"] { flex-direction: row !important; padding: 8px 4px !important; gap: 4px !important; }
+    [data-r="navsec"] { display: none !important; }
+    [data-r="env"] { margin-top: 0 !important; margin-left: auto; padding: 8px 12px !important; flex-shrink: 0; }
+    [data-r="envcard"] { border: none !important; flex-direction: row !important; align-items: center !important; padding: 0 !important; gap: 8px !important; }
+    [data-r="envnote"], [data-r="navsec"] { display: none !important; }
+    [data-r="topbar"] { position: static !important; padding: 12px 16px !important; }
+    [data-r="page"] { padding: 14px 14px 28px !important; }
+    [data-r="kpis"] { gap: 10px !important; }
+    [data-r="tablewrap"] { min-width: 0 !important; }
+    [data-r="thead"] { display: none !important; }
+    [data-r="row"] { display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 7px !important; padding: 14px 16px !important; }
+    [data-r="row"] > div { display: flex !important; justify-content: space-between !important; align-items: center !important; gap: 14px; text-align: left !important; }
+    [data-r="row"] > div::before { content: attr(data-l); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #7f8b9c; flex-shrink: 0; }
+    [data-r="overlay"] { padding: 0 !important; align-items: stretch !important; }
+    [data-r="modal"] { max-width: none !important; border-radius: 0 !important; height: 100%; display: flex !important; flex-direction: column; }
+    [data-r="modalbody"] { flex: 1; overflow: auto; }
+  }
+</style>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+</helmet>
+
+<div style="font-family:Manrope,system-ui,sans-serif;color:#e6ebf2;background:#0d1117;min-height:100vh">
+
+  <!-- ══════════ LOGIN ══════════ -->
+  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Login" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px;box-sizing:border-box">
+      <div style="width:100%;max-width:392px;display:flex;flex-direction:column;gap:20px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;border-radius:9px;background:#3d9dc4;color:#0d1117;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700">F</div>
+          <div style="font-size:17px;font-weight:700;letter-spacing:-0.018em">FiscalHub</div>
+        </div>
+
+        <div style="background:#161b22;border:1px solid #262d37;border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,0.4);padding:28px;display:flex;flex-direction:column;gap:20px">
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <div style="font-size:19px;font-weight:700;letter-spacing:-0.02em">Entrar no painel</div>
+            <div style="font-size:13px;line-height:1.55;color:#9aa6b6">Use a conta do seu tenant para acompanhar as integrações.</div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label for="fh-email" style="font-size:12.5px;font-weight:600;color:#b7c1cf">E-mail</label>
+              <input id="fh-email" type="email" placeholder="voce@empresa.com.br" value="{{ email }}" onChange="{{ onEmail }}" style="height:36px;padding:0 11px;font-size:13.5px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <label for="fh-pass" style="font-size:12.5px;font-weight:600;color:#b7c1cf">Senha</label>
+                <a href="#" style="font-size:12px">Esqueci a senha</a>
+              </div>
+              <input id="fh-pass" type="password" placeholder="••••••••" value="{{ senha }}" onChange="{{ onSenha }}" onKeyDown="{{ onKey }}" style="height:36px;padding:0 11px;font-size:13.5px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+            </div>
+          </div>
+
+          <sc-if value="{{ loginErro }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid #55292a;background:#2f1616;border-radius:8px;padding:10px 12px;display:flex;gap:9px;align-items:flex-start">
+              <i data-lucide="alert-circle" width="15" height="15" stroke-width="2.1" style="color:#f08f8a;flex-shrink:0;margin-top:1px"></i>
+              <div style="font-size:12.5px;line-height:1.45;color:#f0a5a0">Informe e-mail e senha para continuar.</div>
+            </div>
+          </sc-if>
+
+          <button onClick="{{ entrar }}" style="height:38px;font-size:13.5px;font-weight:600;border-radius:7px;background:#3d9dc4;color:#0d1117;border:1px solid #3d9dc4;cursor:pointer;width:100%;box-shadow:0 1px 2px rgba(0,0,0,0.45)" style-hover="background:#57b0d4;border-color:#57b0d4">Entrar</button>
+        </div>
+
+        <div style="font-size:12px;color:#7f8b9c;text-align:center;line-height:1.5">Acesso restrito ao tenant <span style="font-family:'DM Mono',monospace">acme-fiscal</span></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ══════════ PAINEL ══════════ -->
+  <sc-if value="{{ isApp }}" hint-placeholder-val="{{ true }}">
+    <div data-r="shell" style="display:flex;min-height:100vh">
+
+      <!-- Sidebar -->
+      <div data-r="sidebar" style="width:232px;flex-shrink:0;background:#161b22;border-right:1px solid #262d37;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;box-sizing:border-box">
+        <div data-r="brand" style="display:flex;align-items:center;gap:10px;padding:16px 14px;border-bottom:1px solid #21262e">
+          <div style="width:28px;height:28px;border-radius:8px;background:#3d9dc4;color:#0d1117;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">F</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:700;letter-spacing:-0.015em">FiscalHub</div>
+            <div style="font-family:'DM Mono',monospace;font-size:10.5px;color:#7f8b9c">acme-fiscal</div>
+          </div>
+        </div>
+
+        <div data-r="nav" style="padding:10px 8px;display:flex;flex-direction:column;gap:2px">
+          <div data-r="navsec" style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#7f8b9c;padding:6px 8px">Operação</div>
+          <sc-if value="{{ vDocs }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;background:#12303d;font-size:13.5px;font-weight:600;color:#3d9dc4;cursor:pointer">
+              <i data-lucide="file-text" width="15" height="15" stroke-width="2"></i>Documentos
+            </div>
+          </sc-if>
+          <sc-if value="{{ nDocs }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ goDocs }}" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13.5px;font-weight:500;color:#b7c1cf;cursor:pointer" style-hover="background:#0d1117">
+              <i data-lucide="file-text" width="15" height="15" stroke-width="2" style="color:#7f8b9c"></i>Documentos
+            </div>
+          </sc-if>
+          <sc-if value="{{ vInteg }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;background:#12303d;font-size:13.5px;font-weight:600;color:#3d9dc4;cursor:pointer">
+              <i data-lucide="zap" width="15" height="15" stroke-width="2"></i>Integrações
+            </div>
+          </sc-if>
+          <sc-if value="{{ nInteg }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ goInteg }}" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13.5px;font-weight:500;color:#b7c1cf;cursor:pointer" style-hover="background:#1b2129">
+              <i data-lucide="zap" width="15" height="15" stroke-width="2" style="color:#7f8b9c"></i>Integrações
+            </div>
+          </sc-if>
+
+          <div data-r="navsec" style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#7f8b9c;padding:14px 8px 6px">Administração</div>
+          <sc-if value="{{ vConf }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;background:#12303d;font-size:13.5px;font-weight:600;color:#3d9dc4;cursor:pointer">
+              <i data-lucide="settings" width="15" height="15" stroke-width="2"></i>Configurações
+            </div>
+          </sc-if>
+          <sc-if value="{{ nConf }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ goConf }}" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13.5px;font-weight:500;color:#b7c1cf;cursor:pointer" style-hover="background:#1b2129">
+              <i data-lucide="settings" width="15" height="15" stroke-width="2" style="color:#7f8b9c"></i>Configurações
+            </div>
+          </sc-if>
+        </div>
+
+        <div data-r="env" style="margin-top:auto;padding:12px">
+          <div data-r="envcard" style="border:1px solid #262d37;border-radius:9px;padding:11px 13px;display:flex;flex-direction:column;gap:9px">
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#7f8b9c">Ambiente ativo</div>
+            <sc-if value="{{ isSandbox }}" hint-placeholder-val="{{ true }}">
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#2c2310;border:1px solid #4d3f1c;color:#e0ab5c;white-space:nowrap;align-self:flex-start"><span style="width:5px;height:5px;border-radius:999px;background:#d59a3a"></span>Sandbox</span>
+            </sc-if>
+            <sc-if value="{{ isProd }}" hint-placeholder-val="{{ false }}">
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#10291d;border:1px solid #1e4a33;color:#4cc98a;white-space:nowrap;align-self:flex-start"><span style="width:5px;height:5px;border-radius:999px;background:#4cc98a"></span>Produção</span>
+            </sc-if>
+            <div data-r="envnote" style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#7f8b9c">
+              <i data-lucide="radio" width="12" height="12" stroke-width="2"></i>Tempo real ligado
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+        <div data-r="topbar" style="background:#161b22;border-bottom:1px solid #262d37;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:sticky;top:0;z-index:5">
+          <div style="min-width:0">
+            <div style="font-size:17px;font-weight:700;letter-spacing:-0.02em">{{ titulo }}</div>
+            <div style="font-size:12.5px;color:#7f8b9c;margin-top:1px">{{ subtitulo }}</div>
+          </div>
+          <div onClick="{{ toggleMenu }}" style="display:flex;align-items:center;gap:9px;cursor:pointer;position:relative">
+            <div style="text-align:right">
+              <div style="font-size:13px;font-weight:600;line-height:1.3">{{ usuario }}</div>
+              <div style="font-size:11.5px;color:#7f8b9c;line-height:1.3">{{ papel }}</div>
+            </div>
+            <div style="width:32px;height:32px;border-radius:8px;background:#3d9dc4;color:#0d1117;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">{{ iniciais }}</div>
+            <sc-if value="{{ menuAberto }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;top:44px;right:0;width:224px;background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 6px 16px -4px rgba(0,0,0,0.55);overflow:hidden;z-index:10">
+                <div style="padding:12px 14px;border-bottom:1px solid #21262e">
+                  <div style="font-size:13px;font-weight:600">{{ usuario }}</div>
+                  <div style="font-size:11.5px;color:#7f8b9c;margin-top:1px">{{ emailUsuario }}</div>
+                </div>
+                <div onClick="{{ sair }}" style="padding:9px 14px;display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#b7c1cf;cursor:pointer" style-hover="background:#1b2129">
+                  <i data-lucide="log-out" width="14" height="14" stroke-width="2" style="color:#7f8b9c"></i>Sair
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <sc-if value="{{ vDocs }}" hint-placeholder-val="{{ true }}">
+          <div data-r="page" data-screen-label="Documentos" style="padding:24px 28px 44px;display:flex;flex-direction:column;gap:18px">
+            <div data-r="kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+              <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);padding:16px 18px">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c;white-space:nowrap">Notas</div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:7px">
+                  <div style="font-size:28px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:#e6ebf2">602</div>
+                </div>
+                <div style="font-size:12px;color:#7f8b9c;margin-top:3px">hoje · 24/07/2026</div>
+              </div>
+              <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);padding:16px 18px">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c;white-space:nowrap">Finalizadas</div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:7px">
+                  <div style="font-size:28px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:#4cc98a">536</div>
+                  <div style="font-size:12.5px;font-weight:600;color:#4cc98a;font-variant-numeric:tabular-nums">89,0%</div>
+                </div>
+                <div style="font-size:12px;color:#7f8b9c;margin-top:3px">confirmadas pelo compliance</div>
+              </div>
+              <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);padding:16px 18px">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c;white-space:nowrap">Em processamento</div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:7px">
+                  <div style="font-size:28px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:#6fc3e0">52</div>
+                </div>
+                <div style="font-size:12px;color:#7f8b9c;margin-top:3px">Integrações em Processamento</div>
+              </div>
+              <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);padding:16px 18px">
+                <div style="font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c;white-space:nowrap">Com erro</div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:7px">
+                  <div style="font-size:28px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums;color:#f08f8a">14</div>
+                </div>
+                <div style="font-size:12px;color:#7f8b9c;margin-top:3px">rejeitadas, sem retorno ou falha</div>
+              </div>
+            </div>
+
+            <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);overflow:hidden">
+              <div style="overflow-x:auto"><div data-r="tablewrap" style="min-width:606px">
+                <div data-r="thead" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:10px 20px;background:#1b2129;border-bottom:1px solid #262d37;font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c">
+                  <div>Empresa</div><div>Filial</div><div>Data</div><div>Tipo</div><div>Período</div><div style="text-align:right">Proc.</div><div style="text-align:right">Status</div>
+                </div>
+
+                <div data-r="row" data-row="12345678 · 0001" data-sub="24/07/2026 · 312 notas · tudo confirmado" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">12345678</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0001</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Tempo real</div>
+                  <div data-l="Período" style="color:#5f6a79">—</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>312<span style="color:#7f8b9c">/312</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#10291d;border:1px solid #1e4a33;color:#4cc98a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#4cc98a"></span>Finalizado</span></div>
+                </div>
+
+                <div data-r="row" data-row="12345678 · 0002" data-sub="24/07/2026 · 194 notas · 14 com pendência" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">12345678</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0002</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Agendada</div>
+                  <div data-l="Período" style="font-size:12.5px;color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">01/07–24/07</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>180<span style="color:#7f8b9c">/194</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#2f1e12;border:1px solid #55311f;color:#ef9d68;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#ef9d68"></span>Com pendências</span></div>
+                </div>
+
+                <div data-r="row" data-row="98765432 · 0003" data-sub="24/07/2026 · 96 notas · 52 aguardando retorno" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">98765432</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0003</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Tempo real</div>
+                  <div data-l="Período" style="color:#5f6a79">—</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>44<span style="color:#7f8b9c">/96</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#112b38;border:1px solid #1d4457;color:#6fc3e0;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#4aa9cc"></span>Processando</span></div>
+                </div>
+
+                <div data-r="row" data-row="98765432 · 0002" data-sub="23/07/2026 · 240 notas · tudo confirmado" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">98765432</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0002</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">23/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Diária 03:00</div>
+                  <div data-l="Período" style="font-size:12.5px;color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">22/07–23/07</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>240<span style="color:#7f8b9c">/240</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#10291d;border:1px solid #1e4a33;color:#4cc98a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#4cc98a"></span>Finalizado</span></div>
+                </div>
+
+                <div data-r="row" data-row="98765432 · 0001" data-sub="23/07/2026 · 88 notas · 6 rejeitadas pelo compliance" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">98765432</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0001</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">23/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Tempo real</div>
+                  <div data-l="Período" style="color:#5f6a79">—</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>82<span style="color:#7f8b9c">/88</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#2f1616;border:1px solid #55292a;color:#f08f8a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#f08f8a"></span>Rejeitado</span></div>
+                </div>
+
+                <div data-r="row" data-row="12345678 · 0001" data-sub="22/07/2026 · 154 notas · 3 sem retorno do poll" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">12345678</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0001</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">22/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Agendada</div>
+                  <div data-l="Período" style="font-size:12.5px;color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">15/07–22/07</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>151<span style="color:#7f8b9c">/154</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#2c2310;border:1px solid #4d3f1c;color:#e0ab5c;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#d59a3a"></span>Sem retorno</span></div>
+                </div>
+
+                <div data-r="row" data-row="12345678 · 0002" data-sub="22/07/2026 · 12 notas · dead-letter, exige intervenção" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">12345678</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0002</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">22/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Tempo real</div>
+                  <div data-l="Período" style="color:#5f6a79">—</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>0<span style="color:#7f8b9c">/12</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#262d37;border:1px solid #333b47;color:#b7c1cf;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#b7c1cf"></span>Falha</span></div>
+                </div>
+
+                <div data-r="row" data-row="98765432 · 0003" data-sub="21/07/2026 · 18 notas · na esteira, aguardando despacho" onClick="{{ abrirGrupo }}" style="display:grid;grid-template-columns:minmax(66px,0.9fr) minmax(40px,0.5fr) minmax(76px,0.9fr) minmax(78px,0.95fr) minmax(78px,1fr) minmax(54px,0.6fr) minmax(126px,1.1fr);column-gap:10px;align-items:center;padding:12px 20px;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                  <div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em;white-space:nowrap">98765432</div>
+                  <div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0003</div>
+                  <div data-l="Data" style="font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">21/07/2026</div>
+                  <div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Tempo real</div>
+                  <div data-l="Período" style="color:#5f6a79">—</div>
+                  <div data-l="Processadas" style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap"><span>0<span style="color:#7f8b9c">/18</span></span></div>
+                  <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#21262e;border:1px solid #333b47;color:#9aa6b6;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#5f6a79"></span>Pendente</span></div>
+                </div>
+              </div></div>
+
+              <div style="padding:11px 20px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #262d37;background:#1b2129">
+                <div style="font-size:12px;color:#7f8b9c;font-variant-numeric:tabular-nums">8 de 128 grupos · 25 por página</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button style="width:28px;height:28px;border-radius:6px;background:#161b22;border:1px solid #262d37;color:#444d59;display:inline-flex;align-items:center;justify-content:center;cursor:not-allowed"><i data-lucide="chevron-left" width="14" height="14" stroke-width="2.1"></i></button>
+                  <button style="width:28px;height:28px;border-radius:6px;background:#161b22;border:1px solid #333b47;color:#9aa6b6;display:inline-flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:#21262e;color:#e6ebf2"><i data-lucide="chevron-right" width="14" height="14" stroke-width="2.1"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ vInteg }}" hint-placeholder-val="{{ false }}">
+          <div data-r="page" data-screen-label="Integrações" style="padding:20px 28px 36px;display:flex;flex-direction:column;gap:14px;max-width:1080px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+                <div style="display:flex;align-items:baseline;gap:7px"><span style="font-size:20px;font-weight:700;letter-spacing:-0.025em;font-variant-numeric:tabular-nums">2</span><span style="font-size:12.5px;color:#7f8b9c">agendamentos ativos</span></div>
+              </div>
+              <button onClick="{{ abrirNova }}" style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#3d9dc4;color:#0d1117;border:1px solid #3d9dc4;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 1px 2px rgba(0,0,0,0.45);white-space:nowrap" style-hover="background:#57b0d4;border-color:#57b0d4"><i data-lucide="plus" width="14" height="14" stroke-width="2.4"></i>Nova integração</button>
+            </div>
+
+            <sc-if value="{{ disparado }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px solid #1e4a33;background:#10291d;border-radius:8px;padding:10px 13px;display:flex;gap:9px;align-items:center">
+                <i data-lucide="check-circle-2" width="15" height="15" stroke-width="2.1" style="color:#4cc98a;flex-shrink:0"></i>
+                <div style="font-size:12.5px;color:#4cc98a"><span style="font-weight:600">312 notas enfileiradas</span> — acompanhe em Documentos.</div>
+              </div>
+            </sc-if>
+
+            <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);overflow:hidden">
+              <div style="display:flex;gap:22px;padding:14px 20px 0;border-bottom:1px solid #262d37">
+                <sc-if value="{{ tAgend }}" hint-placeholder-val="{{ true }}"><div style="font-size:13.5px;font-weight:600;color:#e6ebf2;padding-bottom:10px;border-bottom:2px solid #3d9dc4;margin-bottom:-1px;cursor:pointer;white-space:nowrap">Agendamentos</div></sc-if><sc-if value="{{ nTAgend }}" hint-placeholder-val="{{ false }}"><div onClick="{{ goTAgend }}" style="font-size:13.5px;font-weight:500;color:#7f8b9c;padding-bottom:10px;cursor:pointer;white-space:nowrap" style-hover="color:#b7c1cf">Agendamentos</div></sc-if>
+                <sc-if value="{{ tExec }}" hint-placeholder-val="{{ true }}"><div style="font-size:13.5px;font-weight:600;color:#e6ebf2;padding-bottom:10px;border-bottom:2px solid #3d9dc4;margin-bottom:-1px;cursor:pointer;white-space:nowrap">Execuções recentes</div></sc-if><sc-if value="{{ nTExec }}" hint-placeholder-val="{{ false }}"><div onClick="{{ goTExec }}" style="font-size:13.5px;font-weight:500;color:#7f8b9c;padding-bottom:10px;cursor:pointer;white-space:nowrap" style-hover="color:#b7c1cf">Execuções recentes</div></sc-if>
+              </div>
+              <sc-if value="{{ tAgend }}" hint-placeholder-val="{{ true }}">
+                <div style="overflow-x:auto"><div data-r="tablewrap" style="min-width:570px"><div data-r="thead" style="display:grid;grid-template-columns:minmax(88px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(118px,1fr) 84px 80px;column-gap:8px;align-items:center;padding:10px 20px;background:#1b2129;border-bottom:1px solid #262d37;font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c"><div>Tipo</div><div>Empresa</div><div>Filial</div><div>Próximo disparo</div><div>Status</div><div style="text-align:right">Ação</div></div><div data-r="row" style="display:grid;grid-template-columns:minmax(88px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(118px,1fr) 84px 80px;column-gap:8px;align-items:center;padding:11px 20px;border-bottom:1px solid #21262e;font-size:13px"><div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Diária (D-1)</div><div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums">12345678</div><div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0001</div><div style="color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">28/07/2026 06:00</div><div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#10291d;border:1px solid #1e4a33;color:#4cc98a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#4cc98a"></span>Ativo</span></div><div style="text-align:right"><button style="height:26px;padding:0 9px;font-size:12px;font-weight:600;border-radius:6px;background:#161b22;color:#f08f8a;border:1px solid #55292a;cursor:pointer;white-space:nowrap" style-hover="background:#2f1616">Desativar</button></div></div><div data-r="row" style="display:grid;grid-template-columns:minmax(88px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(118px,1fr) 84px 80px;column-gap:8px;align-items:center;padding:11px 20px;border-bottom:1px solid #21262e;font-size:13px"><div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Agendada</div><div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums">98765432</div><div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">Todas</div><div style="color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">31/07/2026 03:00</div><div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#10291d;border:1px solid #1e4a33;color:#4cc98a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#4cc98a"></span>Ativo</span></div><div style="text-align:right"><button style="height:26px;padding:0 9px;font-size:12px;font-weight:600;border-radius:6px;background:#161b22;color:#f08f8a;border:1px solid #55292a;cursor:pointer;white-space:nowrap" style-hover="background:#2f1616">Desativar</button></div></div><div data-r="row" style="display:grid;grid-template-columns:minmax(88px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(118px,1fr) 84px 80px;column-gap:8px;align-items:center;padding:11px 20px;font-size:13px"><div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Diária (D-1)</div><div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums">98765432</div><div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0003</div><div style="color:#5f6a79;font-variant-numeric:tabular-nums;white-space:nowrap">—</div><div><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px 3px 7px;border-radius:6px;background:#21262e;border:1px solid #333b47;color:#9aa6b6;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#5f6a79"></span>Inativo</span></div><div style="text-align:right"></div></div></div></div>
+              </sc-if>
+              <sc-if value="{{ tExec }}" hint-placeholder-val="{{ false }}">
+                <div style="overflow-x:auto"><div data-r="tablewrap" style="min-width:570px"><div data-r="thead" style="display:grid;grid-template-columns:minmax(86px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(112px,1.2fr) 56px minmax(104px,1fr);column-gap:8px;align-items:center;padding:10px 20px;background:#1b2129;border-bottom:1px solid #262d37;font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c"><div>Modo</div><div>Empresa</div><div>Filial</div><div>Período</div><div style="text-align:right">Notas</div><div style="text-align:right">Quando</div></div><div data-r="row" style="display:grid;grid-template-columns:minmax(86px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(112px,1.2fr) 56px minmax(104px,1fr);column-gap:8px;align-items:center;padding:11px 20px;border-bottom:1px solid #21262e;font-size:13px"><div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Diária (D-1)</div><div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums">12345678</div><div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0001</div><div style="color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">23/07 → 23/07</div><div data-l="Notas" style="text-align:right;font-variant-numeric:tabular-nums">312</div><div data-l="Quando" style="text-align:right;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 06:00</div></div><div data-r="row" style="display:grid;grid-template-columns:minmax(86px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(112px,1.2fr) 56px minmax(104px,1fr);column-gap:8px;align-items:center;padding:11px 20px;border-bottom:1px solid #21262e;font-size:13px"><div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Imediata</div><div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums">12345678</div><div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0002</div><div style="color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">01/07 → 24/07</div><div data-l="Notas" style="text-align:right;font-variant-numeric:tabular-nums">194</div><div data-l="Quando" style="text-align:right;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 09:41</div></div><div data-r="row" style="display:grid;grid-template-columns:minmax(86px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(112px,1.2fr) 56px minmax(104px,1fr);column-gap:8px;align-items:center;padding:11px 20px;border-bottom:1px solid #21262e;font-size:13px"><div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Agendada</div><div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums">98765432</div><div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">Todas</div><div style="color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">22/07 → 23/07</div><div data-l="Notas" style="text-align:right;font-variant-numeric:tabular-nums">240</div><div data-l="Quando" style="text-align:right;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">23/07 03:00</div></div><div data-r="row" style="display:grid;grid-template-columns:minmax(86px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(112px,1.2fr) 56px minmax(104px,1fr);column-gap:8px;align-items:center;padding:11px 20px;font-size:13px"><div data-l="Tipo" style="color:#b7c1cf;white-space:nowrap">Imediata</div><div data-l="Empresa" style="font-weight:600;font-variant-numeric:tabular-nums">98765432</div><div data-l="Filial" style="color:#9aa6b6;font-variant-numeric:tabular-nums">0001</div><div style="color:#b7c1cf;font-variant-numeric:tabular-nums;white-space:nowrap">nNF 456</div><div data-l="Notas" style="text-align:right;font-variant-numeric:tabular-nums">1</div><div data-l="Quando" style="text-align:right;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">22/07 17:12</div></div></div></div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ───────── CONFIGURAÇÕES ───────── -->
+        <sc-if value="{{ vConf }}" hint-placeholder-val="{{ false }}">
+          <div data-r="page" data-screen-label="Configurações" style="padding:24px 28px 44px;display:flex;flex-direction:column;gap:20px;max-width:1080px">
+
+            <div style="display:flex;gap:22px;border-bottom:1px solid #262d37">
+              <sc-if value="{{ tConn }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size:13.5px;font-weight:600;color:#e6ebf2;padding-bottom:10px;border-bottom:2px solid #3d9dc4;margin-bottom:-1px;cursor:pointer;white-space:nowrap">Conectores</div>
+              </sc-if>
+              <sc-if value="{{ nTConn }}" hint-placeholder-val="{{ false }}">
+                <div onClick="{{ goTConn }}" style="font-size:13.5px;font-weight:500;color:#7f8b9c;padding-bottom:10px;cursor:pointer;white-space:nowrap" style-hover="color:#b7c1cf">Conectores</div>
+              </sc-if>
+              <sc-if value="{{ tAmb }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size:13.5px;font-weight:600;color:#e6ebf2;padding-bottom:10px;border-bottom:2px solid #3d9dc4;margin-bottom:-1px;cursor:pointer;white-space:nowrap">Ambiente</div>
+              </sc-if>
+              <sc-if value="{{ nTAmb }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ goTAmb }}" style="font-size:13.5px;font-weight:500;color:#7f8b9c;padding-bottom:10px;cursor:pointer;white-space:nowrap" style-hover="color:#b7c1cf">Ambiente</div>
+              </sc-if>
+            </div>
+
+            <!-- Conectores -->
+            <sc-if value="{{ tConn }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:20px">
+                <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);overflow:hidden">
+                  <div style="padding:16px 22px 0">
+                    <div style="font-size:14.5px;font-weight:700;letter-spacing:-0.012em">Perfil de conector do tenant</div>
+                    <div style="font-size:12.5px;color:#9aa6b6;line-height:1.55;margin-top:4px;max-width:640px;text-wrap:pretty">Como este tenant integra: o adapter de entrada lê do ERP, o de saída despacha ao compliance. Segredos entram como referência <span style="font-family:'DM Mono',monospace;font-size:12px">kv:…</span> — o valor fica no Key Vault.</div>
+                    <div style="display:flex;gap:20px;border-bottom:1px solid #262d37;margin-top:16px">
+                      <sc-if value="{{ cIn }}" hint-placeholder-val="{{ true }}">
+                        <div style="font-size:13px;font-weight:600;color:#e6ebf2;padding-bottom:9px;border-bottom:2px solid #3d9dc4;margin-bottom:-1px;cursor:pointer;white-space:nowrap">Entrada (ERP)</div>
+                      </sc-if>
+                      <sc-if value="{{ nCIn }}" hint-placeholder-val="{{ false }}">
+                        <div onClick="{{ goCIn }}" style="font-size:13px;font-weight:500;color:#7f8b9c;padding-bottom:9px;cursor:pointer;white-space:nowrap" style-hover="color:#b7c1cf">Entrada (ERP)</div>
+                      </sc-if>
+                      <sc-if value="{{ cOut }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size:13px;font-weight:600;color:#e6ebf2;padding-bottom:9px;border-bottom:2px solid #3d9dc4;margin-bottom:-1px;cursor:pointer;white-space:nowrap">Saída (compliance)</div>
+                      </sc-if>
+                      <sc-if value="{{ nCOut }}" hint-placeholder-val="{{ true }}">
+                        <div onClick="{{ goCOut }}" style="font-size:13px;font-weight:500;color:#7f8b9c;padding-bottom:9px;cursor:pointer;white-space:nowrap" style-hover="color:#b7c1cf">Saída (compliance)</div>
+                      </sc-if>
+                    </div>
+                  </div>
+
+                  <!-- ENTRADA -->
+                  <sc-if value="{{ cIn }}" hint-placeholder-val="{{ true }}">
+                    <div style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
+                      <div style="display:flex;flex-direction:column;gap:8px">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c">Adapter de entrada</div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap">
+                          <sc-if value="{{ inD365 }}" hint-placeholder-val="{{ true }}">
+                            <div style="flex:1;min-width:200px;border:1px solid #3d9dc4;background:#12303d;border-radius:8px;padding:12px 14px;cursor:pointer">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:4px solid #3d9dc4;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:700;color:#3d9dc4">Dynamics 365</span>
+                              </div>
+                              <div style="font-size:12px;color:#6fc3e0;margin-top:5px;padding-left:22px">descoberta por OData na instância</div>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ nInD365 }}" hint-placeholder-val="{{ false }}">
+                            <div onClick="{{ goInD365 }}" style="flex:1;min-width:200px;border:1px solid #333b47;background:#161b22;border-radius:8px;padding:12px 14px;cursor:pointer" style-hover="background:#1b2129;border-color:#5f6a79">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:1px solid #333b47;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:600;color:#b7c1cf">Dynamics 365</span>
+                              </div>
+                              <div style="font-size:12px;color:#7f8b9c;margin-top:5px;padding-left:22px">descoberta por OData na instância</div>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ inScala }}" hint-placeholder-val="{{ false }}">
+                            <div style="flex:1;min-width:200px;border:1px solid #3d9dc4;background:#12303d;border-radius:8px;padding:12px 14px;cursor:pointer">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:4px solid #3d9dc4;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:700;color:#3d9dc4">iScala</span>
+                              </div>
+                              <div style="font-size:12px;color:#6fc3e0;margin-top:5px;padding-left:22px">leitura direta no host do cliente</div>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ nInScala }}" hint-placeholder-val="{{ true }}">
+                            <div onClick="{{ goInScala }}" style="flex:1;min-width:200px;border:1px solid #333b47;background:#161b22;border-radius:8px;padding:12px 14px;cursor:pointer" style-hover="background:#1b2129;border-color:#5f6a79">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:1px solid #333b47;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:600;color:#b7c1cf">iScala</span>
+                              </div>
+                              <div style="font-size:12px;color:#7f8b9c;margin-top:5px;padding-left:22px">leitura direta no host do cliente</div>
+                            </div>
+                          </sc-if>
+                        </div>
+                      </div>
+
+                      <div style="height:1px;background:#21262e"></div>
+
+                      <sc-if value="{{ inD365 }}" hint-placeholder-val="{{ true }}">
+                        <div style="display:flex;flex-direction:column;gap:16px">
+                          <div style="display:flex;flex-direction:column;gap:6px">
+                            <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">URL da instância</label>
+                            <input value="https://empresa.crm.dynamics.com/" style="height:32px;padding:0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                          </div>
+                          <div data-r="form2" style="display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:16px">
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Client ID <span style="font-weight:500;color:#7f8b9c">(referência)</span></label>
+                              <div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                                <span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-family:'DM Mono',monospace;font-size:11.5px;color:#7f8b9c">kv:</span>
+                                <input value="d365-clientid" style="height:32px;padding:0 10px;font-family:'DM Mono',monospace;font-size:12.5px;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0">
+                              </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Client Secret <span style="font-weight:500;color:#7f8b9c">(referência)</span></label>
+                              <div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                                <span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-family:'DM Mono',monospace;font-size:11.5px;color:#7f8b9c">kv:</span>
+                                <input value="d365-secret" style="height:32px;padding:0 10px;font-family:'DM Mono',monospace;font-size:12.5px;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0">
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ inScala }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-direction:column;gap:16px">
+                          <div data-r="form2" style="display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:16px">
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Host</label>
+                              <input value="iscala.cliente.local" style="height:32px;padding:0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Empresa (código)</label>
+                              <input value="B01" style="height:32px;padding:0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Usuário <span style="font-weight:500;color:#7f8b9c">(referência)</span></label>
+                              <div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                                <span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-family:'DM Mono',monospace;font-size:11.5px;color:#7f8b9c">kv:</span>
+                                <input value="iscala-user" style="height:32px;padding:0 10px;font-family:'DM Mono',monospace;font-size:12.5px;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0">
+                              </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Senha <span style="font-weight:500;color:#7f8b9c">(referência)</span></label>
+                              <div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                                <span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-family:'DM Mono',monospace;font-size:11.5px;color:#7f8b9c">kv:</span>
+                                <input value="iscala-pass" style="height:32px;padding:0 10px;font-family:'DM Mono',monospace;font-size:12.5px;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0">
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+
+                  <!-- SAÍDA -->
+                  <sc-if value="{{ cOut }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:20px 22px;display:flex;flex-direction:column;gap:18px">
+                      <div style="display:flex;flex-direction:column;gap:8px">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c">Adapter de saída</div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap">
+                          <sc-if value="{{ outAva }}" hint-placeholder-val="{{ true }}">
+                            <div style="flex:1;min-width:200px;border:1px solid #3d9dc4;background:#12303d;border-radius:8px;padding:12px 14px;cursor:pointer">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:4px solid #3d9dc4;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:700;color:#3d9dc4">Avalara</span>
+                              </div>
+                              <div style="font-size:12px;color:#6fc3e0;margin-top:5px;padding-left:22px">despacho + poll de status</div>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ nOutAva }}" hint-placeholder-val="{{ false }}">
+                            <div onClick="{{ goOutAva }}" style="flex:1;min-width:200px;border:1px solid #333b47;background:#161b22;border-radius:8px;padding:12px 14px;cursor:pointer" style-hover="background:#1b2129;border-color:#5f6a79">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:1px solid #333b47;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:600;color:#b7c1cf">Avalara</span>
+                              </div>
+                              <div style="font-size:12px;color:#7f8b9c;margin-top:5px;padding-left:22px">despacho + poll de status</div>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ outMock }}" hint-placeholder-val="{{ false }}">
+                            <div style="flex:1;min-width:200px;border:1px solid #3d9dc4;background:#12303d;border-radius:8px;padding:12px 14px;cursor:pointer">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:4px solid #3d9dc4;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:700;color:#3d9dc4">Mock</span>
+                              </div>
+                              <div style="font-size:12px;color:#6fc3e0;margin-top:5px;padding-left:22px">API local, para ensaio</div>
+                            </div>
+                          </sc-if>
+                          <sc-if value="{{ nOutMock }}" hint-placeholder-val="{{ true }}">
+                            <div onClick="{{ goOutMock }}" style="flex:1;min-width:200px;border:1px solid #333b47;background:#161b22;border-radius:8px;padding:12px 14px;cursor:pointer" style-hover="background:#1b2129;border-color:#5f6a79">
+                              <div style="display:flex;align-items:center;gap:8px">
+                                <span style="width:14px;height:14px;border-radius:999px;border:1px solid #333b47;background:#161b22;flex-shrink:0;box-sizing:border-box"></span>
+                                <span style="font-size:13.5px;font-weight:600;color:#b7c1cf">Mock</span>
+                              </div>
+                              <div style="font-size:12px;color:#7f8b9c;margin-top:5px;padding-left:22px">API local, para ensaio</div>
+                            </div>
+                          </sc-if>
+                        </div>
+                      </div>
+
+                      <div style="height:1px;background:#21262e"></div>
+
+                      <sc-if value="{{ outAva }}" hint-placeholder-val="{{ true }}">
+                        <div style="display:flex;flex-direction:column;gap:16px">
+                          <div style="display:flex;flex-direction:column;gap:6px">
+                            <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">URL base</label>
+                            <input value="https://api.avalara.com/" style="height:32px;padding:0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                          </div>
+                          <div data-r="form2" style="display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:16px">
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Client Secret <span style="font-weight:500;color:#7f8b9c">(referência)</span></label>
+                              <div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                                <span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-family:'DM Mono',monospace;font-size:11.5px;color:#7f8b9c">kv:</span>
+                                <input value="avalara-secret" style="height:32px;padding:0 10px;font-family:'DM Mono',monospace;font-size:12.5px;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0">
+                              </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                              <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Client Token <span style="font-weight:500;color:#7f8b9c">(referência)</span></label>
+                              <div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                                <span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-family:'DM Mono',monospace;font-size:11.5px;color:#7f8b9c">kv:</span>
+                                <input value="avalara-token" style="height:32px;padding:0 10px;font-family:'DM Mono',monospace;font-size:12.5px;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0">
+                              </div>
+                            </div>
+                          </div>
+                          <div style="display:flex;gap:9px;background:#1b2129;border:1px solid #262d37;border-radius:8px;padding:11px 13px">
+                            <i data-lucide="shield-check" width="15" height="15" stroke-width="2" style="color:#7f8b9c;flex-shrink:0;margin-top:1px"></i>
+                            <div style="font-size:12.5px;color:#9aa6b6;line-height:1.5">Os settings de saída são por ambiente: o que você salva aqui vale para <span style="font-weight:600">{{ ambienteLabel }}</span>.</div>
+                          </div>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ outMock }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-direction:column;gap:6px;max-width:420px">
+                          <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">URL base</label>
+                          <input value="http://localhost:5100/" style="height:32px;padding:0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+
+                  <div style="padding:14px 22px;border-top:1px solid #262d37;background:#1b2129;display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="font-size:12px;color:#7f8b9c">Alterações valem para o tenant inteiro.</div>
+                    <div style="display:flex;gap:9px">
+                      <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#161b22;color:#b7c1cf;border:1px solid #333b47;cursor:pointer" style-hover="background:#21262e">Descartar</button>
+                      <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#3d9dc4;color:#0d1117;border:1px solid #3d9dc4;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.45)" style-hover="background:#57b0d4;border-color:#57b0d4">Salvar perfil</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- Ambiente -->
+            <sc-if value="{{ tAmb }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:20px">
+                <div style="background:#161b22;border:1px solid #262d37;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,0.4);overflow:hidden">
+                  <div style="padding:16px 22px;border-bottom:1px solid #21262e">
+                    <div style="font-size:14.5px;font-weight:700;letter-spacing:-0.012em">Ambiente e ingestão</div>
+                    <div style="font-size:12.5px;color:#9aa6b6;margin-top:4px">Define para onde o despacho aponta e como as notas chegam.</div>
+                  </div>
+                  <div style="padding:20px 22px;display:flex;flex-direction:column;gap:20px">
+                    <div style="display:flex;flex-direction:column;gap:6px;max-width:320px">
+                      <label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Ambiente ativo</label>
+                      <div style="position:relative">
+                        <select style="height:32px;padding:0 28px 0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box;appearance:none;cursor:pointer" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d">
+                          <option>Sandbox</option>
+                          <option>Production</option>
+                        </select>
+                        <i data-lucide="chevron-down" width="14" height="14" stroke-width="2.1" style="position:absolute;right:9px;top:9px;color:#7f8b9c;pointer-events:none"></i>
+                      </div>
+                    </div>
+                    <div style="height:1px;background:#21262e"></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:560px">
+                      <div>
+                        <div style="font-size:13.5px;font-weight:600">Tempo real</div>
+                        <div style="font-size:12px;color:#7f8b9c;margin-top:1px;line-height:1.5">Ligado: cada nota chega por evento do Service Bus. Desligado: só entra por integração manual ou agendada.</div>
+                      </div>
+                      <div style="width:38px;height:22px;border-radius:999px;background:#3d9dc4;padding:2px;box-sizing:border-box;display:flex;justify-content:flex-end;cursor:pointer;flex-shrink:0">
+                        <div style="width:18px;height:18px;border-radius:999px;background:#e6ebf2;box-shadow:0 1px 2px rgba(0,0,0,0.5)"></div>
+                      </div>
+                    </div>
+                    <div style="height:1px;background:#21262e"></div>
+                    <div data-r="form2" style="display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:16px;max-width:560px">
+                      <div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c">Tenant</div>
+                        <div style="font-family:'DM Mono',monospace;font-size:13px;margin-top:5px">acme-fiscal</div>
+                      </div>
+                      <div>
+                        <div style="font-size:11px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c">Papel</div>
+                        <div style="font-size:13px;font-weight:500;margin-top:5px">Admin</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="padding:14px 22px;border-top:1px solid #262d37;background:#1b2129;display:flex;justify-content:flex-end;gap:9px">
+                    <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#161b22;color:#b7c1cf;border:1px solid #333b47;cursor:pointer" style-hover="background:#21262e">Descartar</button>
+                    <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#3d9dc4;color:#0d1117;border:1px solid #3d9dc4;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.45)" style-hover="background:#57b0d4;border-color:#57b0d4">Salvar</button>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ novaAberta }}" hint-placeholder-val="{{ false }}">
+        <div data-r="overlay" onClick="{{ fecharNova }}" style="position:fixed;inset:0;background:rgba(0,0,0,0.68);display:flex;align-items:center;justify-content:center;padding:32px;z-index:50">
+          <div data-r="modal" onClick="{{ stop }}" style="width:100%;max-width:620px;background:#161b22;border:1px solid #262d37;border-radius:12px;box-shadow:0 20px 48px -16px rgba(0,0,0,0.7);overflow:hidden">
+            <div style="padding:18px 22px 14px;border-bottom:1px solid #262d37;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font-size:15.5px;font-weight:700;letter-spacing:-0.014em">Nova integração</div>
+                <div style="font-size:12.5px;color:#9aa6b6;line-height:1.5;margin-top:3px">{{ modoHint }}</div>
+              </div>
+              <button onClick="{{ fecharNova }}" style="width:28px;height:28px;border-radius:6px;background:transparent;border:1px solid transparent;color:#7f8b9c;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0" style-hover="background:#21262e;color:#e6ebf2"><i data-lucide="x" width="15" height="15" stroke-width="2.1"></i></button>
+            </div>
+            <div data-r="modalbody" style="padding:18px 22px;display:flex;flex-direction:column;gap:16px">
+              <div style="display:inline-flex;padding:3px;background:#21262e;border-radius:8px;align-self:flex-start">
+                <sc-if value="{{ mNow }}" hint-placeholder-val="{{ false }}"><div style="font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:6px;background:#161b22;color:#e6ebf2;box-shadow:0 1px 2px rgba(0,0,0,0.45);cursor:pointer;white-space:nowrap">Imediata</div></sc-if><sc-if value="{{ nNow }}" hint-placeholder-val="{{ true }}"><div onClick="{{ setNow }}" style="font-size:12.5px;font-weight:500;padding:6px 13px;border-radius:6px;color:#9aa6b6;cursor:pointer;white-space:nowrap" style-hover="color:#e6ebf2">Imediata</div></sc-if><sc-if value="{{ mDaily }}" hint-placeholder-val="{{ false }}"><div style="font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:6px;background:#161b22;color:#e6ebf2;box-shadow:0 1px 2px rgba(0,0,0,0.45);cursor:pointer;white-space:nowrap">Diária (D-1)</div></sc-if><sc-if value="{{ nDaily }}" hint-placeholder-val="{{ true }}"><div onClick="{{ setDaily }}" style="font-size:12.5px;font-weight:500;padding:6px 13px;border-radius:6px;color:#9aa6b6;cursor:pointer;white-space:nowrap" style-hover="color:#e6ebf2">Diária (D-1)</div></sc-if><sc-if value="{{ mOnce }}" hint-placeholder-val="{{ false }}"><div style="font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:6px;background:#161b22;color:#e6ebf2;box-shadow:0 1px 2px rgba(0,0,0,0.45);cursor:pointer;white-space:nowrap">Agendada</div></sc-if><sc-if value="{{ nOnce }}" hint-placeholder-val="{{ true }}"><div onClick="{{ setOnce }}" style="font-size:12.5px;font-weight:500;padding:6px 13px;border-radius:6px;color:#9aa6b6;cursor:pointer;white-space:nowrap" style-hover="color:#e6ebf2">Agendada</div></sc-if>
+              </div>
+              <div data-r="form2" style="display:grid;grid-template-columns:repeat(2,minmax(200px,1fr));gap:14px">
+                <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Empresa</label><div style="position:relative"><select style="height:32px;padding:0 28px 0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box;appearance:none;cursor:pointer" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d"><option>12345678 — Empresa Emitente LTDA</option><option>98765432 — Distribuidora Beta SA</option></select><i data-lucide="chevron-down" width="14" height="14" stroke-width="2.1" style="position:absolute;right:9px;top:9px;color:#7f8b9c;pointer-events:none"></i></div></div>
+                <div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Filial</label><div style="position:relative"><select style="height:32px;padding:0 28px 0 11px;font-size:13px;color:#e6ebf2;background:#161b22;border:1px solid #333b47;border-radius:7px;outline:none;width:100%;box-sizing:border-box;appearance:none;cursor:pointer" style-focus="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d"><option>Todas as filiais</option><option>0001 — Matriz</option><option>0002 — Filial São Paulo</option></select><i data-lucide="chevron-down" width="14" height="14" stroke-width="2.1" style="position:absolute;right:9px;top:9px;color:#7f8b9c;pointer-events:none"></i></div></div>
+                <sc-if value="{{ mNow }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;gap:6px;grid-column:span 2"><label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Escopo</label><div style="display:flex;gap:8px"><sc-if value="{{ ePeriod }}" hint-placeholder-val="{{ false }}"><div style="flex:1;display:flex;align-items:center;gap:8px;height:32px;padding:0 11px;border:1px solid #3d9dc4;background:#12303d;border-radius:7px;cursor:pointer;box-sizing:border-box"><span style="width:14px;height:14px;border-radius:999px;border:4px solid #3d9dc4;background:#161b22;flex-shrink:0;box-sizing:border-box"></span><span style="font-size:13px;font-weight:600;color:#3d9dc4;white-space:nowrap">Período</span></div></sc-if><sc-if value="{{ nPeriod }}" hint-placeholder-val="{{ true }}"><div onClick="{{ setPeriod }}" style="flex:1;display:flex;align-items:center;gap:8px;height:32px;padding:0 11px;border:1px solid #333b47;background:#161b22;border-radius:7px;cursor:pointer;box-sizing:border-box" style-hover="background:#1b2129"><span style="width:14px;height:14px;border-radius:999px;border:1px solid #333b47;background:#161b22;flex-shrink:0;box-sizing:border-box"></span><span style="font-size:13px;font-weight:500;color:#b7c1cf;white-space:nowrap">Período</span></div></sc-if><sc-if value="{{ eNote }}" hint-placeholder-val="{{ false }}"><div style="flex:1;display:flex;align-items:center;gap:8px;height:32px;padding:0 11px;border:1px solid #3d9dc4;background:#12303d;border-radius:7px;cursor:pointer;box-sizing:border-box"><span style="width:14px;height:14px;border-radius:999px;border:4px solid #3d9dc4;background:#161b22;flex-shrink:0;box-sizing:border-box"></span><span style="font-size:13px;font-weight:600;color:#3d9dc4;white-space:nowrap">Nota específica</span></div></sc-if><sc-if value="{{ nNote }}" hint-placeholder-val="{{ true }}"><div onClick="{{ setNote }}" style="flex:1;display:flex;align-items:center;gap:8px;height:32px;padding:0 11px;border:1px solid #333b47;background:#161b22;border-radius:7px;cursor:pointer;box-sizing:border-box" style-hover="background:#1b2129"><span style="width:14px;height:14px;border-radius:999px;border:1px solid #333b47;background:#161b22;flex-shrink:0;box-sizing:border-box"></span><span style="font-size:13px;font-weight:500;color:#b7c1cf;white-space:nowrap">Nota específica</span></div></sc-if></div></div></sc-if>
+                <sc-if value="{{ eNote }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Número da nota</label><div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d"><span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-size:11.5px;font-weight:600;color:#7f8b9c">nNF</span><input placeholder="456" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0"></div></div></sc-if>
+                <sc-if value="{{ mDaily }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Horário</label><div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d"><span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-size:11.5px;font-weight:600;color:#7f8b9c">hora</span><input value="06:00" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0"></div><div style="font-size:12px;color:#7f8b9c">Processa sempre o dia anterior.</div></div></sc-if>
+                <sc-if value="{{ mOnce }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:6px"><label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Disparar em</label><div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d"><span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-size:11.5px;font-weight:600;color:#7f8b9c">data</span><input value="28/07/2026 03:00" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0"></div></div></sc-if>
+                <sc-if value="{{ showPeriodo }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;gap:6px;grid-column:span 2"><label style="font-size:12.5px;font-weight:600;color:#b7c1cf">Período</label><div style="display:flex;align-items:center;gap:8px"><div style="flex:1"><div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d"><span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-size:11.5px;font-weight:600;color:#7f8b9c">de</span><input value="01/07/2026" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0"></div></div><span style="color:#7f8b9c;font-size:13px">–</span><div style="flex:1"><div style="display:flex;border:1px solid #333b47;border-radius:7px;overflow:hidden;background:#161b22" style-focus-within="border-color:#3d9dc4;box-shadow:0 0 0 3px #12303d"><span style="display:flex;align-items:center;padding:0 9px;background:#1b2129;border-right:1px solid #262d37;font-size:11.5px;font-weight:600;color:#7f8b9c">até</span><input value="24/07/2026" style="height:32px;padding:0 10px;font-size:13px;font-variant-numeric:tabular-nums;color:#e6ebf2;background:transparent;border:none;outline:none;flex:1;min-width:0"></div></div></div></div></sc-if>
+              </div>
+            </div>
+            <div style="padding:14px 22px;border-top:1px solid #262d37;background:#1b2129;display:flex;justify-content:flex-end;gap:9px">
+              <button onClick="{{ fecharNova }}" style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#161b22;color:#b7c1cf;border:1px solid #333b47;cursor:pointer" style-hover="background:#21262e">Cancelar</button>
+              <button onClick="{{ disparar }}" style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#3d9dc4;color:#0d1117;border:1px solid #3d9dc4;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.45);white-space:nowrap" style-hover="background:#57b0d4;border-color:#57b0d4">{{ ctaLabel }}</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- Dialog do grupo -->
+      <sc-if value="{{ grupoAberto }}" hint-placeholder-val="{{ false }}">
+        <div data-r="overlay" onClick="{{ fecharGrupo }}" style="position:fixed;inset:0;background:rgba(0,0,0,0.68);display:flex;align-items:center;justify-content:center;padding:40px;z-index:40">
+          <div data-r="modal" onClick="{{ stop }}" style="width:100%;max-width:900px;background:#161b22;border:1px solid #262d37;border-radius:12px;box-shadow:0 20px 48px -16px rgba(0,0,0,0.7);overflow:hidden">
+            <div style="padding:18px 22px;border-bottom:1px solid #262d37;display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font-size:15.5px;font-weight:700;letter-spacing:-0.014em">Empresa {{ grupoTitulo }}</div>
+                <div style="font-size:12.5px;color:#7f8b9c;margin-top:2px;font-variant-numeric:tabular-nums">{{ grupoSub }}</div>
+              </div>
+              <button onClick="{{ fecharGrupo }}" style="width:28px;height:28px;border-radius:6px;background:transparent;border:1px solid transparent;color:#7f8b9c;display:inline-flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:#21262e;color:#e6ebf2">
+                <i data-lucide="x" width="15" height="15" stroke-width="2.1"></i>
+              </button>
+            </div>
+            <div data-r="modalbody" style="max-height:54vh;overflow:auto">
+              <div data-r="thead" style="display:grid;grid-template-columns:minmax(110px,0.9fr) minmax(160px,1.4fr) 74px 88px 118px minmax(130px,1fr);padding:10px 22px;background:#1b2129;border-bottom:1px solid #262d37;font-size:10.5px;font-weight:700;letter-spacing:0.075em;text-transform:uppercase;color:#7f8b9c;position:sticky;top:0">
+                <div>Número</div><div>Chave</div><div>Modelo</div><div style="text-align:right">Consultas</div><div style="text-align:right">Atualizado</div><div style="text-align:right">Status</div>
+              </div>
+              <div data-r="row" style="display:grid;grid-template-columns:minmax(110px,0.9fr) minmax(160px,1.4fr) 74px 88px 118px minmax(130px,1fr);align-items:center;padding:12px 22px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001234</div>
+                <div data-l="Chave" style="font-size:12.5px;font-weight:500;color:#9aa6b6;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…5500 1000 0012 341</div>
+                <div data-l="Modelo" style="color:#9aa6b6;font-variant-numeric:tabular-nums">55</div>
+                <div data-l="Consultas" style="text-align:right;font-variant-numeric:tabular-nums;color:#b7c1cf">2</div>
+                <div data-l="Atualizado" style="text-align:right;font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:02</div>
+                <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#10291d;border:1px solid #1e4a33;color:#4cc98a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#4cc98a"></span>Finalizado</span></div>
+              </div>
+              <div data-r="row" style="display:grid;grid-template-columns:minmax(110px,0.9fr) minmax(160px,1.4fr) 74px 88px 118px minmax(130px,1fr);align-items:center;padding:12px 22px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001235</div>
+                <div data-l="Chave" style="font-size:12.5px;font-weight:500;color:#9aa6b6;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…5500 1000 0012 359</div>
+                <div data-l="Modelo" style="color:#9aa6b6;font-variant-numeric:tabular-nums">55</div>
+                <div data-l="Consultas" style="text-align:right;font-variant-numeric:tabular-nums;color:#b7c1cf">1</div>
+                <div data-l="Atualizado" style="text-align:right;font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:03</div>
+                <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#2f1616;border:1px solid #55292a;color:#f08f8a;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#f08f8a"></span>Rejeitado</span></div>
+              </div>
+              <div data-r="row" style="display:grid;grid-template-columns:minmax(110px,0.9fr) minmax(160px,1.4fr) 74px 88px 118px minmax(130px,1fr);align-items:center;padding:12px 22px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001236</div>
+                <div data-l="Chave" style="font-size:12.5px;font-weight:500;color:#9aa6b6;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…5500 1000 0012 367</div>
+                <div data-l="Modelo" style="color:#9aa6b6;font-variant-numeric:tabular-nums">55</div>
+                <div data-l="Consultas" style="text-align:right;font-variant-numeric:tabular-nums;color:#b7c1cf">6</div>
+                <div data-l="Atualizado" style="text-align:right;font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:11</div>
+                <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#2c2310;border:1px solid #4d3f1c;color:#e0ab5c;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#d59a3a"></span>Sem retorno</span></div>
+              </div>
+              <div data-r="row" style="display:grid;grid-template-columns:minmax(110px,0.9fr) minmax(160px,1.4fr) 74px 88px 118px minmax(130px,1fr);align-items:center;padding:12px 22px;border-bottom:1px solid #21262e;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001237</div>
+                <div data-l="Chave" style="font-size:12.5px;font-weight:500;color:#9aa6b6;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…5500 1000 0012 375</div>
+                <div data-l="Modelo" style="color:#9aa6b6;font-variant-numeric:tabular-nums">55</div>
+                <div data-l="Consultas" style="text-align:right;font-variant-numeric:tabular-nums;color:#b7c1cf">3</div>
+                <div data-l="Atualizado" style="text-align:right;font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:14</div>
+                <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#112b38;border:1px solid #1d4457;color:#6fc3e0;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#4aa9cc"></span>Processando</span></div>
+              </div>
+              <div data-r="row" style="display:grid;grid-template-columns:minmax(110px,0.9fr) minmax(160px,1.4fr) 74px 88px 118px minmax(130px,1fr);align-items:center;padding:12px 22px;font-size:13.5px;cursor:pointer" style-hover="background:#1b2129">
+                <div style="font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0.01em">000001238</div>
+                <div data-l="Chave" style="font-size:12.5px;font-weight:500;color:#9aa6b6;font-variant-numeric:tabular-nums;letter-spacing:0.03em;white-space:nowrap">…5500 1000 0012 383</div>
+                <div data-l="Modelo" style="color:#9aa6b6;font-variant-numeric:tabular-nums">55</div>
+                <div data-l="Consultas" style="text-align:right;font-variant-numeric:tabular-nums;color:#b7c1cf">0</div>
+                <div data-l="Atualizado" style="text-align:right;font-size:12.5px;color:#9aa6b6;font-variant-numeric:tabular-nums;white-space:nowrap">24/07 14:15</div>
+                <div data-l="Status" style="display:flex;justify-content:flex-end"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 10px 3px 8px;border-radius:6px;background:#21262e;border:1px solid #333b47;color:#9aa6b6;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#5f6a79"></span>Pendente</span></div>
+              </div>
+            </div>
+            <div style="padding:14px 22px;border-top:1px solid #262d37;background:#1b2129;display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <div style="font-size:12px;color:#7f8b9c">Clique numa nota para ver as três fotos da rastreabilidade.</div>
+              <div style="display:flex;gap:9px">
+                <button onClick="{{ fecharGrupo }}" style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#161b22;color:#b7c1cf;border:1px solid #333b47;cursor:pointer" style-hover="background:#21262e">Fechar</button>
+                <button style="height:32px;padding:0 13px;font-size:13px;font-weight:600;border-radius:7px;background:#3d9dc4;color:#0d1117;border:1px solid #3d9dc4;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,0.45)" style-hover="background:#57b0d4;border-color:#57b0d4">Reprocessar pendências</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;ambiente&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Sandbox&quot;,&quot;Produção&quot;],&quot;default&quot;:&quot;Sandbox&quot;,&quot;tsType&quot;:&quot;'Sandbox' | 'Produção'&quot;},&quot;telaInicial&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Documentos&quot;,&quot;Integrações&quot;,&quot;Configurações&quot;,&quot;Login&quot;],&quot;default&quot;:&quot;Documentos&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;usuario&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Marcelo Lima&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;atualizacaoAutomatica&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = {
+    screen: null, email: '', senha: '', erro: false, menu: false,
+    view: null, grupo: null, sub: null,
+    modo: 'now', escopo: 'period', disparado: false, nova: false, integTab: 'agend',
+    confTab: 'conectores', connTab: 'in', inAdapter: 'Dynamics365', outAdapter: 'Avalara',
+  };
+
+  componentDidMount() { this.icons(); this._t = setInterval(() => this.icons(), 500); setTimeout(() => clearInterval(this._t), 9000); }
+  componentDidUpdate() { this.icons(); }
+  componentWillUnmount() { clearInterval(this._t); }
+  icons() { try { window.lucide && window.lucide.createIcons(); } catch (e) {} }
+
+  initial() {
+    const t = this.props.telaInicial ?? 'Documentos';
+    if (t === 'Login') return { screen: 'login', view: 'documents' };
+    if (t === 'Integrações') return { screen: 'app', view: 'integrations' };
+    if (t === 'Configurações') return { screen: 'app', view: 'settings' };
+    return { screen: 'app', view: 'documents' };
+  }
+
+  entrar() {
+    if (!this.state.email.trim() || !this.state.senha.trim()) { this.setState({ erro: true }); return; }
+    this.setState({ screen: 'app', erro: false });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const init = this.initial();
+    const screen = s.screen ?? init.screen;
+    const view = s.view ?? init.view;
+    const amb = this.props.ambiente ?? 'Sandbox';
+    const isProd = /produ/i.test(amb);
+    const usuario = this.props.usuario ?? 'Marcelo Lima';
+    const titulos = {
+      documents: ['Documentos', 'Notas integradas e seus status'],
+      integrations: ['Integrações', 'Dispare agora ou agende, e acompanhe as execuções'],
+      settings: ['Configurações', 'Conectores, ambiente e ingestão deste tenant'],
+    };
+    const t = titulos[view] || titulos.documents;
+    const cta = { now: ['Integrar agora', 'Dispara a descoberta imediatamente.'], daily: ['Criar agendamento', 'O host executa todo dia no horário.'], once: ['Criar agendamento', 'Roda uma única vez na data marcada.'] }[s.modo];
+
+    return {
+      isLogin: screen === 'login',
+      isApp: screen === 'app',
+      email: s.email, senha: s.senha, loginErro: s.erro,
+      onEmail: (e) => this.setState({ email: e.target.value, erro: false }),
+      onSenha: (e) => this.setState({ senha: e.target.value, erro: false }),
+      onKey: (e) => { if (e.key === 'Enter') this.entrar(); },
+      entrar: () => this.entrar(),
+
+      vDocs: view === 'documents', nDocs: view !== 'documents',
+      vInteg: view === 'integrations', nInteg: view !== 'integrations',
+      vConf: view === 'settings', nConf: view !== 'settings',
+      goDocs: () => this.setState({ view: 'documents' }),
+      goInteg: () => this.setState({ view: 'integrations' }),
+      goConf: () => this.setState({ view: 'settings' }),
+
+      titulo: t[0], subtitulo: t[1],
+      isSandbox: !isProd, isProd,
+      ambienteLabel: isProd ? 'Production' : 'Sandbox',
+      autoRefresh: (this.props.atualizacaoAutomatica ?? true) && view === 'documents',
+
+      usuario, papel: 'Admin · acme-fiscal', emailUsuario: 'marcelo.lima@acme.com.br',
+      iniciais: usuario.trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase(),
+      menuAberto: s.menu,
+      toggleMenu: () => this.setState({ menu: !s.menu }),
+      sair: () => this.setState({ menu: false, screen: 'login', email: '', senha: '', view: 'documents' }),
+
+      mNow: s.modo === 'now', nNow: s.modo !== 'now',
+      mDaily: s.modo === 'daily', nDaily: s.modo !== 'daily',
+      mOnce: s.modo === 'once', nOnce: s.modo !== 'once',
+      setNow: () => this.setState({ modo: 'now', disparado: false }),
+      setDaily: () => this.setState({ modo: 'daily', disparado: false }),
+      setOnce: () => this.setState({ modo: 'once', disparado: false }),
+      ePeriod: s.modo === 'now' && s.escopo === 'period', nPeriod: !(s.modo === 'now' && s.escopo === 'period'),
+      eNote: s.modo === 'now' && s.escopo === 'note', nNote: !(s.modo === 'now' && s.escopo === 'note'),
+      setPeriod: () => this.setState({ escopo: 'period' }),
+      setNote: () => this.setState({ escopo: 'note' }),
+      showPeriodo: s.modo !== 'daily',
+      ctaLabel: cta[0], ctaHint: cta[1],
+      disparado: s.disparado,
+      disparar: () => this.setState({ disparado: true, nova: false }),
+      novaAberta: s.nova,
+      abrirNova: () => this.setState({ nova: true, disparado: false }),
+      fecharNova: () => this.setState({ nova: false }),
+      modoHint: cta[1],
+      tAgend: s.integTab === 'agend', nTAgend: s.integTab !== 'agend',
+      tExec: s.integTab === 'exec', nTExec: s.integTab !== 'exec',
+      goTAgend: () => this.setState({ integTab: 'agend' }),
+      goTExec: () => this.setState({ integTab: 'exec' }),
+
+      tConn: s.confTab === 'conectores', nTConn: s.confTab !== 'conectores',
+      tAmb: s.confTab === 'ambiente', nTAmb: s.confTab !== 'ambiente',
+      goTConn: () => this.setState({ confTab: 'conectores' }),
+      goTAmb: () => this.setState({ confTab: 'ambiente' }),
+      cIn: s.connTab === 'in', nCIn: s.connTab !== 'in',
+      cOut: s.connTab === 'out', nCOut: s.connTab !== 'out',
+      goCIn: () => this.setState({ connTab: 'in' }),
+      goCOut: () => this.setState({ connTab: 'out' }),
+      inD365: s.inAdapter === 'Dynamics365', nInD365: s.inAdapter !== 'Dynamics365',
+      inScala: s.inAdapter === 'iScala', nInScala: s.inAdapter !== 'iScala',
+      goInD365: () => this.setState({ inAdapter: 'Dynamics365' }),
+      goInScala: () => this.setState({ inAdapter: 'iScala' }),
+      outAva: s.outAdapter === 'Avalara', nOutAva: s.outAdapter !== 'Avalara',
+      outMock: s.outAdapter === 'Mock', nOutMock: s.outAdapter !== 'Mock',
+      goOutAva: () => this.setState({ outAdapter: 'Avalara' }),
+      goOutMock: () => this.setState({ outAdapter: 'Mock' }),
+
+      grupoAberto: Boolean(s.grupo), grupoTitulo: s.grupo, grupoSub: s.sub,
+      abrirGrupo: (e) => { const el = e.currentTarget; this.setState({ grupo: el.dataset.row, sub: el.dataset.sub }); },
+      fecharGrupo: () => this.setState({ grupo: null, sub: null }),
+      stop: (e) => e.stopPropagation(),
+    };
+  }
+}
+</script>
+</body>
+</html>

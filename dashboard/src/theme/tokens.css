@@ -1,0 +1,124 @@
+/* Design System FiscalHub v3 — "fiscal moderno, orientado a contagem".
+   Tokens extraídos do design (Manrope + DM Mono, acento petróleo, neutros azulados). */
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  /* superfícies */
+  --page: #f5f7f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafb;
+  --surface-sunken: #eef1f5;
+
+  /* bordas */
+  --border: #e3e8ee;
+  --border-strong: #cfd7e0;
+
+  /* texto */
+  --ink: #0b1220;
+  --text: #33415c;
+  --text-secondary: #4d5a6c;
+  --muted: #6b7788;
+  --faint: #9aa5b4;
+
+  /* acento — petróleo */
+  --accent: #0b5c7a;
+  --accent-hover: #094a63;
+  --accent-tint: #e6f1f6;
+  --accent-ring: #e6f1f6;
+
+  /* status: text · bg · border (mapeia os status do backend) */
+  --ok-text: #17864a;      --ok-bg: #e7f5ec;      --ok-border: #c3e5d1;
+  --info-text: #236c86;    --info-bg: #e8f3f8;    --info-border: #c3ddea;
+  --pending-text: #4d5a6c; --pending-bg: #eef1f5; --pending-border: #dde3ea;
+  --error-text: #c0342e;   --error-bg: #fdecea;   --error-border: #f5cdc9;
+  --warn-text: #a86a00;    --warn-bg: #fdf4e3;    --warn-border: #f0dcb4;
+  --dead-text: #33415c;    --dead-bg: #e7eaf0;    --dead-border: #d3d9e2;
+  --partial-text: #c05621; --partial-bg: #fdeee6; --partial-border: #f6d3bf;
+
+  /* raio e controle */
+  --r-sm: 5px;
+  --r: 8px;
+  --r-md: 10px;
+  --r-full: 999px;
+  --control-h: 32px;
+
+  /* elevação */
+  --shadow-card: 0 1px 2px rgba(11, 18, 32, 0.05);
+  --shadow-popover: 0 6px 16px -4px rgba(11, 18, 32, 0.12);
+  --shadow-modal: 0 20px 48px -16px rgba(11, 18, 32, 0.28);
+
+  /* tipografia */
+  --font-sans: 'Manrope', system-ui, -apple-system, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  font-feature-settings: 'tnum' 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.fh-mono { font-family: var(--font-mono); }
+
+/* rótulo de seção — 11px caixa alta com tracking */
+.fh-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* campo de formulário — controle de 32px, foco com ring do acento */
+.fh-input {
+  height: var(--control-h);
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.fh-input::placeholder { color: var(--faint); }
+.fh-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* botão primário (acento) */
+.fh-btn {
+  height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r);
+  cursor: pointer;
+}
+.fh-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.fh-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* botão secundário */
+.fh-btn-secondary {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+.fh-btn-secondary:hover { background: var(--surface-sunken); border-color: var(--border-strong); }
