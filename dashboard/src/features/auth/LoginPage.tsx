@@ -1,11 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import Button from '@mui/material/Button';
-import Alert from '@mui/material/Alert';
-import CircularProgress from '@mui/material/CircularProgress';
 import { useAuth } from './AuthContext';
 
 export function LoginPage() {
@@ -29,82 +22,100 @@ export function LoginPage() {
   };
 
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default',
-        p: 2,
+        background: 'var(--page)',
+        padding: 16,
       }}
     >
-      <Paper
-        elevation={0}
-        component="form"
+      <form
         onSubmit={submit}
-        sx={{ p: 4, borderRadius: 3, border: 1, borderColor: 'divider', width: '100%', maxWidth: 380 }}
+        style={{
+          width: '100%',
+          maxWidth: 384,
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          boxShadow: 'var(--shadow-card)',
+          padding: 28,
+        }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2.5 }}>
-          <Box
-            sx={{
-              width: 34,
-              height: 34,
-              borderRadius: 2,
-              bgcolor: 'primary.main',
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 8,
+              background: 'var(--accent)',
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 700,
+              fontSize: 15,
             }}
           >
             F
-          </Box>
-          <Typography variant="h6">FiscalHub</Typography>
-        </Box>
-
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+          </div>
+          <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>FiscalHub</span>
+        </div>
+        <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '0 0 22px' }}>
           Entre com sua conta para acessar o painel.
-        </Typography>
+        </p>
 
-        <TextField
-          label="E-mail"
+        <label className="fh-label" style={{ display: 'block', marginBottom: 6 }}>
+          E-mail
+        </label>
+        <input
+          className="fh-input"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          size="small"
-          fullWidth
           autoFocus
-          sx={{ mb: 2 }}
+          placeholder="voce@empresa.com"
+          style={{ marginBottom: 16 }}
         />
-        <TextField
-          label="Senha"
+
+        <label className="fh-label" style={{ display: 'block', marginBottom: 6 }}>
+          Senha
+        </label>
+        <input
+          className="fh-input"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          size="small"
-          fullWidth
+          placeholder="••••••••"
         />
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
+          <div
+            style={{
+              marginTop: 16,
+              fontSize: 13,
+              color: 'var(--error-text)',
+              background: 'var(--error-bg)',
+              border: '1px solid var(--error-border)',
+              borderRadius: 8,
+              padding: '8px 10px',
+            }}
+          >
             {error}
-          </Alert>
+          </div>
         )}
 
-        <Button
+        <button
+          className="fh-btn"
           type="submit"
-          variant="contained"
-          disableElevation
-          fullWidth
           disabled={busy || email === '' || password === ''}
-          startIcon={busy ? <CircularProgress size={16} color="inherit" /> : undefined}
-          sx={{ mt: 2.5 }}
+          style={{ width: '100%', marginTop: 22 }}
         >
-          Entrar
-        </Button>
-      </Paper>
-    </Box>
+          {busy ? 'Entrando…' : 'Entrar'}
+        </button>
+      </form>
+    </div>
   );
 }
