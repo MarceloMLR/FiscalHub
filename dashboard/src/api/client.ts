@@ -2,6 +2,8 @@ import type {
   AuthUser,
   Branch,
   Company,
+  ConnectorProfile,
+  ConnectorProfileRequest,
   CreateScheduleRequest,
   DocumentGroup,
   DocumentSummary,
@@ -121,6 +123,20 @@ export const api = {
   createSchedule: (body: CreateScheduleRequest) => postJson<{ id: number }>('/schedules', body),
   deactivateSchedule: async (id: number): Promise<void> => {
     const res = await fetch(`${BASE}/schedules/${id}/deactivate`, { method: 'POST', headers: authHeaders() });
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  },
+  connector: () => getJson<ConnectorProfile>('/connector'),
+  saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {
+    const res = await fetch(`${BASE}/connector`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify(body),
+    });
     if (res.status === 401) {
       handleUnauthorized();
     }

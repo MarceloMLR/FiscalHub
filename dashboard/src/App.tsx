@@ -19,6 +19,7 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import { GroupsPage } from './features/groups/GroupsPage';
 import { IntegrationsPage } from './features/integrations/IntegrationsPage';
+import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { useAuth } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
@@ -29,14 +30,15 @@ const drawerWidth = 224;
 const nav = [
   { key: 'documents', label: 'Documentos', icon: <DescriptionOutlinedIcon fontSize="small" /> },
   { key: 'integrations', label: 'Integrações', icon: <BoltOutlinedIcon fontSize="small" /> },
+  { key: 'connectors', label: 'Conectores', icon: <HubOutlinedIcon fontSize="small" />, adminOnly: true },
   { key: 'metrics', label: 'Métricas', icon: <BarChartOutlinedIcon fontSize="small" />, disabled: true },
-  { key: 'connectors', label: 'Conectores', icon: <HubOutlinedIcon fontSize="small" />, disabled: true },
   { key: 'settings', label: 'Configurações', icon: <SettingsOutlinedIcon fontSize="small" />, disabled: true },
 ];
 
 const titles: Record<string, { title: string; subtitle: string }> = {
   documents: { title: 'Documentos', subtitle: 'Notas integradas e seus status' },
   integrations: { title: 'Integrações', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
+  connectors: { title: 'Conectores', subtitle: 'Como este tenant integra: adapters, ambiente e settings' },
 };
 
 // Porteiro: enquanto restaura a sessão, mostra loading; sem usuário, o login; com usuário, o painel.
@@ -105,7 +107,7 @@ function Dashboard() {
         </Box>
 
         <List sx={{ px: 1 }}>
-          {nav.map((item) => {
+          {nav.filter((item) => !item.adminOnly || user?.role === 'Admin').map((item) => {
             const active = view === item.key;
             return (
               <ListItemButton
@@ -228,7 +230,13 @@ function Dashboard() {
             </Menu>
           </Box>
         </Box>
-        {view === 'integrations' ? <IntegrationsPage /> : <GroupsPage />}
+        {view === 'integrations' ? (
+          <IntegrationsPage />
+        ) : view === 'connectors' ? (
+          <ConnectorsPage />
+        ) : (
+          <GroupsPage />
+        )}
       </Box>
     </Box>
   );
