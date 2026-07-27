@@ -53,6 +53,42 @@
   --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
+/* modo escuro — valores extraídos da variante Dark do design v3 */
+html[data-theme='dark'] {
+  --page: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1b2129;
+  --surface-sunken: #21262e;
+
+  --border: #262d37;
+  --border-strong: #333b47;
+
+  --ink: #e6ebf2;
+  --text: #b7c1cf;
+  --text-secondary: #9aa6b6;
+  --muted: #7f8b9c;
+  --faint: #5f6a79;
+
+  --accent: #3d9dc4;
+  --accent-hover: #57b0d4;
+  --accent-tint: #12303d;
+  --accent-ring: #12303d;
+
+  --ok-text: #4cc98a;      --ok-bg: #10291d;      --ok-border: #1e4a33;
+  --info-text: #6fc3e0;    --info-bg: #112b38;    --info-border: #1d4457;
+  --pending-text: #b7c1cf; --pending-bg: #21262e; --pending-border: #333b47;
+  --error-text: #f08f8a;   --error-bg: #2f1616;   --error-border: #55292a;
+  --warn-text: #e0ab5c;    --warn-bg: #2c2310;    --warn-border: #4d3f1c;
+  --dead-text: #b7c1cf;    --dead-bg: #21262e;    --dead-border: #333b47;
+  --partial-text: #ef9d68; --partial-bg: #2f1e12; --partial-border: #55311f;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-popover: 0 6px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-modal: 0 20px 48px -16px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   background: var(--page);

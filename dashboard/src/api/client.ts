@@ -92,7 +92,7 @@ export const api = {
   documents: () => getJson<DocumentSummary[]>('/documents'),
   trace: (tenantId: string, naturalKey: string) =>
     getJson<TraceResponse>(`/trace/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}`),
-  info: () => getJson<{ environment: string }>('/info'),
+  info: () => getJson<{ environment: string; realtime: boolean }>('/info'),
   // Download com Bearer: baixa como blob (um <a href> não mandaria o token).
   downloadTrace: async (tenantId: string, naturalKey: string): Promise<void> => {
     const res = await fetch(

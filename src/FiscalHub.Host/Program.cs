@@ -364,7 +364,11 @@ app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory d
 app.MapGet("/info", async (IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
 {
     TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
-    return Results.Ok(new { environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox" });
+    return Results.Ok(new
+    {
+        environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox",
+        realtime = profile?.Realtime ?? false,
+    });
 });
 
 // Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita.
