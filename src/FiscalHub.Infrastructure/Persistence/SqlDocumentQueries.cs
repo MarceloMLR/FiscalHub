@@ -1,18 +1,25 @@
+using FiscalHub.Application.Auth;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Queries;
 using Microsoft.EntityFrameworkCore;
 
 namespace FiscalHub.Infrastructure.Persistence;
 
-/// <summary>Lado de leitura em EF Core: projeta o rastreio para a visão do dashboard.</summary>
+/// <summary>Lado de leitura em EF Core: projeta o rastreio para a visão do dashboard, escopado por tenant.</summary>
 internal sealed class SqlDocumentQueries : IDocumentQueries
 {
     private readonly ProcessingDbContext _db;
+    private readonly ITenantContext _tenant;
 
-    public SqlDocumentQueries(ProcessingDbContext db) => _db = db;
+    public SqlDocumentQueries(ProcessingDbContext db, ITenantContext tenant)
+    {
+        _db = db;
+        _tenant = tenant;
+    }
 
     public async Task<IReadOnlyList<DocumentSummary>> ListRecentAsync(int limit, CancellationToken ct = default)
         => await _db.ProcessedDocuments
+            .Where(d => d.TenantId == _tenant.TenantId)
             .OrderByDescending(d => d.Id)
             .Take(limit)
             .Select(d => new DocumentSummary
@@ -32,7 +39,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
 
     public async Task<IReadOnlyList<DocumentGroup>> ListGroupsAsync(int limit, CancellationToken ct = default)
         => await _db.ProcessedDocuments
-            .Where(d => d.CompanyCode != null && d.ReferenceDate != null)
+            .Where(d => d.TenantId == _tenant.TenantId && d.CompanyCode != null && d.ReferenceDate != null)
             .GroupBy(d => new { d.CompanyCode, d.BranchCode, d.ReferenceDate, d.Type })
             .OrderByDescending(g => g.Key.ReferenceDate)
             .ThenBy(g => g.Key.CompanyCode)
@@ -58,7 +65,8 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
     public async Task<IReadOnlyList<DocumentSummary>> ListByGroupAsync(
         string companyCode, string branchCode, string referenceDate, CancellationToken ct = default)
         => await _db.ProcessedDocuments
-            .Where(d => d.CompanyCode == companyCode && d.BranchCode == branchCode && d.ReferenceDate == referenceDate)
+            .Where(d => d.TenantId == _tenant.TenantId
+                && d.CompanyCode == companyCode && d.BranchCode == branchCode && d.ReferenceDate == referenceDate)
             .OrderByDescending(d => d.Id)
             .Select(d => new DocumentSummary
             {

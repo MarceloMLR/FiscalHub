@@ -1,8 +1,10 @@
 using Azure.Storage.Blobs;
+using FiscalHub.Application.Auth;
 using FiscalHub.Application.Integrations;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
 using FiscalHub.Application.Tracing;
+using FiscalHub.Infrastructure.Auth;
 using FiscalHub.Infrastructure.Persistence;
 using FiscalHub.Infrastructure.Tracing;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +26,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IExecutionStore, SqlExecutionStore>();
         services.AddScoped<IExecutionQueries, SqlExecutionQueries>();
         services.AddScoped<IScheduleStore, SqlScheduleStore>();
+        services.AddScoped<IUserAuthenticator, SqlUserAuthenticator>();
         return services;
     }
 
@@ -50,5 +53,41 @@ public static class InfrastructureServiceCollectionExtensions
         await using AsyncServiceScope scope = services.CreateAsyncScope();
         ProcessingDbContext db = scope.ServiceProvider.GetRequiredService<ProcessingDbContext>();
         await db.Database.MigrateAsync(ct);
+    }
+
+    /// <summary>
+    /// Semeia usuários de dev (uma vez, se a tabela está vazia): um admin no tenant-a (vê os dados
+    /// semeados) e um viewer no tenant-b (não vê nada — demonstra o isolamento por tenant). Senha
+    /// com hash; em produção isso viria de um cadastro real, não de seed.
+    /// </summary>
+    public static async Task EnsureDevUsersAsync(this IServiceProvider services, CancellationToken ct = default)
+    {
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        ProcessingDbContext db = scope.ServiceProvider.GetRequiredService<ProcessingDbContext>();
+
+        if (await db.Users.AnyAsync(ct))
+        {
+            return;
+        }
+
+        db.Users.AddRange(
+            new UserRow
+            {
+                Email = "admin@fiscalhub.local",
+                Name = "Marcelo Lima",
+                PasswordHash = Pbkdf2PasswordHasher.Hash("Fiscal@123"),
+                TenantId = "tenant-a",
+                Role = "Admin",
+            },
+            new UserRow
+            {
+                Email = "beta@fiscalhub.local",
+                Name = "Beta Viewer",
+                PasswordHash = Pbkdf2PasswordHasher.Hash("Fiscal@123"),
+                TenantId = "tenant-b",
+                Role = "Viewer",
+            });
+
+        await db.SaveChangesAsync(ct);
     }
 }

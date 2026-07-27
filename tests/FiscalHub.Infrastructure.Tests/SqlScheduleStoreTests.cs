@@ -59,7 +59,7 @@ public class SqlScheduleStoreTests
         var options = new DbContextOptionsBuilder<ProcessingDbContext>().UseSqlite(conn).Options;
         var db = new ProcessingDbContext(options);
         db.Database.EnsureCreated();
-        return new Harness(db, conn, new SqlScheduleStore(db, TimeProvider.System));
+        return new Harness(db, conn, new SqlScheduleStore(db, TimeProvider.System, new StubTenantContext("tenant-a")));
     }
 
     private sealed class Harness(ProcessingDbContext db, SqliteConnection conn, SqlScheduleStore store) : IDisposable

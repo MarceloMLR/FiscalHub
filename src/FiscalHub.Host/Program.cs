@@ -21,9 +21,45 @@ using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
 using FiscalHub.Host;
 using FiscalHub.Infrastructure;
+using FiscalHub.Application.Auth;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
+
+// Auth (JWT próprio): a chave/issuer/audience vêm da config. O host emite o token no /auth/login e
+// valida o Bearer nas demais rotas. Em produção a chave é um segredo (Key Vault), não o appsettings.
+var jwt = cfg.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
+builder.Services.AddSingleton(jwt);
+builder.Services.AddSingleton<JwtTokenIssuer>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;   // mantém os claims com os nomes originais (tenant, role, name)
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwt.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwt.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+            ValidateLifetime = true,
+            NameClaimType = "name",
+            RoleClaimType = "role",
+        };
+    });
+
+// Tudo exige autenticação por padrão (fallback policy); os endpoints públicos marcam AllowAnonymous.
+builder.Services.AddAuthorization(options =>
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 // Composição: Blob (Azurite) + adapters + store + validação + esteira.
 builder.Services.AddSingleton(new BlobServiceClient(cfg.GetConnectionString("Blob")));
@@ -79,13 +115,44 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 var app = builder.Build();
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 
-// Dev local: cria o schema no SQL, o container no Blob e sobe um XML de exemplo.
+// Dev local: cria o schema no SQL, o container no Blob, sobe um XML de exemplo e semeia os usuários.
 await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
+await app.Services.EnsureDevUsersAsync();
 
 app.MapGet("/", () =>
-    $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.");
+    $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.")
+    .AllowAnonymous();
+
+// Login: valida credenciais e devolve um JWT com os claims do usuário (inclui o tenant).
+app.MapPost("/auth/login", async (LoginRequest req, IUserAuthenticator auth, JwtTokenIssuer issuer, CancellationToken ct) =>
+{
+    AppUser? user = await auth.AuthenticateAsync(req.Email, req.Password, ct);
+    if (user is null)
+    {
+        return Results.Unauthorized();   // usuário inexistente ou senha errada — mesma resposta
+    }
+
+    (string token, DateTimeOffset expiresAt) = issuer.Issue(user);
+    return Results.Ok(new
+    {
+        token,
+        expiresAt,
+        user = new { user.Email, user.Name, user.TenantId, user.Role },
+    });
+}).AllowAnonymous();
+
+// Sessão atual: o SPA chama pra restaurar o login a partir do token guardado.
+app.MapGet("/auth/me", (ClaimsPrincipal principal) => Results.Ok(new
+{
+    email = principal.FindFirstValue("email"),
+    name = principal.FindFirstValue("name"),
+    tenantId = principal.FindFirstValue("tenant"),
+    role = principal.FindFirstValue("role"),
+}));
 
 // Etapa 2: enfileira a referência (claim-check). O consumidor do Service Bus processa a esteira;
 // retry e dead-letter ficam por conta do transporte.
@@ -106,12 +173,12 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
 // Integração manual (modo pull): o cliente escolhe empresa/filial/período; a descoberta lista as
 // notas daquele recorte na origem e o conector enfileira cada referência no padrão claim-check.
 // Reprocessar o mesmo período é idempotente — a mesma chave de acesso cai na regra por estado.
-app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegrationRunner runner, CancellationToken ct) =>
+app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegrationRunner runner, ITenantContext tenant, CancellationToken ct) =>
 {
     int discovered = await runner.RunAsync(new RunRequest
     {
         Mode = IntegrationMode.Manual,
-        TenantId = req.TenantId ?? "tenant-a",
+        TenantId = tenant.TenantId,   // do usuário logado, não do body
         CompanyCode = req.CompanyCode,
         BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
         DocumentNumber = string.IsNullOrWhiteSpace(req.DocumentNumber) ? null : req.DocumentNumber,
@@ -127,7 +194,7 @@ app.MapGet("/executions", async (IExecutionQueries queries, CancellationToken ct
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
 // Agendamentos: cria (D-1 recorrente ou único), lista e desativa. O timer do host executa os vencidos.
-app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, TimeProvider clock, CancellationToken ct) =>
+app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, TimeProvider clock, ITenantContext tenant, CancellationToken ct) =>
 {
     if (!Enum.TryParse(req.Mode, out IntegrationMode mode) || mode == IntegrationMode.Manual)
     {
@@ -165,7 +232,7 @@ app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, Time
     int id = await store.CreateAsync(new ScheduledIntegration
     {
         Mode = mode,
-        TenantId = req.TenantId ?? "tenant-a",
+        TenantId = tenant.TenantId,   // do usuário logado
         CompanyCode = req.CompanyCode,
         BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
         PeriodStart = periodStart,
@@ -295,6 +362,9 @@ app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory d
 app.MapGet("/info", () => Results.Ok(new { environment = cfg["Connector:Environment"] ?? "Sandbox" }));
 
 app.Run();
+
+/// <summary>Corpo do POST /auth/login.</summary>
+public sealed record LoginRequest(string Email, string Password);
 
 /// <summary>Corpo do POST /ingest.</summary>
 public sealed record IngestRequest(string TenantId, string NaturalKey, string Locator);

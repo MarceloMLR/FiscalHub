@@ -43,7 +43,7 @@ public class SqlExecutionStoreTests
         var options = new DbContextOptionsBuilder<ProcessingDbContext>().UseSqlite(conn).Options;
         var db = new ProcessingDbContext(options);
         db.Database.EnsureCreated();
-        return new Harness(db, conn, new SqlExecutionStore(db, TimeProvider.System), new SqlExecutionQueries(db));
+        return new Harness(db, conn, new SqlExecutionStore(db, TimeProvider.System), new SqlExecutionQueries(db, new StubTenantContext("tenant-a")));
     }
 
     private sealed class Harness(ProcessingDbContext db, SqliteConnection conn, SqlExecutionStore store, SqlExecutionQueries queries) : IDisposable
