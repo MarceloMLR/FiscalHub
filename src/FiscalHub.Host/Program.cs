@@ -9,6 +9,7 @@ using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
+using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Directory;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Integrations;
@@ -122,6 +123,7 @@ app.UseAuthorization();
 await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
 await app.Services.EnsureDevUsersAsync();
+await app.Services.EnsureDevConnectorProfilesAsync();
 
 app.MapGet("/", () =>
     $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.")
@@ -358,13 +360,48 @@ app.MapGet("/companies", async (ICompanyDirectory dir, CancellationToken ct) =>
 app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory dir, CancellationToken ct) =>
     Results.Ok(await dir.ListBranchesAsync(code, ct)));
 
-// Ambiente do conector (sandbox/produção) — o dashboard exibe no topo.
-app.MapGet("/info", () => Results.Ok(new { environment = cfg["Connector:Environment"] ?? "Sandbox" }));
+// Ambiente do conector — agora vem do perfil do tenant logado (cada tenant tem o seu).
+app.MapGet("/info", async (IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
+{
+    TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
+    return Results.Ok(new { environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox" });
+});
+
+// Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita.
+app.MapGet("/connector", async (IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
+{
+    TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
+    return profile is null ? Results.NotFound() : Results.Ok(profile);
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPut("/connector", async (ConnectorProfileRequest req, IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
+{
+    await profiles.UpsertAsync(new TenantConnectorProfile
+    {
+        TenantId = tenant.TenantId,   // sempre o do usuário; ninguém edita o perfil de outro tenant
+        Environment = req.Environment,
+        Realtime = req.Realtime,
+        InboundAdapter = req.InboundAdapter,
+        InboundSettings = req.InboundSettings ?? "{}",
+        OutboundAdapter = req.OutboundAdapter,
+        OutboundSettings = req.OutboundSettings ?? "{}",
+    }, ct);
+    return Results.NoContent();
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 app.Run();
 
 /// <summary>Corpo do POST /auth/login.</summary>
 public sealed record LoginRequest(string Email, string Password);
+
+/// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
+public sealed record ConnectorProfileRequest(
+    string Environment,
+    bool Realtime,
+    string InboundAdapter,
+    string? InboundSettings,
+    string OutboundAdapter,
+    string? OutboundSettings);
 
 /// <summary>Corpo do POST /ingest.</summary>
 public sealed record IngestRequest(string TenantId, string NaturalKey, string Locator);

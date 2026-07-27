@@ -13,6 +13,8 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
 
     public DbSet<UserRow> Users => Set<UserRow>();
 
+    public DbSet<ConnectorProfileRow> ConnectorProfiles => Set<ConnectorProfileRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var doc = modelBuilder.Entity<ProcessedDocument>();
@@ -65,5 +67,14 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         usr.Property(u => u.PasswordHash).HasMaxLength(400);
         usr.Property(u => u.TenantId).HasMaxLength(100);
         usr.Property(u => u.Role).HasMaxLength(50);
+
+        var conn = modelBuilder.Entity<ConnectorProfileRow>();
+        conn.ToTable("ConnectorProfiles");
+        conn.HasKey(c => c.Id);
+        conn.HasIndex(c => c.TenantId).IsUnique();   // um perfil por tenant
+        conn.Property(c => c.TenantId).HasMaxLength(100);
+        conn.Property(c => c.Environment).HasMaxLength(20);
+        conn.Property(c => c.InboundAdapter).HasMaxLength(50);
+        conn.Property(c => c.OutboundAdapter).HasMaxLength(50);
     }
 }
