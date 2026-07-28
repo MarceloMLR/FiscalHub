@@ -149,6 +149,9 @@ export function GroupsPage() {
             '& .MuiDataGrid-columnHeaders': { borderBottom: '1px solid var(--border)' },
             '& .MuiDataGrid-columnSeparator': { display: 'none' },
             '& .MuiDataGrid-cell': { borderTop: 'none', fontSize: 13.5 },
+            // a última linha não repete a borda: quem separa do rodapé é só a borda do footer
+            '& .MuiDataGrid-row--lastVisible': { '--DataGrid-rowBorderColor': 'transparent' },
+            '& .MuiDataGrid-row--lastVisible .MuiDataGrid-cell': { borderBottom: 'none' },
             // respira nas laterais pra não colar na borda arredondada do cartão
             '& .fhFirstCol': { paddingLeft: '20px' },
             '& .MuiDataGrid-columnHeader:last-of-type, & .MuiDataGrid-cell:last-of-type': { paddingRight: '20px' },
