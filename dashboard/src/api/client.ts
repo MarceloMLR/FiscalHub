@@ -143,6 +143,18 @@ export const api = {
       throw new Error(`${res.status} ${res.statusText}`);
     }
   },
+  reprocess: async (tenantId: string, naturalKey: string): Promise<void> => {
+    const res = await fetch(
+      `${BASE}/documents/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}/reprocess`,
+      { method: 'POST', headers: authHeaders() },
+    );
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  },
   connector: () => getJson<ConnectorProfile>('/connector'),
   saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {
     const res = await fetch(`${BASE}/connector`, {

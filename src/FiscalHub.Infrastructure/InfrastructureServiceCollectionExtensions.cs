@@ -2,9 +2,11 @@ using Azure.Storage.Blobs;
 using FiscalHub.Application.Auth;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Integrations;
+using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
 using FiscalHub.Application.Tracing;
+using FiscalHub.Domain.Envelope;
 using FiscalHub.Infrastructure.Auth;
 using FiscalHub.Infrastructure.Persistence;
 using FiscalHub.Infrastructure.Tracing;
@@ -130,6 +132,105 @@ public static class InfrastructureServiceCollectionExtensions
                 OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-b-sandbox-secret","clientTokenRef":"kv:avalara-b-sandbox-token"},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-b-prod-secret","clientTokenRef":"kv:avalara-b-prod-token"}}""",
             });
 
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Semeia documentos de exemplo (uma vez, se a tabela está vazia) só no tenant-a: dezenas de
+    /// grupos ao longo dos últimos dias — incluindo o dia de hoje (alimenta os KPIs) — com status
+    /// variados para exercitar paginação, filtros e o reprocessamento. As DUAS notas reais do
+    /// catálogo (123 e 456) entram como falha e são reprocessáveis de verdade (rebuscam o blob).
+    /// </summary>
+    public static async Task EnsureDevDocumentsAsync(this IServiceProvider services, CancellationToken ct = default)
+    {
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        ProcessingDbContext db = scope.ServiceProvider.GetRequiredService<ProcessingDbContext>();
+
+        if (await db.ProcessedDocuments.AnyAsync(ct))
+        {
+            return;
+        }
+
+        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+        DateTime todayLocal = DateTimeOffset.Now.Date;   // mesmo "hoje" do navegador (dev na mesma máquina)
+
+        // Distribuição pesada em Confirmado, com uma pitada de cada falha (para KPI/filtro).
+        IntegrationStatus[] cycle =
+        [
+            IntegrationStatus.Confirmed, IntegrationStatus.Confirmed, IntegrationStatus.Confirmed,
+            IntegrationStatus.Submitted, IntegrationStatus.Pending,
+            IntegrationStatus.IntegrationError, IntegrationStatus.Unconfirmed, IntegrationStatus.DeadLettered,
+        ];
+        (string Company, string Branch)[] orgs =
+        [
+            ("12345678", "0001"), ("12345678", "0002"), ("98765432", "0001"),
+            ("98765432", "0003"), ("11222333", "0001"), ("44556677", "0002"),
+        ];
+
+        var rows = new List<ProcessedDocument>();
+        int seq = 0;
+        for (int day = 0; day < 7; day++)   // hoje e os 6 dias anteriores → 42 grupos (paginação)
+        {
+            DateTime date = todayLocal.AddDays(-day);
+            string refDate = date.ToString("yyyy-MM-dd");
+            foreach ((string company, string branch) in orgs)
+            {
+                int docs = 1 + ((day + branch[3]) % 3);   // 1..3 notas por grupo
+                for (int k = 0; k < docs; k++)
+                {
+                    IntegrationStatus status = cycle[seq % cycle.Length];
+                    rows.Add(new ProcessedDocument
+                    {
+                        TenantId = "tenant-a",
+                        NaturalKey = $"3526{company}5500100000{seq:D6}",
+                        Type = DocumentType.GoodsInvoice55,
+                        Status = status,
+                        CompanyCode = company,
+                        BranchCode = branch,
+                        ReferenceDate = refDate,
+                        DocumentNumber = (1000 + seq).ToString(),
+                        DocumentModel = "55",
+                        Attempts = status == IntegrationStatus.Unconfirmed ? 6 : status == IntegrationStatus.Submitted ? 2 : 1,
+                        Reason = status switch
+                        {
+                            IntegrationStatus.IntegrationError => "Rejeitada pelo compliance (regra de tributação).",
+                            IntegrationStatus.DeadLettered => "Falha definitiva após as retentativas.",
+                            IntegrationStatus.Unconfirmed => "Sem retorno do compliance após várias consultas.",
+                            _ => null,
+                        },
+                        CreatedAt = nowUtc.AddDays(-day),
+                        UpdatedAt = nowUtc.AddDays(-day).AddMinutes(seq),
+                    });
+                    seq++;
+                }
+            }
+        }
+
+        // As duas notas REAIS do catálogo, em falha → reprocessáveis (o adapter rebusca o blob e reintegra).
+        rows.Add(new ProcessedDocument
+        {
+            TenantId = "tenant-a",
+            NaturalKey = "35260612345678000190550010000001231000000123",
+            Type = DocumentType.GoodsInvoice55,
+            Status = IntegrationStatus.IntegrationError,
+            CompanyCode = "12345678", BranchCode = "0001", ReferenceDate = "2026-06-01",
+            DocumentNumber = "123", DocumentModel = "55", Attempts = 1,
+            Reason = "Rejeitada pelo compliance — reprocessar após ajuste.",
+            CreatedAt = nowUtc, UpdatedAt = nowUtc,
+        });
+        rows.Add(new ProcessedDocument
+        {
+            TenantId = "tenant-a",
+            NaturalKey = "35260698765432000188550010000004561000000456",
+            Type = DocumentType.GoodsInvoice55,
+            Status = IntegrationStatus.DeadLettered,
+            CompanyCode = "98765432", BranchCode = "0001", ReferenceDate = "2026-06-02",
+            DocumentNumber = "456", DocumentModel = "55", Attempts = 3,
+            Reason = "Dead-letter — exige intervenção; reprocessar.",
+            CreatedAt = nowUtc, UpdatedAt = nowUtc,
+        });
+
+        db.ProcessedDocuments.AddRange(rows);
         await db.SaveChangesAsync(ct);
     }
 }

@@ -59,6 +59,21 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
         return Task.FromResult(matches);
     }
 
+    public Task<DocumentReference?> FindByKeyAsync(string tenantId, string naturalKey, CancellationToken ct = default)
+    {
+        SeededDocument? d = Catalog.FirstOrDefault(x => x.Tenant == tenantId && x.AccessKey == naturalKey);
+        DocumentReference? reference = d is null
+            ? null
+            : new DocumentReference
+            {
+                TenantId = d.Tenant,
+                Type = DocumentType.GoodsInvoice55,
+                NaturalKey = d.AccessKey,
+                Locator = d.Locator,
+            };
+        return Task.FromResult(reference);
+    }
+
     private sealed record SeededDocument
     {
         public required string Tenant { get; init; }

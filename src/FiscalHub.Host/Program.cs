@@ -124,6 +124,7 @@ await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
 await app.Services.EnsureDevUsersAsync();
 await app.Services.EnsureDevConnectorProfilesAsync();
+await app.Services.EnsureDevDocumentsAsync();   // notas de exemplo p/ paginação, KPIs do dia e reprocessar
 
 app.MapGet("/", () =>
     $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.")
@@ -407,6 +408,26 @@ app.MapGet("/groups", async (IDocumentQueries queries, CancellationToken ct) =>
 app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
     async (string companyCode, string branchCode, string referenceDate, IDocumentQueries queries, CancellationToken ct) =>
         Results.Ok(await queries.ListByGroupAsync(companyCode, branchCode, referenceDate, ct)));
+
+// Reprocessar uma nota com falha: entrega o id ao adapter de entrada, que rebusca na origem e
+// reenfileira. É intenção explícita do usuário → trigger Manual (fura a idempotência, ADR-0016).
+app.MapPost("/documents/{tenantId}/{naturalKey}/reprocess",
+    async (string tenantId, string naturalKey, IDocumentDiscovery discovery, IDocumentQueue queue, ITenantContext tenant, CancellationToken ct) =>
+    {
+        if (!string.Equals(tenantId, tenant.TenantId, StringComparison.Ordinal))
+        {
+            return Results.NotFound();   // não confirma existência de nota de outro tenant
+        }
+
+        DocumentReference? reference = await discovery.FindByKeyAsync(tenantId, naturalKey, ct);
+        if (reference is null)
+        {
+            return Results.NotFound(new { message = "Nota não encontrada na origem para reprocessar." });
+        }
+
+        await queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Manual }, ct);
+        return Results.Accepted();
+    });
 
 // Diretório de empresas e filiais (dropdowns da integração manual).
 app.MapGet("/companies", async (ICompanyDirectory dir, CancellationToken ct) =>
