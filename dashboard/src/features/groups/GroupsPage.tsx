@@ -123,7 +123,7 @@ export function GroupsPage() {
       </div>
 
       {/* Histórico — DataGrid com o filtro/ordenação nativos por coluna; paginação se ajusta à altura */}
-      <Paper elevation={0} sx={{ ...cardStyle, flex: 1, minHeight: 320, overflow: 'hidden' }}>
+      <Paper elevation={0} sx={{ ...cardStyle, borderRadius: '10px', flex: 1, minHeight: 320, overflow: 'hidden' }}>
         <DataGrid
           rows={groups}
           columns={columns}
