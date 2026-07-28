@@ -5,6 +5,9 @@ public interface IScheduleStore
 {
     Task<int> CreateAsync(ScheduledIntegration schedule, CancellationToken ct = default);
 
+    /// <summary>Atualiza os parâmetros de um agendamento (escopado ao tenant). <c>false</c> se não achou.</summary>
+    Task<bool> UpdateAsync(ScheduledIntegration schedule, CancellationToken ct = default);
+
     Task<IReadOnlyList<ScheduledIntegration>> ListAsync(CancellationToken ct = default);
 
     /// <summary>Agendamentos ativos cujo horário já venceu (<c>NextRunAt &lt;= now</c>).</summary>

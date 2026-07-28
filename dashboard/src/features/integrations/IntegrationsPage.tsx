@@ -8,7 +8,7 @@ import { api } from '../../api/client';
 import { useCompanies, useBranches } from '../manual/useDirectory';
 import { useSchedules, useExecutions } from '../schedules/useScheduling';
 import { StatusChip } from '../../components/StatusChip';
-import type { CreateScheduleRequest, IntegrationModeName } from '../../types';
+import type { CreateScheduleRequest, IntegrationModeName, Schedule } from '../../types';
 
 const ALL_BRANCHES = '__all__';
 const MODE_LABEL: Record<IntegrationModeName, string> = {
@@ -16,7 +16,7 @@ const MODE_LABEL: Record<IntegrationModeName, string> = {
   ScheduledDaily: 'Diária (D-1)',
   ScheduledOnce: 'Agendada',
 };
-const AG_GRID = 'minmax(88px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(118px,1fr) 84px 80px';
+const AG_GRID = 'minmax(88px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(118px,1fr) 84px 168px';
 const EX_GRID = 'minmax(86px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(112px,1.2fr) 56px minmax(104px,1fr)';
 
 type Mode = 'now' | 'daily' | 'once';
@@ -40,6 +40,15 @@ function firstOfPreviousMonth(): string {
 function dateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
+// nextRunAt vem em UTC; a UI edita em horário de Brasília (-03:00). Converte pra data/hora local.
+function toBrtParts(iso: string): { date: string; time: string } {
+  const brt = new Date(new Date(iso).getTime() - 3 * 3600 * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${brt.getUTCFullYear()}-${p(brt.getUTCMonth() + 1)}-${p(brt.getUTCDate())}`,
+    time: `${p(brt.getUTCHours())}:${p(brt.getUTCMinutes())}`,
+  };
+}
 
 export function IntegrationsPage() {
   const qc = useQueryClient();
@@ -49,6 +58,7 @@ export function IntegrationsPage() {
 
   const [tab, setTab] = useState<Tab>('schedules');
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
 
   const [mode, setMode] = useState<Mode>('now');
@@ -104,13 +114,36 @@ export function IntegrationsPage() {
     },
   });
 
+  const scheduleBody = (): CreateScheduleRequest =>
+    mode === 'daily'
+      ? { mode: 'ScheduledDaily', companyCode: company, branchCode: branchCode(), timeOfDay }
+      : {
+          mode: 'ScheduledOnce',
+          companyCode: company,
+          branchCode: branchCode(),
+          runAt: `${runAt}:00-03:00`,
+          periodStart: `${start}T00:00:00-03:00`,
+          periodEnd: `${end}T23:59:59-03:00`,
+        };
+
+  const updateSchedule = useMutation({
+    mutationFn: () => api.updateSchedule(editingId!, scheduleBody()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['schedules'] });
+      setBanner('Agendamento atualizado.');
+      setTab('schedules');
+      setOpen(false);
+      setEditingId(null);
+    },
+  });
+
   const deactivate = useMutation({
     mutationFn: (id: number) => api.deactivateSchedule(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
   });
 
   const periodOk = start !== '' && end !== '' && start <= end;
-  const pending = runNow.isPending || createSchedule.isPending;
+  const pending = runNow.isPending || createSchedule.isPending || updateSchedule.isPending;
   const canSubmit =
     company !== '' &&
     !pending &&
@@ -120,14 +153,46 @@ export function IntegrationsPage() {
         ? timeOfDay !== ''
         : runAt !== '' && periodOk);
 
-  const openModal = () => {
+  const resetMutations = () => {
     runNow.reset();
     createSchedule.reset();
+    updateSchedule.reset();
+  };
+
+  const openModal = () => {
+    resetMutations();
     setBanner(null);
+    setEditingId(null);
+    setMode('now');
     setOpen(true);
   };
-  const submit = () => (mode === 'now' ? runNow.mutate() : createSchedule.mutate());
-  const errorMsg = (runNow.error as Error)?.message ?? (createSchedule.error as Error)?.message;
+
+  // Abre o modal já preenchido com os dados do agendamento, em modo edição.
+  const openEdit = (s: Schedule) => {
+    resetMutations();
+    setBanner(null);
+    setEditingId(s.id);
+    setCompany(s.companyCode);
+    setBranch(s.branchCode ?? ALL_BRANCHES);
+    const parts = toBrtParts(s.nextRunAt);
+    if (s.mode === 'ScheduledDaily') {
+      setMode('daily');
+      setTimeOfDay(parts.time);
+    } else {
+      setMode('once');
+      setRunAt(`${parts.date}T${parts.time}`);
+      if (s.periodStart) setStart(s.periodStart);
+      if (s.periodEnd) setEnd(s.periodEnd);
+    }
+    setOpen(true);
+  };
+
+  const isEditing = editingId != null;
+  const submit = () => (isEditing ? updateSchedule.mutate() : mode === 'now' ? runNow.mutate() : createSchedule.mutate());
+  const errorMsg =
+    (runNow.error as Error)?.message ??
+    (createSchedule.error as Error)?.message ??
+    (updateSchedule.error as Error)?.message;
 
   return (
     <div style={{ padding: '28px 28px 44px', display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 1040, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
@@ -174,7 +239,15 @@ export function IntegrationsPage() {
                 <div>
                   <StatusChip tone={s.active ? 'ok' : 'pending'}>{s.active ? 'Ativo' : 'Inativo'}</StatusChip>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                  <button
+                    type="button"
+                    className="fh-btn fh-btn-secondary"
+                    onClick={() => openEdit(s)}
+                    style={{ height: 30, padding: '0 12px', fontSize: 13 }}
+                  >
+                    Editar
+                  </button>
                   {s.active && (
                     <button
                       type="button"
@@ -219,7 +292,9 @@ export function IntegrationsPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 620, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: 'var(--shadow-modal)', overflow: 'hidden' }}>
             <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
               <div>
-                <div style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.014em', color: 'var(--ink)' }}>Nova integração</div>
+                <div style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.014em', color: 'var(--ink)' }}>
+                  {isEditing ? 'Editar agendamento' : 'Nova integração'}
+                </div>
                 <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: 3 }}>
                   {mode === 'now'
                     ? 'Dispara agora — um período inteiro ou uma nota pelo número.'
@@ -238,7 +313,7 @@ export function IntegrationsPage() {
                 value={mode}
                 onChange={setMode}
                 options={[
-                  { value: 'now', label: 'Imediata' },
+                  ...(isEditing ? [] : [{ value: 'now' as Mode, label: 'Imediata' }]),
                   { value: 'daily', label: 'Diária (D-1)' },
                   { value: 'once', label: 'Agendada' },
                 ]}
@@ -305,7 +380,7 @@ export function IntegrationsPage() {
                 )}
               </div>
 
-              {errorMsg && (runNow.isError || createSchedule.isError) && (
+              {errorMsg && (runNow.isError || createSchedule.isError || updateSchedule.isError) && (
                 <div style={{ border: '1px solid var(--error-border)', background: 'var(--error-bg)', color: 'var(--error-text)', borderRadius: 8, padding: '9px 12px', fontSize: 12.5 }}>
                   Falha: {errorMsg}
                 </div>
@@ -317,7 +392,7 @@ export function IntegrationsPage() {
                 Cancelar
               </button>
               <button type="button" onClick={submit} disabled={!canSubmit} className="fh-btn" style={{ height: 32 }}>
-                {pending ? 'Enviando…' : mode === 'now' ? 'Integrar agora' : 'Criar agendamento'}
+                {pending ? 'Enviando…' : isEditing ? 'Salvar alterações' : mode === 'now' ? 'Integrar agora' : 'Criar agendamento'}
               </button>
             </div>
           </div>

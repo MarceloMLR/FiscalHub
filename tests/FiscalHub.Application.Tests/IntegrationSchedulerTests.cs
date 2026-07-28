@@ -111,6 +111,18 @@ public class IntegrationSchedulerTests
             return Task.FromResult(s.Id);
         }
 
+        public Task<bool> UpdateAsync(ScheduledIntegration s, CancellationToken ct = default)
+        {
+            int i = _items.FindIndex(x => x.Id == s.Id);
+            if (i < 0)
+            {
+                return Task.FromResult(false);
+            }
+
+            _items[i] = s with { Active = true };
+            return Task.FromResult(true);
+        }
+
         public Task<IReadOnlyList<ScheduledIntegration>> ListAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<ScheduledIntegration>>(_items);
 

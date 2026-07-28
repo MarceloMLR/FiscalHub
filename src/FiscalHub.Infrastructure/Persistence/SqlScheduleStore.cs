@@ -38,6 +38,28 @@ internal sealed class SqlScheduleStore : IScheduleStore
         return row.Id;
     }
 
+    public async Task<bool> UpdateAsync(ScheduledIntegration schedule, CancellationToken ct = default)
+    {
+        // Só edita agendamento do próprio tenant (defesa contra id de outro tenant).
+        ScheduledIntegrationRow? row = await _db.ScheduledIntegrations
+            .FirstOrDefaultAsync(s => s.Id == schedule.Id && s.TenantId == _tenant.TenantId, ct);
+        if (row is null)
+        {
+            return false;
+        }
+
+        row.Mode = schedule.Mode;
+        row.CompanyCode = schedule.CompanyCode;
+        row.BranchCode = schedule.BranchCode;
+        row.PeriodStart = schedule.PeriodStart;
+        row.PeriodEnd = schedule.PeriodEnd;
+        row.NextRunTicks = schedule.NextRunAt.UtcTicks;
+        row.Active = true;   // salvar reativa (reprograma o próximo disparo)
+
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<IReadOnlyList<ScheduledIntegration>> ListAsync(CancellationToken ct = default)
     {
         // Lista da UI: só os agendamentos do tenant logado. (O agendador, que roda os vencidos, usa

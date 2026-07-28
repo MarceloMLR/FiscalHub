@@ -196,39 +196,44 @@ app.MapGet("/executions", async (IExecutionQueries queries, CancellationToken ct
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
 // Agendamentos: cria (D-1 recorrente ou único), lista e desativa. O timer do host executa os vencidos.
-app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, TimeProvider clock, ITenantContext tenant, CancellationToken ct) =>
+// Valida o corpo e calcula o próximo disparo (compartilhado pelo POST e pelo PUT).
+static (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd)
+    PlanSchedule(ScheduleRequest req, TimeProvider clock)
 {
     if (!Enum.TryParse(req.Mode, out IntegrationMode mode) || mode == IntegrationMode.Manual)
     {
-        return Results.BadRequest(new { message = "Modo inválido. Use ScheduledDaily ou ScheduledOnce." });
+        return (Results.BadRequest(new { message = "Modo inválido. Use ScheduledDaily ou ScheduledOnce." }), default, default, null, null);
     }
 
     var brt = TimeSpan.FromHours(-3);
-    DateTimeOffset nextRun;
-    string? periodStart = null;
-    string? periodEnd = null;
-
     if (mode == IntegrationMode.ScheduledDaily)
     {
         if (!TimeOnly.TryParse(req.TimeOfDay, out TimeOnly timeOfDay))
         {
-            return Results.BadRequest(new { message = "Informe timeOfDay no formato HH:mm." });
+            return (Results.BadRequest(new { message = "Informe timeOfDay no formato HH:mm." }), default, default, null, null);
         }
 
         DateTimeOffset nowBrt = clock.GetUtcNow().ToOffset(brt);
         var todayRun = new DateTimeOffset(nowBrt.Date.Add(timeOfDay.ToTimeSpan()), brt);
-        nextRun = todayRun > nowBrt ? todayRun : todayRun.AddDays(1);   // hoje se ainda vem, senão amanhã
+        DateTimeOffset next = todayRun > nowBrt ? todayRun : todayRun.AddDays(1);   // hoje se ainda vem, senão amanhã
+        return (null, mode, next, null, null);
     }
-    else // ScheduledOnce
-    {
-        if (req.RunAt is null || req.PeriodStart is null || req.PeriodEnd is null)
-        {
-            return Results.BadRequest(new { message = "Agendamento único exige runAt, periodStart e periodEnd." });
-        }
 
-        nextRun = req.RunAt.Value;
-        periodStart = req.PeriodStart.Value.ToString("yyyy-MM-dd");
-        periodEnd = req.PeriodEnd.Value.ToString("yyyy-MM-dd");
+    // ScheduledOnce
+    if (req.RunAt is null || req.PeriodStart is null || req.PeriodEnd is null)
+    {
+        return (Results.BadRequest(new { message = "Agendamento único exige runAt, periodStart e periodEnd." }), default, default, null, null);
+    }
+
+    return (null, mode, req.RunAt.Value, req.PeriodStart.Value.ToString("yyyy-MM-dd"), req.PeriodEnd.Value.ToString("yyyy-MM-dd"));
+}
+
+app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, TimeProvider clock, ITenantContext tenant, CancellationToken ct) =>
+{
+    (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd) = PlanSchedule(req, clock);
+    if (error is not null)
+    {
+        return error;
     }
 
     int id = await store.CreateAsync(new ScheduledIntegration
@@ -243,6 +248,29 @@ app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, Time
     }, ct);
 
     return Results.Created($"/schedules/{id}", new { id, nextRunAt = nextRun });
+});
+
+app.MapPut("/schedules/{id:int}", async (int id, ScheduleRequest req, IScheduleStore store, TimeProvider clock, ITenantContext tenant, CancellationToken ct) =>
+{
+    (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd) = PlanSchedule(req, clock);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    bool found = await store.UpdateAsync(new ScheduledIntegration
+    {
+        Id = id,
+        Mode = mode,
+        TenantId = tenant.TenantId,
+        CompanyCode = req.CompanyCode,
+        BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
+        PeriodStart = periodStart,
+        PeriodEnd = periodEnd,
+        NextRunAt = nextRun,
+    }, ct);
+
+    return found ? Results.Ok(new { id, nextRunAt = nextRun }) : Results.NotFound();
 });
 
 app.MapGet("/schedules", async (IScheduleStore store, CancellationToken ct) =>
