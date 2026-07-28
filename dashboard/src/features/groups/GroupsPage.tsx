@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import Paper from '@mui/material/Paper';
-import { DataGrid, type GridColDef } from '@mui/x-data-grid';
-import { ptBR } from '@mui/x-data-grid/locales';
+import { type GridColDef } from '@mui/x-data-grid';
+import { FhDataGrid } from '../../components/FhDataGrid';
 import { useGroups } from './useGroups';
 import { groupStatus, GroupStatusChip } from './GroupStatusChip';
 import { GroupModal } from './GroupModal';
@@ -122,51 +122,14 @@ export function GroupsPage() {
         <Kpi label="Com erro" value={sum((g) => g.comErro)} color="var(--error-text)" note="rejeitados, sem retorno ou falha" />
       </div>
 
-      {/* Histórico — DataGrid com o filtro/ordenação nativos por coluna; paginação se ajusta à altura */}
+      {/* Histórico — filtro/ordenação nativos por coluna; paginação se ajusta à altura (autoPageSize) */}
       <Paper elevation={0} sx={{ ...cardStyle, borderRadius: '10px', flex: 1, minHeight: 320, overflow: 'hidden' }}>
-        <DataGrid
+        <FhDataGrid
           rows={groups}
           columns={columns}
           getRowId={rowId}
           loading={isLoading}
           onRowClick={(p) => setGroup(p.row as DocumentGroup)}
-          localeText={ptBR.components.MuiDataGrid.defaultProps.localeText}
-          autoPageSize
-          disableRowSelectionOnClick
-          disableColumnSelector
-          disableDensitySelector
-          columnHeaderHeight={44}
-          rowHeight={52}
-          sx={{
-            border: 0,
-            fontFamily: 'inherit',
-            color: 'var(--text)',
-            '--DataGrid-rowBorderColor': 'var(--border)',
-            '& .MuiDataGrid-columnHeader': { backgroundColor: 'var(--surface-2)' },
-            '& .MuiDataGrid-columnHeaderTitle': {
-              fontWeight: 700, fontSize: 10.5, letterSpacing: '0.075em', textTransform: 'uppercase', color: 'var(--muted)',
-            },
-            '& .MuiDataGrid-columnHeaders': { borderBottom: '1px solid var(--border)' },
-            '& .MuiDataGrid-columnSeparator': { display: 'none' },
-            '& .MuiDataGrid-cell': { borderTop: 'none', fontSize: 13.5 },
-            // uma linha só na base: quem separa do rodapé é a borda do footer. A última linha e o
-            // "filler" (espaço vazio quando as linhas não preenchem a altura) não repetem a borda.
-            '& .MuiDataGrid-row--lastVisible': { '--DataGrid-rowBorderColor': 'transparent' },
-            '& .MuiDataGrid-row--lastVisible .MuiDataGrid-cell': { borderBottom: 'none' },
-            '& .MuiDataGrid-filler, & .MuiDataGrid-scrollbarFiller': {
-              '--DataGrid-rowBorderColor': 'transparent',
-              borderTop: 'none',
-              borderBottom: 'none',
-            },
-            // respira nas laterais pra não colar na borda arredondada do cartão
-            '& .fhFirstCol': { paddingLeft: '20px' },
-            '& .MuiDataGrid-columnHeader:last-of-type, & .MuiDataGrid-cell:last-of-type': { paddingRight: '20px' },
-            '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within': { outline: 'none' },
-            '& .MuiDataGrid-row': { cursor: 'pointer' },
-            '& .MuiDataGrid-row:hover': { backgroundColor: 'var(--surface-2)' },
-            '& .MuiDataGrid-footerContainer': { borderTop: '1px solid var(--border)' },
-            '& .MuiTablePagination-root': { color: 'var(--muted)' },
-          }}
         />
       </Paper>
 

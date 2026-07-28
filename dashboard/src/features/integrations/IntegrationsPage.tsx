@@ -8,7 +8,9 @@ import { api } from '../../api/client';
 import { useCompanies, useBranches } from '../manual/useDirectory';
 import { useSchedules, useExecutions } from '../schedules/useScheduling';
 import { StatusChip } from '../../components/StatusChip';
-import type { CreateScheduleRequest, IntegrationModeName, Schedule } from '../../types';
+import { FhDataGrid } from '../../components/FhDataGrid';
+import type { GridColDef } from '@mui/x-data-grid';
+import type { CreateScheduleRequest, ExecutionSummary, IntegrationModeName, Schedule } from '../../types';
 
 const ALL_BRANCHES = '__all__';
 const MODE_LABEL: Record<IntegrationModeName, string> = {
@@ -16,8 +18,6 @@ const MODE_LABEL: Record<IntegrationModeName, string> = {
   ScheduledDaily: 'Diária (D-1)',
   ScheduledOnce: 'Agendada',
 };
-const AG_GRID = 'minmax(88px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(118px,1fr) 84px 168px';
-const EX_GRID = 'minmax(86px,1fr) minmax(74px,0.9fr) minmax(46px,0.6fr) minmax(112px,1.2fr) 56px minmax(104px,1fr)';
 
 type Mode = 'now' | 'daily' | 'once';
 type Tab = 'schedules' | 'executions';
@@ -199,8 +199,60 @@ export function IntegrationsPage() {
     (createSchedule.error as Error)?.message ??
     (updateSchedule.error as Error)?.message;
 
+  const mono = (v: unknown) => (
+    <span className="fh-mono" style={{ fontWeight: 600, color: 'var(--ink)' }}>{v as string}</span>
+  );
+
+  const scheduleColumns: GridColDef<Schedule>[] = [
+    { field: 'mode', headerName: 'Tipo', width: 130, headerClassName: 'fhFirstCol', cellClassName: 'fhFirstCol', valueGetter: (_v, row) => MODE_LABEL[row.mode] },
+    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120, renderCell: (p) => mono(p.value) },
+    { field: 'branchCode', headerName: 'Filial', width: 90, valueGetter: (_v, row) => row.branchCode ?? 'Todas' },
+    { field: 'nextRunAt', headerName: 'Próximo disparo', width: 170, valueGetter: (_v, row) => dateTime(row.nextRunAt) },
+    {
+      field: 'active',
+      headerName: 'Status',
+      width: 120,
+      valueGetter: (_v, row) => (row.active ? 'Ativo' : 'Inativo'),
+      renderCell: (p) => <StatusChip tone={p.row.active ? 'ok' : 'pending'}>{p.row.active ? 'Ativo' : 'Inativo'}</StatusChip>,
+    },
+    {
+      field: 'acao',
+      headerName: 'Ação',
+      width: 190,
+      sortable: false,
+      filterable: false,
+      headerAlign: 'right',
+      align: 'right',
+      renderCell: (p) => (
+        <span style={{ display: 'inline-flex', gap: 6, justifyContent: 'flex-end' }}>
+          <button type="button" className="fh-btn fh-btn-secondary" onClick={() => openEdit(p.row)} style={{ height: 30, padding: '0 12px', fontSize: 13 }}>
+            Editar
+          </button>
+          {p.row.active ? (
+            <button type="button" className="fh-btn-danger" onClick={() => deactivate.mutate(p.row.id)} disabled={deactivate.isPending} style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6 }}>
+              Desativar
+            </button>
+          ) : p.row.mode === 'ScheduledDaily' ? (
+            <button type="button" className="fh-btn-success" onClick={() => reactivate.mutate(p.row.id)} disabled={reactivate.isPending} style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6 }}>
+              Ativar
+            </button>
+          ) : null}
+        </span>
+      ),
+    },
+  ];
+
+  const executionColumns: GridColDef<ExecutionSummary>[] = [
+    { field: 'mode', headerName: 'Modo', width: 130, headerClassName: 'fhFirstCol', cellClassName: 'fhFirstCol', valueGetter: (_v, row) => MODE_LABEL[row.mode] },
+    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120, renderCell: (p) => mono(p.value) },
+    { field: 'branchCode', headerName: 'Filial', width: 90, valueGetter: (_v, row) => row.branchCode ?? 'Todas' },
+    { field: 'periodo', headerName: 'Período', flex: 1, minWidth: 150, sortable: false, valueGetter: (_v, row) => `${row.periodStart} → ${row.periodEnd}` },
+    { field: 'discoveredCount', headerName: 'Notas', width: 90, align: 'right', headerAlign: 'right', type: 'number' },
+    { field: 'runAt', headerName: 'Quando', width: 170, align: 'right', headerAlign: 'right', valueGetter: (_v, row) => dateTime(row.runAt) },
+  ];
+
   return (
-    <div style={{ padding: '28px 28px 44px', display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 1040, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div style={{ flex: 1, minHeight: 0, padding: '28px 28px', display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 1040, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -222,8 +274,8 @@ export function IntegrationsPage() {
         </div>
       )}
 
-      {/* Card com abas */}
-      <div style={card}>
+      {/* Card com abas — a tabela preenche a altura e pagina (autoPageSize) */}
+      <div style={{ ...card, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', gap: 24, padding: '16px 22px 0', borderBottom: '1px solid var(--border)' }}>
           <TabButton active={tab === 'schedules'} onClick={() => setTab('schedules')}>
             Agendamentos
@@ -232,70 +284,13 @@ export function IntegrationsPage() {
             Execuções recentes
           </TabButton>
         </div>
-
-        {tab === 'schedules' ? (
-          <GridTable grid={AG_GRID} minWidth={570} head={['Tipo', 'Empresa', 'Filial', 'Próximo disparo', 'Status', { label: 'Ação', align: 'right' }]}>
-            {(schedules.data ?? []).map((s, i, arr) => (
-              <Row key={s.id} grid={AG_GRID} last={i === arr.length - 1}>
-                <Cell nowrap>{MODE_LABEL[s.mode]}</Cell>
-                <Cell mono strong>{s.companyCode}</Cell>
-                <Cell muted mono>{s.branchCode ?? 'Todas'}</Cell>
-                <Cell mono nowrap>{dateTime(s.nextRunAt)}</Cell>
-                <div>
-                  <StatusChip tone={s.active ? 'ok' : 'pending'}>{s.active ? 'Ativo' : 'Inativo'}</StatusChip>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
-                  <button
-                    type="button"
-                    className="fh-btn fh-btn-secondary"
-                    onClick={() => openEdit(s)}
-                    style={{ height: 30, padding: '0 12px', fontSize: 13 }}
-                  >
-                    Editar
-                  </button>
-                  {s.active ? (
-                    <button
-                      type="button"
-                      className="fh-btn-danger"
-                      onClick={() => deactivate.mutate(s.id)}
-                      disabled={deactivate.isPending}
-                      style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6 }}
-                    >
-                      Desativar
-                    </button>
-                  ) : s.mode === 'ScheduledDaily' ? (
-                    <button
-                      type="button"
-                      className="fh-btn-success"
-                      onClick={() => reactivate.mutate(s.id)}
-                      disabled={reactivate.isPending}
-                      style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6 }}
-                    >
-                      Ativar
-                    </button>
-                  ) : null}
-                </div>
-              </Row>
-            ))}
-            {(schedules.data?.length ?? 0) === 0 && <Empty>Nenhum agendamento ainda.</Empty>}
-          </GridTable>
-        ) : (
-          <GridTable grid={EX_GRID} minWidth={570} head={['Modo', 'Empresa', 'Filial', 'Período', { label: 'Notas', align: 'right' }, { label: 'Quando', align: 'right' }]}>
-            {(executions.data ?? []).map((e, i, arr) => (
-              <Row key={e.id} grid={EX_GRID} last={i === arr.length - 1}>
-                <Cell nowrap>{MODE_LABEL[e.mode]}</Cell>
-                <Cell mono strong>{e.companyCode}</Cell>
-                <Cell muted mono>{e.branchCode ?? 'Todas'}</Cell>
-                <Cell mono nowrap>
-                  {e.periodStart} → {e.periodEnd}
-                </Cell>
-                <Cell mono align="right">{e.discoveredCount}</Cell>
-                <Cell muted mono align="right" nowrap>{dateTime(e.runAt)}</Cell>
-              </Row>
-            ))}
-            {(executions.data?.length ?? 0) === 0 && <Empty>Nenhuma execução ainda.</Empty>}
-          </GridTable>
-        )}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          {tab === 'schedules' ? (
+            <FhDataGrid rows={schedules.data ?? []} columns={scheduleColumns} loading={schedules.isLoading} />
+          ) : (
+            <FhDataGrid rows={executions.data ?? []} columns={executionColumns} loading={executions.isLoading} />
+          )}
+        </div>
       </div>
 
       {/* Modal Nova integração */}
@@ -439,95 +434,6 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       {children}
     </div>
   );
-}
-
-type Head = string | { label: string; align: 'right' };
-function GridTable({ grid, minWidth, head, children }: { grid: string; minWidth: number; head: Head[]; children: ReactNode }) {
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ minWidth }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: grid,
-            columnGap: 10,
-            alignItems: 'center',
-            padding: '12px 22px',
-            background: 'var(--surface-2)',
-            borderBottom: '1px solid var(--border)',
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.075em',
-            textTransform: 'uppercase',
-            color: 'var(--muted)',
-          }}
-        >
-          {head.map((h, i) => {
-            const label = typeof h === 'string' ? h : h.label;
-            const align = typeof h === 'string' ? 'left' : h.align;
-            return (
-              <div key={i} style={{ textAlign: align }}>
-                {label}
-              </div>
-            );
-          })}
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Row({ grid, last, children }: { grid: string; last: boolean; children: ReactNode }) {
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: grid,
-        columnGap: 10,
-        alignItems: 'center',
-        padding: '14px 22px',
-        borderBottom: last ? 'none' : '1px solid var(--border)',
-        fontSize: 14,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Cell({
-  children,
-  mono,
-  strong,
-  muted,
-  nowrap,
-  align,
-}: {
-  children: ReactNode;
-  mono?: boolean;
-  strong?: boolean;
-  muted?: boolean;
-  nowrap?: boolean;
-  align?: 'right';
-}) {
-  return (
-    <div
-      style={{
-        color: strong ? 'var(--ink)' : muted ? 'var(--text-secondary)' : 'var(--text)',
-        fontWeight: strong ? 600 : 400,
-        fontVariantNumeric: mono ? 'tabular-nums' : undefined,
-        whiteSpace: nowrap ? 'nowrap' : undefined,
-        textAlign: align,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Empty({ children }: { children: ReactNode }) {
-  return <div style={{ padding: '28px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>{children}</div>;
 }
 
 function Field({ label, span2, children }: { label: string; span2?: boolean; children: ReactNode }) {

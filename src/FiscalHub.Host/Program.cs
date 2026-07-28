@@ -125,6 +125,7 @@ await LocalSeed.RunAsync(app.Services);
 await app.Services.EnsureDevUsersAsync();
 await app.Services.EnsureDevConnectorProfilesAsync();
 await app.Services.EnsureDevDocumentsAsync();   // notas de exemplo p/ paginação, KPIs do dia e reprocessar
+await app.Services.EnsureDevSchedulesAndExecutionsAsync();   // agendamentos + execuções p/ paginação em Integrações
 
 app.MapGet("/", () =>
     $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.")

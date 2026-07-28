@@ -233,4 +233,72 @@ public static class InfrastructureServiceCollectionExtensions
         db.ProcessedDocuments.AddRange(rows);
         await db.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// Semeia agendamentos e execuções de exemplo (uma vez, por tabela vazia) no tenant-a — dezenas
+    /// de cada, com modos/empresas/datas variados, para exercitar a paginação da tela de Integrações.
+    /// </summary>
+    public static async Task EnsureDevSchedulesAndExecutionsAsync(this IServiceProvider services, CancellationToken ct = default)
+    {
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        ProcessingDbContext db = scope.ServiceProvider.GetRequiredService<ProcessingDbContext>();
+
+        DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+        (string Company, string Branch)[] orgs =
+        [
+            ("12345678", "0001"), ("12345678", "0002"), ("98765432", "0001"),
+            ("98765432", "0003"), ("11222333", "0001"), ("44556677", "0002"),
+        ];
+
+        if (!await db.ScheduledIntegrations.AnyAsync(ct))
+        {
+            var rows = new List<ScheduledIntegrationRow>();
+            for (int i = 0; i < 28; i++)
+            {
+                bool daily = i % 2 == 0;
+                (string company, string branch) = orgs[i % orgs.Length];
+                DateTimeOffset next = nowUtc.AddHours(6 + i).AddDays(daily ? 0 : i % 12);
+                rows.Add(new ScheduledIntegrationRow
+                {
+                    Mode = daily ? IntegrationMode.ScheduledDaily : IntegrationMode.ScheduledOnce,
+                    TenantId = "tenant-a",
+                    CompanyCode = company,
+                    BranchCode = i % 4 == 0 ? null : branch,   // null = todas as filiais
+                    PeriodStart = daily ? null : "2026-07-01",
+                    PeriodEnd = daily ? null : "2026-07-15",
+                    NextRunTicks = next.UtcTicks,
+                    Active = i % 3 != 0,   // ~2/3 ativos, o resto pausado
+                    CreatedAt = nowUtc.AddDays(-i),
+                });
+            }
+
+            db.ScheduledIntegrations.AddRange(rows);
+        }
+
+        if (!await db.IntegrationExecutions.AnyAsync(ct))
+        {
+            IntegrationMode[] modes = [IntegrationMode.Manual, IntegrationMode.ScheduledDaily, IntegrationMode.ScheduledOnce];
+            var rows = new List<IntegrationExecutionRow>();
+            for (int i = 0; i < 45; i++)
+            {
+                (string company, string branch) = orgs[i % orgs.Length];
+                DateTimeOffset when = nowUtc.AddHours(-(i * 7));   // do mais recente ao mais antigo
+                rows.Add(new IntegrationExecutionRow
+                {
+                    Mode = modes[i % modes.Length],
+                    TenantId = "tenant-a",
+                    CompanyCode = company,
+                    BranchCode = i % 5 == 0 ? null : branch,
+                    PeriodStart = when.AddDays(-1).ToString("yyyy-MM-dd"),
+                    PeriodEnd = when.ToString("yyyy-MM-dd"),
+                    DiscoveredCount = (i * 13) % 400,
+                    CreatedAt = when,
+                });
+            }
+
+            db.IntegrationExecutions.AddRange(rows);
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
 }
