@@ -14,6 +14,15 @@ const cardStyle: CSSProperties = {
   boxShadow: 'var(--shadow-card)',
 };
 
+// Modo/gatilho da integração → rótulo do usuário.
+const TRIGGER_LABEL: Record<string, string> = {
+  RealTime: 'Tempo real',
+  Manual: 'Imediata',
+  ScheduledDaily: 'Diária (D-1)',
+  ScheduledOnce: 'Agendada',
+};
+const triggerLabel = (t: string) => TRIGGER_LABEL[t] ?? 'Tempo real';
+
 function todayIso(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
@@ -34,9 +43,8 @@ const columns: GridColDef<DocumentGroup>[] = [
   },
   { field: 'branchCode', headerName: 'Filial', width: 90 },
   { field: 'referenceDate', headerName: 'Data', width: 120 },
-  // "Tipo" = modo da integração (não o tipo do documento). Hoje as notas do dashboard chegam por
-  // evento (tempo real); quando o grupo passar a carregar o gatilho, refletirá Agendada / D-1 / etc.
-  { field: 'type', headerName: 'Tipo', width: 120, valueGetter: () => 'Tempo real' },
+  // "Tipo" = modo/gatilho da integração do grupo (não o tipo do documento).
+  { field: 'trigger', headerName: 'Tipo', width: 130, valueGetter: (_v, row) => triggerLabel(row.trigger) },
   {
     field: 'periodo',
     headerName: 'Período',

@@ -42,7 +42,8 @@ public sealed class IntegrationRunner : IIntegrationRunner
 
         foreach (DocumentReference reference in found)
         {
-            await _queue.EnqueueAsync(reference with { Trigger = trigger }, ct);
+            // Trigger define a idempotência; SourceMode é só o rótulo do modo pro dashboard.
+            await _queue.EnqueueAsync(reference with { Trigger = trigger, SourceMode = request.Mode.ToString() }, ct);
         }
 
         await _executions.RecordAsync(new IntegrationExecution

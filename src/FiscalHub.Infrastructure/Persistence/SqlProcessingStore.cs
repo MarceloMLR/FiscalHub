@@ -56,6 +56,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 ReferenceDate = refDate,
                 DocumentNumber = metadata.DocumentNumber,
                 DocumentModel = metadata.DocumentModel,
+                Trigger = reference.SourceMode ?? "RealTime",   // sem modo = chegou por evento (tempo real)
                 ContentHash = contentHash,
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -68,6 +69,10 @@ internal sealed class SqlProcessingStore : IProcessingStore
             row.ReferenceDate = refDate;
             row.DocumentNumber = metadata.DocumentNumber;
             row.DocumentModel = metadata.DocumentModel;
+            if (reference.SourceMode is not null)
+            {
+                row.Trigger = reference.SourceMode;   // só troca o rótulo se veio um modo explícito (não em reprocesso por evento)
+            }
             row.ContentHash = contentHash;   // correção reintegrando: grava o hash do cru novo
             row.UpdatedAt = now;
         }

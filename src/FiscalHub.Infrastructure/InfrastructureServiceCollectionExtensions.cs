@@ -169,6 +169,8 @@ public static class InfrastructureServiceCollectionExtensions
             ("12345678", "0001"), ("12345678", "0002"), ("98765432", "0001"),
             ("98765432", "0003"), ("11222333", "0001"), ("44556677", "0002"),
         ];
+        // Modo/gatilho da integração — variado para a coluna "Tipo" mostrar Tempo real / Imediata / Diária / Agendada.
+        string[] triggers = ["RealTime", "RealTime", "Manual", "ScheduledDaily", "ScheduledOnce"];
 
         // Container das fotos de rastreabilidade (origem/domínio/destino) — semeadas junto com as notas.
         BlobContainerClient traces = scope.ServiceProvider.GetRequiredService<BlobServiceClient>().GetBlobContainerClient("traces");
@@ -208,6 +210,7 @@ public static class InfrastructureServiceCollectionExtensions
                         ReferenceDate = refDate,
                         DocumentNumber = number,
                         DocumentModel = "55",
+                        Trigger = triggers[seq % triggers.Length],
                         Attempts = status == IntegrationStatus.Unconfirmed ? 6 : status == IntegrationStatus.Submitted ? 2 : 1,
                         Reason = reason,
                         CreatedAt = nowUtc.AddDays(-day),
@@ -229,7 +232,7 @@ public static class InfrastructureServiceCollectionExtensions
             Type = DocumentType.GoodsInvoice55,
             Status = IntegrationStatus.IntegrationError,
             CompanyCode = "12345678", BranchCode = "0001", ReferenceDate = "2026-06-01",
-            DocumentNumber = "123", DocumentModel = "55", Attempts = 1,
+            DocumentNumber = "123", DocumentModel = "55", Attempts = 1, Trigger = "RealTime",
             Reason = "Rejeitada pelo compliance — reprocessar após ajuste.",
             CreatedAt = nowUtc, UpdatedAt = nowUtc,
         });
@@ -240,7 +243,7 @@ public static class InfrastructureServiceCollectionExtensions
             Type = DocumentType.GoodsInvoice55,
             Status = IntegrationStatus.DeadLettered,
             CompanyCode = "98765432", BranchCode = "0001", ReferenceDate = "2026-06-02",
-            DocumentNumber = "456", DocumentModel = "55", Attempts = 3,
+            DocumentNumber = "456", DocumentModel = "55", Attempts = 3, Trigger = "ScheduledDaily",
             Reason = "Dead-letter — exige intervenção; reprocessar.",
             CreatedAt = nowUtc, UpdatedAt = nowUtc,
         });

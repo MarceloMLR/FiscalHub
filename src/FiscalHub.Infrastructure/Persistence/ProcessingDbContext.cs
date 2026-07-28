@@ -37,6 +37,7 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         doc.Property(d => d.ReferenceDate).HasMaxLength(10);
         doc.Property(d => d.DocumentNumber).HasMaxLength(20);
         doc.Property(d => d.DocumentModel).HasMaxLength(5);
+        doc.Property(d => d.Trigger).HasMaxLength(20);
 
         var exec = modelBuilder.Entity<IntegrationExecutionRow>();
         exec.ToTable("IntegrationExecutions");
