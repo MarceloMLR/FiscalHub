@@ -14,10 +14,6 @@ const cardStyle: CSSProperties = {
   boxShadow: 'var(--shadow-card)',
 };
 
-// Rótulo amigável do tipo de documento (o dado cru vem como "GoodsInvoice55").
-const TYPE_LABEL: Record<string, string> = { GoodsInvoice55: 'NF-e 55' };
-const typeLabel = (t: string) => TYPE_LABEL[t] ?? t ?? '—';
-
 function todayIso(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');
@@ -38,7 +34,9 @@ const columns: GridColDef<DocumentGroup>[] = [
   },
   { field: 'branchCode', headerName: 'Filial', width: 90 },
   { field: 'referenceDate', headerName: 'Data', width: 120 },
-  { field: 'type', headerName: 'Tipo', width: 120, valueGetter: (_v, row) => typeLabel(row.type) },
+  // "Tipo" = modo da integração (não o tipo do documento). Hoje as notas do dashboard chegam por
+  // evento (tempo real); quando o grupo passar a carregar o gatilho, refletirá Agendada / D-1 / etc.
+  { field: 'type', headerName: 'Tipo', width: 120, valueGetter: () => 'Tempo real' },
   {
     field: 'periodo',
     headerName: 'Período',
