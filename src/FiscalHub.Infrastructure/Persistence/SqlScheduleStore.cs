@@ -60,6 +60,21 @@ internal sealed class SqlScheduleStore : IScheduleStore
         return true;
     }
 
+    public async Task<bool> ReactivateAsync(int id, DateTimeOffset nextRunAt, CancellationToken ct = default)
+    {
+        ScheduledIntegrationRow? row = await _db.ScheduledIntegrations
+            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == _tenant.TenantId, ct);
+        if (row is null)
+        {
+            return false;
+        }
+
+        row.Active = true;
+        row.NextRunTicks = nextRunAt.UtcTicks;   // volta pra fila com o próximo disparo recalculado
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<IReadOnlyList<ScheduledIntegration>> ListAsync(CancellationToken ct = default)
     {
         // Lista da UI: só os agendamentos do tenant logado. (O agendador, que roda os vencidos, usa

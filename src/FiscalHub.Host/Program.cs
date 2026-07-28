@@ -282,6 +282,33 @@ app.MapPost("/schedules/{id:int}/deactivate", async (int id, IScheduleStore stor
     return Results.NoContent();
 });
 
+// Reativa um recorrente pausado. O único (ScheduledOnce) não reativa — já cumpriu seu papel.
+app.MapPost("/schedules/{id:int}/reactivate", async (int id, IScheduleStore store, TimeProvider clock, CancellationToken ct) =>
+{
+    IReadOnlyList<ScheduledIntegration> mine = await store.ListAsync(ct);   // já escopado ao tenant logado
+    ScheduledIntegration? s = mine.FirstOrDefault(x => x.Id == id);
+    if (s is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (s.Mode != IntegrationMode.ScheduledDaily)
+    {
+        return Results.BadRequest(new { message = "Só agendamentos recorrentes (diários) podem ser reativados." });
+    }
+
+    // Mantém o horário salvo (no fuso de Brasília) e reprograma pro próximo disparo: hoje se ainda vem, senão amanhã.
+    var brt = TimeSpan.FromHours(-3);
+    DateTimeOffset lastBrt = s.NextRunAt.ToOffset(brt);
+    var timeOfDay = TimeOnly.FromDateTime(lastBrt.DateTime);
+    DateTimeOffset nowBrt = clock.GetUtcNow().ToOffset(brt);
+    var todayRun = new DateTimeOffset(nowBrt.Date.Add(timeOfDay.ToTimeSpan()), brt);
+    DateTimeOffset next = todayRun > nowBrt ? todayRun : todayRun.AddDays(1);
+
+    bool found = await store.ReactivateAsync(id, next, ct);
+    return found ? Results.Ok(new { id, nextRunAt = next }) : Results.NotFound();
+});
+
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
 // Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual.
 app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient blobs, CancellationToken ct) =>

@@ -142,6 +142,11 @@ export function IntegrationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
   });
 
+  const reactivate = useMutation({
+    mutationFn: (id: number) => api.reactivateSchedule(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
+  });
+
   const periodOk = start !== '' && end !== '' && start <= end;
   const pending = runNow.isPending || createSchedule.isPending || updateSchedule.isPending;
   const canSubmit =
@@ -248,7 +253,7 @@ export function IntegrationsPage() {
                   >
                     Editar
                   </button>
-                  {s.active && (
+                  {s.active ? (
                     <button
                       type="button"
                       className="fh-btn-danger"
@@ -258,7 +263,17 @@ export function IntegrationsPage() {
                     >
                       Desativar
                     </button>
-                  )}
+                  ) : s.mode === 'ScheduledDaily' ? (
+                    <button
+                      type="button"
+                      className="fh-btn-success"
+                      onClick={() => reactivate.mutate(s.id)}
+                      disabled={reactivate.isPending}
+                      style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6 }}
+                    >
+                      Ativar
+                    </button>
+                  ) : null}
                 </div>
               </Row>
             ))}

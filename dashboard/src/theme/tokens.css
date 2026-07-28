@@ -190,3 +190,13 @@ body {
 }
 .fh-btn-danger:hover:not(:disabled) { background: var(--error-bg); }
 .fh-btn-danger:disabled { opacity: 0.5; cursor: default; }
+
+/* botão "ativar" discreto, na cor de sucesso */
+.fh-btn-success {
+  background: var(--surface);
+  color: var(--ok-text);
+  border: 1px solid var(--ok-border);
+  cursor: pointer;
+}
+.fh-btn-success:hover:not(:disabled) { background: var(--ok-bg); }
+.fh-btn-success:disabled { opacity: 0.5; cursor: default; }

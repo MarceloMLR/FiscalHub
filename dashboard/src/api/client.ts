@@ -134,6 +134,15 @@ export const api = {
       throw new Error(`${res.status} ${res.statusText}`);
     }
   },
+  reactivateSchedule: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE}/schedules/${id}/reactivate`, { method: 'POST', headers: authHeaders() });
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  },
   connector: () => getJson<ConnectorProfile>('/connector'),
   saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {
     const res = await fetch(`${BASE}/connector`, {
