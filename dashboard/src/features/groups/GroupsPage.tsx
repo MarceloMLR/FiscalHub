@@ -1,11 +1,7 @@
 import { useMemo, useState, type CSSProperties } from 'react';
 import Paper from '@mui/material/Paper';
-import { DataGrid, GridToolbar, type GridColDef } from '@mui/x-data-grid';
+import { DataGrid, type GridColDef } from '@mui/x-data-grid';
 import { ptBR } from '@mui/x-data-grid/locales';
-
-// Rótulo amigável do tipo de documento (o dado cru vem como "GoodsInvoice55").
-const TYPE_LABEL: Record<string, string> = { GoodsInvoice55: 'NF-e 55' };
-const typeLabel = (t: string) => TYPE_LABEL[t] ?? t ?? '—';
 import { useGroups } from './useGroups';
 import { groupStatus, GroupStatusChip } from './GroupStatusChip';
 import { GroupModal } from './GroupModal';
@@ -17,6 +13,10 @@ const cardStyle: CSSProperties = {
   borderRadius: 10,
   boxShadow: 'var(--shadow-card)',
 };
+
+// Rótulo amigável do tipo de documento (o dado cru vem como "GoodsInvoice55").
+const TYPE_LABEL: Record<string, string> = { GoodsInvoice55: 'NF-e 55' };
+const typeLabel = (t: string) => TYPE_LABEL[t] ?? t ?? '—';
 
 function todayIso(): string {
   const d = new Date();
@@ -31,17 +31,30 @@ const columns: GridColDef<DocumentGroup>[] = [
     field: 'companyCode',
     headerName: 'Empresa',
     flex: 1,
-    minWidth: 130,
-    renderCell: (p) => <span className="fh-mono" style={{ fontWeight: 600 }}>{p.value as string}</span>,
+    minWidth: 140,
+    headerClassName: 'fhFirstCol',
+    cellClassName: 'fhFirstCol',
+    renderCell: (p) => <span className="fh-mono" style={{ fontWeight: 600, color: 'var(--ink)' }}>{p.value as string}</span>,
   },
   { field: 'branchCode', headerName: 'Filial', width: 90 },
   { field: 'referenceDate', headerName: 'Data', width: 120 },
-  { field: 'type', headerName: 'Tipo', width: 130, valueGetter: (_v, row) => typeLabel(row.type) },
+  { field: 'type', headerName: 'Tipo', width: 120, valueGetter: (_v, row) => typeLabel(row.type) },
+  {
+    field: 'periodo',
+    headerName: 'Período',
+    flex: 1,
+    minWidth: 130,
+    sortable: false,
+    filterable: false,
+    valueGetter: () => '—',
+    renderCell: () => <span style={{ color: 'var(--faint)' }}>—</span>,
+  },
   {
     field: 'processadas',
     headerName: 'Processadas',
     width: 130,
     sortable: false,
+    filterable: false,
     valueGetter: (_v, row) => `${row.finalizadas}/${row.total}`,
     renderCell: (p) => (
       <span style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -53,8 +66,8 @@ const columns: GridColDef<DocumentGroup>[] = [
   {
     field: 'status',
     headerName: 'Status',
-    width: 170,
-    valueGetter: (_v, row) => groupStatus(row).label, // deixa o filtro/busca casar pelo rótulo
+    width: 160,
+    valueGetter: (_v, row) => groupStatus(row).label, // o filtro/ordenação casa pelo rótulo
     renderCell: (p) => <GroupStatusChip group={p.row} />,
   },
 ];
@@ -87,7 +100,7 @@ export function GroupsPage() {
   const pct = totalHoje > 0 ? ((finalizadas / totalHoje) * 100).toFixed(1).replace('.', ',') : '0,0';
 
   return (
-    <div style={{ padding: '24px 28px 44px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 16, padding: '24px 28px' }}>
       {isError && (
         <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', borderRadius: 8, padding: '10px 13px', fontSize: 13 }}>
           Falha ao carregar: {(error as Error)?.message}. O host está rodando na 5200?
@@ -109,8 +122,8 @@ export function GroupsPage() {
         <Kpi label="Com erro" value={sum((g) => g.comErro)} color="var(--error-text)" note="rejeitados, sem retorno ou falha" />
       </div>
 
-      {/* Histórico completo — com busca, filtros e ordenação por coluna */}
-      <Paper elevation={0} sx={{ ...cardStyle, overflow: 'hidden' }}>
+      {/* Histórico — DataGrid com o filtro/ordenação nativos por coluna; paginação se ajusta à altura */}
+      <Paper elevation={0} sx={{ ...cardStyle, flex: 1, minHeight: 320, overflow: 'hidden' }}>
         <DataGrid
           rows={groups}
           columns={columns}
@@ -118,25 +131,32 @@ export function GroupsPage() {
           loading={isLoading}
           onRowClick={(p) => setGroup(p.row as DocumentGroup)}
           localeText={ptBR.components.MuiDataGrid.defaultProps.localeText}
-          slots={{ toolbar: GridToolbar }}
-          slotProps={{ toolbar: { showQuickFilter: true, quickFilterProps: { placeholder: 'Buscar…' } } }}
-          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-          pageSizeOptions={[10, 25, 50, 100]}
+          autoPageSize
           disableRowSelectionOnClick
           disableColumnSelector
-          autoHeight
+          disableDensitySelector
+          columnHeaderHeight={44}
+          rowHeight={52}
           sx={{
             border: 0,
             fontFamily: 'inherit',
-            '& .MuiDataGrid-columnHeaders': { bgcolor: 'var(--surface-2)' },
-            '& .MuiDataGrid-columnHeaderTitle': { fontWeight: 700, fontSize: 10.5, letterSpacing: '0.075em', textTransform: 'uppercase', color: 'var(--muted)' },
-            '& .MuiDataGrid-cell': { borderColor: 'var(--border)', fontSize: 13.5, color: 'var(--text)' },
+            color: 'var(--text)',
+            '--DataGrid-rowBorderColor': 'var(--border)',
+            '& .MuiDataGrid-columnHeader': { backgroundColor: 'var(--surface-2)' },
+            '& .MuiDataGrid-columnHeaderTitle': {
+              fontWeight: 700, fontSize: 10.5, letterSpacing: '0.075em', textTransform: 'uppercase', color: 'var(--muted)',
+            },
+            '& .MuiDataGrid-columnHeaders': { borderBottom: '1px solid var(--border)' },
             '& .MuiDataGrid-columnSeparator': { display: 'none' },
+            '& .MuiDataGrid-cell': { borderTop: 'none', fontSize: 13.5 },
+            // respira nas laterais pra não colar na borda arredondada do cartão
+            '& .fhFirstCol': { paddingLeft: '20px' },
+            '& .MuiDataGrid-columnHeader:last-of-type, & .MuiDataGrid-cell:last-of-type': { paddingRight: '20px' },
             '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within, & .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within': { outline: 'none' },
             '& .MuiDataGrid-row': { cursor: 'pointer' },
-            '& .MuiDataGrid-row:hover': { bgcolor: 'var(--surface-2)' },
-            '& .MuiDataGrid-footerContainer, & .MuiDataGrid-toolbarContainer': { borderColor: 'var(--border)' },
-            '& .MuiDataGrid-toolbarContainer': { padding: '10px 12px', gap: 8 },
+            '& .MuiDataGrid-row:hover': { backgroundColor: 'var(--surface-2)' },
+            '& .MuiDataGrid-footerContainer': { borderTop: '1px solid var(--border)' },
+            '& .MuiTablePagination-root': { color: 'var(--muted)' },
           }}
         />
       </Paper>

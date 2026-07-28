@@ -10,8 +10,10 @@ export function StatusChip({ tone, children }: { tone: Tone; children: ReactNode
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        verticalAlign: 'middle',
         gap: 6,
         fontSize: 12,
+        lineHeight: 1, // trava a altura: não herda o line-height alto da célula do DataGrid
         fontWeight: 600,
         padding: '3px 9px 3px 7px',
         borderRadius: 6,
