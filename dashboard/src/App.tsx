@@ -86,7 +86,9 @@ function Dashboard() {
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            padding: '16px 14px',
+            height: 73,
+            padding: '0 14px',
+            boxSizing: 'border-box',
             borderBottom: '1px solid var(--border)',
           }}
         >
@@ -182,7 +184,9 @@ function Dashboard() {
           style={{
             background: 'var(--surface)',
             borderBottom: '1px solid var(--border)',
-            padding: '14px 28px',
+            height: 73,
+            padding: '0 28px',
+            boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
