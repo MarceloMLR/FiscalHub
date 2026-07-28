@@ -1,4 +1,7 @@
+using System.Text;
+using System.Text.Json;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using FiscalHub.Application.Auth;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Integrations;
@@ -167,6 +170,11 @@ public static class InfrastructureServiceCollectionExtensions
             ("98765432", "0003"), ("11222333", "0001"), ("44556677", "0002"),
         ];
 
+        // Container das fotos de rastreabilidade (origem/domínio/destino) — semeadas junto com as notas.
+        BlobContainerClient traces = scope.ServiceProvider.GetRequiredService<BlobServiceClient>().GetBlobContainerClient("traces");
+        await traces.CreateIfNotExistsAsync(cancellationToken: ct);
+        var jsonOpts = new JsonSerializerOptions { WriteIndented = true };
+
         var rows = new List<ProcessedDocument>();
         int seq = 0;
         for (int day = 0; day < 7; day++)   // hoje e os 6 dias anteriores → 42 grupos (paginação)
@@ -179,28 +187,35 @@ public static class InfrastructureServiceCollectionExtensions
                 for (int k = 0; k < docs; k++)
                 {
                     IntegrationStatus status = cycle[seq % cycle.Length];
+                    string key = $"3526{company}5500100000{seq:D6}";
+                    string number = (1000 + seq).ToString();
+                    string? reason = status switch
+                    {
+                        IntegrationStatus.IntegrationError => "Rejeitada pelo compliance (regra de tributação).",
+                        IntegrationStatus.DeadLettered => "Falha definitiva após as retentativas.",
+                        IntegrationStatus.Unconfirmed => "Sem retorno do compliance após várias consultas.",
+                        _ => null,
+                    };
+
                     rows.Add(new ProcessedDocument
                     {
                         TenantId = "tenant-a",
-                        NaturalKey = $"3526{company}5500100000{seq:D6}",
+                        NaturalKey = key,
                         Type = DocumentType.GoodsInvoice55,
                         Status = status,
                         CompanyCode = company,
                         BranchCode = branch,
                         ReferenceDate = refDate,
-                        DocumentNumber = (1000 + seq).ToString(),
+                        DocumentNumber = number,
                         DocumentModel = "55",
                         Attempts = status == IntegrationStatus.Unconfirmed ? 6 : status == IntegrationStatus.Submitted ? 2 : 1,
-                        Reason = status switch
-                        {
-                            IntegrationStatus.IntegrationError => "Rejeitada pelo compliance (regra de tributação).",
-                            IntegrationStatus.DeadLettered => "Falha definitiva após as retentativas.",
-                            IntegrationStatus.Unconfirmed => "Sem retorno do compliance após várias consultas.",
-                            _ => null,
-                        },
+                        Reason = reason,
                         CreatedAt = nowUtc.AddDays(-day),
                         UpdatedAt = nowUtc.AddDays(-day).AddMinutes(seq),
                     });
+
+                    // Origem/domínio/destino no Blob, como no fluxo real — assim o detalhe da nota tem os 3 arquivos.
+                    await WriteDevTraceAsync(traces, key, date.ToString("yyyyMM"), company, branch, number, refDate, status, reason, jsonOpts, ct);
                     seq++;
                 }
             }
@@ -300,5 +315,45 @@ public static class InfrastructureServiceCollectionExtensions
         }
 
         await db.SaveChangesAsync(ct);
+    }
+
+    // Grava as fotos de rastreabilidade (origem/domínio/destino) de uma nota semeada, no mesmo layout
+    // do fluxo real: {tenant}/{aaaaMM}/{chave}/source.xml · domain.json · avalara.json.
+    private static async Task WriteDevTraceAsync(
+        BlobContainerClient traces, string key, string period, string company, string branch,
+        string number, string refDate, IntegrationStatus status, string? reason, JsonSerializerOptions jsonOpts, CancellationToken ct)
+    {
+        string source = $"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+              <NFe>
+                <infNFe Id="NFe{key}" versao="4.00">
+                  <ide><mod>55</mod><serie>1</serie><nNF>{number}</nNF><dhEmi>{refDate}T10:00:00-03:00</dhEmi></ide>
+                  <emit><CNPJ>{company}000190</CNPJ><xNome>Empresa {company} LTDA</xNome></emit>
+                  <det nItem="1"><prod><cProd>PROD-{number}</cProd><xProd>Produto de exemplo</xProd><vProd>250.00</vProd></prod></det>
+                  <total><ICMSTot><vNF>250.00</vNF></ICMSTot></total>
+                </infNFe>
+              </NFe>
+            </nfeProc>
+            """;
+
+        string domain = JsonSerializer.Serialize(
+            new { tenantId = "tenant-a", naturalKey = key, company, branch, number, model = "55", issuedAt = $"{refDate}T10:00:00-03:00", totalAmount = 250.00m, status = status.ToString() },
+            jsonOpts);
+
+        string outbound = JsonSerializer.Serialize(
+            new { destination = "Avalara", documentCode = $"AVL-{number}", status = status.ToString(), messages = new[] { reason ?? "Documento integrado com sucesso." } },
+            jsonOpts);
+
+        await UploadTraceAsync(traces, $"tenant-a/{period}/{key}/source.xml", "application/xml", source, ct);
+        await UploadTraceAsync(traces, $"tenant-a/{period}/{key}/domain.json", "application/json", domain, ct);
+        await UploadTraceAsync(traces, $"tenant-a/{period}/{key}/avalara.json", "application/json", outbound, ct);
+    }
+
+    private static async Task UploadTraceAsync(BlobContainerClient container, string path, string contentType, string content, CancellationToken ct)
+    {
+        BlobClient blob = container.GetBlobClient(path);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+        await blob.UploadAsync(stream, new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } }, ct);
     }
 }

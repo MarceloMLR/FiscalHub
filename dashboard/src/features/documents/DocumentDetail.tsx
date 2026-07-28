@@ -94,7 +94,7 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
 
       {(isError || (!isLoading && !data)) && (
         <Typography sx={{ p: 3 }} color="text.secondary">
-          Sem fotos para este documento ainda.
+          Sem arquivos para este documento ainda.
         </Typography>
       )}
 
@@ -120,5 +120,5 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
 }
 
 function Empty() {
-  return <Typography color="text.secondary">Sem esta foto.</Typography>;
+  return <Typography color="text.secondary">Sem este arquivo.</Typography>;
 }
