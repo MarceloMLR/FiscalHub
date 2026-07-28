@@ -130,17 +130,17 @@ export function IntegrationsPage() {
   const errorMsg = (runNow.error as Error)?.message ?? (createSchedule.error as Error)?.message;
 
   return (
-    <div style={{ padding: '20px 28px 36px', display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 1080 }}>
+    <div style={{ padding: '28px 28px 44px', display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 1040, width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
-          <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums', color: 'var(--ink)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums', color: 'var(--ink)' }}>
             {activeCount}
           </span>
-          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>agendamentos ativos</span>
+          <span style={{ fontSize: 14, color: 'var(--muted)' }}>agendamentos ativos</span>
         </div>
-        <button type="button" onClick={openModal} className="fh-btn" style={{ height: 32, padding: '0 13px' }}>
-          <AddIcon sx={{ fontSize: 15 }} />
+        <button type="button" onClick={openModal} className="fh-btn" style={{ height: 38, padding: '0 16px', fontSize: 14 }}>
+          <AddIcon sx={{ fontSize: 17 }} />
           Nova integração
         </button>
       </div>
@@ -154,7 +154,7 @@ export function IntegrationsPage() {
 
       {/* Card com abas */}
       <div style={card}>
-        <div style={{ display: 'flex', gap: 22, padding: '14px 20px 0', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: 24, padding: '16px 22px 0', borderBottom: '1px solid var(--border)' }}>
           <TabButton active={tab === 'schedules'} onClick={() => setTab('schedules')}>
             Agendamentos
           </TabButton>
@@ -180,7 +180,7 @@ export function IntegrationsPage() {
                       type="button"
                       onClick={() => deactivate.mutate(s.id)}
                       disabled={deactivate.isPending}
-                      style={{ height: 26, padding: '0 9px', fontSize: 12, fontWeight: 600, borderRadius: 6, background: 'var(--surface)', color: 'var(--error-text)', border: '1px solid var(--error-border)', cursor: 'pointer' }}
+                      style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6, background: 'var(--surface)', color: 'var(--error-text)', border: '1px solid var(--error-border)', cursor: 'pointer' }}
                     >
                       Desativar
                     </button>
@@ -333,10 +333,10 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     <div
       onClick={onClick}
       style={{
-        fontSize: 13.5,
+        fontSize: 15,
         fontWeight: active ? 600 : 500,
         color: active ? 'var(--ink)' : 'var(--muted)',
-        paddingBottom: 10,
+        paddingBottom: 12,
         borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
         marginBottom: -1,
         cursor: 'pointer',
@@ -357,12 +357,12 @@ function GridTable({ grid, minWidth, head, children }: { grid: string; minWidth:
           style={{
             display: 'grid',
             gridTemplateColumns: grid,
-            columnGap: 8,
+            columnGap: 10,
             alignItems: 'center',
-            padding: '10px 20px',
+            padding: '12px 22px',
             background: 'var(--surface-2)',
             borderBottom: '1px solid var(--border)',
-            fontSize: 10.5,
+            fontSize: 11,
             fontWeight: 700,
             letterSpacing: '0.075em',
             textTransform: 'uppercase',
@@ -391,11 +391,11 @@ function Row({ grid, last, children }: { grid: string; last: boolean; children: 
       style={{
         display: 'grid',
         gridTemplateColumns: grid,
-        columnGap: 8,
+        columnGap: 10,
         alignItems: 'center',
-        padding: '11px 20px',
+        padding: '14px 22px',
         borderBottom: last ? 'none' : '1px solid var(--border)',
-        fontSize: 13,
+        fontSize: 14,
       }}
     >
       {children}
