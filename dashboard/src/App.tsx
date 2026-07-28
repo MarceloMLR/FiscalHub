@@ -64,7 +64,7 @@ function Dashboard() {
   const current = titles[view];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--page)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--page)' }}>
       {/* ══ Sidebar ══ */}
       <aside
         style={{
@@ -176,7 +176,7 @@ function Dashboard() {
       </aside>
 
       {/* ══ Main ══ */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {/* Topbar */}
         <header
           style={{
@@ -298,14 +298,17 @@ function Dashboard() {
           </div>
         </header>
 
-        {/* Conteúdo */}
-        {view === 'integrations' ? (
-          <IntegrationsPage />
-        ) : view === 'settings' && isAdmin ? (
-          <ConnectorsPage />
-        ) : (
-          <GroupsPage />
-        )}
+        {/* Conteúdo — área rolável. A topbar fica fixa acima; Documentos preenche a altura
+            (autoPageSize ajusta as linhas), as demais telas rolam aqui se passarem da altura. */}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {view === 'integrations' ? (
+            <IntegrationsPage />
+          ) : view === 'settings' && isAdmin ? (
+            <ConnectorsPage />
+          ) : (
+            <GroupsPage />
+          )}
+        </div>
       </div>
     </div>
   );
