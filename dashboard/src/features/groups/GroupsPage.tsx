@@ -221,20 +221,10 @@ function PagerButton({ disabled, onClick, children }: { disabled: boolean; onCli
   return (
     <button
       type="button"
+      className="fh-icon-btn"
       disabled={disabled}
       onClick={onClick}
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        background: 'var(--surface)',
-        border: `1px solid ${disabled ? 'var(--border)' : 'var(--border-strong)'}`,
-        color: disabled ? 'var(--faint)' : 'var(--text-secondary)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-      }}
+      style={{ width: 28, height: 28, borderRadius: 6 }}
     >
       {children}
     </button>

@@ -178,9 +178,10 @@ export function IntegrationsPage() {
                   {s.active && (
                     <button
                       type="button"
+                      className="fh-btn-danger"
                       onClick={() => deactivate.mutate(s.id)}
                       disabled={deactivate.isPending}
-                      style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6, background: 'var(--surface)', color: 'var(--error-text)', border: '1px solid var(--error-border)', cursor: 'pointer' }}
+                      style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6 }}
                     >
                       Desativar
                     </button>
@@ -227,7 +228,7 @@ export function IntegrationsPage() {
                       : 'Roda uma única vez, na data e hora marcadas.'}
                 </div>
               </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Fechar" style={{ width: 28, height: 28, borderRadius: 6, background: 'transparent', border: '1px solid transparent', color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <button type="button" className="fh-icon-btn fh-icon-btn-ghost" onClick={() => setOpen(false)} aria-label="Fechar" style={{ width: 28, height: 28, flexShrink: 0 }}>
                 <CloseIcon sx={{ fontSize: 16 }} />
               </button>
             </div>
@@ -332,6 +333,8 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   return (
     <div
       onClick={onClick}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--text)'; }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--muted)'; }}
       style={{
         fontSize: 15,
         fontWeight: active ? 600 : 500,
@@ -479,6 +482,8 @@ function Radio({ checked, onClick, children }: { checked: boolean; onClick: () =
   return (
     <div
       onClick={onClick}
+      onMouseEnter={(e) => { if (!checked) e.currentTarget.style.background = 'var(--surface-2)'; }}
+      onMouseLeave={(e) => { if (!checked) e.currentTarget.style.background = 'var(--surface)'; }}
       style={{
         flex: 1,
         display: 'flex',
@@ -564,6 +569,8 @@ function Segmented({ value, onChange, options }: { value: Mode; onChange: (v: Mo
           <div
             key={o.value}
             onClick={() => onChange(o.value)}
+            onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--ink)'; }}
+            onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-secondary)'; }}
             style={{
               fontSize: 12.5,
               fontWeight: active ? 600 : 500,

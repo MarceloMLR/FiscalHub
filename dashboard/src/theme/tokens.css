@@ -158,3 +158,35 @@ body {
   border-color: var(--border-strong);
 }
 .fh-btn-secondary:hover { background: var(--surface-sunken); border-color: var(--border-strong); }
+
+/* botão de ícone quadrado (fechar diálogo, paginação) */
+.fh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.fh-icon-btn:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--ink);
+  border-color: var(--border-strong);
+}
+.fh-icon-btn:disabled { color: var(--faint); cursor: not-allowed; }
+
+/* variante fantasma — sem moldura até passar o mouse (X do diálogo) */
+.fh-icon-btn-ghost { background: transparent; border-color: transparent; }
+.fh-icon-btn-ghost:hover { background: var(--surface-sunken); color: var(--ink); border-color: transparent; }
+
+/* botão "desativar" discreto, na cor de erro */
+.fh-btn-danger {
+  background: var(--surface);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  cursor: pointer;
+}
+.fh-btn-danger:hover:not(:disabled) { background: var(--error-bg); }
+.fh-btn-danger:disabled { opacity: 0.5; cursor: default; }
