@@ -102,6 +102,11 @@ body {
 
 .fh-mono { font-family: var(--font-mono); }
 
+/* login em duas colunas — some o painel de marca em telas estreitas (mobile) */
+@media (max-width: 900px) {
+  .fh-login-brand { display: none !important; }
+}
+
 /* rótulo de seção — 11px caixa alta com tracking */
 .fh-label {
   font-size: 11px;
