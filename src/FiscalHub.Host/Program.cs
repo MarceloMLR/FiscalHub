@@ -557,19 +557,35 @@ app.MapPut("/tenant", async (UpdateTenantRequest req, ITenantAdminService tenant
 }).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 // ---- Abrir chamado de suporte para uma ou mais notas (qualquer usuário; escopado ao tenant) ----
-app.MapPost("/support/tickets", async (OpenTicketRequest req, ISupportTicketService support, ITenantContext tenant, CancellationToken ct) =>
+// multipart/form-data: subject, description, naturalKeys (repetido) e files (anexos extras opcionais).
+app.MapPost("/support/tickets", async (HttpRequest request, ISupportTicketService support, ITenantContext tenant, CancellationToken ct) =>
 {
+    IFormCollection form = await request.ReadFormAsync(ct);
+    string subject = form["subject"].ToString();
+    string description = form["description"].ToString();
+    List<string> keys = form["naturalKeys"].Where(k => !string.IsNullOrWhiteSpace(k)).Select(k => k!).ToList();
+
+    var extras = new List<TicketAttachment>();
+    foreach (IFormFile file in form.Files)
+    {
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        extras.Add(new TicketAttachment(
+            file.FileName,
+            ms.ToArray(),
+            string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType));
+    }
+
     try
     {
-        TicketResult result = await support.OpenAsync(
-            tenant.TenantId, req.NaturalKeys ?? [], req.Subject ?? string.Empty, req.Description ?? string.Empty, ct);
+        TicketResult result = await support.OpenAsync(tenant.TenantId, keys, subject, description, extras, ct);
         return Results.Ok(new { ticketId = result.Id, url = result.Url });
     }
     catch (SupportTicketException ex)
     {
         return Results.BadRequest(new { message = ex.Message });
     }
-});
+}).DisableAntiforgery();
 
 app.Run();
 
@@ -583,9 +599,6 @@ public sealed record CreateUserRequest(string Email, string Name, string Role, s
 public sealed record UpdateUserRequest(string? Name, string? Role, bool? Active);
 public sealed record ResetUserPasswordRequest(string? NewPassword);
 public sealed record UpdateTenantRequest(string Name, string? Cnpj);
-
-/// <summary>Corpo do POST /support/tickets. As notas são chaves naturais do tenant logado.</summary>
-public sealed record OpenTicketRequest(string? Subject, string? Description, IReadOnlyList<string>? NaturalKeys);
 
 /// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
 public sealed record ConnectorProfileRequest(

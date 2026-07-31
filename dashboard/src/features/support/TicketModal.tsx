@@ -2,6 +2,8 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import { Modal } from '../../components/Modal';
 import { StatusChip } from '../documents/StatusChip';
 import { api } from '../../api/client';
@@ -18,9 +20,15 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
     many ? `Chamado — ${notes.length} notas com problema` : `Chamado — nota ${notes[0]?.number ?? notes[0]?.naturalKey ?? ''}`,
   );
   const [description, setDescription] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+
+  const addFiles = (list: FileList | null) => {
+    if (list && list.length > 0) setFiles((prev) => [...prev, ...Array.from(list)]);
+  };
+  const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const open = useMutation({
-    mutationFn: () => api.openTicket(subject.trim(), description.trim(), notes.map((n) => n.naturalKey)),
+    mutationFn: () => api.openTicket(subject.trim(), description.trim(), notes.map((n) => n.naturalKey), files),
   });
 
   const done = open.data;
@@ -109,6 +117,59 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 7 }}>
                 Os logs de cada nota são anexados automaticamente na abertura do chamado.
               </div>
+            </div>
+
+            {/* Anexos extras opcionais do usuário */}
+            <div>
+              <div className="fh-label" style={{ fontSize: 11, letterSpacing: '0.06em', marginBottom: 7 }}>
+                Anexos extras (opcional)
+              </div>
+              <label
+                className="fh-btn fh-btn-secondary"
+                style={{ height: 32, width: 'fit-content', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <AttachFileOutlinedIcon sx={{ fontSize: 16 }} />
+                Adicionar arquivo
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ''; }}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {files.length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {files.map((f, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        border: '1px solid var(--border)',
+                        borderRadius: 8,
+                        padding: '7px 10px',
+                      }}
+                    >
+                      <span style={{ fontSize: 12.5, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {f.name}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{(f.size / 1024).toFixed(0)} KB</span>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(i)}
+                          aria-label="Remover anexo"
+                          style={{ display: 'grid', placeItems: 'center', width: 22, height: 22, borderRadius: 6, border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}
+                        >
+                          <CloseIcon sx={{ fontSize: 15 }} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {open.isError && <Banner tone="err">{(open.error as Error).message}</Banner>}

@@ -11,5 +11,6 @@ public interface ISupportTicketService
         IReadOnlyList<string> naturalKeys,
         string subject,
         string description,
+        IReadOnlyList<TicketAttachment>? extraAttachments = null,
         CancellationToken ct = default);
 }

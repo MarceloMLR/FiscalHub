@@ -38,6 +38,7 @@ public sealed class SupportTicketService : ISupportTicketService
         IReadOnlyList<string> naturalKeys,
         string subject,
         string description,
+        IReadOnlyList<TicketAttachment>? extraAttachments = null,
         CancellationToken ct = default)
     {
         if (naturalKeys is null || naturalKeys.Count == 0)
@@ -89,6 +90,22 @@ public sealed class SupportTicketService : ISupportTicketService
             }
             total += zip.Length;
             attachments.Add(new TicketAttachment(SafeName(note.NaturalKey) + ".zip", zip));
+        }
+
+        // Anexos extras do usuário (opcionais), somam no mesmo teto de 20MB.
+        foreach (TicketAttachment extra in extraAttachments ?? [])
+        {
+            if (extra.Content.Length == 0)
+            {
+                continue;
+            }
+            if (total + extra.Content.Length > MaxAttachmentsBytes)
+            {
+                throw new SupportTicketException(
+                    "Os anexos passam do limite de 20MB do chamado. Remova arquivos ou selecione menos notas.");
+            }
+            total += extra.Content.Length;
+            attachments.Add(extra);
         }
 
         string body = ComposeDescription(description, notes);
