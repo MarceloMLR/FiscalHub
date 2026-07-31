@@ -1,10 +1,12 @@
 import type {
+  AdminUser,
   AuthUser,
   Branch,
   Company,
   ConnectorProfile,
   ConnectorProfileRequest,
   CreateScheduleRequest,
+  CreateUserRequest,
   DocumentGroup,
   DocumentSummary,
   ExecutionSummary,
@@ -12,7 +14,9 @@ import type {
   ManualIntegrationRequest,
   ManualIntegrationResult,
   Schedule,
+  TenantInfo,
   TraceResponse,
+  UpdateUserRequest,
 } from '../types';
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5200';
@@ -77,6 +81,27 @@ async function sendJson<T>(method: 'POST' | 'PUT', path: string, body: unknown):
 
 const postJson = <T>(path: string, body: unknown) => sendJson<T>('POST', path, body);
 const putJson = <T>(path: string, body: unknown) => sendJson<T>('PUT', path, body);
+
+// Como sendJson, mas propaga a mensagem de erro do backend ({ message }) e tolera 204 sem corpo.
+async function sendAdmin<T>(method: 'POST' | 'PUT', path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Sessão expirada.');
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(data.message ?? `${res.status} ${res.statusText}`);
+  }
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  return (await res.json()) as T;
+}
 
 export const api = {
   login: async (email: string, password: string): Promise<LoginResponse> => {
@@ -176,6 +201,14 @@ export const api = {
       throw new Error(`${res.status} ${res.statusText}`);
     }
   },
+  // ---- Administração de usuários / tenant (Admin). Erros carregam a mensagem do backend. ----
+  users: () => getJson<AdminUser[]>('/users'),
+  createUser: (body: CreateUserRequest) => sendAdmin<AdminUser>('POST', '/users', body),
+  updateUser: (id: number, body: UpdateUserRequest) => sendAdmin<AdminUser>('PUT', `/users/${id}`, body),
+  resetUserPassword: (id: number, newPassword: string) =>
+    sendAdmin<void>('POST', `/users/${id}/reset-password`, { newPassword }),
+  tenant: () => getJson<TenantInfo>('/tenant'),
+  saveTenant: (body: { name: string; cnpj: string | null }) => sendAdmin<TenantInfo>('PUT', '/tenant', body),
   connector: () => getJson<ConnectorProfile>('/connector'),
   saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {
     const res = await fetch(`${BASE}/connector`, {

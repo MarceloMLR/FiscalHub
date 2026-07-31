@@ -14,9 +14,9 @@ internal sealed class SqlUserAuthenticator : IUserAuthenticator
     public async Task<AppUser?> AuthenticateAsync(string email, string password, CancellationToken ct = default)
     {
         UserRow? row = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
-        if (row is null || !Pbkdf2PasswordHasher.Verify(row.PasswordHash, password))
+        if (row is null || !row.Active || !Pbkdf2PasswordHasher.Verify(row.PasswordHash, password))
         {
-            return null;   // usuário inexistente ou senha errada — mesma resposta, sem vazar qual dos dois
+            return null;   // inexistente, inativo ou senha errada — mesma resposta, sem vazar qual dos três
         }
 
         return new AppUser

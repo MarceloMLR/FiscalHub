@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
@@ -9,17 +10,19 @@ import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import { GroupsPage } from './features/groups/GroupsPage';
 import { IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { ConnectorsPage } from './features/connectors/ConnectorsPage';
+import { UsersPage } from './features/users/UsersPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { useAuth } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
 import { useThemeMode } from './theme/ThemeModeProvider';
 
-type View = 'documents' | 'integrations' | 'settings';
+type View = 'documents' | 'integrations' | 'settings' | 'users';
 
 const titles: Record<View, { title: string; subtitle: string }> = {
   documents: { title: 'Documentos', subtitle: 'Notas integradas e seus status' },
   integrations: { title: 'Integrações', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
   settings: { title: 'Configurações', subtitle: 'Conector, adapters e ambiente deste tenant' },
+  users: { title: 'Usuários', subtitle: 'Quem acessa este tenant e o cadastro do cliente' },
 };
 
 // Porteiro: enquanto restaura a sessão, mostra loading; sem usuário, o login; com usuário, o painel.
@@ -146,6 +149,13 @@ function Dashboard() {
                 onClick={() => setView('settings')}
               >
                 Configurações
+              </NavItem>
+              <NavItem
+                active={view === 'users'}
+                icon={<GroupOutlinedIcon sx={{ fontSize: 16 }} />}
+                onClick={() => setView('users')}
+              >
+                Usuários
               </NavItem>
             </>
           )}
@@ -309,6 +319,8 @@ function Dashboard() {
             <IntegrationsPage />
           ) : view === 'settings' && isAdmin ? (
             <ConnectorsPage />
+          ) : view === 'users' && isAdmin ? (
+            <UsersPage />
           ) : (
             <GroupsPage />
           )}

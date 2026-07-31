@@ -15,6 +15,9 @@ internal sealed class UserRow
 
     public required string Role { get; set; }
 
+    /// <summary>Usuário ativo pode logar; inativo é recusado na autenticação (desativação reversível).</summary>
+    public bool Active { get; set; } = true;
+
     /// <summary>Hash (SHA-256) do token de redefinição de senha em aberto; <c>null</c> quando não há.</summary>
     public string? ResetTokenHash { get; set; }
 
