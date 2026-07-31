@@ -32,7 +32,11 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
   });
 
   const done = open.data;
-  const valid = notes.length > 0 && subject.trim().length > 0 && description.trim().length > 0;
+  const LIMIT_BYTES = 20 * 1024 * 1024; // teto do chamado (Freshdesk): 20 MB somando tudo
+  const extraBytes = files.reduce((s, f) => s + f.size, 0);
+  const overLimit = extraBytes > LIMIT_BYTES;
+  const fmtMB = (b: number) => (b / (1024 * 1024)).toFixed(1);
+  const valid = notes.length > 0 && subject.trim().length > 0 && description.trim().length > 0 && !overLimit;
 
   return (
     <Modal
@@ -170,8 +174,22 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
                   ))}
                 </div>
               )}
+              <div
+                style={{
+                  fontSize: 11.5,
+                  marginTop: 7,
+                  color: overLimit ? 'var(--error-text)' : 'var(--muted)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
+                <span>Somando os logs anexados automaticamente, o total deve ficar em até 20 MB.</span>
+                {files.length > 0 && <span style={{ flexShrink: 0 }}>{fmtMB(extraBytes)} MB</span>}
+              </div>
             </div>
 
+            {overLimit && <Banner tone="err">Os anexos passam de 20 MB. Remova arquivos para abrir o chamado.</Banner>}
             {open.isError && <Banner tone="err">{(open.error as Error).message}</Banner>}
           </>
         )}

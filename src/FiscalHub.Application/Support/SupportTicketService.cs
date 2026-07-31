@@ -13,8 +13,8 @@ namespace FiscalHub.Application.Support;
 /// </summary>
 public sealed class SupportTicketService : ISupportTicketService
 {
-    // Margem de segurança abaixo do teto de 20MB do Freshdesk (headers/campos do multipart + folga).
-    private const long MaxAttachmentsBytes = 18L * 1024 * 1024;
+    // Teto do chamado (Freshdesk): 20MB somando os zips das notas + os anexos extras do usuário.
+    private const long MaxAttachmentsBytes = 20L * 1024 * 1024;
 
     private readonly IConnectorProfileStore _profiles;
     private readonly IDocumentQueries _queries;
