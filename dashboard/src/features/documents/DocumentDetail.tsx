@@ -31,7 +31,7 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
         <div style={{ minWidth: 0 }}>
-          <div className="fh-mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', wordBreak: 'break-all', lineHeight: 1.4 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', wordBreak: 'break-all', lineHeight: 1.4 }}>
             {doc.naturalKey}
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>Rastreabilidade: origem → domínio → destino</div>

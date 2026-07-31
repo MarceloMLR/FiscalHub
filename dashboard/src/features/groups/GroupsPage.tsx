@@ -39,7 +39,6 @@ const columns: GridColDef<DocumentGroup>[] = [
     minWidth: 140,
     headerClassName: 'fhFirstCol',
     cellClassName: 'fhFirstCol',
-    renderCell: (p) => <span className="fh-mono" style={{ fontWeight: 600, color: 'var(--ink)' }}>{p.value as string}</span>,
   },
   { field: 'branchCode', headerName: 'Filial', width: 90 },
   { field: 'referenceDate', headerName: 'Data', width: 120 },
