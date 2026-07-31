@@ -14,4 +14,10 @@ internal sealed class UserRow
     public required string TenantId { get; set; }
 
     public required string Role { get; set; }
+
+    /// <summary>Hash (SHA-256) do token de redefinição de senha em aberto; <c>null</c> quando não há.</summary>
+    public string? ResetTokenHash { get; set; }
+
+    /// <summary>Validade do token de redefinição (uso único, expira em minutos).</summary>
+    public DateTimeOffset? ResetTokenExpiresAt { get; set; }
 }

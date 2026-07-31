@@ -33,6 +33,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IExecutionQueries, SqlExecutionQueries>();
         services.AddScoped<IScheduleStore, SqlScheduleStore>();
         services.AddScoped<IUserAuthenticator, SqlUserAuthenticator>();
+        services.AddScoped<IPasswordResetService, SqlPasswordResetService>();
         services.AddScoped<IConnectorProfileStore, SqlConnectorProfileStore>();
         return services;
     }

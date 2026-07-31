@@ -18,10 +18,17 @@ import type {
 const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5200';
 const TOKEN_KEY = 'fiscalhub.token';
 
-// Token no localStorage (Bearer). Trade-off anotado no ADR: produção = cookie httpOnly.
+// Token Bearer. "Manter conectado" = localStorage (persiste ao fechar o navegador);
+// desmarcado = sessionStorage (some ao fechar a aba). Trade-off anotado no ADR: produção = cookie httpOnly.
 export const tokenStore = {
-  get: () => localStorage.getItem(TOKEN_KEY),
-  set: (t: string | null) => (t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY)),
+  get: () => localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY),
+  set: (t: string | null, remember = true) => {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    if (t) {
+      (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, t);
+    }
+  },
 };
 
 // Quando a API responde 401, o token caiu/expirou: limpa e avisa a app pra voltar ao login.
@@ -87,6 +94,20 @@ export const api = {
     return (await res.json()) as LoginResponse;
   },
   me: () => getJson<AuthUser>('/auth/me'),
+  forgotPassword: (email: string) =>
+    postJson<{ message: string; devToken?: string | null }>('/auth/forgot-password', { email }),
+  resetPassword: async (token: string, newPassword: string): Promise<{ message: string }> => {
+    const res = await fetch(`${BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { message?: string };
+    if (!res.ok) {
+      throw new Error(data.message ?? `${res.status} ${res.statusText}`);
+    }
+    return { message: data.message ?? 'Senha redefinida.' };
+  },
   groups: () => getJson<DocumentGroup[]>('/groups'),
   groupDocuments: (company: string, branch: string, date: string) =>
     getJson<DocumentSummary[]>(
