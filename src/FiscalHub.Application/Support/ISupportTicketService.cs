@@ -13,4 +13,7 @@ public interface ISupportTicketService
         string description,
         IReadOnlyList<TicketAttachment>? extraAttachments = null,
         CancellationToken ct = default);
+
+    /// <summary>Tamanho (bytes) dos anexos automáticos — os zips de logs das notas — pra tela mostrar o disponível.</summary>
+    Task<long> EstimateLogsBytesAsync(string tenantId, IReadOnlyList<string> naturalKeys, CancellationToken ct = default);
 }

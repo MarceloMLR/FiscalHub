@@ -212,6 +212,9 @@ export const api = {
     sendAdmin<void>('POST', `/users/${id}/reset-password`, { newPassword }),
   tenant: () => getJson<TenantInfo>('/tenant'),
   saveTenant: (body: { name: string; cnpj: string | null }) => sendAdmin<TenantInfo>('PUT', '/tenant', body),
+  // Estimativa do tamanho dos logs (zips) das notas selecionadas, pra tela mostrar o disponível.
+  estimateTicketLogs: (naturalKeys: string[]) =>
+    sendAdmin<{ logsBytes: number; limitBytes: number }>('POST', '/support/tickets/estimate', { naturalKeys }),
   // Abrir chamado de suporte (multipart): logs das notas anexados automaticamente + anexos extras opcionais.
   openTicket: async (
     subject: string,

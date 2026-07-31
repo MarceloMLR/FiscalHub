@@ -120,6 +120,23 @@ public sealed class SupportTicketService : ISupportTicketService
         return await gateway.OpenAsync(ticket, profile.SupportSettings ?? "{}", ct);
     }
 
+    public async Task<long> EstimateLogsBytesAsync(string tenantId, IReadOnlyList<string> naturalKeys, CancellationToken ct = default)
+    {
+        if (naturalKeys is null || naturalKeys.Count == 0)
+        {
+            return 0;
+        }
+
+        IReadOnlyList<DocumentSummary> notes = await _queries.ListByKeysAsync(tenantId, naturalKeys, ct);
+        long total = 0;
+        foreach (DocumentSummary note in notes)
+        {
+            byte[]? zip = await BuildNoteZipAsync(note.TenantId, note.NaturalKey, ct);
+            total += zip?.Length ?? 0;
+        }
+        return total;
+    }
+
     private async Task<byte[]?> BuildNoteZipAsync(string tenantId, string naturalKey, CancellationToken ct)
     {
         IReadOnlyList<TraceFile> files = await _traces.ReadAsync(tenantId, naturalKey, ct);

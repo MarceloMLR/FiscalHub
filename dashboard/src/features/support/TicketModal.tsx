@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import AttachFileOutlinedIcon from '@mui/icons-material/AttachFileOutlined';
@@ -27,15 +27,25 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
   };
   const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
+  const keys = notes.map((n) => n.naturalKey);
+  const estimate = useQuery({
+    queryKey: ['ticketEstimate', keys],
+    queryFn: () => api.estimateTicketLogs(keys),
+    enabled: notes.length > 0,
+  });
+
   const open = useMutation({
-    mutationFn: () => api.openTicket(subject.trim(), description.trim(), notes.map((n) => n.naturalKey), files),
+    mutationFn: () => api.openTicket(subject.trim(), description.trim(), keys, files),
   });
 
   const done = open.data;
-  const LIMIT_BYTES = 20 * 1024 * 1024; // teto do chamado (Freshdesk): 20 MB somando tudo
-  const extraBytes = files.reduce((s, f) => s + f.size, 0);
-  const overLimit = extraBytes > LIMIT_BYTES;
   const fmtMB = (b: number) => (b / (1024 * 1024)).toFixed(1);
+  const logsBytes = estimate.data?.logsBytes ?? 0;
+  const limitBytes = estimate.data?.limitBytes ?? 20 * 1024 * 1024;
+  const extraBytes = files.reduce((s, f) => s + f.size, 0);
+  const usedBytes = logsBytes + extraBytes;
+  const remainingBytes = Math.max(0, limitBytes - usedBytes);
+  const overLimit = usedBytes > limitBytes;
   const valid = notes.length > 0 && subject.trim().length > 0 && description.trim().length > 0 && !overLimit;
 
   return (
@@ -174,22 +184,20 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
                   ))}
                 </div>
               )}
-              <div
-                style={{
-                  fontSize: 11.5,
-                  marginTop: 7,
-                  color: overLimit ? 'var(--error-text)' : 'var(--muted)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                }}
-              >
-                <span>Somando os logs anexados automaticamente, o total deve ficar em até 20 MB.</span>
-                {files.length > 0 && <span style={{ flexShrink: 0 }}>{fmtMB(extraBytes)} MB</span>}
+              <div style={{ fontSize: 11.5, marginTop: 8, color: overLimit ? 'var(--error-text)' : 'var(--muted)' }}>
+                {estimate.isLoading ? (
+                  'Calculando o tamanho dos logs…'
+                ) : (
+                  <>
+                    Logs automáticos <strong>{fmtMB(logsBytes)} MB</strong> · seus anexos{' '}
+                    <strong>{fmtMB(extraBytes)} MB</strong> · disponível{' '}
+                    <strong>{fmtMB(remainingBytes)} MB</strong> de {fmtMB(limitBytes)} MB
+                  </>
+                )}
               </div>
             </div>
 
-            {overLimit && <Banner tone="err">Os anexos passam de 20 MB. Remova arquivos para abrir o chamado.</Banner>}
+            {overLimit && <Banner tone="err">O total (logs + anexos) passa de {fmtMB(limitBytes)} MB. Remova arquivos para abrir o chamado.</Banner>}
             {open.isError && <Banner tone="err">{(open.error as Error).message}</Banner>}
           </>
         )}

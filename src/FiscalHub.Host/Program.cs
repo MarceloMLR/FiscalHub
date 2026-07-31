@@ -587,6 +587,13 @@ app.MapPost("/support/tickets", async (HttpRequest request, ISupportTicketServic
     }
 }).DisableAntiforgery();
 
+// Estimativa do tamanho dos anexos automáticos (zips de logs) das notas — pra tela mostrar o disponível.
+app.MapPost("/support/tickets/estimate", async (EstimateTicketRequest req, ISupportTicketService support, ITenantContext tenant, CancellationToken ct) =>
+{
+    long bytes = await support.EstimateLogsBytesAsync(tenant.TenantId, req.NaturalKeys ?? [], ct);
+    return Results.Ok(new { logsBytes = bytes, limitBytes = 20L * 1024 * 1024 });
+});
+
 app.Run();
 
 /// <summary>Corpo do POST /auth/login.</summary>
@@ -599,6 +606,9 @@ public sealed record CreateUserRequest(string Email, string Name, string Role, s
 public sealed record UpdateUserRequest(string? Name, string? Role, bool? Active);
 public sealed record ResetUserPasswordRequest(string? NewPassword);
 public sealed record UpdateTenantRequest(string Name, string? Cnpj);
+
+/// <summary>Corpo do POST /support/tickets/estimate — só as notas, pra estimar o tamanho dos logs.</summary>
+public sealed record EstimateTicketRequest(IReadOnlyList<string>? NaturalKeys);
 
 /// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
 public sealed record ConnectorProfileRequest(
