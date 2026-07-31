@@ -71,6 +71,38 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+// Administração de usuários do tenant (GET/POST/PUT /users) — tela de Usuários (Admin).
+export type UserRole = 'Admin' | 'Viewer';
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name: string;
+  role: UserRole;
+  active: boolean;
+}
+
+export interface CreateUserRequest {
+  email: string;
+  name: string;
+  role: UserRole;
+  password: string;
+}
+
+export interface UpdateUserRequest {
+  name?: string | null;
+  role?: UserRole | null;
+  active?: boolean | null;
+}
+
+// Cadastro (fino) do tenant corrente (GET/PUT /tenant).
+export interface TenantInfo {
+  tenantId: string;
+  name: string;
+  cnpj?: string | null;
+  active: boolean;
+}
+
 // Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores.
 export interface ConnectorProfile {
   tenantId: string;

@@ -15,6 +15,8 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
 
     public DbSet<ConnectorProfileRow> ConnectorProfiles => Set<ConnectorProfileRow>();
 
+    public DbSet<TenantRow> Tenants => Set<TenantRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var doc = modelBuilder.Entity<ProcessedDocument>();
@@ -78,5 +80,13 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         conn.Property(c => c.Environment).HasMaxLength(20);
         conn.Property(c => c.InboundAdapter).HasMaxLength(50);
         conn.Property(c => c.OutboundAdapter).HasMaxLength(50);
+
+        var tnt = modelBuilder.Entity<TenantRow>();
+        tnt.ToTable("Tenants");
+        tnt.HasKey(t => t.Id);
+        tnt.HasIndex(t => t.TenantId).IsUnique();   // um registro por tenant
+        tnt.Property(t => t.TenantId).HasMaxLength(100);
+        tnt.Property(t => t.Name).HasMaxLength(200);
+        tnt.Property(t => t.Cnpj).HasMaxLength(18);
     }
 }

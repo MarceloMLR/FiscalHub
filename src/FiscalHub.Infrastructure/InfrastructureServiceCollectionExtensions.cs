@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using FiscalHub.Application.Admin;
 using FiscalHub.Application.Auth;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Integrations;
@@ -10,6 +11,7 @@ using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Envelope;
+using FiscalHub.Infrastructure.Admin;
 using FiscalHub.Infrastructure.Auth;
 using FiscalHub.Infrastructure.Persistence;
 using FiscalHub.Infrastructure.Tracing;
@@ -35,6 +37,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserAuthenticator, SqlUserAuthenticator>();
         services.AddScoped<IPasswordResetService, SqlPasswordResetService>();
         services.AddScoped<IConnectorProfileStore, SqlConnectorProfileStore>();
+        services.AddScoped<IUserAdminService, SqlUserAdminService>();
+        services.AddScoped<ITenantAdminService, SqlTenantAdminService>();
         return services;
     }
 
@@ -78,23 +82,38 @@ public static class InfrastructureServiceCollectionExtensions
             return;
         }
 
+        string hash = Pbkdf2PasswordHasher.Hash("Fiscal@123");
         db.Users.AddRange(
-            new UserRow
-            {
-                Email = "admin@fiscalhub.local",
-                Name = "Marcelo Lima",
-                PasswordHash = Pbkdf2PasswordHasher.Hash("Fiscal@123"),
-                TenantId = "tenant-a",
-                Role = "Admin",
-            },
-            new UserRow
-            {
-                Email = "beta@fiscalhub.local",
-                Name = "Beta Viewer",
-                PasswordHash = Pbkdf2PasswordHasher.Hash("Fiscal@123"),
-                TenantId = "tenant-b",
-                Role = "Viewer",
-            });
+            new UserRow { Email = "admin@fiscalhub.local", Name = "Marcelo Lima", PasswordHash = hash, TenantId = "tenant-a", Role = "Admin" },
+            // Colegas de time no tenant-a: exercitam a tela de usuários (papéis e ativo/inativo variados).
+            new UserRow { Email = "ana.souza@fiscalhub.local", Name = "Ana Souza", PasswordHash = hash, TenantId = "tenant-a", Role = "Admin" },
+            new UserRow { Email = "carlos.dias@fiscalhub.local", Name = "Carlos Dias", PasswordHash = hash, TenantId = "tenant-a", Role = "Viewer" },
+            new UserRow { Email = "julia.martins@fiscalhub.local", Name = "Júlia Martins", PasswordHash = hash, TenantId = "tenant-a", Role = "Viewer" },
+            new UserRow { Email = "pedro.rocha@fiscalhub.local", Name = "Pedro Rocha", PasswordHash = hash, TenantId = "tenant-a", Role = "Viewer", Active = false },
+            new UserRow { Email = "beta@fiscalhub.local", Name = "Beta Viewer", PasswordHash = hash, TenantId = "tenant-b", Role = "Viewer" });
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Semeia o cadastro (fino) dos tenants de dev, uma vez. No modelo por-cliente cada tenant é a
+    /// config de uma instância; aqui só guardamos identidade + dados cadastrais para a tela de admin.
+    /// </summary>
+    public static async Task EnsureDevTenantsAsync(this IServiceProvider services, CancellationToken ct = default)
+    {
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        ProcessingDbContext db = scope.ServiceProvider.GetRequiredService<ProcessingDbContext>();
+        TimeProvider clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+
+        if (await db.Tenants.AnyAsync(ct))
+        {
+            return;
+        }
+
+        DateTimeOffset now = clock.GetUtcNow();
+        db.Tenants.AddRange(
+            new TenantRow { TenantId = "tenant-a", Name = "ACME Fiscal Ltda", Cnpj = "12.345.678/0001-90", Active = true, CreatedAt = now },
+            new TenantRow { TenantId = "tenant-b", Name = "Beta Comércio S.A.", Cnpj = "98.765.432/0001-21", Active = true, CreatedAt = now });
 
         await db.SaveChangesAsync(ct);
     }

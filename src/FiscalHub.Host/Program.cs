@@ -9,6 +9,7 @@ using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
+using FiscalHub.Application.Admin;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Directory;
 using FiscalHub.Application.Inbound;
@@ -123,6 +124,7 @@ app.UseAuthorization();
 await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
 await app.Services.EnsureDevUsersAsync();
+await app.Services.EnsureDevTenantsAsync();
 await app.Services.EnsureDevConnectorProfilesAsync();
 await app.Services.EnsureDevDocumentsAsync();   // notas de exemplo p/ paginação, KPIs do dia e reprocessar
 await app.Services.EnsureDevSchedulesAndExecutionsAsync();   // agendamentos + execuções p/ paginação em Integrações
@@ -496,12 +498,73 @@ app.MapPut("/connector", async (ConnectorProfileRequest req, IConnectorProfileSt
     return Results.NoContent();
 }).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
+// ---- Administração de usuários (escopada ao tenant do Admin logado) ----
+IResult AdminError(AdminStatus status, string? message) => status switch
+{
+    AdminStatus.NotFound => Results.NotFound(new { message = message ?? "Não encontrado." }),
+    AdminStatus.Conflict => Results.Conflict(new { message }),
+    _ => Results.BadRequest(new { message }),
+};
+
+app.MapGet("/users", async (IUserAdminService users, ITenantContext tenant, CancellationToken ct) =>
+    Results.Ok(await users.ListAsync(tenant.TenantId, ct)))
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPost("/users", async (CreateUserRequest req, IUserAdminService users, ITenantContext tenant, CancellationToken ct) =>
+{
+    AdminResult<AdminUserView> r = await users.CreateAsync(
+        tenant.TenantId, new CreateUserInput(req.Email, req.Name, req.Role, req.Password), ct);
+    return r.Status == AdminStatus.Ok ? Results.Ok(r.Value) : AdminError(r.Status, r.Message);
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPut("/users/{id:int}", async (int id, UpdateUserRequest req, IUserAdminService users, ITenantContext tenant, ClaimsPrincipal principal, CancellationToken ct) =>
+{
+    // Anti-lockout: o Admin não pode se rebaixar nem se desativar (evita ficar sem acesso).
+    bool isSelf = int.TryParse(principal.FindFirstValue("sub"), out int me) && me == id;
+    if (isSelf && (req.Active == false || (req.Role is not null && req.Role != "Admin")))
+    {
+        return Results.BadRequest(new { message = "Você não pode desativar nem rebaixar a própria conta." });
+    }
+
+    AdminResult<AdminUserView> r = await users.UpdateAsync(
+        tenant.TenantId, id, new UpdateUserInput(req.Name, req.Role, req.Active), ct);
+    return r.Status == AdminStatus.Ok ? Results.Ok(r.Value) : AdminError(r.Status, r.Message);
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPost("/users/{id:int}/reset-password", async (int id, ResetUserPasswordRequest req, IUserAdminService users, ITenantContext tenant, CancellationToken ct) =>
+{
+    AdminStatus status = await users.ResetPasswordAsync(tenant.TenantId, id, req.NewPassword ?? string.Empty, ct);
+    return status == AdminStatus.Ok
+        ? Results.NoContent()
+        : AdminError(status, status == AdminStatus.Invalid ? "A senha precisa ter ao menos 6 caracteres." : "Usuário não encontrado.");
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+// ---- Cadastro do tenant corrente ----
+app.MapGet("/tenant", async (ITenantAdminService tenants, ITenantContext tenant, CancellationToken ct) =>
+{
+    TenantView? view = await tenants.GetAsync(tenant.TenantId, ct);
+    // Sem registro ainda: devolve um esqueleto com o slug, pra tela poder preencher e salvar.
+    return Results.Ok(view ?? new TenantView(tenant.TenantId, tenant.TenantId, null, true));
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+app.MapPut("/tenant", async (UpdateTenantRequest req, ITenantAdminService tenants, ITenantContext tenant, CancellationToken ct) =>
+{
+    AdminResult<TenantView> r = await tenants.UpdateAsync(tenant.TenantId, new UpdateTenantInput(req.Name, req.Cnpj), ct);
+    return r.Status == AdminStatus.Ok ? Results.Ok(r.Value) : AdminError(r.Status, r.Message);
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
 app.Run();
 
 /// <summary>Corpo do POST /auth/login.</summary>
 public sealed record LoginRequest(string Email, string Password);
 public sealed record ForgotPasswordRequest(string? Email);
 public sealed record ResetPasswordRequest(string? Token, string? NewPassword);
+
+/// <summary>Corpos dos endpoints de administração de usuários/tenant. O tenant vem sempre do claim.</summary>
+public sealed record CreateUserRequest(string Email, string Name, string Role, string Password);
+public sealed record UpdateUserRequest(string? Name, string? Role, bool? Active);
+public sealed record ResetUserPasswordRequest(string? NewPassword);
+public sealed record UpdateTenantRequest(string Name, string? Cnpj);
 
 /// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
 public sealed record ConnectorProfileRequest(

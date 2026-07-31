@@ -31,3 +31,9 @@ Thumbs.db
 
 # ---- temporários ----
 *.tmp
+
+# logs locais da API (dev)
+api.out.log
+api.err.log
+*.out.log
+*.err.log
