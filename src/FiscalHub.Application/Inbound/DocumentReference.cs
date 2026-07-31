@@ -23,4 +23,11 @@ public sealed record DocumentReference
     /// caem no padrão <c>Event</c>.
     /// </summary>
     public IngestionTrigger Trigger { get; init; } = IngestionTrigger.Event;
+
+    /// <summary>
+    /// Modo da integração que originou o disparo, para exibição (<c>Manual</c>, <c>ScheduledDaily</c>,
+    /// <c>ScheduledOnce</c>). <c>null</c> = chegou por evento/tempo real (o caminho por evento não passa
+    /// pelo runner). É só rótulo — a política de idempotência continua no <see cref="Trigger"/>.
+    /// </summary>
+    public string? SourceMode { get; init; }
 }

@@ -1,23 +1,21 @@
-import Chip from '@mui/material/Chip';
+import { StatusChip as TokenChip, type Tone } from '../../components/StatusChip';
 import type { IntegrationStatus } from '../../types';
 
-// Status na língua do usuário fiscal (não "em voo"): pill suave, fundo tingido + texto na cor.
-const map: Record<IntegrationStatus, { label: string; bg: string; fg: string }> = {
-  Pending: { label: 'Pendente', bg: '#eef1f4', fg: '#5b6472' },
-  Submitted: { label: 'Processando', bg: '#e6f0fd', fg: '#1d4ed8' },
-  Confirmed: { label: 'Finalizado', bg: '#e7f6ec', fg: '#15803d' },
-  IntegrationError: { label: 'Rejeitado', bg: '#fdeaea', fg: '#c81e1e' },
-  Unconfirmed: { label: 'Sem retorno', bg: '#fdf2e3', fg: '#b45309' },
-  DeadLettered: { label: 'Falha', bg: '#eceef1', fg: '#3f4754' },
+// Status na língua do usuário fiscal → rótulo + tom do design system v3 (claro/escuro juntos).
+const map: Record<IntegrationStatus, { label: string; tone: Tone }> = {
+  Pending: { label: 'Pendente', tone: 'pending' },
+  Submitted: { label: 'Processando', tone: 'info' },
+  Confirmed: { label: 'Finalizado', tone: 'ok' },
+  IntegrationError: { label: 'Rejeitado', tone: 'error' },
+  Unconfirmed: { label: 'Sem retorno', tone: 'warn' },
+  DeadLettered: { label: 'Falha', tone: 'dead' },
 };
 
+// Status de falha — habilitam o reprocessamento (rebuscar na origem e reintegrar).
+export const FAILURE_STATUSES: IntegrationStatus[] = ['IntegrationError', 'Unconfirmed', 'DeadLettered'];
+export const isFailure = (s: IntegrationStatus) => FAILURE_STATUSES.includes(s);
+
 export function StatusChip({ status }: { status: IntegrationStatus }) {
-  const s = map[status] ?? { label: status, bg: '#eef1f4', fg: '#5b6472' };
-  return (
-    <Chip
-      size="small"
-      label={s.label}
-      sx={{ bgcolor: s.bg, color: s.fg, borderRadius: '20px', height: 24 }}
-    />
-  );
+  const s = map[status] ?? { label: status, tone: 'pending' as Tone };
+  return <TokenChip tone={s.tone}>{s.label}</TokenChip>;
 }

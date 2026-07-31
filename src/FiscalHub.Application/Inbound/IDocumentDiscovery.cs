@@ -11,4 +11,10 @@ public interface IDocumentDiscovery
 
     /// <summary>Retorna as referências dos documentos que atendem aos critérios.</summary>
     Task<IReadOnlyList<DocumentReference>> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default);
+
+    /// <summary>
+    /// Localiza uma única referência pela chave natural (id da nota), para reprocessar.
+    /// <c>null</c> se a origem não tem mais essa nota.
+    /// </summary>
+    Task<DocumentReference?> FindByKeyAsync(string tenantId, string naturalKey, CancellationToken ct = default);
 }

@@ -53,6 +53,42 @@
   --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
+/* modo escuro — valores extraídos da variante Dark do design v3 */
+html[data-theme='dark'] {
+  --page: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1b2129;
+  --surface-sunken: #21262e;
+
+  --border: #262d37;
+  --border-strong: #333b47;
+
+  --ink: #e6ebf2;
+  --text: #b7c1cf;
+  --text-secondary: #9aa6b6;
+  --muted: #7f8b9c;
+  --faint: #5f6a79;
+
+  --accent: #3d9dc4;
+  --accent-hover: #57b0d4;
+  --accent-tint: #12303d;
+  --accent-ring: #12303d;
+
+  --ok-text: #4cc98a;      --ok-bg: #10291d;      --ok-border: #1e4a33;
+  --info-text: #6fc3e0;    --info-bg: #112b38;    --info-border: #1d4457;
+  --pending-text: #b7c1cf; --pending-bg: #21262e; --pending-border: #333b47;
+  --error-text: #f08f8a;   --error-bg: #2f1616;   --error-border: #55292a;
+  --warn-text: #e0ab5c;    --warn-bg: #2c2310;    --warn-border: #4d3f1c;
+  --dead-text: #b7c1cf;    --dead-bg: #21262e;    --dead-border: #333b47;
+  --partial-text: #ef9d68; --partial-bg: #2f1e12; --partial-border: #55311f;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-popover: 0 6px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-modal: 0 20px 48px -16px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   background: var(--page);
@@ -65,6 +101,11 @@ body {
 }
 
 .fh-mono { font-family: var(--font-mono); }
+
+/* login em duas colunas — some o painel de marca em telas estreitas (mobile) */
+@media (max-width: 900px) {
+  .fh-login-brand { display: none !important; }
+}
 
 /* rótulo de seção — 11px caixa alta com tracking */
 .fh-label {
@@ -122,3 +163,45 @@ body {
   border-color: var(--border-strong);
 }
 .fh-btn-secondary:hover { background: var(--surface-sunken); border-color: var(--border-strong); }
+
+/* botão de ícone quadrado (fechar diálogo, paginação) */
+.fh-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.fh-icon-btn:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  color: var(--ink);
+  border-color: var(--border-strong);
+}
+.fh-icon-btn:disabled { color: var(--faint); cursor: not-allowed; }
+
+/* variante fantasma — sem moldura até passar o mouse (X do diálogo) */
+.fh-icon-btn-ghost { background: transparent; border-color: transparent; }
+.fh-icon-btn-ghost:hover { background: var(--surface-sunken); color: var(--ink); border-color: transparent; }
+
+/* botão "desativar" discreto, na cor de erro */
+.fh-btn-danger {
+  background: var(--surface);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  cursor: pointer;
+}
+.fh-btn-danger:hover:not(:disabled) { background: var(--error-bg); }
+.fh-btn-danger:disabled { opacity: 0.5; cursor: default; }
+
+/* botão "ativar" discreto, na cor de sucesso */
+.fh-btn-success {
+  background: var(--surface);
+  color: var(--ok-text);
+  border: 1px solid var(--ok-border);
+  cursor: pointer;
+}
+.fh-btn-success:hover:not(:disabled) { background: var(--ok-bg); }
+.fh-btn-success:disabled { opacity: 0.5; cursor: default; }

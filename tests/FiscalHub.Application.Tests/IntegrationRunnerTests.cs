@@ -66,6 +66,15 @@ public class IntegrationRunnerTests
             }).ToList();
             return Task.FromResult(refs);
         }
+
+        public Task<DocumentReference?> FindByKeyAsync(string tenantId, string naturalKey, CancellationToken ct = default)
+            => Task.FromResult<DocumentReference?>(new DocumentReference
+            {
+                TenantId = tenantId,
+                Type = DocumentType.GoodsInvoice55,
+                NaturalKey = naturalKey,
+                Locator = $"nfe/{naturalKey}.xml",
+            });
     }
 
     private sealed class FakeQueue : IDocumentQueue

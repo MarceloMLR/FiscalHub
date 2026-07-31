@@ -52,9 +52,9 @@ async function getJson<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function sendJson<T>(method: 'POST' | 'PUT', path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   });
@@ -67,6 +67,9 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   }
   return (await res.json()) as T;
 }
+
+const postJson = <T>(path: string, body: unknown) => sendJson<T>('POST', path, body);
+const putJson = <T>(path: string, body: unknown) => sendJson<T>('PUT', path, body);
 
 export const api = {
   login: async (email: string, password: string): Promise<LoginResponse> => {
@@ -92,7 +95,7 @@ export const api = {
   documents: () => getJson<DocumentSummary[]>('/documents'),
   trace: (tenantId: string, naturalKey: string) =>
     getJson<TraceResponse>(`/trace/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}`),
-  info: () => getJson<{ environment: string }>('/info'),
+  info: () => getJson<{ environment: string; realtime: boolean }>('/info'),
   // Download com Bearer: baixa como blob (um <a href> não mandaria o token).
   downloadTrace: async (tenantId: string, naturalKey: string): Promise<void> => {
     const res = await fetch(
@@ -121,8 +124,30 @@ export const api = {
   executions: () => getJson<ExecutionSummary[]>('/executions'),
   schedules: () => getJson<Schedule[]>('/schedules'),
   createSchedule: (body: CreateScheduleRequest) => postJson<{ id: number }>('/schedules', body),
+  updateSchedule: (id: number, body: CreateScheduleRequest) => putJson<{ id: number }>(`/schedules/${id}`, body),
   deactivateSchedule: async (id: number): Promise<void> => {
     const res = await fetch(`${BASE}/schedules/${id}/deactivate`, { method: 'POST', headers: authHeaders() });
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  },
+  reactivateSchedule: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE}/schedules/${id}/reactivate`, { method: 'POST', headers: authHeaders() });
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  },
+  reprocess: async (tenantId: string, naturalKey: string): Promise<void> => {
+    const res = await fetch(
+      `${BASE}/documents/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}/reprocess`,
+      { method: 'POST', headers: authHeaders() },
+    );
     if (res.status === 401) {
       handleUnauthorized();
     }

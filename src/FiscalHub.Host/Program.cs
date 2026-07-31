@@ -124,6 +124,8 @@ await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
 await app.Services.EnsureDevUsersAsync();
 await app.Services.EnsureDevConnectorProfilesAsync();
+await app.Services.EnsureDevDocumentsAsync();   // notas de exemplo p/ paginação, KPIs do dia e reprocessar
+await app.Services.EnsureDevSchedulesAndExecutionsAsync();   // agendamentos + execuções p/ paginação em Integrações
 
 app.MapGet("/", () =>
     $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.")
@@ -196,39 +198,44 @@ app.MapGet("/executions", async (IExecutionQueries queries, CancellationToken ct
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
 // Agendamentos: cria (D-1 recorrente ou único), lista e desativa. O timer do host executa os vencidos.
-app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, TimeProvider clock, ITenantContext tenant, CancellationToken ct) =>
+// Valida o corpo e calcula o próximo disparo (compartilhado pelo POST e pelo PUT).
+static (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd)
+    PlanSchedule(ScheduleRequest req, TimeProvider clock)
 {
     if (!Enum.TryParse(req.Mode, out IntegrationMode mode) || mode == IntegrationMode.Manual)
     {
-        return Results.BadRequest(new { message = "Modo inválido. Use ScheduledDaily ou ScheduledOnce." });
+        return (Results.BadRequest(new { message = "Modo inválido. Use ScheduledDaily ou ScheduledOnce." }), default, default, null, null);
     }
 
     var brt = TimeSpan.FromHours(-3);
-    DateTimeOffset nextRun;
-    string? periodStart = null;
-    string? periodEnd = null;
-
     if (mode == IntegrationMode.ScheduledDaily)
     {
         if (!TimeOnly.TryParse(req.TimeOfDay, out TimeOnly timeOfDay))
         {
-            return Results.BadRequest(new { message = "Informe timeOfDay no formato HH:mm." });
+            return (Results.BadRequest(new { message = "Informe timeOfDay no formato HH:mm." }), default, default, null, null);
         }
 
         DateTimeOffset nowBrt = clock.GetUtcNow().ToOffset(brt);
         var todayRun = new DateTimeOffset(nowBrt.Date.Add(timeOfDay.ToTimeSpan()), brt);
-        nextRun = todayRun > nowBrt ? todayRun : todayRun.AddDays(1);   // hoje se ainda vem, senão amanhã
+        DateTimeOffset next = todayRun > nowBrt ? todayRun : todayRun.AddDays(1);   // hoje se ainda vem, senão amanhã
+        return (null, mode, next, null, null);
     }
-    else // ScheduledOnce
-    {
-        if (req.RunAt is null || req.PeriodStart is null || req.PeriodEnd is null)
-        {
-            return Results.BadRequest(new { message = "Agendamento único exige runAt, periodStart e periodEnd." });
-        }
 
-        nextRun = req.RunAt.Value;
-        periodStart = req.PeriodStart.Value.ToString("yyyy-MM-dd");
-        periodEnd = req.PeriodEnd.Value.ToString("yyyy-MM-dd");
+    // ScheduledOnce
+    if (req.RunAt is null || req.PeriodStart is null || req.PeriodEnd is null)
+    {
+        return (Results.BadRequest(new { message = "Agendamento único exige runAt, periodStart e periodEnd." }), default, default, null, null);
+    }
+
+    return (null, mode, req.RunAt.Value, req.PeriodStart.Value.ToString("yyyy-MM-dd"), req.PeriodEnd.Value.ToString("yyyy-MM-dd"));
+}
+
+app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, TimeProvider clock, ITenantContext tenant, CancellationToken ct) =>
+{
+    (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd) = PlanSchedule(req, clock);
+    if (error is not null)
+    {
+        return error;
     }
 
     int id = await store.CreateAsync(new ScheduledIntegration
@@ -245,6 +252,29 @@ app.MapPost("/schedules", async (ScheduleRequest req, IScheduleStore store, Time
     return Results.Created($"/schedules/{id}", new { id, nextRunAt = nextRun });
 });
 
+app.MapPut("/schedules/{id:int}", async (int id, ScheduleRequest req, IScheduleStore store, TimeProvider clock, ITenantContext tenant, CancellationToken ct) =>
+{
+    (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd) = PlanSchedule(req, clock);
+    if (error is not null)
+    {
+        return error;
+    }
+
+    bool found = await store.UpdateAsync(new ScheduledIntegration
+    {
+        Id = id,
+        Mode = mode,
+        TenantId = tenant.TenantId,
+        CompanyCode = req.CompanyCode,
+        BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
+        PeriodStart = periodStart,
+        PeriodEnd = periodEnd,
+        NextRunAt = nextRun,
+    }, ct);
+
+    return found ? Results.Ok(new { id, nextRunAt = nextRun }) : Results.NotFound();
+});
+
 app.MapGet("/schedules", async (IScheduleStore store, CancellationToken ct) =>
     Results.Ok(await store.ListAsync(ct)));
 
@@ -252,6 +282,33 @@ app.MapPost("/schedules/{id:int}/deactivate", async (int id, IScheduleStore stor
 {
     await store.DeactivateAsync(id, ct);
     return Results.NoContent();
+});
+
+// Reativa um recorrente pausado. O único (ScheduledOnce) não reativa — já cumpriu seu papel.
+app.MapPost("/schedules/{id:int}/reactivate", async (int id, IScheduleStore store, TimeProvider clock, CancellationToken ct) =>
+{
+    IReadOnlyList<ScheduledIntegration> mine = await store.ListAsync(ct);   // já escopado ao tenant logado
+    ScheduledIntegration? s = mine.FirstOrDefault(x => x.Id == id);
+    if (s is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (s.Mode != IntegrationMode.ScheduledDaily)
+    {
+        return Results.BadRequest(new { message = "Só agendamentos recorrentes (diários) podem ser reativados." });
+    }
+
+    // Mantém o horário salvo (no fuso de Brasília) e reprograma pro próximo disparo: hoje se ainda vem, senão amanhã.
+    var brt = TimeSpan.FromHours(-3);
+    DateTimeOffset lastBrt = s.NextRunAt.ToOffset(brt);
+    var timeOfDay = TimeOnly.FromDateTime(lastBrt.DateTime);
+    DateTimeOffset nowBrt = clock.GetUtcNow().ToOffset(brt);
+    var todayRun = new DateTimeOffset(nowBrt.Date.Add(timeOfDay.ToTimeSpan()), brt);
+    DateTimeOffset next = todayRun > nowBrt ? todayRun : todayRun.AddDays(1);
+
+    bool found = await store.ReactivateAsync(id, next, ct);
+    return found ? Results.Ok(new { id, nextRunAt = next }) : Results.NotFound();
 });
 
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
@@ -353,6 +410,26 @@ app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
     async (string companyCode, string branchCode, string referenceDate, IDocumentQueries queries, CancellationToken ct) =>
         Results.Ok(await queries.ListByGroupAsync(companyCode, branchCode, referenceDate, ct)));
 
+// Reprocessar uma nota com falha: entrega o id ao adapter de entrada, que rebusca na origem e
+// reenfileira. É intenção explícita do usuário → trigger Manual (fura a idempotência, ADR-0016).
+app.MapPost("/documents/{tenantId}/{naturalKey}/reprocess",
+    async (string tenantId, string naturalKey, IDocumentDiscovery discovery, IDocumentQueue queue, ITenantContext tenant, CancellationToken ct) =>
+    {
+        if (!string.Equals(tenantId, tenant.TenantId, StringComparison.Ordinal))
+        {
+            return Results.NotFound();   // não confirma existência de nota de outro tenant
+        }
+
+        DocumentReference? reference = await discovery.FindByKeyAsync(tenantId, naturalKey, ct);
+        if (reference is null)
+        {
+            return Results.NotFound(new { message = "Nota não encontrada na origem para reprocessar." });
+        }
+
+        await queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Manual }, ct);
+        return Results.Accepted();
+    });
+
 // Diretório de empresas e filiais (dropdowns da integração manual).
 app.MapGet("/companies", async (ICompanyDirectory dir, CancellationToken ct) =>
     Results.Ok(await dir.ListCompaniesAsync(ct)));
@@ -364,7 +441,11 @@ app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory d
 app.MapGet("/info", async (IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
 {
     TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
-    return Results.Ok(new { environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox" });
+    return Results.Ok(new
+    {
+        environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox",
+        realtime = profile?.Realtime ?? false,
+    });
 });
 
 // Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita.

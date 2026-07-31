@@ -40,7 +40,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
     public async Task<IReadOnlyList<DocumentGroup>> ListGroupsAsync(int limit, CancellationToken ct = default)
         => await _db.ProcessedDocuments
             .Where(d => d.TenantId == _tenant.TenantId && d.CompanyCode != null && d.ReferenceDate != null)
-            .GroupBy(d => new { d.CompanyCode, d.BranchCode, d.ReferenceDate, d.Type })
+            .GroupBy(d => new { d.CompanyCode, d.BranchCode, d.ReferenceDate, d.Type, d.Trigger })
             .OrderByDescending(g => g.Key.ReferenceDate)
             .ThenBy(g => g.Key.CompanyCode)
             .ThenBy(g => g.Key.BranchCode)
@@ -50,6 +50,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 BranchCode = g.Key.BranchCode ?? string.Empty,
                 ReferenceDate = g.Key.ReferenceDate!,
                 Type = g.Key.Type,
+                Trigger = g.Key.Trigger ?? "RealTime",
                 Total = g.Count(),
                 Finalizadas = g.Count(x => x.Status == IntegrationStatus.Confirmed),
                 EmProcessamento = g.Count(x =>

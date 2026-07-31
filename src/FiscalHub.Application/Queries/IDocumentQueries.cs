@@ -43,6 +43,10 @@ public sealed record DocumentGroup
     public required string BranchCode { get; init; }
     public required string ReferenceDate { get; init; }
     public required DocumentType Type { get; init; }
+
+    /// <summary>Modo/gatilho da integração do grupo (RealTime · Manual · ScheduledDaily · ScheduledOnce).</summary>
+    public required string Trigger { get; init; }
+
     public required int Total { get; init; }
     public required int Finalizadas { get; init; }
     public required int EmProcessamento { get; init; }

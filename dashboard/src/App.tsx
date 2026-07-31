@@ -1,44 +1,25 @@
-import { useState } from 'react';
-import Box from '@mui/material/Box';
-import Drawer from '@mui/material/Drawer';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Divider from '@mui/material/Divider';
-import CircularProgress from '@mui/material/CircularProgress';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
-import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
-import HubOutlinedIcon from '@mui/icons-material/HubOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
+import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
+import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked';
 import { GroupsPage } from './features/groups/GroupsPage';
 import { IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { LoginPage } from './features/auth/LoginPage';
 import { useAuth } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
+import { useThemeMode } from './theme/ThemeModeProvider';
 
-const drawerWidth = 224;
+type View = 'documents' | 'integrations' | 'settings';
 
-// Nav sem router: troca a view por estado. As telas ainda-nao-feitas ficam desabilitadas.
-const nav = [
-  { key: 'documents', label: 'Documentos', icon: <DescriptionOutlinedIcon fontSize="small" /> },
-  { key: 'integrations', label: 'Integrações', icon: <BoltOutlinedIcon fontSize="small" /> },
-  { key: 'connectors', label: 'Conectores', icon: <HubOutlinedIcon fontSize="small" />, adminOnly: true },
-  { key: 'metrics', label: 'Métricas', icon: <BarChartOutlinedIcon fontSize="small" />, disabled: true },
-  { key: 'settings', label: 'Configurações', icon: <SettingsOutlinedIcon fontSize="small" />, disabled: true },
-];
-
-const titles: Record<string, { title: string; subtitle: string }> = {
+const titles: Record<View, { title: string; subtitle: string }> = {
   documents: { title: 'Documentos', subtitle: 'Notas integradas e seus status' },
   integrations: { title: 'Integrações', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
-  connectors: { title: 'Conectores', subtitle: 'Como este tenant integra: adapters, ambiente e settings' },
+  settings: { title: 'Configurações', subtitle: 'Conector, adapters e ambiente deste tenant' },
 };
 
 // Porteiro: enquanto restaura a sessão, mostra loading; sem usuário, o login; com usuário, o painel.
@@ -47,9 +28,9 @@ export default function App() {
 
   if (!ready) {
     return (
-      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <CircularProgress />
-      </Box>
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
+        Carregando…
+      </div>
     );
   }
 
@@ -58,186 +39,367 @@ export default function App() {
 
 function Dashboard() {
   const { user, logout } = useAuth();
-  const [view, setView] = useState('documents');
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const { mode, toggle } = useThemeMode();
   const { data: info } = useInfo();
+  const [view, setView] = useState<View>('documents');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
+  const isAdmin = user?.role === 'Admin';
   const env = info?.environment ?? 'Sandbox';
   const isProd = /produ|production/i.test(env);
-  const initial = (user?.name ?? '?').trim().charAt(0).toUpperCase();
-  const envFg = isProd ? '#15803d' : '#b45309';
-  const envDot = isProd ? '#16a34a' : '#d97706';
-  const envBg = isProd ? '#e7f6ec' : '#fdf2e3';
+  const realtime = info?.realtime ?? true;
+  const initials = (user?.name ?? '?').trim().charAt(0).toUpperCase();
+
+  // Fecha o menu do usuário ao clicar fora.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [menuOpen]);
+
+  const current = titles[view];
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Drawer
-        variant="permanent"
-        sx={{
-          width: drawerWidth,
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--page)' }}>
+      {/* ══ Sidebar ══ */}
+      <aside
+        style={{
+          width: 232,
           flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            borderColor: 'divider',
-            bgcolor: '#fff',
-            display: 'flex',
-            flexDirection: 'column',
-          },
+          background: 'var(--surface)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          boxSizing: 'border-box',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, px: 2, pt: 2.2, pb: 1.5 }}>
-          <Box
-            sx={{
-              width: 30,
-              height: 30,
-              borderRadius: 2,
-              bgcolor: 'primary.main',
+        {/* Marca */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            height: 73,
+            padding: '0 14px',
+            boxSizing: 'border-box',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: 'var(--accent)',
+              color: '#fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#fff',
+              fontSize: 14,
               fontWeight: 700,
-              fontSize: 15,
+              flexShrink: 0,
             }}
           >
             F
-          </Box>
-          <Typography variant="subtitle1">FiscalHub</Typography>
-        </Box>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--ink)' }}>
+              FiscalHub
+            </div>
+            <div className="fh-mono" style={{ fontSize: 10.5, color: 'var(--muted)' }}>
+              {user?.tenantId ?? '—'}
+            </div>
+          </div>
+        </div>
 
-        <List sx={{ px: 1 }}>
-          {nav.filter((item) => !item.adminOnly || user?.role === 'Admin').map((item) => {
-            const active = view === item.key;
-            return (
-              <ListItemButton
-                key={item.key}
-                selected={active}
-                disabled={item.disabled}
-                onClick={() => setView(item.key)}
-                sx={{ borderRadius: 2, mb: 0.5 }}
+        {/* Navegação */}
+        <nav style={{ padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <NavSection>Operação</NavSection>
+          <NavItem
+            active={view === 'documents'}
+            icon={<DescriptionOutlinedIcon sx={{ fontSize: 16 }} />}
+            onClick={() => setView('documents')}
+          >
+            Documentos
+          </NavItem>
+          <NavItem
+            active={view === 'integrations'}
+            icon={<BoltOutlinedIcon sx={{ fontSize: 16 }} />}
+            onClick={() => setView('integrations')}
+          >
+            Integrações
+          </NavItem>
+
+          {isAdmin && (
+            <>
+              <NavSection style={{ paddingTop: 14 }}>Administração</NavSection>
+              <NavItem
+                active={view === 'settings'}
+                icon={<SettingsOutlinedIcon sx={{ fontSize: 16 }} />}
+                onClick={() => setView('settings')}
               >
-                <ListItemIcon sx={{ minWidth: 34, color: active ? 'primary.main' : 'text.secondary' }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  primaryTypographyProps={{
-                    fontSize: 14,
-                    fontWeight: active ? 600 : 400,
-                    color: active ? 'primary.main' : 'text.primary',
-                  }}
-                />
-              </ListItemButton>
-            );
-          })}
-        </List>
+                Configurações
+              </NavItem>
+            </>
+          )}
+        </nav>
 
-        <Box sx={{ mt: 'auto', p: 1.5 }}>
-          <Box
-            sx={{
+        {/* Ambiente ativo */}
+        <div style={{ marginTop: 'auto', padding: 12 }}>
+          <div
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 9,
+              padding: '11px 13px',
               display: 'flex',
-              alignItems: 'center',
-              gap: 1.2,
-              px: 1.5,
-              py: 1.2,
-              borderRadius: 2,
-              bgcolor: envBg,
+              flexDirection: 'column',
+              gap: 9,
             }}
           >
-            <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: envDot, flexShrink: 0 }} />
-            <Box>
-              <Typography variant="caption" sx={{ color: envFg, display: 'block', lineHeight: 1.2, opacity: 0.85 }}>
-                Ambiente
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: envFg, lineHeight: 1.2 }}>
-                {env}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-      </Drawer>
+            <div className="fh-label" style={{ fontSize: 10.5, letterSpacing: '0.09em' }}>
+              Ambiente ativo
+            </div>
+            <EnvPill isProd={isProd} label={isProd ? 'Produção' : 'Sandbox'} />
+            {realtime && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--muted)' }}>
+                <RadioButtonCheckedIcon sx={{ fontSize: 12 }} />
+                Tempo real ligado
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
 
-      <Box component="main" sx={{ flex: 1, minWidth: 0 }}>
-        <Box
-          sx={{
+      {/* ══ Main ══ */}
+      <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* Topbar */}
+        <header
+          style={{
+            background: 'var(--surface)',
+            borderBottom: '1px solid var(--border)',
+            height: 73,
+            padding: '0 28px',
+            boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            px: 3,
-            py: 1.5,
-            borderBottom: 1,
-            borderColor: 'divider',
-            bgcolor: '#fff',
+            gap: 24,
+            position: 'sticky',
+            top: 0,
+            zIndex: 5,
           }}
         >
-          <Box>
-            <Typography variant="h6">{titles[view].title}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {titles[view].subtitle}
-            </Typography>
-          </Box>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+              {current.title}
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 1 }}>{current.subtitle}</div>
+          </div>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              {user?.name}
-            </Typography>
-            <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} sx={{ p: 0 }} aria-label="Conta">
-              <Box
-                sx={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: '50%',
-                  bgcolor: 'var(--accent-tint)',
-                  color: 'var(--accent)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
-              >
-                {initial}
-              </Box>
-            </IconButton>
-            <Menu
-              anchorEl={menuAnchor}
-              open={Boolean(menuAnchor)}
-              onClose={() => setMenuAnchor(null)}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {/* Alternador de tema */}
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={mode === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
+              title={mode === 'dark' ? 'Modo claro' : 'Modo escuro'}
+              style={{
+                width: 34,
+                height: 34,
+                display: 'grid',
+                placeItems: 'center',
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                color: 'var(--muted)',
+                cursor: 'pointer',
+              }}
             >
-              <Box sx={{ px: 2, py: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {user?.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {user?.email}
-                </Typography>
-              </Box>
-              <Divider />
-              <MenuItem
-                onClick={() => {
-                  setMenuAnchor(null);
-                  logout();
-                }}
+              {mode === 'dark' ? (
+                <LightModeOutlinedIcon sx={{ fontSize: 18 }} />
+              ) : (
+                <DarkModeOutlinedIcon sx={{ fontSize: 18 }} />
+              )}
+            </button>
+
+            {/* Usuário + menu */}
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <div
+                onClick={() => setMenuOpen((v) => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer' }}
               >
-                <ListItemIcon>
-                  <LogoutOutlinedIcon fontSize="small" />
-                </ListItemIcon>
-                Sair
-              </MenuItem>
-            </Menu>
-          </Box>
-        </Box>
-        {view === 'integrations' ? (
-          <IntegrationsPage />
-        ) : view === 'connectors' ? (
-          <ConnectorsPage />
-        ) : (
-          <GroupsPage />
-        )}
-      </Box>
-    </Box>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: 'var(--ink)' }}>
+                    {user?.name}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.3 }}>{user?.role}</div>
+                </div>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {initials}
+                </div>
+              </div>
+
+              {menuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 44,
+                    right: 0,
+                    width: 224,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 10,
+                    boxShadow: 'var(--shadow-popover)',
+                    overflow: 'hidden',
+                    zIndex: 10,
+                  }}
+                >
+                  <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{user?.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 1 }}>{user?.email}</div>
+                  </div>
+                  <div
+                    onClick={() => {
+                      setMenuOpen(false);
+                      logout();
+                    }}
+                    style={{
+                      padding: '9px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 9,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: 'var(--text)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <LogoutOutlinedIcon sx={{ fontSize: 15, color: 'var(--muted)' }} />
+                    Sair
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Conteúdo — área rolável. A topbar fica fixa acima; Documentos preenche a altura
+            (autoPageSize ajusta as linhas), as demais telas rolam aqui se passarem da altura. */}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {view === 'integrations' ? (
+            <IntegrationsPage />
+          ) : view === 'settings' && isAdmin ? (
+            <ConnectorsPage />
+          ) : (
+            <GroupsPage />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NavSection({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div
+      style={{
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: '0.09em',
+        textTransform: 'uppercase',
+        color: 'var(--muted)',
+        padding: '6px 8px',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function NavItem({
+  active,
+  icon,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 9,
+        padding: '7px 9px',
+        borderRadius: 7,
+        fontSize: 13.5,
+        fontWeight: active ? 600 : 500,
+        cursor: 'pointer',
+        background: active ? 'var(--accent-tint)' : 'transparent',
+        color: active ? 'var(--accent)' : 'var(--text)',
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = 'var(--surface-2)';
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <span style={{ display: 'grid', placeItems: 'center', color: active ? 'var(--accent)' : 'var(--muted)' }}>
+        {icon}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function EnvPill({ isProd, label }: { isProd: boolean; label: string }) {
+  const t = isProd
+    ? { bg: 'var(--ok-bg)', border: 'var(--ok-border)', fg: 'var(--ok-text)', dot: 'var(--ok-text)' }
+    : { bg: 'var(--warn-bg)', border: 'var(--warn-border)', fg: 'var(--warn-text)', dot: 'var(--warn-text)' };
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        fontWeight: 600,
+        padding: '3px 9px 3px 7px',
+        borderRadius: 6,
+        background: t.bg,
+        border: `1px solid ${t.border}`,
+        color: t.fg,
+        whiteSpace: 'nowrap',
+        alignSelf: 'flex-start',
+      }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: 999, background: t.dot }} />
+      {label}
+    </span>
   );
 }
