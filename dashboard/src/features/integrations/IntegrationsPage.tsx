@@ -256,7 +256,7 @@ export function IntegrationsPage() {
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums', color: 'var(--ink)' }}>
+          <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
             {activeCount}
           </span>
           <span style={{ fontSize: 14, color: 'var(--muted)' }}>agendamentos ativos</span>

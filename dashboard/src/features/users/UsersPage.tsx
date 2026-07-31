@@ -403,7 +403,7 @@ function RoleChip({ role }: { role: UserRole }) {
 function ActiveChip({ active }: { active: boolean }) {
   const t = active
     ? { bg: 'var(--ok-bg)', border: 'var(--ok-border)', fg: 'var(--ok-text)' }
-    : { bg: 'var(--surface-2)', border: 'var(--border)', fg: 'var(--muted)' };
+    : { bg: 'var(--error-bg)', border: 'var(--error-border)', fg: 'var(--error-text)' };
   return (
     <span
       style={{

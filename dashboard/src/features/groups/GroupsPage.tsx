@@ -83,7 +83,7 @@ function Kpi({ label, value, color, note }: { label: string; value: number; colo
     <div style={{ ...cardStyle, padding: '16px 18px' }}>
       <div className="fh-label" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 7 }}>
-        <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums', color }}>
+        <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.01em', color }}>
           {value}
         </div>
       </div>
@@ -119,8 +119,8 @@ export function GroupsPage() {
         <div style={{ ...cardStyle, padding: '16px 18px' }}>
           <div className="fh-label" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>Finalizados</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 7 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums', color: 'var(--ok-text)' }}>{finalizadas}</div>
-            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ok-text)', fontVariantNumeric: 'tabular-nums' }}>{pct}%</div>
+            <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ok-text)' }}>{finalizadas}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ok-text)' }}>{pct}%</div>
           </div>
           <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>confirmados pelo compliance</div>
         </div>
