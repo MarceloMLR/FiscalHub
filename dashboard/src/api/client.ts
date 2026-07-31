@@ -212,6 +212,9 @@ export const api = {
     sendAdmin<void>('POST', `/users/${id}/reset-password`, { newPassword }),
   tenant: () => getJson<TenantInfo>('/tenant'),
   saveTenant: (body: { name: string; cnpj: string | null }) => sendAdmin<TenantInfo>('PUT', '/tenant', body),
+  // Abrir chamado de suporte para uma ou mais notas (logs anexados, zipados por nota).
+  openTicket: (subject: string, description: string, naturalKeys: string[]) =>
+    sendAdmin<{ ticketId: string; url: string | null }>('POST', '/support/tickets', { subject, description, naturalKeys }),
   connector: () => getJson<ConnectorProfile>('/connector'),
   saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {
     const res = await fetch(`${BASE}/connector`, {

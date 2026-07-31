@@ -1,11 +1,13 @@
 import { useState } from 'react';
+import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumberOutlined';
 import { Modal } from '../../components/Modal';
 import { useGroupDocuments } from './useGroups';
 import { StatusChip } from '../documents/StatusChip';
 import { NoteDialog } from './NoteDialog';
+import { TicketModal } from '../support/TicketModal';
 import type { DocumentGroup, DocumentSummary } from '../../types';
 
-const GRID = 'minmax(120px,1.6fr) 80px minmax(130px,1.2fr) 90px minmax(150px,1.3fr)';
+const GRID = '34px minmax(120px,1.6fr) 80px minmax(130px,1.2fr) 90px minmax(150px,1.3fr)';
 
 function dateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -14,11 +16,20 @@ function dateTime(iso: string): string {
 export function GroupModal({ group, onClose }: { group: DocumentGroup | null; onClose: () => void }) {
   const { data: docs } = useGroupDocuments(group?.companyCode, group?.branchCode, group?.referenceDate);
   const [note, setNote] = useState<DocumentSummary | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [ticketOpen, setTicketOpen] = useState(false);
 
   if (!group) {
     return null;
   }
   const rows = docs ?? [];
+  const toggle = (key: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  const selectedNotes = rows.filter((d) => selected.has(d.naturalKey));
 
   return (
     <>
@@ -27,6 +38,19 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
         subtitle={`${group.referenceDate} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
         onClose={onClose}
         maxWidth={780}
+        footer={
+          selected.size > 0 ? (
+            <>
+              <span style={{ fontSize: 12.5, color: 'var(--muted)', marginRight: 'auto' }}>
+                {selected.size} selecionada{selected.size > 1 ? 's' : ''}
+              </span>
+              <button type="button" className="fh-btn" onClick={() => setTicketOpen(true)} style={{ height: 34 }}>
+                <ConfirmationNumberOutlinedIcon sx={{ fontSize: 16 }} />
+                Abrir chamado ({selected.size})
+              </button>
+            </>
+          ) : undefined
+        }
       >
         {/* Cabeçalho da tabela */}
         <div
@@ -45,6 +69,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
             color: 'var(--muted)',
           }}
         >
+          <div />
           <div>Número</div>
           <div>Modelo</div>
           <div>Status</div>
@@ -65,10 +90,18 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
               borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--border)',
               fontSize: 13.5,
               cursor: 'pointer',
+              background: selected.has(d.naturalKey) ? 'var(--accent-tint)' : 'transparent',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            onMouseEnter={(e) => { if (!selected.has(d.naturalKey)) e.currentTarget.style.background = 'var(--surface-2)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = selected.has(d.naturalKey) ? 'var(--accent-tint)' : 'transparent'; }}
           >
+            <input
+              type="checkbox"
+              checked={selected.has(d.naturalKey)}
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => toggle(d.naturalKey)}
+              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--accent)' }}
+            />
             <span style={{ color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {d.number ?? d.naturalKey}
             </span>
@@ -87,6 +120,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
       </Modal>
 
       <NoteDialog note={note} onClose={() => setNote(null)} />
+      {ticketOpen && <TicketModal notes={selectedNotes} onClose={() => setTicketOpen(false)} />}
     </>
   );
 }
