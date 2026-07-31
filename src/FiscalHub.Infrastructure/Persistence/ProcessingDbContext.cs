@@ -68,6 +68,7 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         usr.Property(u => u.PasswordHash).HasMaxLength(400);
         usr.Property(u => u.TenantId).HasMaxLength(100);
         usr.Property(u => u.Role).HasMaxLength(50);
+        usr.Property(u => u.ResetTokenHash).HasMaxLength(64);
 
         var conn = modelBuilder.Entity<ConnectorProfileRow>();
         conn.ToTable("ConnectorProfiles");

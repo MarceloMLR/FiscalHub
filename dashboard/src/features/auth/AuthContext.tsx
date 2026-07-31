@@ -5,7 +5,7 @@ import type { AuthUser } from '../../types';
 interface AuthState {
   user: AuthUser | null;
   ready: boolean; // já tentou restaurar a sessão do token guardado
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => void;
 }
 
@@ -38,9 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, remember = true) => {
     const res = await api.login(email, password);
-    tokenStore.set(res.token);
+    tokenStore.set(res.token, remember);
     setUser(res.user);
   };
 

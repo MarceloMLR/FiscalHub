@@ -149,6 +149,32 @@ app.MapPost("/auth/login", async (LoginRequest req, IUserAuthenticator auth, Jwt
     });
 }).AllowAnonymous();
 
+// Esqueci a senha: gera o token de redefinição (se a conta existe). Sempre 200 — não vaza se o e-mail
+// existe. Em produção enviaria um e-mail; no dev, devolve o token pra completar o fluxo sem servidor SMTP.
+app.MapPost("/auth/forgot-password", async (ForgotPasswordRequest req, IPasswordResetService reset, IHostEnvironment env, CancellationToken ct) =>
+{
+    string? token = await reset.RequestResetAsync(req.Email ?? string.Empty, ct);
+    return Results.Ok(new
+    {
+        message = "Se a conta existir, enviaremos as instruções para redefinir a senha.",
+        devToken = env.IsDevelopment() ? token : null,   // só em dev, pra testar sem e-mail
+    });
+}).AllowAnonymous();
+
+// Redefinir a senha consumindo o token (uso único, com validade).
+app.MapPost("/auth/reset-password", async (ResetPasswordRequest req, IPasswordResetService reset, CancellationToken ct) =>
+{
+    if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
+    {
+        return Results.BadRequest(new { message = "A nova senha precisa ter ao menos 6 caracteres." });
+    }
+
+    bool ok = await reset.ResetAsync(req.Token ?? string.Empty, req.NewPassword, ct);
+    return ok
+        ? Results.Ok(new { message = "Senha redefinida. Você já pode entrar." })
+        : Results.BadRequest(new { message = "Link inválido ou expirado. Peça um novo." });
+}).AllowAnonymous();
+
 // Sessão atual: o SPA chama pra restaurar o login a partir do token guardado.
 app.MapGet("/auth/me", (ClaimsPrincipal principal) => Results.Ok(new
 {
@@ -474,6 +500,8 @@ app.Run();
 
 /// <summary>Corpo do POST /auth/login.</summary>
 public sealed record LoginRequest(string Email, string Password);
+public sealed record ForgotPasswordRequest(string? Email);
+public sealed record ResetPasswordRequest(string? Token, string? NewPassword);
 
 /// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
 public sealed record ConnectorProfileRequest(
