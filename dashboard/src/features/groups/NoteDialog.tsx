@@ -1,39 +1,32 @@
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import { Modal } from '../../components/Modal';
 import { DocumentDetail } from '../documents/DocumentDetail';
 import { api } from '../../api/client';
 import type { DocumentSummary } from '../../types';
 
 export function NoteDialog({ note, onClose }: { note: DocumentSummary | null; onClose: () => void }) {
+  if (!note) {
+    return null;
+  }
+
   return (
-    <Dialog open={Boolean(note)} onClose={onClose} maxWidth="sm" fullWidth>
-      {note && (
+    <Modal
+      title="Detalhes da nota"
+      onClose={onClose}
+      maxWidth={640}
+      footer={
         <>
-          <DialogTitle sx={{ fontSize: 16, fontWeight: 600 }}>Detalhes da nota</DialogTitle>
-          <DialogContent dividers sx={{ p: 0 }}>
-            {note.reason && (
-              <div style={{ padding: '12px 16px', background: '#fdeaea', color: '#c81e1e', fontSize: 13 }}>
-                {note.reason}
-              </div>
-            )}
-            <DocumentDetail doc={note} />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={onClose}>Fechar</Button>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadOutlinedIcon />}
-              onClick={() => api.downloadTrace(note.tenantId, note.naturalKey)}
-            >
-              Baixar arquivos
-            </Button>
-          </DialogActions>
+          <button type="button" className="fh-btn fh-btn-secondary" onClick={onClose} style={{ height: 32 }}>
+            Fechar
+          </button>
+          <button type="button" className="fh-btn" onClick={() => api.downloadTrace(note.tenantId, note.naturalKey)} style={{ height: 32 }}>
+            <DownloadOutlinedIcon sx={{ fontSize: 16 }} />
+            Baixar arquivos
+          </button>
         </>
-      )}
-    </Dialog>
+      }
+    >
+      <DocumentDetail doc={note} />
+    </Modal>
   );
 }

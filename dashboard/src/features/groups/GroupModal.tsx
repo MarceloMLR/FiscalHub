@@ -1,70 +1,92 @@
 import { useState } from 'react';
-import Box from '@mui/material/Box';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import Table from '@mui/material/Table';
-import TableHead from '@mui/material/TableHead';
-import TableBody from '@mui/material/TableBody';
-import TableRow from '@mui/material/TableRow';
-import TableCell from '@mui/material/TableCell';
-import Typography from '@mui/material/Typography';
+import { Modal } from '../../components/Modal';
 import { useGroupDocuments } from './useGroups';
 import { StatusChip } from '../documents/StatusChip';
 import { NoteDialog } from './NoteDialog';
 import type { DocumentGroup, DocumentSummary } from '../../types';
 
+const GRID = 'minmax(120px,1.6fr) 80px minmax(130px,1.2fr) 90px minmax(150px,1.3fr)';
+
+function dateTime(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
 export function GroupModal({ group, onClose }: { group: DocumentGroup | null; onClose: () => void }) {
   const { data: docs } = useGroupDocuments(group?.companyCode, group?.branchCode, group?.referenceDate);
   const [note, setNote] = useState<DocumentSummary | null>(null);
+
+  if (!group) {
+    return null;
+  }
   const rows = docs ?? [];
 
   return (
-    <Dialog open={Boolean(group)} onClose={onClose} maxWidth="md" fullWidth>
-      {group && (
-        <>
-          <DialogTitle sx={{ pb: 0.5 }}>
-            <Typography sx={{ fontSize: 16, fontWeight: 600 }}>
-              Empresa {group.companyCode} &middot; Filial {group.branchCode}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {group.referenceDate} &middot; {group.total} notas
-            </Typography>
-          </DialogTitle>
-          <DialogContent>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Número</TableCell>
-                  <TableCell>Modelo</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Consulta</TableCell>
-                  <TableCell align="right">Atualizado</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows.map((d) => (
-                  <TableRow key={d.naturalKey} hover sx={{ cursor: 'pointer' }} onClick={() => setNote(d)}>
-                    <TableCell sx={{ fontFamily: 'ui-monospace, monospace' }}>{d.number ?? d.naturalKey}</TableCell>
-                    <TableCell>{d.model ?? '—'}</TableCell>
-                    <TableCell><StatusChip status={d.status} /></TableCell>
-                    <TableCell align="right">{d.attempts}</TableCell>
-                    <TableCell align="right">{new Date(d.updatedAt).toLocaleString('pt-BR')}</TableCell>
-                  </TableRow>
-                ))}
-                {rows.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <Box sx={{ py: 2, textAlign: 'center', color: 'text.secondary' }}>Sem notas neste grupo.</Box>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DialogContent>
-        </>
-      )}
+    <>
+      <Modal
+        title={<>Empresa {group.companyCode} · Filial {group.branchCode}</>}
+        subtitle={`${group.referenceDate} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
+        onClose={onClose}
+        maxWidth={780}
+      >
+        {/* Cabeçalho da tabela */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: GRID,
+            columnGap: 12,
+            alignItems: 'center',
+            padding: '11px 22px',
+            background: 'var(--surface-2)',
+            borderBottom: '1px solid var(--border)',
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: '0.075em',
+            textTransform: 'uppercase',
+            color: 'var(--muted)',
+          }}
+        >
+          <div>Número</div>
+          <div>Modelo</div>
+          <div>Status</div>
+          <div style={{ textAlign: 'right' }}>Consultas</div>
+          <div style={{ textAlign: 'right' }}>Atualizado</div>
+        </div>
+
+        {rows.map((d, i) => (
+          <div
+            key={d.naturalKey}
+            onClick={() => setNote(d)}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: GRID,
+              columnGap: 12,
+              alignItems: 'center',
+              padding: '12px 22px',
+              borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--border)',
+              fontSize: 13.5,
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span className="fh-mono" style={{ fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {d.number ?? d.naturalKey}
+            </span>
+            <span style={{ color: 'var(--text)' }}>{d.model ?? '—'}</span>
+            <span><StatusChip status={d.status} /></span>
+            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{d.attempts}</span>
+            <span style={{ textAlign: 'right', fontSize: 12.5, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+              {dateTime(d.updatedAt)}
+            </span>
+          </div>
+        ))}
+
+        {rows.length === 0 && (
+          <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Sem notas neste grupo.</div>
+        )}
+      </Modal>
+
       <NoteDialog note={note} onClose={() => setNote(null)} />
-    </Dialog>
+    </>
   );
 }
