@@ -24,7 +24,7 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
   });
 
   const done = open.data;
-  const valid = subject.trim().length > 0 && description.trim().length > 0;
+  const valid = notes.length > 0 && subject.trim().length > 0 && description.trim().length > 0;
 
   return (
     <Modal

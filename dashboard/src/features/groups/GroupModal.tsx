@@ -39,17 +39,23 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
         onClose={onClose}
         maxWidth={780}
         footer={
-          selected.size > 0 ? (
-            <>
-              <span style={{ fontSize: 12.5, color: 'var(--muted)', marginRight: 'auto' }}>
-                {selected.size} selecionada{selected.size > 1 ? 's' : ''}
-              </span>
-              <button type="button" className="fh-btn" onClick={() => setTicketOpen(true)} style={{ height: 34 }}>
-                <ConfirmationNumberOutlinedIcon sx={{ fontSize: 16 }} />
-                Abrir chamado ({selected.size})
-              </button>
-            </>
-          ) : undefined
+          <>
+            <span style={{ fontSize: 12.5, color: 'var(--muted)', marginRight: 'auto' }}>
+              {selected.size > 0
+                ? `${selected.size} selecionada${selected.size > 1 ? 's' : ''}`
+                : 'Selecione ao menos uma nota'}
+            </span>
+            <button
+              type="button"
+              className="fh-btn"
+              onClick={() => setTicketOpen(true)}
+              disabled={selected.size === 0}
+              style={{ height: 34 }}
+            >
+              <ConfirmationNumberOutlinedIcon sx={{ fontSize: 16 }} />
+              Abrir chamado{selected.size > 0 ? ` (${selected.size})` : ''}
+            </button>
+          </>
         }
       >
         {/* Cabeçalho da tabela */}
