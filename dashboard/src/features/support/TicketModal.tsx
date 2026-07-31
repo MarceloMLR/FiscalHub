@@ -107,7 +107,7 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
                 ))}
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 7 }}>
-                Anexos: um zip de logs por nota (origem/domínio/destino), pra caber no limite do chamado.
+                Os logs de cada nota são anexados automaticamente na abertura do chamado.
               </div>
             </div>
 
