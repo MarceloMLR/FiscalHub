@@ -23,7 +23,11 @@ export function TicketModal({ notes, onClose }: { notes: DocumentSummary[]; onCl
   const [files, setFiles] = useState<File[]>([]);
 
   const addFiles = (list: FileList | null) => {
-    if (list && list.length > 0) setFiles((prev) => [...prev, ...Array.from(list)]);
+    if (!list || list.length === 0) return;
+    // Captura os arquivos AGORA: o onChange limpa o input logo em seguida (value=''),
+    // o que esvazia o FileList antes do updater do setState rodar. Sem isto, nada é adicionado.
+    const picked = Array.from(list);
+    setFiles((prev) => [...prev, ...picked]);
   };
   const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
