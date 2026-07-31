@@ -199,13 +199,9 @@ export function IntegrationsPage() {
     (createSchedule.error as Error)?.message ??
     (updateSchedule.error as Error)?.message;
 
-  const mono = (v: unknown) => (
-    <span className="fh-mono" style={{ fontWeight: 600, color: 'var(--ink)' }}>{v as string}</span>
-  );
-
   const scheduleColumns: GridColDef<Schedule>[] = [
     { field: 'mode', headerName: 'Tipo', width: 130, headerClassName: 'fhFirstCol', cellClassName: 'fhFirstCol', valueGetter: (_v, row) => MODE_LABEL[row.mode] },
-    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120, renderCell: (p) => mono(p.value) },
+    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120 },
     { field: 'branchCode', headerName: 'Filial', width: 90, valueGetter: (_v, row) => row.branchCode ?? 'Todas' },
     { field: 'nextRunAt', headerName: 'Próximo disparo', width: 170, valueGetter: (_v, row) => dateTime(row.nextRunAt) },
     {
@@ -244,7 +240,7 @@ export function IntegrationsPage() {
 
   const executionColumns: GridColDef<ExecutionSummary>[] = [
     { field: 'mode', headerName: 'Modo', width: 130, headerClassName: 'fhFirstCol', cellClassName: 'fhFirstCol', valueGetter: (_v, row) => MODE_LABEL[row.mode] },
-    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120, renderCell: (p) => mono(p.value) },
+    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120 },
     { field: 'branchCode', headerName: 'Filial', width: 90, valueGetter: (_v, row) => row.branchCode ?? 'Todas' },
     { field: 'periodo', headerName: 'Período', flex: 1, minWidth: 150, sortable: false, valueGetter: (_v, row) => `${row.periodStart} → ${row.periodEnd}` },
     { field: 'discoveredCount', headerName: 'Notas', width: 90, align: 'right', headerAlign: 'right', type: 'number' },

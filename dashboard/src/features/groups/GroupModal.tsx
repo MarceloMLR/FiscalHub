@@ -69,7 +69,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')}
             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
-            <span className="fh-mono" style={{ fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {d.number ?? d.naturalKey}
             </span>
             <span style={{ color: 'var(--text)' }}>{d.model ?? '—'}</span>
