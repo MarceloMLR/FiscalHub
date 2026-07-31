@@ -27,6 +27,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0017](0017-agendador-e-execucao-compartilhada.md) | Agendador in-process + execução compartilhada (runner) | Aceito |
 | [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito |
 | [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito |
+| [0020](0020-topologia-de-deploy-por-cliente-e-frontend-unico.md) | Topologia de deploy (backend por-cliente, frontend único, subdomínio) | Aceito |
 
 ## Planejados
 

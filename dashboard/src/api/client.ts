@@ -18,8 +18,11 @@ import type {
   TraceResponse,
   UpdateUserRequest,
 } from '../types';
+import { resolveApiBase } from './config';
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5200';
+// URL da API resolvida em RUNTIME (por host), não assada no build — um único bundle serve todos os
+// clientes: acme.fiscalhub.com fala com a API da ACME, tmsa.fiscalhub.com com a da TMSA. Ver ADR-0020.
+const BASE = resolveApiBase();
 const TOKEN_KEY = 'fiscalhub.token';
 
 // Token Bearer. "Manter conectado" = localStorage (persiste ao fechar o navegador);
