@@ -31,6 +31,8 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
                 InboundSettings = profile.InboundSettings,
                 OutboundAdapter = profile.OutboundAdapter,
                 OutboundSettings = profile.OutboundSettings,
+                SupportAdapter = profile.SupportAdapter,
+                SupportSettings = profile.SupportSettings,
             });
         }
         else
@@ -41,6 +43,8 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
             row.InboundSettings = profile.InboundSettings;
             row.OutboundAdapter = profile.OutboundAdapter;
             row.OutboundSettings = profile.OutboundSettings;
+            row.SupportAdapter = profile.SupportAdapter;
+            row.SupportSettings = profile.SupportSettings;
         }
 
         await _db.SaveChangesAsync(ct);
@@ -55,5 +59,7 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
         InboundSettings = r.InboundSettings,
         OutboundAdapter = r.OutboundAdapter,
         OutboundSettings = r.OutboundSettings,
+        SupportAdapter = r.SupportAdapter,
+        SupportSettings = r.SupportSettings ?? "{}",
     };
 }

@@ -27,4 +27,10 @@ public sealed record TenantConnectorProfile
 
     /// <summary>Settings do adapter de saída (JSON; por ambiente). Segredos por referência.</summary>
     public string OutboundSettings { get; init; } = "{}";
+
+    /// <summary>Adapter de chamados de suporte (opcional): ex. "Freshdesk", "Local". Nulo = sem suporte.</summary>
+    public string? SupportAdapter { get; init; }
+
+    /// <summary>Settings do adapter de chamados (JSON; domínio + credenciais por referência).</summary>
+    public string SupportSettings { get; init; } = "{}";
 }

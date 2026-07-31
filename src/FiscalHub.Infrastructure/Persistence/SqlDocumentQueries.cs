@@ -83,4 +83,23 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 UpdatedAt = d.UpdatedAt,
             })
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<DocumentSummary>> ListByKeysAsync(
+        string tenantId, IReadOnlyList<string> naturalKeys, CancellationToken ct = default)
+        => await _db.ProcessedDocuments
+            .Where(d => d.TenantId == tenantId && naturalKeys.Contains(d.NaturalKey))
+            .Select(d => new DocumentSummary
+            {
+                TenantId = d.TenantId,
+                NaturalKey = d.NaturalKey,
+                Type = d.Type,
+                Status = d.Status,
+                Attempts = d.Attempts,
+                ExternalId = d.ExternalId,
+                Reason = d.Reason,
+                Number = d.DocumentNumber,
+                Model = d.DocumentModel,
+                UpdatedAt = d.UpdatedAt,
+            })
+            .ToListAsync(ct);
 }

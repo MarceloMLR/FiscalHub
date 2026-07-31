@@ -9,6 +9,7 @@ using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Ingress.BlobDrop;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
+using FiscalHub.Adapters.Support;
 using FiscalHub.Application.Admin;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Directory;
@@ -18,6 +19,7 @@ using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
+using FiscalHub.Application.Support;
 using FiscalHub.Application.Validation;
 using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
@@ -69,6 +71,7 @@ builder.Services.AddBlobProcessingTrace("traces");
 builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
+builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
 builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInvoiceMetadataExtractor>();
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
@@ -553,6 +556,21 @@ app.MapPut("/tenant", async (UpdateTenantRequest req, ITenantAdminService tenant
     return r.Status == AdminStatus.Ok ? Results.Ok(r.Value) : AdminError(r.Status, r.Message);
 }).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
+// ---- Abrir chamado de suporte para uma ou mais notas (qualquer usuário; escopado ao tenant) ----
+app.MapPost("/support/tickets", async (OpenTicketRequest req, ISupportTicketService support, ITenantContext tenant, CancellationToken ct) =>
+{
+    try
+    {
+        TicketResult result = await support.OpenAsync(
+            tenant.TenantId, req.NaturalKeys ?? [], req.Subject ?? string.Empty, req.Description ?? string.Empty, ct);
+        return Results.Ok(new { ticketId = result.Id, url = result.Url });
+    }
+    catch (SupportTicketException ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+});
+
 app.Run();
 
 /// <summary>Corpo do POST /auth/login.</summary>
@@ -565,6 +583,9 @@ public sealed record CreateUserRequest(string Email, string Name, string Role, s
 public sealed record UpdateUserRequest(string? Name, string? Role, bool? Active);
 public sealed record ResetUserPasswordRequest(string? NewPassword);
 public sealed record UpdateTenantRequest(string Name, string? Cnpj);
+
+/// <summary>Corpo do POST /support/tickets. As notas são chaves naturais do tenant logado.</summary>
+public sealed record OpenTicketRequest(string? Subject, string? Description, IReadOnlyList<string>? NaturalKeys);
 
 /// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
 public sealed record ConnectorProfileRequest(
