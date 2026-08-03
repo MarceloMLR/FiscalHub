@@ -80,6 +80,7 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         conn.Property(c => c.Environment).HasMaxLength(20);
         conn.Property(c => c.InboundAdapter).HasMaxLength(50);
         conn.Property(c => c.OutboundAdapter).HasMaxLength(50);
+        conn.Property(c => c.SupportAdapter).HasMaxLength(50);
 
         var tnt = modelBuilder.Entity<TenantRow>();
         tnt.ToTable("Tenants");

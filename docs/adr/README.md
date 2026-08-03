@@ -28,6 +28,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito |
 | [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito |
 | [0020](0020-topologia-de-deploy-por-cliente-e-frontend-unico.md) | Topologia de deploy (backend por-cliente, frontend único, subdomínio) | Aceito |
+| [0021](0021-adapter-de-chamados-de-suporte.md) | Adapter de chamados de suporte (Freshdesk) — porta + anexos zipados por nota | Aceito |
 
 ## Planejados
 

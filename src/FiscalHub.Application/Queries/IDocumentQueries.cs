@@ -19,6 +19,10 @@ public interface IDocumentQueries
     /// <summary>Lista os documentos de um grupo específico (empresa/filial/dia).</summary>
     Task<IReadOnlyList<DocumentSummary>> ListByGroupAsync(
         string companyCode, string branchCode, string referenceDate, CancellationToken ct = default);
+
+    /// <summary>Busca os documentos de um tenant por chave natural (seleção para abrir chamado).</summary>
+    Task<IReadOnlyList<DocumentSummary>> ListByKeysAsync(
+        string tenantId, IReadOnlyList<string> naturalKeys, CancellationToken ct = default);
 }
 
 /// <summary>Visão de leitura de um documento para o dashboard.</summary>

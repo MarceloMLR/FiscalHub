@@ -212,6 +212,32 @@ export const api = {
     sendAdmin<void>('POST', `/users/${id}/reset-password`, { newPassword }),
   tenant: () => getJson<TenantInfo>('/tenant'),
   saveTenant: (body: { name: string; cnpj: string | null }) => sendAdmin<TenantInfo>('PUT', '/tenant', body),
+  // Estimativa do tamanho dos logs (zips) das notas selecionadas, pra tela mostrar o disponível.
+  estimateTicketLogs: (naturalKeys: string[]) =>
+    sendAdmin<{ logsBytes: number; limitBytes: number }>('POST', '/support/tickets/estimate', { naturalKeys }),
+  // Abrir chamado de suporte (multipart): logs das notas anexados automaticamente + anexos extras opcionais.
+  openTicket: async (
+    subject: string,
+    description: string,
+    naturalKeys: string[],
+    files: File[] = [],
+  ): Promise<{ ticketId: string; url: string | null }> => {
+    const fd = new FormData();
+    fd.append('subject', subject);
+    fd.append('description', description);
+    naturalKeys.forEach((k) => fd.append('naturalKeys', k));
+    files.forEach((f) => fd.append('files', f));
+    const res = await fetch(`${BASE}/support/tickets`, { method: 'POST', headers: authHeaders(), body: fd });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error('Sessão expirada.');
+    }
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(data.message ?? `${res.status} ${res.statusText}`);
+    }
+    return (await res.json()) as { ticketId: string; url: string | null };
+  },
   connector: () => getJson<ConnectorProfile>('/connector'),
   saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {
     const res = await fetch(`${BASE}/connector`, {

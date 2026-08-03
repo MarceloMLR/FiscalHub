@@ -18,4 +18,9 @@ internal sealed class ConnectorProfileRow
     public required string OutboundAdapter { get; set; }
 
     public required string OutboundSettings { get; set; }
+
+    /// <summary>Adapter de chamados (opcional). Nulo = tenant sem abertura de chamado configurada.</summary>
+    public string? SupportAdapter { get; set; }
+
+    public string? SupportSettings { get; set; }
 }

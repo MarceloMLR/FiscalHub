@@ -9,11 +9,13 @@ using FiscalHub.Application.Integrations;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
+using FiscalHub.Application.Support;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Envelope;
 using FiscalHub.Infrastructure.Admin;
 using FiscalHub.Infrastructure.Auth;
 using FiscalHub.Infrastructure.Persistence;
+using FiscalHub.Infrastructure.Support;
 using FiscalHub.Infrastructure.Tracing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +41,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IConnectorProfileStore, SqlConnectorProfileStore>();
         services.AddScoped<IUserAdminService, SqlUserAdminService>();
         services.AddScoped<ITenantAdminService, SqlTenantAdminService>();
+        services.AddScoped<INoteTraceReader, BlobNoteTraceReader>();
+        services.AddScoped<ISupportTicketService, SupportTicketService>();
         return services;
     }
 
@@ -143,6 +147,9 @@ public static class InfrastructureServiceCollectionExtensions
                 InboundSettings = """{"url":"https://erp-a.crm.dynamics.com/","clientIdRef":"kv:d365-a-clientid","clientSecretRef":"kv:d365-a-secret"}""",
                 OutboundAdapter = "Avalara",
                 OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-a-sandbox-secret","clientTokenRef":"kv:avalara-a-sandbox-token"},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-a-prod-secret","clientTokenRef":"kv:avalara-a-prod-token"}}""",
+                // Chamados: mock local pra demo (funciona sem conta). Troque p/ "Freshdesk" + domain/apiKey na tela de Configurações.
+                SupportAdapter = "Local",
+                SupportSettings = """{"domain":"suaempresa.freshdesk.com","apiKeyRef":"kv:freshdesk-a-key","requesterEmail":"suporte@acme.com","priority":2}""",
             },
             new ConnectorProfileRow
             {
