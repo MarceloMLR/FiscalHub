@@ -1,0 +1,65 @@
+schema: spec-driven
+
+# Contexto do projeto — injetado no prompt da IA ao criar/rever artefatos.
+context: |
+  FiscalHub — middleware de integração fiscal plugável em .NET, preparado para a Reforma
+  Tributária (IBS/CBS/IS). Recebe notas fiscais JÁ EMITIDAS (de um ERP ou de arquivos XML) e as
+  despacha para uma plataforma de compliance (Avalara e afins), traduzindo cada documento para um
+  modelo de domínio interno no caminho.
+  Escopo: recebe, traduz, despacha. NÃO emite/assina/transmite nota nem calcula imposto.
+
+  Stack: .NET 10 / C# 14, Nullable + ImplicitUsings habilitados, TreatWarningsAsErrors=true
+  (warning QUEBRA o build). Configuração compartilhada em Directory.Build.props. Solução
+  FiscalHub.slnx. Dashboard em React + Vite + TypeScript.
+
+  Arquitetura — Ports & adapters (hexagonal). Direção de dependência inegociável:
+  Domain (puro) <- Application (portas + casos de uso) <- Infrastructure/Adapters (implementações)
+  <- Host (DI). Domain não depende de nada. Infra/Adapters implementam as portas da Application,
+  NUNCA o contrário. Se precisar importar Infra/Adapters dentro de Application/Domain, está errado —
+  inverta com uma porta.
+
+  Mapa do repo: src/FiscalHub.Domain (Envelope, Goods); src/FiscalHub.Application (portas + casos
+  de uso: Admin, Auth, Connectors, Directory, Inbound, Integrations, Metadata, Outbound, Pipeline,
+  Queries, Support, Tracing, Validation); src/FiscalHub.Infrastructure (Persistence/EF, Migrations,
+  Auth, Admin, Support, Tracing); src/Adapters/* (Inbound.Xml, Ingress.BlobDrop, Messaging.ServiceBus,
+  Outbound.Avalara, Directory.Json, Discovery.Local, Support); src/FiscalHub.Host (API). tests/*
+  espelham src. docs/adr = decisões (numeradas, template 0000). d365/ = lado Dynamics 365 F&O (X++).
+
+  Padrões recorrentes (REUSE, não reinvente): esteira assíncrona com fila + claim-check (payload
+  grande no Blob, referência na mensagem); idempotência em três eixos (por conteúdo/hash, por
+  gatilho, no banco); retry + dead-letter (DLQ) visível, falha isolada por documento; poll de status
+  idempotente por estado; multi-tenant POR CONFIGURAÇÃO (perfil de conector por tenant, resolução do
+  adapter em runtime, JWT com escopo por tenant) — variação de cliente é DADO, não branch;
+  rastreabilidade por "fotos" no Blob (snapshots de domínio + outbound).
+
+  Lado D365 (X++, em d365/): hook fino e genérico — data entity OData (FS_FiscalDocument_BR*) +
+  business event (FS_FiscalDocStatusChangedBusinessEvent) + CoC (FS_FiscalDocument_BR_Extension) que
+  intercepta update()/doUpdate() da tabela FiscalDocument_BR e dispara na transição de status
+  (Approved/Cancelled), mandando a IDENTIDADE da nota (empresa, RecId, número, série, data, status)
+  para o NOSSO Service Bus. Nenhuma lógica de cliente no X++; toda variação vive em configuração.
+  1 código -> 1 build -> N clientes.
+
+  Idioma: código e identificadores podem ser em inglês; specs, docs, ADRs e comentários de decisão
+  em português (seguir o padrão existente).
+
+# Regras por artefato.
+rules:
+  proposal:
+    - Sempre incluir uma seção "Non-goals" (o que está fora do escopo desta mudança).
+    - Respeitar a regra de dependência hexagonal (Domain <- Application <- Infra/Adapters <- Host).
+    - Se a mudança envolve uma decisão de arquitetura, registrar um ADR em docs/adr/NNNN-*.md
+      (seguir o docs/adr/0000-template.md).
+    - Reusar os padrões existentes (idempotência/retry/DLQ/claim-check); não criar esquema novo.
+  tasks:
+    - Fatiar em fatias verticais finas; cada fatia termina com build verde (0 warnings) + testes.
+    - Todo adapter ou caso de uso novo tem teste (test-first por fatia).
+
+# Guias por operação.
+operations:
+  apply:
+    guidance:
+      - Rodar `dotnet build` (0 warnings — TreatWarningsAsErrors) e `dotnet test` antes de concluir.
+      - Não colocar lógica específica de cliente no código (X++ ou .NET); vai em configuração.
+  archive:
+    guidance:
+      - Se houve decisão de arquitetura, confirmar que o ADR correspondente foi criado.
