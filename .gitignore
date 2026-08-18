@@ -37,3 +37,9 @@ api.out.log
 api.err.log
 *.out.log
 *.err.log
+
+# Build artifact do deployable package do D365 (regenerável — não versionar)
+d365/deploy-package/
+
+# Diagrama de rascunho (Avalara flow) — manter local, fora do git
+avalara-integration-flow.mermaid

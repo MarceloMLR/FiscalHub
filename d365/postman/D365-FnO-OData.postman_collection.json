@@ -1,0 +1,250 @@
+{
+  "info": {
+    "_postman_id": "b7f1a2c0-9d3e-4a6b-9e21-fiscalhub0d365",
+    "name": "D365 F&O OData — FiscalHub",
+    "description": "Consulta de data entities do Dynamics 365 Finance & Operations via OData.\n\n- URL do ambiente em variável (`environmentUrl`).\n- Token do Entra ID (OAuth2 client_credentials) obtido AUTOMATICAMENTE por um pre-request script na collection e reaproveitado até expirar.\n- Requests prontos: $metadata, service document, query genérica por entidade, filtro por empresa (dataAreaId), $count, e exemplos das entidades do FiscalHub.\n\nAntes de usar: preencha `tenantId`, `clientId`, `clientSecret` e `environmentUrl` (no Environment 'FiscosysDev' ou nas variáveis da collection). Veja o README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-obtem um token do Entra ID (client_credentials) se estiver ausente ou perto de expirar.",
+          "const now = Date.now();",
+          "const expiresAt = Number(pm.collectionVariables.get('token_expires_at') || 0);",
+          "const hasToken = pm.collectionVariables.get('access_token');",
+          "const needToken = !hasToken || now > (expiresAt - 60000);",
+          "if (needToken) {",
+          "  const tenantId = pm.variables.get('tenantId');",
+          "  const clientId = pm.variables.get('clientId');",
+          "  const clientSecret = pm.variables.get('clientSecret');",
+          "  const resource = pm.variables.get('environmentUrl');",
+          "  const loginUrl = pm.variables.get('loginUrl') || 'https://login.microsoftonline.com';",
+          "  if (!tenantId || !clientId || !clientSecret || !resource) {",
+          "    console.log('[D365] Preencha tenantId, clientId, clientSecret e environmentUrl no Environment do Postman.');",
+          "  } else {",
+          "    pm.sendRequest({",
+          "      url: loginUrl + '/' + tenantId + '/oauth2/token',",
+          "      method: 'POST',",
+          "      header: { 'Content-Type': 'application/x-www-form-urlencoded' },",
+          "      body: { mode: 'urlencoded', urlencoded: [",
+          "        { key: 'grant_type', value: 'client_credentials' },",
+          "        { key: 'client_id', value: clientId },",
+          "        { key: 'client_secret', value: clientSecret },",
+          "        { key: 'resource', value: resource }",
+          "      ] }",
+          "    }, function (err, res) {",
+          "      if (err) { console.log('[D365] Erro ao obter token', err); return; }",
+          "      let j = {};",
+          "      try { j = res.json(); } catch (e) {}",
+          "      if (j && j.access_token) {",
+          "        pm.collectionVariables.set('access_token', j.access_token);",
+          "        const exp = j.expires_on ? Number(j.expires_on) * 1000 : (now + (Number(j.expires_in || 3600) * 1000));",
+          "        pm.collectionVariables.set('token_expires_at', String(exp));",
+          "        console.log('[D365] Token novo obtido. Expira em ' + new Date(exp).toISOString());",
+          "      } else {",
+          "        console.log('[D365] Falha ao obter token: ' + res.text());",
+          "      }",
+          "    });",
+          "  }",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "environmentUrl", "value": "https://fiscosysdev.operations.dynamics.com", "type": "string" },
+    { "key": "loginUrl", "value": "https://login.microsoftonline.com", "type": "string" },
+    { "key": "tenantId", "value": "", "type": "string" },
+    { "key": "clientId", "value": "", "type": "string" },
+    { "key": "clientSecret", "value": "", "type": "string" },
+    { "key": "company", "value": "brmf", "type": "string" },
+    { "key": "entityName", "value": "FS_FiscalDocumentBR", "type": "string" },
+    { "key": "top", "value": "5", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "token_expires_at", "value": "0", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Token (manual)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "if (j.access_token) {",
+                  "  pm.collectionVariables.set('access_token', j.access_token);",
+                  "  const exp = j.expires_on ? Number(j.expires_on) * 1000 : (Date.now() + Number(j.expires_in || 3600) * 1000);",
+                  "  pm.collectionVariables.set('token_expires_at', String(exp));",
+                  "  console.log('[D365] Token salvo. Expira em ' + new Date(exp).toISOString());",
+                  "}",
+                  "pm.test('Recebeu access_token', function () { pm.expect(j.access_token, 'sem access_token na resposta').to.be.a('string'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "client_id", "value": "{{clientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{clientSecret}}", "type": "text" },
+                { "key": "resource", "value": "{{environmentUrl}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{loginUrl}}/{{tenantId}}/oauth2/token",
+              "host": [ "{{loginUrl}}" ],
+              "path": [ "{{tenantId}}", "oauth2", "token" ]
+            },
+            "description": "Obtém um token do Entra ID (Azure AD) via client_credentials (v1.0, resource = URL do ambiente F&O). O script de Test salva o access_token nas variáveis da collection. Normalmente você NÃO precisa rodar isso manualmente — o pre-request da collection já faz automático."
+          }
+        }
+      ]
+    },
+    {
+      "name": "OData",
+      "item": [
+        {
+          "name": "$metadata (schema do serviço)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/xml" } ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/$metadata",
+              "host": [ "{{environmentUrl}}" ],
+              "path": [ "data", "$metadata" ]
+            },
+            "description": "EDMX com todas as entidades expostas. Procure aqui pela sua entidade (ex.: FS_FiscalDocumentBR) pra confirmar que está publicada."
+          }
+        },
+        {
+          "name": "Service document (lista de entity sets)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": {
+              "raw": "{{environmentUrl}}/data",
+              "host": [ "{{environmentUrl}}" ],
+              "path": [ "data" ]
+            },
+            "description": "Documento raiz do OData: lista todos os entity sets disponíveis."
+          }
+        },
+        {
+          "name": "Query entidade (genérico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "try { const j = pm.response.json(); if (Array.isArray(j.value)) console.log('[D365] linhas retornadas: ' + j.value.length); } catch (e) {}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/{{entityName}}?cross-company=true&$top={{top}}",
+              "host": [ "{{environmentUrl}}" ],
+              "path": [ "data", "{{entityName}}" ],
+              "query": [
+                { "key": "cross-company", "value": "true" },
+                { "key": "$top", "value": "{{top}}" }
+              ]
+            },
+            "description": "Consulta qualquer entidade pelo nome (variável {{entityName}}). cross-company=true traz de todas as empresas; sem isso, só a empresa default da sessão."
+          }
+        },
+        {
+          "name": "Query por empresa (dataAreaId)",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/{{entityName}}?cross-company=true&$filter=dataAreaId eq '{{company}}'&$top={{top}}",
+              "host": [ "{{environmentUrl}}" ],
+              "path": [ "data", "{{entityName}}" ],
+              "query": [
+                { "key": "cross-company", "value": "true" },
+                { "key": "$filter", "value": "dataAreaId eq '{{company}}'" },
+                { "key": "$top", "value": "{{top}}" }
+              ]
+            },
+            "description": "Filtra por empresa. Ex.: no FiscosysDev os dados fiscais de teste estão na empresa 'brmf' (a 'DAT' está vazia)."
+          }
+        },
+        {
+          "name": "$count",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "text/plain" } ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/{{entityName}}/$count?cross-company=true",
+              "host": [ "{{environmentUrl}}" ],
+              "path": [ "data", "{{entityName}}", "$count" ],
+              "query": [ { "key": "cross-company", "value": "true" } ]
+            },
+            "description": "Conta registros da entidade (todas as empresas)."
+          }
+        },
+        {
+          "name": "Exemplo: FS_FiscalDocumentBR",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FS_FiscalDocumentBR?cross-company=true&$top=5",
+              "host": [ "{{environmentUrl}}" ],
+              "path": [ "data", "FS_FiscalDocumentBR" ],
+              "query": [
+                { "key": "cross-company", "value": "true" },
+                { "key": "$top", "value": "5" }
+              ]
+            },
+            "description": "Header das notas fiscais BR (entidade publicada pelo FiscalHub)."
+          }
+        },
+        {
+          "name": "Exemplo: FS_FiscalDocumentLine_Br",
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FS_FiscalDocumentLine_Br?cross-company=true&$top=5",
+              "host": [ "{{environmentUrl}}" ],
+              "path": [ "data", "FS_FiscalDocumentLine_Br" ],
+              "query": [
+                { "key": "cross-company", "value": "true" },
+                { "key": "$top", "value": "5" }
+              ]
+            },
+            "description": "Linhas das notas fiscais BR (entidade nova do teste de deployable package)."
+          }
+        }
+      ]
+    }
+  ]
+}
