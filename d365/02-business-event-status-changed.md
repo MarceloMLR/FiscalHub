@@ -219,3 +219,23 @@ O hook tem que casar com COMO o dado é gravado no posting (set-based). Opções
 3. **CoC no método de negócio** que autoriza a nota (classe de processamento, não a tabela) — mais cirúrgico, exige achar o método.
 
 O **custom business event de tabela** (este) fica validado e útil para transições que passam por `update()` real (ex.: cancelamento manual) — e serviu para **aprender** todo o mecanismo (criar contrato/evento/handler, o atributo `[BusinessEvents]`, catálogo, ativação, Service Bus).
+
+---
+
+## Atualização (2026-08/09) — CoC reforçada em update() + doUpdate() (adotado)
+
+A recomendação acima (data event / polling como caminho principal) foi **revista**. O caminho adotado é
+a **CoC na tabela cobrindo `update()` E `doUpdate()`**, disparando na transição para **Approved** e
+**Cancelled**. Motivo: `doUpdate()` também é interceptado, e `update_recordset` geralmente **degrada
+para linha-a-linha** quando `update()` está estendido — cobrindo o grosso dos caminhos de gravação.
+
+Payload enriquecido (para buscar a nota depois): `Company, FiscalDocumentRecId (RefRecId),
+FiscalDocumentNumber, FiscalDocumentSeries, FiscalDocumentDate (ISO), Status`. O evento passou a receber
+o **buffer** (`newFromDoc(FiscalDocument_BR)`) e montar o contract no `buildContract()`.
+
+Validado no **table browser** (two-step `Created → Approved`, que chama `update()` record-based) tanto na
+**entrada** quanto na **saída**; o evento caiu no endpoint `test`. **Furo residual** (SQL cru /
+`skipDataMethods`) fica coberto por um **poll de reconciliação** na `FiscalDocument_BR` — mantido no
+**backlog** como rede de segurança (ativar se aparecer nota Approved sem disparo).
+
+Envio de business event é por **batch** (job do outbox → endpoint); em produção depende do job rodar.
