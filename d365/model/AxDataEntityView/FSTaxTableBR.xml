@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>FSTaxTableBR</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class FSTaxTableBR extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<CountryRegionCodes>BR</CountryRegionCodes>
+	<SubscriberAccessLevel>
+		<Read>Allow</Read>
+	</SubscriberAccessLevel>
+	<IsPublic>Yes</IsPublic>
+	<IsReadOnly>Yes</IsReadOnly>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>FSTaxTableBRs</PublicCollectionName>
+	<PublicEntityName>FSTaxTableBR</PublicEntityName>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxCode</Name>
+			<DataField>TaxCode</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxName</Name>
+			<DataField>TaxName</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxType_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>RetainedTax</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>RetainedTax_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>RevenueCode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>RevenueCode_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxSubstitution</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxSubstitution_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>IncludedTax</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>IncludedTax_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeferralRate</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeferralRate_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ExcludeICMS</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ExcludeICMS_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ExcludeISS</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ExcludeISS_BR</DataField>
+			<DataSource>TaxTable</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>TaxCode</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>TaxTable</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>TaxTable</Table>
+				<DataSources />
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>
