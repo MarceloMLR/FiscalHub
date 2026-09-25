@@ -115,10 +115,11 @@ Dá para usar o `PUT /connector` no lugar do SQL, mas ele regrava o perfil intei
 Feed de mudanças: 1 tenant(s) consultado(s), 14 referência(s) na fila de descoberta.
 ```
 
-Junto vêm **69 avisos** `Modelo '01' fora do mapa…`. Os 83 cabeçalhos da brmf têm modelo `01` (69),
-`SE` (9) e `55` (5), e o mapa padrão cobre `55`, `57` e `SE`. Para o teste, dá para mapear o modelo 1
-nas settings, por exemplo com `"modelTypes":{"55":"GoodsInvoice55","57":"Transport57","SE":"ServiceNfse","01":"GoodsInvoice55"}`.
-O tratamento definitivo do modelo 1 é decisão do roteamento.
+Junto vêm **69 avisos** `Modelo '01' fora do mapa…`. Isso é esperado. Os 83 cabeçalhos da brmf têm
+modelo `01` (69), `SE` (9) e `55` (5), e o mapa padrão cobre `55`, `57` e `SE`. As notas modelo `01`
+(Nota Fiscal 1/1A, formulário em papel) são dado de demonstração antigo, e a recomendação é mantê-las
+fora do mapa (ADR-0024). Para exercitar mais referências no teste, dá para incluir o `01` no
+`modelTypes` das settings.
 
 **3. Conferir o cursor.** A marca deve estar perto de agora: é o relógio do F&O no fim da leitura.
 

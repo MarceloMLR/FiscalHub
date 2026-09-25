@@ -317,6 +317,15 @@ parte.
 Ressalva honesta: o ambiente só tem 2 notas canceladas e não dá para provar que alguma delas passou
 por `Approved` antes. A ausência de voucher duplicado em 83 registros é evidência forte, não prova.
 
+**Confirmado pelo domínio (2026-09-25).** O voucher do documento fiscal é **único e imutável**. Com
+isso, a `NaturalKey = empresa|voucher` passa a ter duas evidências independentes: o levantamento acima e
+a regra de domínio. A transição `Approved → Cancelled` mantém a mesma chave: é o mesmo documento com
+uma nova tentativa (ADR-0024 §6).
+
+O que fica em aberto é por cliente, não por nota. A sequência numérica do voucher é configurada em
+cada F&O. Se a de algum cliente reiniciar por exercício fiscal, o voucher repetiria entre anos. Isso é
+conferido no onboarding, e o desempate (`empresa|RecId`) já vem no `$select` do keyset.
+
 ---
 
 ## 9. Checklist para criar ou alterar uma entidade
@@ -397,11 +406,25 @@ linhas: 83 · FiscalDocumentRecId distintos: 83   ← nenhum repetido, nenhum pu
 Model: 01 = 69 · SE = 9 · 55 = 5
 ```
 
-**Achado: o modelo `01` domina.** 69 dos 83 cabeçalhos são modelo `01`, a nota fiscal modelo 1/1A.
-O mapa de modelos padrão do adapter (`55`, `57`, `SE`) deixaria essas 69 notas como "modelo fora do
-mapa": aviso em log, fora da fila. O mapa é configuração por tenant, e ignorar modelo é decisão do
-roteamento (ADR-0023). Mesmo assim, o dado real mostra que o modelo 1 precisa ter tratamento definido,
-com tipo de domínio próprio ou mapeado, antes da fatia de roteamento/montagem.
+**Distribuição por modelo e ano: leia antes de tirar conclusão.**
+
+| Modelo | Notas | Anos |
+|---|---|---|
+| `01` | 69 | 2015, 2016, 2017 |
+| `SE` | 9 | 2015, 2016, 2026 |
+| `55` | 5 | 2016 |
+| **No mapa padrão (`55`/`57`/`SE`)** | **14 de 83** | |
+
+- **O que o número parece dizer.** Que o modelo `01` é a maioria.
+- **O que ele diz de fato.** O modelo `01` é a Nota Fiscal modelo 1/1A, um formulário em papel
+  substituído pela NF-e (modelo 55). As 69 notas `01` do ambiente são **inteiramente dado de
+  demonstração antigo** (2015–2017). Em cliente real, a incidência é próxima de zero. As únicas notas
+  recentes do ambiente são as `SE` de 2026.
+- **Efeito hoje.** O mapa padrão do adapter deixa as 69 como "modelo fora do mapa": aviso em log, fora
+  da fila.
+- **Recomendação (a decisão é do roteamento, ADR-0024).** Manter o `01` fora do mapa. O roteamento
+  grava "ignorado: modelo fora do escopo" como desfecho explícito. Se um cliente tiver modelo `01` de
+  verdade, basta uma linha no `modelTypes` das settings do tenant, sem código de domínio.
 
 ### Ainda a verificar
 

@@ -5,6 +5,13 @@
 - **Revisa:** ADR-0023 §1 (porta e estado do worker) e §2 (consulta por change tracking). Ajusta o §5
   (NaturalKey). Resolve, para o poll, a pendência de lock/lease anotada nas consequências do ADR-0017.
 - **Change OpenSpec:** `openspec/changes/add-d365-change-feed-polling`
+- **Validado no ambiente:** 2026-09-25, contra o `fiscosysdev`.
+  - **Teste de integração** `D365ChangeFeedIntegrationTests.Keyset_read_from_2015_neither_repeats_nor_skips`:
+    aprovado em 4s, com 0 avisos e 0 erros. 83 cabeçalhos em 5 páginas de 20, 83 `FiscalDocumentRecId`
+    distintos.
+  - **Teste manual (`docs/RUNNING.md` §6):**
+    - primeira passada: 5 requisições, 14 referências enfileiradas e 69 avisos de modelo fora do mapa;
+    - segunda passada, um minuto depois: 0 referências.
 
 ## Contexto
 
@@ -115,14 +122,30 @@ roteamento/montagem (ADR-0023, passos 2 e 3) liga o consumidor.
 ### 6. NaturalKey = `empresa|Voucher`
 
 Ajusta o ADR-0023 §5. Empresa|número|série colide em nota de entrada: dois fornecedores podem mandar a
-mesma NF e série para a mesma empresa. O `Voucher` teve zero duplicatas em 83 cabeçalhos (d365/05 §8), é
-o caminho de busca já validado (`$filter=Voucher eq`) e é o `cod_referencia_integracao` do legado.
+mesma NF e série para a mesma empresa. O `Voucher` é o caminho de busca já validado
+(`$filter=Voucher eq`) e é o `cod_referencia_integracao` do legado.
 
-**Risco aberto:** 83 cabeçalhos sem duplicata são evidência, não prova. Uma sequência numérica de
-voucher que **reinicia por exercício fiscal** faria o voucher repetir entre anos, e a nota nova colidiria
-com a antiga na identidade. Verificar com o cliente antes de a `NaturalKey` virar contrato do store, na
-fatia de montagem. Se reiniciar, o desempate é o `FiscalDocumentRecId`, que já vem no `$select` por causa
-do keyset.
+**Confirmada (2026-09-25)** por duas evidências independentes:
+
+- **Levantamento:** 83 cabeçalhos no `fiscosysdev`, zero vouchers duplicados (d365/05 §8).
+- **Domínio:** o voucher do documento fiscal é **único e imutável**: a sequência não repete, e o valor
+  não muda depois de gravado. Resposta de Marcelo Lima, por conhecimento de domínio, não por leitura da
+  configuração do ERP.
+
+**Consequência da imutabilidade.** Como o voucher não muda, a transição `Approved → Cancelled` mantém a
+**mesma** `NaturalKey`. É o mesmo documento com uma nova tentativa/versão, não um documento novo. Isso
+confirma o modelo "documento 1:N tentativas" do ADR-0023 §5 e o item 10 das notas de implementação
+(soltar o 1:1 no store). O mesmo vale para a correção de nota de entrada: mesma chave, conteúdo novo,
+nova tentativa (ADR-0016).
+
+**Risco residual: a sequência numérica é configuração por cliente.** O número sequencial do voucher é
+configurado em cada F&O. Um cliente com sequência que **reinicia por exercício fiscal** faria o voucher
+repetir entre anos, e a idempotência suprimiria uma nota legítima.
+
+- **Mitigação sem custo:** o `FiscalDocumentRecId` já vem no `$select` por causa da paginação keyset.
+  O desempate seria `empresa|ano|voucher` ou `empresa|RecId`, sem consulta extra ao ERP.
+- **Verificação:** uma vez, no **onboarding de cada cliente**, conferindo a sequência numérica do
+  voucher. Não a cada nota.
 
 ## Alternativas consideradas
 
@@ -165,9 +188,36 @@ do keyset.
   `FiscalDocument_BR`, cada página pode virar varredura mais ordenação. Medir antes do primeiro cliente.
 - **Gravação tardia além da sobreposição** escapa do poll. A sobreposição é generosa e configurável, e
   a rede de segurança é a descoberta D-1 agendada, que ainda vai ser escrita para o D365.
+- **Risco residual na `NaturalKey`: a sequência de voucher é configuração por cliente.** Uma sequência
+  que reinicia por exercício fiscal repetiria o voucher entre anos (§6). O desempate
+  (`empresa|ano|voucher` ou `empresa|RecId`) já está disponível sem consulta extra. A verificação é
+  feita no onboarding de cada cliente.
 
 **Pendências**
 
-- Verificar com o cliente o escopo da sequência de voucher (contínua ou por exercício).
-- Definir o tratamento do modelo `01`: 69 dos 83 cabeçalhos do `fiscosysdev` (d365/05 §10). O mapa de
-  modelos padrão (`55`, `57`, `SE`) deixa esses documentos como aviso, fora da fila.
+- **Onboarding de cada cliente:** conferir que a sequência numérica do voucher não reinicia por
+  exercício fiscal (§6).
+- **Volume real:** medir a latência da página keyset e confirmar se há índice em `ModifiedDateTime`
+  antes do primeiro cliente (d365/05 §10).
+- **Modelo `01`:** tratamento é do roteamento; ver a evidência abaixo.
+
+## Evidência para a fatia de roteamento: modelo `01`
+
+Não é decisão desta fatia. O dado fica registrado para ninguém decidir depois pela premissa errada de
+que "modelo 01 é a maioria".
+
+| Modelo | Notas no `fiscosysdev` | Anos |
+|---|---|---|
+| `01` | 69 | 2015, 2016, 2017 |
+| `SE` | 9 | 2015, 2016, 2026 |
+| `55` | 5 | 2016 |
+| **No mapa padrão (`55`/`57`/`SE`)** | **14 de 83** | |
+
+- **O que é o modelo `01`.** É a Nota Fiscal modelo 1/1A, um formulário em papel substituído pela NF-e
+  (modelo 55).
+- **Por que ele aparece tanto aqui.** As 69 notas modelo `01` do `fiscosysdev` são **inteiramente dado
+  de demonstração antigo**. Em cliente real, a incidência é próxima de zero. As únicas notas recentes do
+  ambiente são as `SE` de 2026.
+- **Recomendação:** manter o modelo `01` **fora** do mapa. A fatia de roteamento grava "ignorado:
+  modelo fora do escopo" como desfecho explícito. Se algum cliente tiver modelo `01` de verdade, basta
+  uma linha no `modelTypes` das settings do tenant, sem código de domínio.
