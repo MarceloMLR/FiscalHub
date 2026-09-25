@@ -32,12 +32,23 @@ context: |
   adapter em runtime, JWT com escopo por tenant) — variação de cliente é DADO, não branch;
   rastreabilidade por "fotos" no Blob (snapshots de domínio + outbound).
 
-  Lado D365 (X++, em d365/): hook fino e genérico — data entity OData (FS_FiscalDocument_BR*) +
-  business event (FS_FiscalDocStatusChangedBusinessEvent) + CoC (FS_FiscalDocument_BR_Extension) que
-  intercepta update()/doUpdate() da tabela FiscalDocument_BR e dispara na transição de status
-  (Approved/Cancelled), mandando a IDENTIDADE da nota (empresa, RecId, número, série, data, status)
-  para o NOSSO Service Bus. Nenhuma lógica de cliente no X++; toda variação vive em configuração.
-  1 código -> 1 build -> N clientes.
+  Lado D365 (em d365/): o pacote é METADADO PURO — 14 data entities OData com prefixo FS
+  (FSFiscalDocumentBR, FSFiscalDocumentLineBR, FSTaxTransBR, FSMarkupTransBR, FSTaxWithholdBR,
+  FSTaxTableBR, FSFiscalDocModelBR, FSItemBR, FSUnitOfMeasureBR, FSAddressCityBR, FSCountryRegionBR,
+  FSPostalAddressBR, FSCustomerBR, FSVendorBR), 14 privilégios e uma role. ZERO código X++.
+  Entity set = nome no plural (/data/FSFiscalDocumentBRs). Todas públicas, somente leitura, sem Data
+  Management e sem staging.
+  CAPTURA (ADR-0023): a garantia é DESCOBERTA POR POLLING sobre a FSFiscalDocumentBR, não evento.
+  Não existe hook de código que cubra todos os caminhos de escrita; a convergência está no DADO.
+  O business event/CoC SAIU DO ROADMAP — não propor, não implementar.
+  Change tracking (odata.track-changes) NÃO está disponível: exige a entidade no Data management
+  workspace, e desligamos o DMF. Row version change tracking também não passa nas regras de validação
+  (outer joins, 11 data sources, tabelas da MS sem a propriedade). O mecanismo é JANELA POR DATA
+  usando o campo SysModifiedDateTime (alias de ModifiedDateTime) exposto no cabeçalho — marca d'água
+  nossa, com sobreposição, e o dedupe por conteúdo (ADR-0016) absorve os repetidos.
+  Nenhuma lógica de cliente no pacote; toda variação vive em configuração. 1 código -> 1 build -> N
+  clientes. Detalhes: d365/04-mapeamento-de-entidades.md (o que ler) e
+  d365/05-achados-de-metadata-e-ciclo-de-deploy.md (armadilhas).
 
   Idioma: código e identificadores podem ser em inglês; specs, docs, ADRs e comentários de decisão
   em português (seguir o padrão existente).
