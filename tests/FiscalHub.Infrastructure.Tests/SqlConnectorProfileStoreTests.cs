@@ -28,6 +28,20 @@ public class SqlConnectorProfileStoreTests
         Assert.Equal(1, await h.Db.ConnectorProfiles.CountAsync());   // upsert: uma linha só
     }
 
+    [Fact]
+    public async Task Lists_profiles_by_inbound_adapter_across_tenants()
+    {
+        using var h = NewStore();
+        await h.Store.UpsertAsync(Profile("Sandbox", realtime: true) with { TenantId = "tenant-c" });
+        await h.Store.UpsertAsync(Profile("Sandbox", realtime: true));   // tenant-a, Dynamics365
+        await h.Store.UpsertAsync(Profile("Sandbox", realtime: false) with { TenantId = "tenant-b", InboundAdapter = "iScala" });
+
+        IReadOnlyList<TenantConnectorProfile> d365 = await h.Store.ListByInboundAdapterAsync("Dynamics365");
+
+        Assert.Equal(["tenant-a", "tenant-c"], d365.Select(p => p.TenantId));   // só o adapter pedido, em ordem
+        Assert.Empty(await h.Store.ListByInboundAdapterAsync("Xml"));
+    }
+
     private static TenantConnectorProfile Profile(string environment, bool realtime) => new()
     {
         TenantId = "tenant-a",
