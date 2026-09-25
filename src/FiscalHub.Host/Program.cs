@@ -7,11 +7,13 @@ using FiscalHub.Adapters.Directory.Json;
 using FiscalHub.Adapters.Discovery.Local;
 using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Adapters.Ingress.BlobDrop;
+using FiscalHub.Adapters.Ingress.D365Poll;
 using FiscalHub.Adapters.Messaging.ServiceBus;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Adapters.Support;
 using FiscalHub.Application.Admin;
 using FiscalHub.Application.Connectors;
+using FiscalHub.Application.Coordination;
 using FiscalHub.Application.Directory;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Integrations;
@@ -108,6 +110,27 @@ builder.Services.AddHostedService<StatusPollingService>();
 // Agendador: um timer executa os agendamentos vencidos (D-1 recorrente / único) pelo mesmo runner.
 builder.Services.AddScoped<IntegrationScheduler>();
 builder.Services.AddHostedService<SchedulerHostedService>();
+
+// Feed de mudanças do D365 (ADR-0024): o worker pergunta ao F&O o que mudou (janela por data, keyset,
+// lease por tenant) e publica cada referência na fila de DESCOBERTA — sem consumidor nesta fatia; a
+// montagem liga depois. Poll desligado por padrão: cada tenant liga no perfil (poll.enabled).
+builder.Services.AddServiceBusDiscoveryQueue(o => o.QueueName = cfg["ServiceBus:DiscoveryQueue"] ?? "documents-discovered");
+builder.Services.AddD365ChangeFeed();
+if (builder.Environment.IsDevelopment())
+{
+    // Só em dev: token da sessão do Azure CLI (az login), até a app registration existir.
+    builder.Services.UseD365AzureCliToken();
+}
+builder.Services.AddSingleton(new ChangeFeedPollerOptions());
+builder.Services.AddScoped(sp => new ChangeFeedPoller(
+    sp.GetRequiredService<IDocumentChangeFeed>(),
+    sp.GetRequiredService<IConnectorProfileStore>(),
+    sp.GetRequiredService<IChangeFeedCursorStore>(),
+    sp.GetRequiredService<ILeaseStore>(),
+    sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
+    sp.GetRequiredService<ChangeFeedPollerOptions>(),
+    sp.GetRequiredService<TimeProvider>()));
+builder.Services.AddHostedService<ChangeFeedPollingService>();
 
 // CORS liberado pro dashboard local. Em produção, restringir a origem.
 builder.Services.AddCors(options => options.AddDefaultPolicy(p =>

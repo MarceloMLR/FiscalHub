@@ -5,6 +5,8 @@ using Azure.Storage.Blobs.Models;
 using FiscalHub.Application.Admin;
 using FiscalHub.Application.Auth;
 using FiscalHub.Application.Connectors;
+using FiscalHub.Application.Coordination;
+using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Integrations;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
@@ -39,6 +41,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserAuthenticator, SqlUserAuthenticator>();
         services.AddScoped<IPasswordResetService, SqlPasswordResetService>();
         services.AddScoped<IConnectorProfileStore, SqlConnectorProfileStore>();
+        services.AddScoped<IChangeFeedCursorStore, SqlChangeFeedCursorStore>();
+        services.AddScoped<ILeaseStore, SqlLeaseStore>();
         services.AddScoped<IUserAdminService, SqlUserAdminService>();
         services.AddScoped<ITenantAdminService, SqlTenantAdminService>();
         services.AddScoped<INoteTraceReader, BlobNoteTraceReader>();
@@ -144,7 +148,9 @@ public static class InfrastructureServiceCollectionExtensions
                 Environment = "Sandbox",
                 Realtime = true,
                 InboundAdapter = "Dynamics365",
-                InboundSettings = """{"url":"https://erp-a.crm.dynamics.com/","clientIdRef":"kv:d365-a-clientid","clientSecretRef":"kv:d365-a-secret"}""",
+                // Feed de mudanças do D365 (ADR-0024). Poll desligado: liga no perfil para o teste manual (docs/RUNNING.md).
+                // tenantId/clientId do Entra entram quando a app registration existir; em dev o token vem do Azure CLI.
+                InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":500,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:d365-a-secret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300}}""",
                 OutboundAdapter = "Avalara",
                 OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-a-sandbox-secret","clientTokenRef":"kv:avalara-a-sandbox-token"},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-a-prod-secret","clientTokenRef":"kv:avalara-a-prod-token"}}""",
                 // Chamados: mock local pra demo (funciona sem conta). Troque p/ "Freshdesk" + domain/apiKey na tela de Configurações.

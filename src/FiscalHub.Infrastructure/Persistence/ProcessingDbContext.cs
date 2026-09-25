@@ -17,6 +17,10 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
 
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
 
+    public DbSet<ChangeFeedCursorRow> ChangeFeedCursors => Set<ChangeFeedCursorRow>();
+
+    public DbSet<LeaseRow> Leases => Set<LeaseRow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var doc = modelBuilder.Entity<ProcessedDocument>();
@@ -89,5 +93,19 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         tnt.Property(t => t.TenantId).HasMaxLength(100);
         tnt.Property(t => t.Name).HasMaxLength(200);
         tnt.Property(t => t.Cnpj).HasMaxLength(18);
+
+        var cursor = modelBuilder.Entity<ChangeFeedCursorRow>();
+        cursor.ToTable("ChangeFeedCursors");
+        cursor.HasKey(c => c.Id);
+        cursor.HasIndex(c => new { c.TenantId, c.Origin }).IsUnique();   // uma marca por (tenant, origem)
+        cursor.Property(c => c.TenantId).HasMaxLength(100);
+        cursor.Property(c => c.Origin).HasMaxLength(50);
+        cursor.Property(c => c.LastError).HasMaxLength(500);
+
+        var lease = modelBuilder.Entity<LeaseRow>();
+        lease.ToTable("Leases");
+        lease.HasKey(l => l.Resource);   // um lease por recurso
+        lease.Property(l => l.Resource).HasMaxLength(200);
+        lease.Property(l => l.Owner).HasMaxLength(200);
     }
 }

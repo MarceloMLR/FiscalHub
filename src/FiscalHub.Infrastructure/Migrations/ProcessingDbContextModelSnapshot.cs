@@ -22,6 +22,51 @@ namespace FiscalHub.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ChangeFeedCursorRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConsecutiveFailures")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long?>("LastPolledTicks")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("NotBeforeTicks")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("WatermarkTicks")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Origin")
+                        .IsUnique();
+
+                    b.ToTable("ChangeFeedCursors", (string)null);
+                });
+
             modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorProfileRow", b =>
                 {
                     b.Property<int>("Id")
@@ -125,6 +170,24 @@ namespace FiscalHub.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("IntegrationExecutions", (string)null);
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.LeaseRow", b =>
+                {
+                    b.Property<string>("Resource")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("ExpiresTicks")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Owner")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Resource");
+
+                    b.ToTable("Leases", (string)null);
                 });
 
             modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ProcessedDocument", b =>

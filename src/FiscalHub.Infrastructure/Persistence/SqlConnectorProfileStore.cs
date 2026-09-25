@@ -50,6 +50,16 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task<IReadOnlyList<TenantConnectorProfile>> ListByInboundAdapterAsync(string inboundAdapter, CancellationToken ct = default)
+    {
+        // Consulta de sistema: varre todos os tenants (o worker de poll não tem tenant logado).
+        List<ConnectorProfileRow> rows = await _db.ConnectorProfiles
+            .Where(p => p.InboundAdapter == inboundAdapter)
+            .OrderBy(p => p.TenantId)
+            .ToListAsync(ct);
+        return rows.Select(Map).ToList();
+    }
+
     private static TenantConnectorProfile Map(ConnectorProfileRow r) => new()
     {
         TenantId = r.TenantId,

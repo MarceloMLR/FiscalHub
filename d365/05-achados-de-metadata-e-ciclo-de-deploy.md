@@ -317,6 +317,15 @@ parte.
 Ressalva honesta: o ambiente só tem 2 notas canceladas e não dá para provar que alguma delas passou
 por `Approved` antes. A ausência de voucher duplicado em 83 registros é evidência forte, não prova.
 
+**Confirmado pelo domínio (2026-09-25).** O voucher do documento fiscal é **único e imutável**. Com
+isso, a `NaturalKey = empresa|voucher` passa a ter duas evidências independentes: o levantamento acima e
+a regra de domínio. A transição `Approved → Cancelled` mantém a mesma chave: é o mesmo documento com
+uma nova tentativa (ADR-0024 §6).
+
+O que fica em aberto é por cliente, não por nota. A sequência numérica do voucher é configurada em
+cada F&O. Se a de algum cliente reiniciar por exercício fiscal, o voucher repetiria entre anos. Isso é
+conferido no onboarding, e o desempate (`empresa|RecId`) já vem no `$select` do keyset.
+
 ---
 
 ## 9. Checklist para criar ou alterar uma entidade
@@ -335,6 +344,101 @@ compilação.
 
 ---
 
+## 10. Paginação da descoberta: o nextLink é offset
+
+Levantamento feito para o worker de descoberta por polling (ADR-0024), contra a `FSFiscalDocumentBRs`
+no `fiscosysdev`, com 83 cabeçalhos.
+
+### O que funciona
+
+| Consulta | Resultado |
+|---|---|
+| `$filter=SysModifiedDateTime gt <literal UTC>` | ok |
+| `$filter=dataAreaId eq 'brmf'` | ok |
+| `$filter=FiscalDocumentRecId gt <int64>` | ok |
+| `$filter=(SysModifiedDateTime gt T) or (SysModifiedDateTime eq T and FiscalDocumentRecId gt R)` | ok: é o keyset composto |
+| `$orderby=SysModifiedDateTime` | ok |
+| `$orderby=SysModifiedDateTime,FiscalDocumentRecId` | ok |
+| `$orderby=SysModifiedDateTime,dataAreaId,Voucher` | ok |
+| `$select` de `dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,SysModifiedDateTime` | ok |
+| header `Date` na resposta | presente em toda resposta |
+| `Prefer: odata.maxpagesize=20` | **honrado**: 20 registros mais `@odata.nextLink`; varredura completa em 5 páginas de 20 |
+
+### O que não funciona
+
+| Consulta | Resultado |
+|---|---|
+| `$filter=Voucher gt 'X'` | recusado: string não aceita comparação relacional |
+| header `Preference-Applied` | volta **vazio** mesmo quando o `maxpagesize` é honrado. Não serve para detectar se a preferência foi aceita |
+
+### O formato do nextLink
+
+```
+…&$orderby=SysModifiedDateTime&$select=…&$skip=20&$top=20
+```
+
+É paginação por **offset**. Não existe `$skiptoken`, e a leitura não é um snapshot.
+
+**Por que importa.** Offset sobre tabela viva, com ordenação não total, pode pular linha:
+
+1. Uma nota já varrida sofre update.
+2. Ela ganha timestamp novo e migra para o fim da ordenação.
+3. Tudo o que vinha depois dela desloca uma casa, e a linha que estava na fronteira da página fica
+   para trás sem ser lida.
+
+Update de `Status` é justamente a carga principal da descoberta. Em regime, a sobreposição da janela
+recupera a linha. Numa marca rebobinada (backfill), a perda é permanente.
+
+**Decisão:** o worker não segue o nextLink. Ele pagina por **keyset composto** em
+(`SysModifiedDateTime`, `FiscalDocumentRecId`), com `$top` e a âncora na última linha lida. A âncora é
+valor, não posição, e nenhum insert ou update desloca o que ainda não foi lido. Detalhes e alternativas
+estão no ADR-0024.
+
+### Keyset exercitado cross-company
+
+Leitura keyset completa, sem filtro de empresa: `cross-company=true`, `$top=20`,
+`$orderby=SysModifiedDateTime,FiscalDocumentRecId`, `since = 2015-01-01T00:00:00Z`.
+
+```
+empresas no ambiente: brmf (83)   ← só existe uma
+páginas: 20 · 20 · 20 · 20 · 3    (150–310 ms cada; nenhuma com nextLink, porque $top ≤ página)
+linhas: 83 · FiscalDocumentRecId distintos: 83   ← nenhum repetido, nenhum pulado
+Model: 01 = 69 · SE = 9 · 55 = 5
+```
+
+**Distribuição por modelo e ano: leia antes de tirar conclusão.**
+
+| Modelo | Notas | Anos |
+|---|---|---|
+| `01` | 69 | 2015, 2016, 2017 |
+| `SE` | 9 | 2015, 2016, 2026 |
+| `55` | 5 | 2016 |
+| **No mapa padrão (`55`/`57`/`SE`)** | **14 de 83** | |
+
+- **O que o número parece dizer.** Que o modelo `01` é a maioria.
+- **O que ele diz de fato.** O modelo `01` é a Nota Fiscal modelo 1/1A, um formulário em papel
+  substituído pela NF-e (modelo 55). As 69 notas `01` do ambiente são **inteiramente dado de
+  demonstração antigo** (2015–2017). Em cliente real, a incidência é próxima de zero. As únicas notas
+  recentes do ambiente são as `SE` de 2026.
+- **Efeito hoje.** O mapa padrão do adapter deixa as 69 como "modelo fora do mapa": aviso em log, fora
+  da fila.
+- **Recomendação (a decisão é do roteamento, ADR-0024).** Manter o `01` fora do mapa. O roteamento
+  grava "ignorado: modelo fora do escopo" como desfecho explícito. Se um cliente tiver modelo `01` de
+  verdade, basta uma linha no `modelTypes` das settings do tenant, sem código de domínio.
+
+### Ainda a verificar
+
+- [x] `FiscalDocumentRecId` em `$orderby` e no `$filter` keyset **cross-company**, sem filtro de empresa.
+      Funciona (bloco acima). O ambiente só tem a brmf; repetir quando houver ambiente com mais de uma
+      empresa.
+- [ ] **Volume real.** O ambiente tem 83 cabeçalhos. Falta medir a latência de uma página keyset
+      (`$top=500`, `$orderby=SysModifiedDateTime,FiscalDocumentRecId`, filtro com `or`) numa base com
+      milhares ou milhões de documentos. Falta também confirmar se algum índice da `FiscalDocument_BR`
+      cobre `ModifiedDateTime`. Sem índice, cada página pode virar varredura mais ordenação. Pendência
+      antes do primeiro cliente.
+
+---
+
 ## Referências
 
 - [Build operations — Synchronize the database at each build](https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/dev-tools/build-operations#synchronize-the-database-at-each-build)
@@ -342,3 +446,4 @@ compilação.
 - [Tutorial: Write, deploy, and debug X++ code](https://learn.microsoft.com/power-platform/developer/unified-experience/finance-operations-debug#deploy-the-class)
 - `04-mapeamento-de-entidades.md` — campos e relacionamentos de cada entidade
 - `docs/adr/0023-descoberta-por-polling-com-change-tracking-no-d365.md` — por que a descoberta é por polling
+- `docs/adr/0024-feed-de-mudancas-por-janela-de-data-no-d365.md` — janela por data, keyset e lease do worker de descoberta

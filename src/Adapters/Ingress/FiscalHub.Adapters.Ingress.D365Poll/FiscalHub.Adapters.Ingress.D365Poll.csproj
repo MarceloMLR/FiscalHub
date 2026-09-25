@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapter de ingresso do Dynamics 365 F&O (ADR-0024): implementa o IDocumentChangeFeed sobre a
+    FSFiscalDocumentBRs, por janela de data em SysModifiedDateTime com paginação keyset.
+    TargetFramework, Nullable etc. vêm do Directory.Build.props.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\FiscalHub.Application\FiscalHub.Application.csproj" />
+    <ProjectReference Include="..\..\..\FiscalHub.Domain\FiscalHub.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- IHttpClientFactory + DI + logging; Azure.Identity só aqui (token do Entra para o F&O); IConfiguration (via Azure.Core) resolve o kv:. -->
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.3" />
+  </ItemGroup>
+
+  <!-- Contrato OData e token ficam internal; o projeto de teste enxerga via isto. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="FiscalHub.Adapters.Ingress.D365Poll.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -19,6 +19,7 @@
   </Folder>
   <Folder Name="/src/Adapters/Ingress/">
     <Project Path="src/Adapters/Ingress/FiscalHub.Adapters.Ingress.BlobDrop/FiscalHub.Adapters.Ingress.BlobDrop.csproj" />
+    <Project Path="src/Adapters/Ingress/FiscalHub.Adapters.Ingress.D365Poll/FiscalHub.Adapters.Ingress.D365Poll.csproj" />
   </Folder>
   <Folder Name="/src/Adapters/Directory/">
     <Project Path="src/Adapters/Directory/FiscalHub.Adapters.Directory.Json/FiscalHub.Adapters.Directory.Json.csproj" />
@@ -44,6 +45,7 @@
   </Folder>
   <Folder Name="/tests/Adapters/Ingress/">
     <Project Path="tests/Adapters/Ingress/FiscalHub.Adapters.Ingress.BlobDrop.Tests/FiscalHub.Adapters.Ingress.BlobDrop.Tests.csproj" />
+    <Project Path="tests/Adapters/Ingress/FiscalHub.Adapters.Ingress.D365Poll.Tests/FiscalHub.Adapters.Ingress.D365Poll.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Adapters/Directory/">
     <Project Path="tests/Adapters/Directory/FiscalHub.Adapters.Directory.Json.Tests/FiscalHub.Adapters.Directory.Json.Tests.csproj" />
