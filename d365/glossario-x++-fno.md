@@ -31,7 +31,7 @@ Referência rápida dos termos que usamos no FiscalHub (entidades + business eve
 - **Field** — coluna da tabela. Ex.: `Status`, `FiscalDocumentNumber`.
 - **EDT (Extended Data Type)** — um "tipo de domínio" reutilizável em cima de um primitivo (str/int…), com label, tamanho, relações. Ex.: `FiscalDocumentNumber` é um EDT. Foi a fonte daquele erro `ItemIdBase` (faltava referenciar o package do EDT).
 - **Base Enum** — enumeração (conjunto fixo de valores nomeados). Ex.: `FiscalDocumentStatus_BR` = `Blank, Approved, Cancelled, ...`.
-- **Data Entity** — **view/projeção** sobre uma ou mais tabelas, usada pra **OData** e **DMF**. Não é tabela real. Ex.: `FS_FiscalDocumentBR`.
+- **Data Entity** — **view/projeção** sobre uma ou mais tabelas, usada pra **OData** e **DMF**. Não é tabela real. Ex.: `FSFiscalDocumentBR` (entity set `FSFiscalDocumentBRs`).
 - **Staging table** — tabela intermediária do **DMF** (import/export). Read-only pro OData **não precisa** dela.
 - **View** — projeção read-only (view SQL).
 - **State Machine** — máquina de estados que controla um campo de status e suas transições permitidas.

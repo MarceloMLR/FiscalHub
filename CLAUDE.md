@@ -109,12 +109,13 @@ Antes de criar abstração nova, procure a porta/analógico que já existe (`gre
 
 O conector do ERP é um **hook fino e genérico**, propositalmente burro:
 
-- **Data entity** OData (`FS_FiscalDocument_BR*`) expõe a nota.
-- **Business event** (`FS_FiscalDocStatusChangedBusinessEvent` + contract) manda a **identidade**
-  da nota (empresa, RecId, número, série, data, status) para o **nosso Service Bus** quando o
-  status muda.
-- **CoC** (`FS_FiscalDocument_BR_Extension`) intercepta `update()`/`doUpdate()` da tabela
-  `FiscalDocument_BR` e dispara o evento na transição para `Approved` (e depois `Canceled`).
+- **14 data entities** OData com prefixo `FS` (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`,
+  `FSTaxTransBR`…) expõem a nota e seus cadastros. Públicas, somente leitura, sem Data Management.
+  Lista completa em `d365/README.md`.
+- **Descoberta por polling** sobre a `FSFiscalDocumentBR` é a **garantia** (ADR-0023). O hub
+  pergunta o que mudou; o ERP não precisa avisar.
+- **Business event** + **CoC** continuam previstos como **otimizador de latência opcional**, não
+  como mecanismo principal — não existe hook de código que cubra todos os caminhos de escrita.
 
 Princípios:
 - **Nenhuma lógica de cliente** no X++. Toda variabilidade (endpoints, conta Avalara, roteamento)
@@ -124,7 +125,9 @@ Princípios:
   "Deploy Models to Online Environment". Promoção estilo cliente = deployable package + o ALM
   do cliente (pipeline ou apply manual). **1 código → 1 build → N clientes.**
 
-Docs de referência: `d365/02-business-event-status-changed.md`, `d365/glossario-x++-fno.md`.
+Docs de referência: `d365/README.md` (índice), `d365/04-mapeamento-de-entidades.md` (o que ler de
+cada entidade), `d365/05-achados-de-metadata-e-ciclo-de-deploy.md` (armadilhas de metadata e o ciclo
+build → deploy → sync), `d365/glossario-x++-fno.md`.
 
 ---
 

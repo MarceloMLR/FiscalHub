@@ -1,3 +1,15 @@
+> ⚠️ **O papel deste mecanismo mudou.** O [ADR-0023](../docs/adr/0023-descoberta-por-polling-com-change-tracking-no-d365.md)
+> inverteu os papéis: a **garantia** da descoberta passou a ser o **polling** sobre a
+> `FSFiscalDocumentBR`, e o business event virou **otimizador de latência opcional**. O motivo é que
+> não existe um único hook de código que cubra todos os caminhos de escrita (NF-e de saída,
+> transferência, NFS-e, município não aderente, entrada de contribuinte e não contribuinte,
+> cancelamento complementar) — a convergência acontece no **dado**, não no código.
+>
+> O conteúdo abaixo continua válido como referência de implementação do evento, mas **não** é mais o
+> mecanismo principal. Leia o ADR-0023 antes de investir nele.
+
+---
+
 # Fase 2 — Custom Business Event: mudança de status da nota fiscal
 
 Objetivo: quando o **status** de uma `FiscalDocument_BR` mudar, disparar um **business event** que manda o **ID da nota** (empresa + número + status novo) pro **Azure Service Bus**. O adapter do FiscalHub consome a fila e busca a nota completa via OData.
@@ -214,7 +226,7 @@ Consequência prática (comprovada): **postar** uma nota (fluxo real) **não** a
 
 O hook tem que casar com COMO o dado é gravado no posting (set-based). Opções, em ordem de recomendação:
 
-1. **Data event** (aba *Data event catalog*) — baseado em **change tracking** (nível de banco), então **pega gravações set-based/doInsert**. Registrar Create/Update na entidade `FS_FiscalDocumentBR` e o consumidor filtra `Status == Approved`. ← recomendado pra tempo-real.
+1. **Data event** (aba *Data event catalog*) — baseado em **change tracking** (nível de banco), então **pega gravações set-based/doInsert**. Registrar Create/Update na entidade `FSFiscalDocumentBR` e o consumidor filtra `Status == Approved`. ← recomendado pra tempo-real.
 2. **Polling por status** via OData (caminho `ScheduledDaily`/`Manual` do FiscalHub, ADR-0022). ← mais simples e à prova de bala.
 3. **CoC no método de negócio** que autoriza a nota (classe de processamento, não a tabela) — mais cirúrgico, exige achar o método.
 
