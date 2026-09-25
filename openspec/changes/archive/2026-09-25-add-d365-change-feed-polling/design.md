@@ -418,6 +418,11 @@ que abre um escopo, resolve o `ChangeFeedPoller` e chama `RunOnceAsync`. Opçõe
     já está no `$select` por causa do keyset. A troca custa zero enquanto a fila de descoberta não tem
     consumidor.
   - **Voucher vazio**, em fluxo de ISV ou customização, gera aviso e fica fora da fila.
+  - **Resolvido em 2026-09-25 (tarefa 1.5).** Pelo domínio, o voucher é **único e imutável**.
+    - A `NaturalKey` está confirmada, e `Approved → Cancelled` mantém a mesma chave (documento 1:N
+      tentativas).
+    - Fica só o risco residual por cliente: a sequência é configuração de cada F&O. Ele é verificado no
+      onboarding, com o desempate `empresa|ano|voucher` ou `empresa|RecId` já disponível (ADR-0024 §6).
 - **[Réplica atrasada depois de perder o lease (pausa de GC, rede)]** → A gravação da marca é
   condicionada ao lease na mesma instrução (D5), então a réplica atrasada não avança o cursor. Ela pode
   ter enfileirado a página antes de descobrir: o modo de falha é **duplicação, nunca perda**. Cada

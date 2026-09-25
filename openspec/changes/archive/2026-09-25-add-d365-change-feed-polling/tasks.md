@@ -22,7 +22,7 @@
 
   Revisa os §1 e §2 do ADR-0023.
 - [x] 1.4 Acrescentar a nota de 2026-09 no topo do ADR-0023 apontando para o ADR-0024, no formato da nota do ADR-0022. Atualizar o índice `docs/adr/README.md` com as linhas 0022, 0023 (que faltam) e 0024.
-- [ ] 1.5 Verificar com o cliente, ou com o consultor funcional, o escopo da sequência numérica do voucher dos documentos fiscais: contínua ou reinicia por exercício fiscal. Registrar a resposta no ADR-0024.
+- [x] 1.5 Verificar com o cliente, ou com o consultor funcional, o escopo da sequência numérica do voucher dos documentos fiscais: contínua ou reinicia por exercício fiscal. Registrar a resposta no ADR-0024.
   - Não bloqueia esta fatia, mas precisa fechar **antes** da fatia de montagem, quando a `NaturalKey` vira contrato do store.
   - Se reiniciar, trocar para uma chave com o `FiscalDocumentRecId` como desempate.
 
