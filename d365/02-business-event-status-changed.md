@@ -5,8 +5,13 @@
 > transferência, NFS-e, município não aderente, entrada de contribuinte e não contribuinte,
 > cancelamento complementar) — a convergência acontece no **dado**, não no código.
 >
-> O conteúdo abaixo continua válido como referência de implementação do evento, mas **não** é mais o
-> mecanismo principal. Leia o ADR-0023 antes de investir nele.
+> **Atualização de 2026-09-25: este mecanismo saiu do roadmap.** Não é mais nem fase futura. Além do
+> furo de cobertura, ele exige X++ no pacote do cliente, que hoje é metadado puro. Se push virar
+> necessário, a forma é **Data event** (configuração, baseado em change tracking), não o CoC descrito
+> aqui — e mesmo assim como camada sobre o poll, nunca no lugar dele.
+>
+> O conteúdo abaixo fica como **registro histórico** do desenho original. Leia a seção "Gatilho por
+> evento: fora do roadmap" do ADR-0023 antes de investir qualquer tempo nele.
 
 ---
 

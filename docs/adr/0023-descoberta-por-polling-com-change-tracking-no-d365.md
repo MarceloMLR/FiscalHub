@@ -281,6 +281,37 @@ cliente que peça — vendido como diferencial, não carregado como dependência
 11. Caminho manual: sem consulta ao hash, respeitando o filtro do tenant, sem tocar no delta token.
 12. Relatório do caminho manual com os desfechos explícitos.
 
+## Gatilho por evento: fora do roadmap (2026-09-25)
+
+Este ADR rebaixou o business event a "otimizador de latência opcional". Na prática isso manteve uma
+fase 2 no roadmap que ninguém deveria implementar. Fica resolvido aqui: **saiu**.
+
+**Por que o business event por CoC não volta.** Além do furo de cobertura já descrito, ele exige X++
+no pacote do cliente. O `FiscalHubIntegration` hoje é metadado puro — 14 entidades, 14 privilégios,
+uma role, zero código — e é isso que o torna revisável e suportável em N clientes. Um mecanismo que
+não garante nada não justifica esse custo.
+
+**Se push virar necessário, a forma é Data event, não CoC.** É configuração (aba *Data event
+catalog*), baseado em **change tracking** — o mesmo mecanismo do poll, logo a mesma cobertura — e
+não leva código no pacote.
+
+**Mesmo assim ele não substitui o worker.** A documentação da Microsoft é explícita:
+
+- entrega **assíncrona e sem ordem garantida** entre emissão e endpoint;
+- teto por ambiente de **5.000 eventos / 5 min** e **50.000 / hora**, somando todas as entidades, e
+  eventos de **update** são os mais caros — que é o nosso caso, já que aprovação é update de `Status`;
+- exige **Power Platform integration** habilitado no ambiente do cliente.
+
+**A verificar antes de qualquer plano:** data event não dispara quando a entidade usa *view* como
+data source primário. A `FSFiscalDocumentBR` tem tabela na raiz, mas junta seis data sources — não
+está confirmado se alteração em `LogisticsPostalAddress` dispararia evento de documento.
+
+**Gatilho para reabrir a discussão:** intervalo de poll precisar passar de **1 minuto**, ou SLA
+contratual de tempo quase real. Fora disso, o poll resolve.
+
+Referências: [Data events](https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/business-events/data-events)
+e [Limitations](https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/business-events/data-events#limitations).
+
 ## Pendências de verificação no ambiente
 
 - [x] **Nome técnico dos campos de modelo e direção:** `Model` e `Direction` (valores `Incoming` /
