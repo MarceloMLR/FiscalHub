@@ -23,7 +23,7 @@ No environment (ou nas variáveis da collection):
 | `clientId` | Application (client) ID do app registration | Entra ID → App registrations → seu app |
 | `clientSecret` | Secret do app registration | App registration → Certificates & secrets → New client secret |
 | `company` | Empresa (dataAreaId) pra filtrar | ex.: `brmf` |
-| `entityName` | Entidade pra query genérica | ex.: `FS_FiscalDocumentBR` |
+| `entityName` | Entity set pra query genérica (nome no **plural**) | ex.: `FSFiscalDocumentBRs` |
 
 ## Pré-requisito no lado do F&O (importante)
 
@@ -42,8 +42,55 @@ Um token válido do Entra **não basta**: o app precisa estar **mapeado a um usu
   - **$metadata** — confirma quais entidades estão publicadas (procure pelo nome da sua).
   - **Query entidade (genérico)** — troca `{{entityName}}` e consulta qualquer entidade.
   - **Query por empresa (dataAreaId)** — filtra por `{{company}}` (no FiscosysDev os dados fiscais de teste estão na **brmf**; a **DAT** está vazia).
-  - **$count**, **Service document**, e exemplos **FS_FiscalDocumentBR** / **FS_FiscalDocumentLine_Br**.
+  - **$count** e **Service document**.
+- Rode a pasta **FiscalHub — entidades (14)** inteira pelo **Runner** para o smoke test completo (ver abaixo).
 - Tem também **Auth → Get Token (manual)** se quiser inspecionar o token na mão.
+
+## Pasta `FiscalHub — entidades (14)`
+
+Uma requisição por entidade custom do pacote `FiscalHubIntegration`. Cada uma faz
+`GET /data/{entitySet}?cross-company=true&$top={{top}}` e valida:
+
+- **HTTP 200**
+- resposta OData válida (`value` é array)
+- loga no console quantas linhas vieram; avisa quando vem **0**
+
+As 14: `FSFiscalDocumentBRs`, `FSFiscalDocumentLineBRs`, `FSTaxTransBRs`, `FSTaxWithholdBRs`,
+`FSTaxTableBRs`, `FSMarkupTransBRs`, `FSFiscalDocModelBRs`, `FSItemBRs`, `FSUnitOfMeasureBRs`,
+`FSAddressCityBRs`, `FSCountryRegionBRs`, `FSPostalAddressBRs`, `FSCustomerBRs`, `FSVendorBRs`.
+
+Para rodar tudo de uma vez: clique na pasta → **Run folder** → *Run*. O Runner mostra o resultado
+requisição a requisição.
+
+## Pasta `FiscalHub — regressão`
+
+Dois testes de `$count` que travam um defeito real encontrado em **24/09/2026**:
+
+> A `FSFiscalDocumentBR` voltava `$count = 0` enquanto a `FSFiscalDocumentLineBR` voltava `150`.
+> Causa: os quatro data sources `LogisticsLocation` aninhados sob os `LogisticsPostalAddress`
+> estavam **sem a tag `<JoinMode>`**, o que no F&O equivale a **InnerJoin**. Um InnerJoin pendurado
+> embaixo de um OuterJoin anula o OuterJoin — como nenhuma nota tem os quatro endereços
+> preenchidos, toda linha do cabeçalho era eliminada.
+> Correção: `<JoinMode>OuterJoin</JoinMode>` nos nós `Location`, `Location1`, `Location2` e `Location3`.
+
+Se o teste do cabeçalho voltar a falhar, vá direto conferir o `JoinMode` dos data sources aninhados
+da entidade antes de procurar em outro lugar.
+
+## Atalho pra teste rápido: token pela sua própria identidade
+
+Se o `clientSecret` não estiver preenchido (é o caso no repositório) e você só quiser conferir se as
+entidades respondem, dá pra usar sua sessão do Azure CLI em vez do app registration:
+
+```powershell
+az login   # se ainda não estiver logado
+$env:FH_TOKEN = az account get-access-token --resource "https://fiscosysdev.operations.dynamics.com" --query accessToken -o tsv
+Invoke-RestMethod -Uri "https://fiscosysdev.operations.dynamics.com/data/FSFiscalDocumentBRs?cross-company=true&`$top=1" `
+  -Headers @{ Authorization = "Bearer $env:FH_TOKEN" }
+```
+
+Isso usa **sua** identidade (delegada), não a do app. Serve para validar que a entidade existe e
+responde — **não** valida se a role `FiscalHub - integração (somente leitura)` foi atribuída ao
+usuário de integração. Esse teste só a autenticação por `client_credentials` faz.
 
 ## Dicas
 

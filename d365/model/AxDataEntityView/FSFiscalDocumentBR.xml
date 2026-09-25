@@ -1,0 +1,854 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>FSFiscalDocumentBR</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class FSFiscalDocumentBR extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<CountryRegionCodes>BR</CountryRegionCodes>
+	<Label>@GLS63834</Label>
+	<SubscriberAccessLevel>
+		<Read>Allow</Read>
+	</SubscriberAccessLevel>
+	<DataManagementEnabled>No</DataManagementEnabled>
+	<IsPublic>Yes</IsPublic>
+	<IsReadOnly>Yes</IsReadOnly>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>FSFiscalDocumentBRs</PublicCollectionName>
+	<PublicEntityName>FSFiscalDocumentBR</PublicEntityName>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>AccessKey</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>AccessKey</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>AccountingDate</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>AccountingDate</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CancelAccountingDate</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CancelAccountingDate</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CancelInventoryVoucherId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CancelInventoryVoucherId</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CancelReasonComment</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CancelReasonComment</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CancelVoucherId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CancelVoucherId</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CityWhereServicePerformed</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CityWhereServicePerformed</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ComplementaryType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ComplementaryType</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ComplementedFiscalDocument</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ComplementedFiscalDocument</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeliveryCNPJCPF</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeliveryCNPJCPF</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeliveryIE</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeliveryIE</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeliveryLogisticsPostalAddress</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeliveryLogisticsPostalAddress</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeliveryMode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeliveryMode</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeliveryTerm</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeliveryTerm</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Direction</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Direction</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentAccountNum</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentAccountNum</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentAccountType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentAccountType</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentDate</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentDate</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentFormat</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentFormat</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentIssuer</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentIssuer</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentNumber</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentNumber</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentSeries</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentSeries</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishment</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishment</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishmentCCMNum</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishmentCCMNum</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishmentCNPJCPF</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishmentCNPJCPF</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishmentIE</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishmentIE</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishmentName</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishmentName</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishmentPhone</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishmentPhone</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishmentPostalAddress</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishmentPostalAddress</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalEstablishmentTribSubstitutionReg</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalEstablishmentTribSubstitutionReg</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FreightChargeTerms</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FreightChargeTerms</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ImportDeclaration</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ImportDeclaration</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>InventoryVoucher</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>InventoryVoucher</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Model</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Model</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>NumericCode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>NumericCode</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>OperationDescription</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>OperationDescription</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Purpose</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Purpose</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>RefRecId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>RefRecId</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>RefTableId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>RefTableId</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>SalesCarrierLogisticsPostalAddress</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>SalesCarrierLogisticsPostalAddress</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Specie</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Specie</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Status</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Status</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyCCMNum</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyCCMNum</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyCNPJCPF</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyCNPJCPF</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyFax</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyFax</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyIE</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyIE</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyName</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyName</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyPhone</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyPhone</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyPostalAddress</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyPostalAddress</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalDiscountAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalDiscountAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalGoodsAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalGoodsAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalMarkupFreightAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalMarkupFreightAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalMarkupInsuranceAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalMarkupInsuranceAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalMarkupOtherAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalMarkupOtherAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalServicesAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalServicesAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TypeOfCTe</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TypeOfCTe</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>VehicleLicensePlateNumber</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>VehicleLicensePlateNumber</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>VehicleLicensePlateState</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>VehicleLicensePlateState</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Version</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Version</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Voucher</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Voucher</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FinalUser</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FinalUser</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentDateTime</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentDateTime</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentDateTimeOffset</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalDocumentDateTimeOffset</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>PresenceType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>PresenceType</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyEmail</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyEmail</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyForeignerId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyForeignerId</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartyICMSContributor</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartyICMSContributor</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalSuframaDiscountCOFINSAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalSuframaDiscountCOFINSAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalSuframaDiscountICMSAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalSuframaDiscountICMSAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TotalSuframaDiscountPISAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TotalSuframaDiscountPISAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>PaymentAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>PaymentAmount</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>PaymentMethod</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>PaymentMethod</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartySalesDigitalPlatform</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartySalesDigitalPlatform</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ThirdPartySalesDigitalPlatformCNPJ</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ThirdPartySalesDigitalPlatformCNPJ</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>SubstitutionAccessKey</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>SubstitutionAccessKey</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ApplicationVersion</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ApplicationVersion</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CancelAccessKey</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CancelAccessKey</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CancelTaxAuthorityInfo</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CancelTaxAuthorityInfo</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DebitCreditNoteType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DebitCreditNoteType</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalDocumentRecId</Name>
+			<DataField>RecId</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns="" 			i:type="AxDataEntityViewMappedField"> 			<Name>SysModifiedDateTime</Name> 			<DataField>ModifiedDateTime</DataField> 			<DataSource>FiscalDocument_BR</DataSource> 		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>FiscalEstablishment</DataField>
+				</AxDataEntityViewKeyField>
+				<AxDataEntityViewKeyField>
+					<DataField>Direction</DataField>
+				</AxDataEntityViewKeyField>
+				<AxDataEntityViewKeyField>
+					<DataField>Status</DataField>
+				</AxDataEntityViewKeyField>
+				<AxDataEntityViewKeyField>
+					<DataField>FiscalDocumentSeries</DataField>
+				</AxDataEntityViewKeyField>
+				<AxDataEntityViewKeyField>
+					<DataField>FiscalDocumentNumber</DataField>
+				</AxDataEntityViewKeyField>
+				<AxDataEntityViewKeyField>
+					<DataField>Voucher</DataField>
+				</AxDataEntityViewKeyField>
+				<AxDataEntityViewKeyField>
+					<DataField>ThirdPartyCNPJCPF</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>FiscalDocument_BR</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>FiscalDocument_BR</Table>
+				<DataSources>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>ComplementedFiscalDocument</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>FiscalDocument_BR</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>ComplementedFiscalDocument</Name>
+								<JoinRelationName>ComplementFiscalDocument</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>DeliveryLogisticsPostalAddress</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>LogisticsPostalAddress</Table>
+						<DataSources>
+							<AxQuerySimpleEmbeddedDataSource>
+								<Name>Location</Name>
+								<DynamicFields>Yes</DynamicFields>
+								<IsReadOnly>Yes</IsReadOnly>
+								<Table>LogisticsLocation</Table>
+								<DataSources />
+								<DerivedDataSources />
+								<Fields />
+								<Ranges />
+								<JoinMode>OuterJoin</JoinMode>
+								<Relations>
+									<AxQuerySimpleDataSourceRelation>
+										<Name>Location</Name>
+										<JoinRelationName>LocationRelatedTableRole</JoinRelationName>
+									</AxQuerySimpleDataSourceRelation>
+								</Relations>
+							</AxQuerySimpleEmbeddedDataSource>
+						</DataSources>
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>DeliveryLogisticsPostalAddress</Name>
+								<JoinRelationName>DeliveryLogisticsPostalAddress</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>FiscalEstablishmentPostalAddress</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>LogisticsPostalAddress</Table>
+						<DataSources>
+							<AxQuerySimpleEmbeddedDataSource>
+								<Name>Location1</Name>
+								<DynamicFields>Yes</DynamicFields>
+								<IsReadOnly>Yes</IsReadOnly>
+								<Table>LogisticsLocation</Table>
+								<DataSources />
+								<DerivedDataSources />
+								<Fields />
+								<Ranges />
+								<JoinMode>OuterJoin</JoinMode>
+								<Relations>
+									<AxQuerySimpleDataSourceRelation>
+										<Name>Location1</Name>
+										<JoinRelationName>LocationRelatedTableRole</JoinRelationName>
+									</AxQuerySimpleDataSourceRelation>
+								</Relations>
+							</AxQuerySimpleEmbeddedDataSource>
+						</DataSources>
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>FiscalEstablishmentPostalAddress</Name>
+								<JoinRelationName>LegalEntityLogisticsPostalAddress</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>LogisticsAddresssCity</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>LogisticsAddressCity</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>LogisticsAddresssCity</Name>
+								<JoinRelationName>LogisticsAddressCity</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>SalesCarrierLogisticsPostalAddress</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>LogisticsPostalAddress</Table>
+						<DataSources>
+							<AxQuerySimpleEmbeddedDataSource>
+								<Name>Location2</Name>
+								<DynamicFields>Yes</DynamicFields>
+								<IsReadOnly>Yes</IsReadOnly>
+								<Table>LogisticsLocation</Table>
+								<DataSources />
+								<DerivedDataSources />
+								<Fields />
+								<Ranges />
+								<JoinMode>OuterJoin</JoinMode>
+								<Relations>
+									<AxQuerySimpleDataSourceRelation>
+										<Name>Location2</Name>
+										<JoinRelationName>LocationRelatedTableRole</JoinRelationName>
+									</AxQuerySimpleDataSourceRelation>
+								</Relations>
+							</AxQuerySimpleEmbeddedDataSource>
+						</DataSources>
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>SalesCarrierLogisticsPostalAddress</Name>
+								<JoinRelationName>SalesCarrierLogisticsPostalAddress</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>ThirdPartyPostalAddress</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>LogisticsPostalAddress</Table>
+						<DataSources>
+							<AxQuerySimpleEmbeddedDataSource>
+								<Name>Location3</Name>
+								<DynamicFields>Yes</DynamicFields>
+								<IsReadOnly>Yes</IsReadOnly>
+								<Table>LogisticsLocation</Table>
+								<DataSources />
+								<DerivedDataSources />
+								<Fields />
+								<Ranges />
+								<JoinMode>OuterJoin</JoinMode>
+								<Relations>
+									<AxQuerySimpleDataSourceRelation>
+										<Name>Location3</Name>
+										<JoinRelationName>LocationRelatedTableRole</JoinRelationName>
+									</AxQuerySimpleDataSourceRelation>
+								</Relations>
+							</AxQuerySimpleEmbeddedDataSource>
+						</DataSources>
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>ThirdPartyPostalAddress</Name>
+								<JoinRelationName>LogisticsPostalAddress</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+				</DataSources>
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>

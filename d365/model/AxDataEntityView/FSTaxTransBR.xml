@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>FSTaxTransBR</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class FSTaxTransBR extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<CountryRegionCodes>BR</CountryRegionCodes>
+	<SubscriberAccessLevel>
+		<Read>Allow</Read>
+	</SubscriberAccessLevel>
+	<IsPublic>Yes</IsPublic>
+	<IsReadOnly>Yes</IsReadOnly>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>FSTaxTransBRs</PublicCollectionName>
+	<PublicEntityName>FSTaxTransBR</PublicEntityName>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxTransRecId</Name>
+			<DataField>RecId</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Voucher</Name>
+			<DataField>Voucher</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TransDate</Name>
+			<DataField>TransDate</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>SourceRecId</Name>
+			<DataField>SourceRecId</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>SourceTableId</Name>
+			<DataField>SourceTableId</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>SourceDocumentLine</Name>
+			<DataField>SourceDocumentLine</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxCode</Name>
+			<DataField>TaxCode</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxValue</Name>
+			<DataField>TaxValue</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxAmount</Name>
+			<DataField>TaxAmount</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxBaseAmount</Name>
+			<DataField>TaxBaseAmount</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>SourceBaseAmountCurRegulated</Name>
+			<DataField>SourceBaseAmountCurRegulated</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxType_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxationOrigin</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxationOrigin_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxationCode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxationCode_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxBaseAmountExempt</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxBaseAmountExempt_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxBaseAmountOther</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxBaseAmountOther_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxAmountOther</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxAmountOther_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxReductionPct</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxReductionPct_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxSubstitution</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxSubstitution_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>IsICMSDifferenceTax</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>IsICMSDifferenceTax_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalIndicator</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalIndicator_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FiscalValue</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FiscalValue_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>TaxValueDiff</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>TaxValueDiff_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CClassTrib</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CClassTrib</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CClassTribSuspension</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CClassTribSuspension</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>SourceDeferredAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>SourceDeferredAmount_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeferredAmountCur</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeferredAmountCur_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>DeferredAmountMST</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>DeferredAmountMST_BR</DataField>
+			<DataSource>TaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>TaxTransRecId</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>TaxTrans</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>TaxTrans</Table>
+				<DataSources>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>TaxTrans_BR</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>TaxTrans_BR</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>TaxTrans_BR</Name>
+								<JoinRelationName>TaxTrans</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+				</DataSources>
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>

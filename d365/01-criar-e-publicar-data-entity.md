@@ -1,4 +1,10 @@
-# Fase 1 — Criar e publicar a data entity `FS_FISCALDOCUMENT_BR`
+# Fase 1 — Criar e publicar uma data entity
+
+> **Nomenclatura atual:** as entidades do pacote usam o prefixo `FS` **sem underscore** —
+> `FSFiscalDocumentBR`, `FSTaxTransBR` etc. O entity set no OData é o nome no plural
+> (`/data/FSFiscalDocumentBRs`). Ver [`README.md`](README.md) para a lista completa e
+> [`05-achados-de-metadata-e-ciclo-de-deploy.md`](05-achados-de-metadata-e-ciclo-de-deploy.md)
+> para as armadilhas que o build não pega.
 
 Objetivo: criar uma **data entity de nome fixo** que projeta a `FiscalDocument_BR` padrão, marcá-la como
 pública e **ver ela respondendo no OData**. Sem gatilho e sem pacote ainda — só provar que a entidade
@@ -58,10 +64,10 @@ model `FiscalHubIntegration`. Salve.
 ## 4. Criar a Data Entity pelo assistente
 
 1. No projeto: **Add → New Item → Data Model → Data Entity**.
-2. Nome (AOT): `FS_FiscalDocumentBR`. **Add** → abre o *Data Entity Wizard*.
+2. Nome (AOT): `FSFiscalDocumentBR`. **Add** → abre o *Data Entity Wizard*.
 3. **Primary datasource**: selecione a tabela do passo 1 (ex.: `FiscalDocument_BR`).
 4. **Entity category**: `Transaction` (nota fiscal é transacional).
-5. **Public collection name**: `FS_FiscalDocumentBR` — **é o nome que vira a URL do OData** (`/data/FS_FiscalDocumentBR`). **Public entity name**: `FS_FiscalDocumentBR`.
+5. **Public collection name**: `FSFiscalDocumentBR` — **é o nome que vira a URL do OData** (`/data/FSFiscalDocumentBR`). **Public entity name**: `FSFiscalDocumentBR`.
 6. **Staging table / Enable data management**: para leitura via OData **não é obrigatório**. Se aparecer a
    opção de gerar staging, pode **desmarcar** (só vamos ler). Se o assistente criar mesmo assim, tudo bem.
 7. Finish. Ele gera a entidade e os artefatos (privilégios/roles automáticos).
@@ -83,7 +89,7 @@ Depois a gente amplia a projeção com tudo que monta o JSON de saída. Menos é
 Clique na **data entity** (nó raiz) → **Properties** e confirme:
 
 - **Is Public = Yes** ← sem isto, o OData não expõe.
-- **Public Collection Name = FS_FiscalDocumentBR** e **Public Entity Name = FS_FiscalDocumentBR**.
+- **Public Collection Name = FSFiscalDocumentBR** e **Public Entity Name = FSFiscalDocumentBR**.
 - **Data Management Enabled**: pode deixar `No` para o teste de leitura.
 
 ---
@@ -114,12 +120,12 @@ Três formas, da mais simples à mais completa:
 https://{seu-ambiente}.operations.dynamics.com/data/$metadata
 ```
 
-Procure por `FS_FiscalDocumentBR` no XML. Se aparecer, ela está pública.
+Procure por `FSFiscalDocumentBR` no XML. Se aparecer, ela está pública.
 
 **(b) Consultar dados** — no navegador:
 
 ```
-https://{seu-ambiente}.operations.dynamics.com/data/FS_FiscalDocumentBR?$top=1&cross-company=true
+https://{seu-ambiente}.operations.dynamics.com/data/FSFiscalDocumentBRs?$top=1&cross-company=true
 ```
 
 Deve voltar um JSON com 1 registro. (`cross-company=true` traz de todas as empresas; sem isso, só a
@@ -132,7 +138,7 @@ registration na Fase 2.
 ### Filtro por status (prévia do que o adapter usará)
 
 ```
-/data/FS_FiscalDocumentBR?$filter=FiscalDocumentStatus eq 'Aprovada'&cross-company=true
+/data/FSFiscalDocumentBRs?$filter=Status eq 'Approved'&cross-company=true
 ```
 
 (**⚠️ CONFIRMAR** o nome do campo/valor de status.)

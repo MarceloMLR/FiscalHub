@@ -1,7 +1,17 @@
 # ADR-0022: Adapter de entrada Dynamics 365 F&O (Business Events → Service Bus → OData, com pacote de data entities padronizadas)
 
-- **Status:** Proposto (em refino)
+- **Status:** Proposto (em refino) — parcialmente revisado pelo ADR-0023
 - **Data:** 2026-08-03
+
+> **Nota de 2026-09-25.** Dois pontos deste ADR mudaram na implementação e ficam registrados aqui
+> para quem ler só este documento:
+>
+> 1. **Nomes.** O contrato de nome fixo continua valendo, mas os nomes reais não têm underscore:
+>    `FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR` etc., com o entity set no plural
+>    (`/data/FSFiscalDocumentBRs`). São 14 entidades; a lista está em `d365/README.md`.
+> 2. **Mecanismo de captura.** O [ADR-0023](0023-descoberta-por-polling-com-change-tracking-no-d365.md)
+>    inverteu os papéis: a garantia passou a ser o **polling**, e o business event virou otimizador de
+>    latência opcional. O pacote de data entities deste ADR permanece.
 
 ## Contexto
 

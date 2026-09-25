@@ -8,7 +8,11 @@
   "auth": {
     "type": "bearer",
     "bearer": [
-      { "key": "token", "value": "{{access_token}}", "type": "string" }
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
     ]
   },
   "event": [
@@ -61,16 +65,57 @@
     }
   ],
   "variable": [
-    { "key": "environmentUrl", "value": "https://fiscosysdev.operations.dynamics.com", "type": "string" },
-    { "key": "loginUrl", "value": "https://login.microsoftonline.com", "type": "string" },
-    { "key": "tenantId", "value": "", "type": "string" },
-    { "key": "clientId", "value": "", "type": "string" },
-    { "key": "clientSecret", "value": "", "type": "string" },
-    { "key": "company", "value": "brmf", "type": "string" },
-    { "key": "entityName", "value": "FS_FiscalDocumentBR", "type": "string" },
-    { "key": "top", "value": "5", "type": "string" },
-    { "key": "access_token", "value": "", "type": "string" },
-    { "key": "token_expires_at", "value": "0", "type": "string" }
+    {
+      "key": "environmentUrl",
+      "value": "https://fiscosysdev.operations.dynamics.com",
+      "type": "string"
+    },
+    {
+      "key": "loginUrl",
+      "value": "https://login.microsoftonline.com",
+      "type": "string"
+    },
+    {
+      "key": "tenantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "clientSecret",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company",
+      "value": "brmf",
+      "type": "string"
+    },
+    {
+      "key": "entityName",
+      "value": "FSFiscalDocumentBRs",
+      "type": "string",
+      "description": "Nome da ENTITY SET (plural) usada nas requisicoes genericas. Ex.: FSFiscalDocumentBRs"
+    },
+    {
+      "key": "top",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_expires_at",
+      "value": "0",
+      "type": "string"
+    }
   ],
   "item": [
     {
@@ -78,47 +123,72 @@
       "item": [
         {
           "name": "Get Token (manual)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "let j = {};",
-                  "try { j = pm.response.json(); } catch (e) {}",
-                  "if (j.access_token) {",
-                  "  pm.collectionVariables.set('access_token', j.access_token);",
-                  "  const exp = j.expires_on ? Number(j.expires_on) * 1000 : (Date.now() + Number(j.expires_in || 3600) * 1000);",
-                  "  pm.collectionVariables.set('token_expires_at', String(exp));",
-                  "  console.log('[D365] Token salvo. Expira em ' + new Date(exp).toISOString());",
-                  "}",
-                  "pm.test('Recebeu access_token', function () { pm.expect(j.access_token, 'sem access_token na resposta').to.be.a('string'); });"
-                ]
-              }
-            }
-          ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [],
             "body": {
               "mode": "urlencoded",
               "urlencoded": [
-                { "key": "grant_type", "value": "client_credentials", "type": "text" },
-                { "key": "client_id", "value": "{{clientId}}", "type": "text" },
-                { "key": "client_secret", "value": "{{clientSecret}}", "type": "text" },
-                { "key": "resource", "value": "{{environmentUrl}}", "type": "text" }
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{clientSecret}}",
+                  "type": "text"
+                },
+                {
+                  "key": "resource",
+                  "value": "{{environmentUrl}}",
+                  "type": "text"
+                }
               ]
             },
             "url": {
               "raw": "{{loginUrl}}/{{tenantId}}/oauth2/token",
-              "host": [ "{{loginUrl}}" ],
-              "path": [ "{{tenantId}}", "oauth2", "token" ]
+              "host": [
+                "{{loginUrl}}"
+              ],
+              "path": [
+                "{{tenantId}}",
+                "oauth2",
+                "token"
+              ]
             },
             "description": "Obtém um token do Entra ID (Azure AD) via client_credentials (v1.0, resource = URL do ambiente F&O). O script de Test salva o access_token nas variáveis da collection. Normalmente você NÃO precisa rodar isso manualmente — o pre-request da collection já faz automático."
           }
         }
-      ]
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) {}",
+              "if (j.access_token) {",
+              "  pm.collectionVariables.set('access_token', j.access_token);",
+              "  const exp = j.expires_on ? Number(j.expires_on) * 1000 : (Date.now() + Number(j.expires_in || 3600) * 1000);",
+              "  pm.collectionVariables.set('token_expires_at', String(exp));",
+              "  console.log('[D365] Token salvo. Expira em ' + new Date(exp).toISOString());",
+              "}",
+              "pm.test('Recebeu access_token', function () { pm.expect(j.access_token, 'sem access_token na resposta').to.be.a('string'); });"
+            ]
+          }
+        }
+      ],
+      "description": "Obtencao manual do token. Normalmente nao e necessario: o pre-request da collection ja faz automatico."
     },
     {
       "name": "OData",
@@ -127,52 +197,75 @@
           "name": "$metadata (schema do serviço)",
           "request": {
             "method": "GET",
-            "header": [ { "key": "Accept", "value": "application/xml" } ],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml"
+              }
+            ],
             "url": {
               "raw": "{{environmentUrl}}/data/$metadata",
-              "host": [ "{{environmentUrl}}" ],
-              "path": [ "data", "$metadata" ]
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "$metadata"
+              ]
             },
-            "description": "EDMX com todas as entidades expostas. Procure aqui pela sua entidade (ex.: FS_FiscalDocumentBR) pra confirmar que está publicada."
+            "description": "EDMX com todas as entidades expostas. Procure aqui pela sua entidade (ex.: FSFiscalDocumentBR) pra confirmar que está publicada."
           }
         },
         {
           "name": "Service document (lista de entity sets)",
           "request": {
             "method": "GET",
-            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{environmentUrl}}/data",
-              "host": [ "{{environmentUrl}}" ],
-              "path": [ "data" ]
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data"
+              ]
             },
             "description": "Documento raiz do OData: lista todos os entity sets disponíveis."
           }
         },
         {
           "name": "Query entidade (genérico)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "try { const j = pm.response.json(); if (Array.isArray(j.value)) console.log('[D365] linhas retornadas: ' + j.value.length); } catch (e) {}"
-                ]
-              }
-            }
-          ],
           "request": {
             "method": "GET",
-            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{environmentUrl}}/data/{{entityName}}?cross-company=true&$top={{top}}",
-              "host": [ "{{environmentUrl}}" ],
-              "path": [ "data", "{{entityName}}" ],
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "{{entityName}}"
+              ],
               "query": [
-                { "key": "cross-company", "value": "true" },
-                { "key": "$top", "value": "{{top}}" }
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
               ]
             },
             "description": "Consulta qualquer entidade pelo nome (variável {{entityName}}). cross-company=true traz de todas as empresas; sem isso, só a empresa default da sessão."
@@ -182,15 +275,34 @@
           "name": "Query por empresa (dataAreaId)",
           "request": {
             "method": "GET",
-            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{environmentUrl}}/data/{{entityName}}?cross-company=true&$filter=dataAreaId eq '{{company}}'&$top={{top}}",
-              "host": [ "{{environmentUrl}}" ],
-              "path": [ "data", "{{entityName}}" ],
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "{{entityName}}"
+              ],
               "query": [
-                { "key": "cross-company", "value": "true" },
-                { "key": "$filter", "value": "dataAreaId eq '{{company}}'" },
-                { "key": "$top", "value": "{{top}}" }
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$filter",
+                  "value": "dataAreaId eq '{{company}}'"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
               ]
             },
             "description": "Filtra por empresa. Ex.: no FiscosysDev os dados fiscais de teste estão na empresa 'brmf' (a 'DAT' está vazia)."
@@ -200,48 +312,646 @@
           "name": "$count",
           "request": {
             "method": "GET",
-            "header": [ { "key": "Accept", "value": "text/plain" } ],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
             "url": {
               "raw": "{{environmentUrl}}/data/{{entityName}}/$count?cross-company=true",
-              "host": [ "{{environmentUrl}}" ],
-              "path": [ "data", "{{entityName}}", "$count" ],
-              "query": [ { "key": "cross-company", "value": "true" } ]
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "{{entityName}}",
+                "$count"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                }
+              ]
             },
             "description": "Conta registros da entidade (todas as empresas)."
           }
-        },
+        }
+      ],
+      "event": [
         {
-          "name": "Exemplo: FS_FiscalDocumentBR",
-          "request": {
-            "method": "GET",
-            "header": [ { "key": "Accept", "value": "application/json" } ],
-            "url": {
-              "raw": "{{environmentUrl}}/data/FS_FiscalDocumentBR?cross-company=true&$top=5",
-              "host": [ "{{environmentUrl}}" ],
-              "path": [ "data", "FS_FiscalDocumentBR" ],
-              "query": [
-                { "key": "cross-company", "value": "true" },
-                { "key": "$top", "value": "5" }
-              ]
-            },
-            "description": "Header das notas fiscais BR (entidade publicada pelo FiscalHub)."
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "try { const j = pm.response.json(); if (Array.isArray(j.value)) console.log('[D365] linhas retornadas: ' + j.value.length); } catch (e) {}"
+            ]
           }
-        },
+        }
+      ],
+      "description": "Requests genericos do servico OData do F&O."
+    },
+    {
+      "name": "FiscalHub — entidades (14)",
+      "description": "Uma requisicao por entidade custom do FiscalHub. Cada uma valida HTTP 200 e formato OData, e loga a quantidade de linhas no console.\n\nRode a pasta inteira pelo Runner para ter o smoke test completo das 14 entidades.",
+      "item": [
         {
-          "name": "Exemplo: FS_FiscalDocumentLine_Br",
+          "name": "FSFiscalDocumentBRs",
           "request": {
             "method": "GET",
-            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{environmentUrl}}/data/FS_FiscalDocumentLine_Br?cross-company=true&$top=5",
-              "host": [ "{{environmentUrl}}" ],
-              "path": [ "data", "FS_FiscalDocumentLine_Br" ],
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentBRs"
+              ],
               "query": [
-                { "key": "cross-company", "value": "true" },
-                { "key": "$top", "value": "5" }
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
               ]
             },
-            "description": "Linhas das notas fiscais BR (entidade nova do teste de deployable package)."
+            "description": "Cabecalho da nota fiscal (FiscalDocument_BR). Raiz da descoberta por polling.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSFiscalDocumentLineBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentLineBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentLineBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Linhas da nota fiscal (FiscalDocumentLine_BR), com snapshot de NCM/origem/tipo.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSTaxTransBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSTaxTransBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSTaxTransBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Impostos por linha (TaxTrans + TaxTrans_BR). ICMS, IPI, PIS, COFINS, IBS/CBS.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSTaxWithholdBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSTaxWithholdBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSTaxWithholdBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Impostos retidos na fonte (TaxWithholdTrans).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSTaxTableBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSTaxTableBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSTaxTableBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Cadastro de codigos de imposto (TaxTable).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSMarkupTransBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSMarkupTransBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSMarkupTransBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Encargos: frete, seguro e despesas acessorias (MarkupTrans). Usar CalculatedAmount, nao Value.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSFiscalDocModelBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocModelBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocModelBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Modelos de documento fiscal (55, 57, 65, SE, NFS-e).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSItemBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSItemBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSItemBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Itens / produtos.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSUnitOfMeasureBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSUnitOfMeasureBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSUnitOfMeasureBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Unidades de medida.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSAddressCityBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSAddressCityBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSAddressCityBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Municipios com codigo IBGE.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSCountryRegionBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSCountryRegionBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSCountryRegionBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Paises com codigo BACEN.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSPostalAddressBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSPostalAddressBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSPostalAddressBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Enderecos postais.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSCustomerBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSCustomerBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSCustomerBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Clientes (CustTable + DirPartyTable).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSVendorBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSVendorBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSVendorBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Fornecedores (VendTable + DirPartyTable).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+          },
+          "response": []
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const nome = pm.info.requestName;",
+              "let j = {};",
+              "try { j = pm.response.json(); } catch (e) {}",
+              "",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "",
+              "pm.test('Resposta OData valida (value e um array)', function () {",
+              "  pm.expect(j, 'corpo nao e JSON OData').to.have.property('value');",
+              "  pm.expect(j.value, 'value nao e array').to.be.an('array');",
+              "});",
+              "",
+              "const n = Array.isArray(j.value) ? j.value.length : -1;",
+              "console.log('[FiscalHub] ' + nome + ' -> HTTP ' + pm.response.code + ' | linhas: ' + n);",
+              "",
+              "if (n === 0) {",
+              "  console.warn('[FiscalHub] ' + nome + ' voltou 0 linhas. Duas causas possiveis:');",
+              "  console.warn('  1) o ambiente realmente nao tem dado para essa entidade;');",
+              "  console.warn('  2) algum data source aninhado da entidade esta em InnerJoin e esta zerando o resultado.');",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FiscalHub — regressão",
+      "description": "Testes que travam defeitos ja encontrados. Se algum falhar, houve regressao na metadata da entidade.",
+      "item": [
+        {
+          "name": "Cabecalho nao pode vir vazio ($count > 0)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentBRs/$count?cross-company=true",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentBRs",
+                "$count"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "REGRESSAO CONHECIDA (24/09/2026): a FSFiscalDocumentBR voltava $count = 0 enquanto a FSFiscalDocumentLineBR voltava 150.\n\nCausa: os quatro data sources LogisticsLocation aninhados sob os LogisticsPostalAddress estavam sem a tag <JoinMode>, o que no F&O equivale a InnerJoin. Um InnerJoin pendurado embaixo de um OuterJoin anula o OuterJoin: como nenhuma nota tem os quatro enderecos preenchidos, toda linha do cabecalho era eliminada.\n\nCorrecao: <JoinMode>OuterJoin</JoinMode> nos nos Location, Location1, Location2 e Location3.\n\nSe este teste falhar de novo, va direto conferir o JoinMode dos data sources aninhados."
+          },
+          "response": []
+        },
+        {
+          "name": "Linhas nao podem vir vazias ($count > 0)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/plain"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentLineBRs/$count?cross-company=true",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentLineBRs",
+                "$count"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Contraprova do teste acima. Se as linhas vem e o cabecalho nao, o problema esta na metadata do cabecalho, nao na ausencia de dado no ambiente."
+          },
+          "response": []
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "",
+              "// $count volta texto puro e o F&O manda com BOM na frente",
+              "const bruto = String(pm.response.text()).replace(/^\\uFEFF/, '').trim();",
+              "const n = Number(bruto);",
+              "console.log('[FiscalHub] ' + pm.info.requestName + ' -> $count = ' + bruto);",
+              "",
+              "pm.test('Retornou um numero', function () {",
+              "  pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true;",
+              "});",
+              "",
+              "pm.test('Tem pelo menos 1 registro', function () {",
+              "  pm.expect(n, 'entidade zerada - confira o JoinMode dos data sources aninhados na entidade').to.be.above(0);",
+              "});"
+            ]
           }
         }
       ]
