@@ -204,6 +204,8 @@ public class AvalaraComplianceDispatcherTests
     {
         public Task<TenantConnectorProfile?> GetAsync(string tenantId, CancellationToken ct = default) => Task.FromResult(profile);
         public Task UpsertAsync(TenantConnectorProfile p, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<TenantConnectorProfile>> ListByInboundAdapterAsync(string inboundAdapter, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<TenantConnectorProfile>>([]);
     }
 
     private sealed class FakeTokenProvider(string token) : IAvalaraTokenProvider

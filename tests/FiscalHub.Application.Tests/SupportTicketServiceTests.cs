@@ -146,6 +146,9 @@ public class SupportTicketServiceTests
             });
 
         public Task UpsertAsync(TenantConnectorProfile profile, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<TenantConnectorProfile>> ListByInboundAdapterAsync(string inboundAdapter, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<TenantConnectorProfile>>([]);
     }
 
     private sealed class FakeQueries(IReadOnlyList<DocumentSummary> notes) : IDocumentQueries
