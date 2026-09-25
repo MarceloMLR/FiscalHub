@@ -43,3 +43,9 @@ d365/deploy-package/
 
 # Diagrama de rascunho (Avalara flow) — manter local, fora do git
 avalara-integration-flow.mermaid
+
+# Backups de edicoes locais (metadata do F&O, collections, projetos)
+*.bak
+*.bak_*
+*.orig
+*.rej

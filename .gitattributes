@@ -11,3 +11,8 @@
 *.pdf binary
 *.pfx binary
 *.p12 binary
+
+# Metadado do F&O (AOT) — excecao a regra acima.
+# O Visual Studio grava e le em CRLF. Sem fixar, o checkout no Windows sai em LF
+# e nao bate byte a byte com o model store, gerando diff fantasma a cada build.
+d365/model/**/*.xml text eol=crlf
