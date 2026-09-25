@@ -8,6 +8,22 @@
 - **Revisa:** ADR-0022 (mantém o pacote de data entities; muda o mecanismo de captura) e a decisão
   registrada em `d365/02-business-event-status-changed.md` (CoC em `update()`/`doUpdate()` como gatilho
   principal).
+- **Revisado por:** [ADR-0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md)
+
+> **Nota de 2026-09-25.** A decisão de capturar por polling continua valendo. Quatro pontos mudaram na
+> implementação do worker e estão no [ADR-0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md):
+>
+> 1. **Mecanismo (§2).** Não há change tracking: exige Data management, que está desligado nas 14
+>    entidades. A consulta é por **janela de data sobre `SysModifiedDateTime`**, com marca d'água nossa.
+>    O que aqui era fallback virou o mecanismo principal.
+> 2. **Porta e estado (§1).** O worker não implementa o `IDocumentDiscovery`. Ele usa uma porta nova,
+>    `IDocumentChangeFeed`, com cursor por (tenant, origem) em ticks UTC no lugar do `DeltaToken`. O
+>    intervalo padrão é de **60s**, não 30s. O lease é em SQL, com o avanço da marca condicionado a ele
+>    na mesma instrução.
+> 3. **Paginação.** É por keyset composto em (`SysModifiedDateTime`, `FiscalDocumentRecId`). O nextLink
+>    do F&O é offset e perde linha em backfill.
+> 4. **Identidade (§5).** `NaturalKey = empresa|Voucher`: empresa|número|série colide em nota de
+>    entrada.
 
 ## Contexto
 
