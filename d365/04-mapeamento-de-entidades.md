@@ -36,23 +36,26 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 
 ## 1. Resumo — entidades do pacote
 
-| # | Entidade | Origem | Status |
+| # | Entidade | Origem | Papel na montagem |
 |---|---|---|---|
-| 1 | `FSFiscalDocumentBR` | `FiscalDocument_BR` | ✅ criada — revisar campos |
-| 2 | `FSFiscalDocumentLineBR` | `FiscalDocumentLine_BR` | ✅ criada — **corrigir join** |
-| 3 | `FSTaxTransBR` | `TaxTrans` + `TaxTrans_BR` | criar |
-| 4 | `FSMarkupTransBR` | `MarkupTrans` | criar |
-| 5 | `FSTaxTableBR` | `TaxTable` | criar |
-| 6 | `FSTaxWithholdBR` | `TaxWithholdTrans` | criar |
-| 7 | `FSPostalAddressBR` | `LogisticsPostalAddress` | criar — endereços do documento |
-| 8 | `FSCustomerBR` | `CustTable` + party | criar — **escopo reduzido** (3.3) |
-| 9 | `FSVendorBR` | `VendTable` + party | criar — **escopo reduzido** (3.3) |
-| 10 | `FSItemBR` | `InventTable` | criar — **escopo reduzido** (3.3) |
-| 11 | `FSUnitOfMeasureBR` | `UnitOfMeasure` + tradução | criar |
-| 12 | `FSAddressCityBR` | `LogisticsAddressCity` | criar |
-| 13 | `FSCountryRegionBR` | `LogisticsAddressCountryRegion` | criar |
-| 14 | `FSFiscalDocModelBR` | `FiscalDocModel_BR` | criar — catálogo de modelos |
+| 1 | `FSFiscalDocumentBR` | `FiscalDocument_BR` | cabeçalho |
+| 2 | `FSFiscalDocumentLineBR` | `FiscalDocumentLine_BR` | linhas |
+| 3 | `FSFiscalDocumentTaxTransBR` | `FiscalDocumentTaxTrans_BR` | **impostos e retenções da nota** (secão 9) |
+| 4 | `FSFiscalDocumentMiscChargeBR` | `FiscalDocumentMiscCharge_BR` | **encargos da nota** (secão 9) |
+| 5 | `FSTaxTransBR` | `TaxTrans` + `TaxTrans_BR` | imposto contábil — fora da montagem (9.3) |
+| 6 | `FSMarkupTransBR` | `MarkupTrans` | encargo de origem — fora da montagem (9.5) |
+| 7 | `FSTaxWithholdBR` | `TaxWithholdTrans` | retenção de pagamento — fora da montagem (9.4) |
+| 8 | `FSTaxTableBR` | `TaxTable` | cadastro |
+| 9 | `FSPostalAddressBR` | `LogisticsPostalAddress` | cadastro |
+| 10 | `FSCustomerBR` | `CustTable` + party | cadastro — escopo reduzido (3.3) |
+| 11 | `FSVendorBR` | `VendTable` + party | cadastro — escopo reduzido (3.3) |
+| 12 | `FSItemBR` | `InventTable` | cadastro — escopo reduzido (3.3) |
+| 13 | `FSUnitOfMeasureBR` | `UnitOfMeasure` + tradução | cadastro |
+| 14 | `FSAddressCityBR` | `LogisticsAddressCity` | cadastro |
+| 15 | `FSCountryRegionBR` | `LogisticsAddressCountryRegion` | cadastro |
+| 16 | `FSFiscalDocModelBR` | `FiscalDocModel_BR` | cadastro de modelos |
 
+Todas criadas, publicadas e validadas contra o ambiente.
 Todas `IsReadOnly = Yes` e `Is Public = Yes`.
 **Data management só na `FSFiscalDocumentBR`**, e talvez nem isso (seção 8).
 
@@ -279,6 +282,9 @@ campos que hoje saem vazios no payload passam a ter valor real.
 
 ## 4. `FSTaxTransBR` — impostos (`TaxTrans` + `TaxTrans_BR`)
 
+> **Não é a fonte dos impostos da nota.** A montagem usa a `FSFiscalDocumentTaxTransBR`.
+> Esta entidade continua útil para o que só existe do lado contábil — ver 9.3.
+
 Relação: `TaxTrans_BR.TaxTrans → TaxTrans.RecId`. Fundir elimina o N+1 que o legado contorna com cache.
 
 ### 4.1 De `TaxTrans`
@@ -328,6 +334,8 @@ O legado **não mapeia nada disso** — é pré-Reforma.
 ---
 
 ## 5. `FSMarkupTransBR` — encargos
+
+> **Não é o encargo da nota.** A montagem usa a `FSFiscalDocumentMiscChargeBR` — ver 9.5.
 
 | Campo | Uso |
 |---|---|
@@ -429,9 +437,13 @@ cabeçalho ser tocado.
 
 ---
 
-## 9. ⚠️ O relacionamento frágil do legado
+## 9. Relacionamento entre documento, impostos e encargos
 
-**O legado junta impostos e encargos à linha usando só o RecId, ignorando o TableId.**
+> Até 2026-09-25 esta seção descrevia um join polimórfico como o caminho da montagem. Ele saiu.
+
+### 9.1 O problema original
+
+O legado junta impostos e encargos à linha usando só o RecId, ignorando o TableId.
 
 | Tabela | Par de identificação |
 |---|---|
@@ -439,27 +451,98 @@ cabeçalho ser tocado.
 | `TaxTrans` | `SourceRecId` + **`SourceTableId`** |
 | `MarkupTrans` | `TransRecId` + **`TransTableId`** |
 
-O `TableId` existe porque os campos são **polimórficos**: apontam para linhas de tabelas diferentes
-conforme a origem do documento. RecId não é único entre tabelas — só dentro de cada uma.
+RecId não é único entre tabelas — só dentro de cada uma. Se um RecId de encargo coincidir com o
+`RefRecId` de uma linha, o imposto é contado duas vezes, em silêncio, num valor fiscal.
 
-O cenário de colisão está no próprio código:
+Não é hipótese. No levantamento de 2026-09-26, um `MarkupTrans.RecId` da base vale `5637144578` —
+exatamente o mesmo número que o RecId de um documento fiscal da mesma base.
 
-```csharp
-taxTransList   = allTaxTrans.Where(x => x.SourceRecId == docite.RefRecId);   // impostos da linha
-taxTransForMkt = allTaxTrans.Where(x => x.SourceRecId == mkt.IdxRecId);      // impostos do encargo
-```
+### 9.2 A solução: as tabelas fiscais têm FK declarada
 
-No mesmo voucher existem `TaxTrans` apontando para **tabelas diferentes** (a linha e o `MarkupTrans`).
-Se um RecId de encargo coincidir com o `RefRecId` de uma linha, o imposto é contado duas vezes — em
-silêncio, num valor fiscal.
+A Microsoft modelou isso desde a 10.0.13, em tabelas que **nenhuma entidade padrão expõe no OData**
+(conferido: 4.513 entity sets do ambiente, nenhum com `FiscalDocumentTax` nem `MiscCharge`).
 
-**Correção — feita e validada.** Os `TableId` estão expostos e o join usa o par completo. Testado
-contra o ambiente na nota `BRMF21-10000027`: `SourceRecId` + `SourceTableId` atribuíram 4 impostos a
-cada uma das 2 linhas, somando os mesmos 8 que o filtro por `Voucher` devolve em bloco. Ver `05`,
-seção 7.
+| Tabela | Campo | Aponta para |
+|---|---|---|
+| `FiscalDocumentTaxTrans_BR` | `FiscalDocumentLine` | `FiscalDocumentLine_BR.RecId` |
+| | `FiscalDocumentMiscCharge` | `FiscalDocumentMiscCharge_BR.RecId` |
+| | `TaxTrans` | `TaxTrans.RecId` |
+| `FiscalDocumentMiscCharge_BR` | `FiscalDocumentLine` | `FiscalDocumentLine_BR.RecId` |
+| | `MarkupTrans` | `MarkupTrans.RecId` |
 
-**A investigar:** `TaxTrans.SourceDocumentLine` é o link do *source document framework*. Se estiver
-populado nos documentos fiscais, é um join mais limpo e não-polimórfico.
+São **duas colunas distintas** para linha e encargo. Não há o que desempatar: ou o imposto tem linha
+preenchida, ou tem encargo. A colisão de RecId deixa de ser possível.
+
+Daí as entidades `FSFiscalDocumentTaxTransBR` e `FSFiscalDocumentMiscChargeBR`, que expõem
+`FiscalDocumentRecId` pelo caminho da linha. O filtro é direto pelo documento — uma chamada, sem
+cadeia de `or` e sem montagem em duas fases.
+
+### 9.3 O que muda nos valores (validado em 2026-09-25)
+
+As 547 linhas da `FSFiscalDocumentTaxTransBR` comparadas uma a uma com as correspondentes da
+`FSTaxTransBR`, casadas pelo `TaxTransRecId`:
+
+| | |
+|---|---|
+| casadas 1:1 | 547 de 547 |
+| idênticas | 439 |
+| **sinal invertido** | **351** |
+| **CST do IPI diferente** | **54** |
+| valor zerado de um lado só | 54 |
+
+**Sinal.** A contábil grava o imposto de uma saída como crédito, negativo. A fiscal grava positivo,
+como a nota apresenta. Pela `FSTaxTransBR` mandaríamos valor negativo para a plataforma, ou
+precisaríamos de uma regra de sinal por direção.
+
+**CST do IPI.** Sempre no mesmo par: `01 → 51` (48 registros) e `05 → 55` (6). São os códigos de
+entrada contra os de saída equivalentes — em documento de saída a contábil carrega a família de
+entrada. **Confirmar com o fiscal**, mas se procede é rejeição na SEFAZ.
+
+**Zerado de um lado.** Nunca dois valores diferentes: sempre zero contra valor. 26 zerados na fiscal
+(`ImportTax`, IPI CST 05) e 28 zerados na contábil (PIS/COFINS CST 98). Ou seja, **a tabela fiscal é
+a fonte do que vai no documento, mas não é superconjunto** — o imposto de importação só existe do
+lado contábil. O `TaxTransRecId` exposto é a ponte para buscar o que falta.
+
+### 9.4 Retenção — não precisa de tabela separada
+
+Não existe tabela de retenção ligada ao documento fiscal, e não é omissão: a `FBTaxWithholdTrans_BR`
+é apuração para o SPED, amarrada a período de escrituração e estabelecimento, e a `TaxWithholdTrans`
+padrão tem relações declaradas para `CustTrans` e `VendTrans`. O modelo prende retenção à
+**transação financeira**, não ao documento.
+
+O que pertence à nota está no flag `RetainedTax` da própria `FiscalDocumentTaxTrans_BR`. Na base: 12
+linhas com `RetainedTax = Yes` — 11 de IRRF e 1 de ISS, com base e valor, ligadas à linha pela mesma
+FK dos outros impostos. Vem na mesma chamada.
+
+**A `FSTaxWithholdBR` sai do caminho de montagem.** Das 264 linhas, `Source` é `VendPayment` (261) e
+`CustPayment` (3) — retenção apurada no pagamento. Zero casam com o `Voucher` do documento fiscal.
+
+### 9.5 Encargo — mesma história
+
+`FSFiscalDocumentMiscChargeBR`, validada em 2026-09-26: 14 encargos, todos `Type = Others`, 14 de 14
+chegam à linha e ao documento, em 12 notas.
+
+**A `FSMarkupTransBR` também sai do caminho de montagem.** As 12 linhas dela têm vouchers `INV-*` e
+`JPMF-*` — encargos de faturas de venda e journals, não de documentos fiscais. E o campo `MarkupTrans`
+dos 14 encargos fiscais está **nulo**; como é coluna da própria tabela fiscal e não do join, é o dado,
+não falha de ligação.
+
+### 9.6 O resultado
+
+| ligação | como |
+|---|---|
+| linha → cabeçalho | FK |
+| imposto → linha | FK |
+| retenção | mesma FK, flag `RetainedTax` |
+| encargo → linha → documento | FK |
+| imposto → encargo | FK |
+| imposto fiscal → imposto contábil | FK |
+
+Nenhum ponteiro polimórfico na montagem. O `RefRecId`/`RefTableId` continua existindo, mas só para
+rastrear a fatura de origem.
+
+Custo por documento: **cabeçalho, linhas, impostos, encargos — 4 chamadas**, mais os cadastros em
+cache.
 
 ---
 
@@ -481,6 +564,12 @@ populado nos documentos fiscais, é um join mais limpo e não-polimórfico.
 
 ### Resolvidas
 
+- [x] **O join polimórfico de impostos e encargos.** Substituído por FK declarada, via
+      `FiscalDocumentTaxTrans_BR` e `FiscalDocumentMiscCharge_BR`. A colisão de RecId deixou de ser
+      possível. Ver seção 9.
+- [x] **Existe tabela de retenção ligada ao documento?** **Não, e não precisa.** O flag
+      `RetainedTax` da tabela fiscal de impostos marca as 12 linhas retidas (11 IRRF, 1 ISS). Ver 9.4.
+
 - [x] **`Status` na chave única gera duas linhas?** **Não.** Levantamento sobre as 83 notas do
       ambiente: zero vouchers com mais de uma linha de cabeçalho. Nota cancelada é a mesma linha com
       `Status` alterado. Confirma o desenho do store — identidade estável na `NaturalKey`, status
@@ -498,8 +587,15 @@ populado nos documentos fiscais, é um join mais limpo e não-polimórfico.
 ### Em aberto
 
 - [ ] `TaxTrans.SourceDocumentLine` está populado? Se sim, é o join preferido — não-polimórfico
-- [ ] Uma nota **com encargo** (frete/seguro) para exercitar o join de `FSMarkupTransBR`; o caminho
-      por `TransRecId` + `TransTableId` está validado, mas as notas testadas têm markup zerado
+- [ ] Uma nota **com encargo que tenha imposto em cima**. A `FSFiscalDocumentMiscChargeBR` está
+      validada (14 encargos, 14 de 14 chegam ao documento), mas zero dos 547 impostos aponta para
+      encargo, então o caminho imposto → encargo nunca passou dado
+- [ ] Uma nota com encargo cujo `MarkupTrans` esteja preenchido — nos 14 da base está nulo
+- [ ] **Os 26 impostos zerados na tabela fiscal e com valor na contábil** (`ImportTax`, IPI CST 05).
+      Levantei a hipótese de que reapareciam como encargo e testei: nenhum dos 14 encargos casa com
+      um IPI da mesma nota. Continua sem explicação
+- [ ] **CST do IPI**: confirmar com o fiscal que `51`/`55` (saída) é o correto e que `01`/`05` da
+      `FSTaxTransBR` seria rejeitado na SEFAZ (9.3)
 - [ ] `SysModifiedDateTime` também na `FSFiscalDocumentLineBR`? Só importa se a linha puder mudar
       sem o cabeçalho ser tocado
 - [ ] O que a entidade do ambiente Volcafe chamava de `MarkupTrans.IdxRecId` — é o `RecId`?

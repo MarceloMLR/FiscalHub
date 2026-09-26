@@ -109,7 +109,7 @@ Antes de criar abstração nova, procure a porta/analógico que já existe (`gre
 
 O conector do ERP é um **hook fino e genérico**, propositalmente burro:
 
-- **14 data entities** OData com prefixo `FS` (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`,
+- **16 data entities** OData com prefixo `FS` (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`,
   `FSTaxTransBR`…) expõem a nota e seus cadastros. Públicas, somente leitura, sem Data Management.
   Lista completa em `d365/README.md`.
 - **Descoberta por polling** sobre a `FSFiscalDocumentBR` é a **garantia** (ADR-0023). O hub

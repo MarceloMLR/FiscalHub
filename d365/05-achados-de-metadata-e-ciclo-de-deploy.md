@@ -137,7 +137,7 @@ melhoria, não correção.
 
 ---
 
-## 4. Data Management desligado nas 14
+## 4. Data Management desligado nas 16
 
 A `FSFiscalDocumentBR` era a única com `DataManagementEnabled = Yes` e staging table, herdado do
 wizard. Ao adicionar o `SysModifiedDateTime`, o BP reprovou:
@@ -436,6 +436,67 @@ Model: 01 = 69 · SE = 9 · 55 = 5
       milhares ou milhões de documentos. Falta também confirmar se algum índice da `FiscalDocument_BR`
       cobre `ModifiedDateTime`. Sem índice, cada página pode virar varredura mais ordenação. Pendência
       antes do primeiro cliente.
+
+---
+
+## 11. Criar uma entidade nova: o que custou ciclo de build
+
+Quatro coisas que só apareceram ao criar a `FSFiscalDocumentTaxTransBR` e a
+`FSFiscalDocumentMiscChargeBR` (2026-09-25 e 26).
+
+### 11.1 `JoinRelationName` é o nome da **tabela relacionada**
+
+Não é o nome do campo. Nomeei as relações pelo padrão do CDM (`Relationship_<X>RelationshipId` →
+`FiscalDocumentLine`) e o build recusou:
+
+```
+Failed to locate table relation between FiscalDocumentTaxTrans_BR and FiscalDocumentLine_BR.
+Relation 'FiscalDocumentLine' does not exist.
+```
+
+O certo é `FiscalDocumentLine_BR`, com o sufixo. O sinal estava nos próprios erros: a relação
+`TaxTrans` **não** falhou, porque ali o campo e a tabela têm o mesmo nome. E as duas entidades que já
+funcionavam usavam nome de tabela — `FiscalDocument_BR` na de linha, `TaxTrans` na de imposto.
+
+> Ao criar entidade nova, copie o padrão de uma que já compila em vez de deduzir da documentação.
+
+### 11.2 Arquivo solto na pasta do modelo não entra no projeto
+
+O XML no lugar certo é necessário, não suficiente: o `.rnrproj` mantém sua própria lista de itens e o
+Solution Explorer não mostra o que não está nela. O arquivo de projeto fica **fora** da pasta de
+metadados:
+
+```
+metadados: C:\CustomXppMetadata<hash>\FiscalHubIntegration\FiscalHubIntegration\Ax*
+projeto:   ...\Dynamics365\FiscalHubIntegration\FiscalHubIntegration\FiscalHubIntegration.rnrproj
+```
+
+Cada item entra como um `<Content Include="AxDataEntityView\<Nome>">` com `<Name>` e `<Link>`. Pela
+UI: Application Explorer, achar o objeto, **Add to project**.
+
+> O `.rnrproj` não está versionado neste repositório — o registro dos itens vive só na máquina de
+> desenvolvimento.
+
+### 11.3 Enum no `$filter` precisa do nome qualificado
+
+`FiscalTaxType eq 'IPI'` devolve erro de tipo:
+
+```
+A binary operator with incompatible types was detected.
+Found operand types 'Microsoft.Dynamics.DataEntities.TaxType_BR' and 'Edm.String'
+```
+
+A forma aceita é `FiscalTaxType eq Microsoft.Dynamics.DataEntities.TaxType_BR'IPI'`. Vale para
+qualquer campo de enum; filtrar em memória também resolve quando o volume é pequeno.
+
+### 11.4 `$batch` — observado, não resolvido
+
+O endpoint `/data/$batch` responde 200 em ~250ms, mas em três tentativas (`Invoke-WebRequest` e
+`HttpClient`, com e sem percent-encoding) o servidor não separou as partes do multipart: as linhas de
+requisição chegaram coladas numa URI única, com 404 interno. Ficou em aberto.
+
+Não faz falta hoje: a ~4 chamadas por documento contra o limite de 6.000 por 5 minutos, o teto fica
+na ordem de 300 documentos por minuto.
 
 ---
 

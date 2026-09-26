@@ -12,15 +12,15 @@ exposta no OData; cada implementador cria uma entidade pública com nome variáv
 Em vez de customizar o adapter por cliente, **nós publicamos** entidades de **nome fixo** (prefixo `FS`)
 como projeção sobre as tabelas padrão. O adapter sempre lê o mesmo nome.
 
-## As 14 entidades
+## As 16 entidades
 
 Todas públicas, somente leitura, sem Data Management, no modelo `FiscalHubIntegration`:
 
 | Grupo | Entidades |
 |---|---|
 | Documento | `FSFiscalDocumentBR`, `FSFiscalDocumentLineBR` |
-| Impostos | `FSTaxTransBR`, `FSTaxWithholdBR`, `FSTaxTableBR` |
-| Encargos | `FSMarkupTransBR` |
+| Impostos e encargos da nota | `FSFiscalDocumentTaxTransBR`, `FSFiscalDocumentMiscChargeBR` |
+| Contábil (fora da montagem) | `FSTaxTransBR`, `FSTaxWithholdBR`, `FSMarkupTransBR`, `FSTaxTableBR` |
 | Cadastros | `FSFiscalDocModelBR`, `FSItemBR`, `FSUnitOfMeasureBR`, `FSAddressCityBR`, `FSCountryRegionBR`, `FSPostalAddressBR` |
 | Parceiros | `FSCustomerBR`, `FSVendorBR` |
 
