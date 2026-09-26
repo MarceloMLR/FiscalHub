@@ -16,6 +16,9 @@
 			<Name>FSTaxTransBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
+			<Name>FSFiscalDocumentTaxTransBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
 			<Name>FSMarkupTransBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
@@ -47,6 +50,9 @@
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
 			<Name>FSVendorBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSFiscalDocumentMiscChargeBRView</Name>
 		</AxSecurityPrivilegeReference>
 	</Privileges>
 	<SubRoles />
