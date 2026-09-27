@@ -2,12 +2,15 @@ using Azure.Storage.Blobs;
 
 namespace FiscalHub.Host;
 
-/// <summary>Seed de dev local: garante o container do Blob e sobe um XML de NF-e de exemplo.</summary>
+/// <summary>
+/// Seed de dev local: garante o container do Blob e sobe os XMLs de NF-e de exemplo no espaço de entrada do tenant-a
+/// (<c>nfe/tenant-a/…</c>) — o único onde o locator de XML do tenant-a vale (ADR-0028).
+/// </summary>
 internal static class LocalSeed
 {
     public const string Container = "nfe";
-    public const string BlobName = "nfe-exemplo.xml";
-    public const string BlobName2 = "nfe-exemplo-2.xml";
+    public const string BlobName = "tenant-a/nfe-exemplo.xml";
+    public const string BlobName2 = "tenant-a/nfe-exemplo-2.xml";
 
     public static string Locator => $"{Container}/{BlobName}";
 

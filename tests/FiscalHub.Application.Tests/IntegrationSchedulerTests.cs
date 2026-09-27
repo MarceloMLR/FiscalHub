@@ -153,7 +153,7 @@ public class IntegrationSchedulerTests
             return Task.CompletedTask;
         }
 
-        public Task DeactivateAsync(int id, CancellationToken ct = default)
+        public Task<bool> DeactivateAsync(int id, CancellationToken ct = default)
         {
             int i = _items.FindIndex(s => s.Id == id);
             if (i >= 0)
@@ -161,7 +161,7 @@ public class IntegrationSchedulerTests
                 _items[i] = _items[i] with { Active = false };
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(i >= 0);
         }
     }
 }

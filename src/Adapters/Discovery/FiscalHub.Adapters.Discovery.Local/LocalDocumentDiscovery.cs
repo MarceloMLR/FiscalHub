@@ -28,7 +28,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
             Number = "123",
             IssuedAt = DateTimeOffset.Parse("2026-06-01T10:00:00-03:00"),
             AccessKey = "35260612345678000190550010000001231000000123",
-            Locator = "nfe/nfe-exemplo.xml",
+            Locator = "nfe/tenant-a/nfe-exemplo.xml",
         },
         new()
         {
@@ -38,7 +38,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
             Number = "456",
             IssuedAt = DateTimeOffset.Parse("2026-06-02T14:30:00-03:00"),
             AccessKey = "35260698765432000188550010000004561000000456",
-            Locator = "nfe/nfe-exemplo-2.xml",
+            Locator = "nfe/tenant-a/nfe-exemplo-2.xml",
         },
     ];
 

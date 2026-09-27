@@ -69,7 +69,7 @@ public class DiscoveryToPipelineTests
         await h.DeliverAsync(XmlReference());                            // pela documents-in, do drop
         await h.DeliverAsync(D365Reference(origin: "Dynamics365"));      // pela documents-discovered, do feed
 
-        Assert.Equal(["nfe/nfe-exemplo.xml"], h.Blob.Locators);         // o XML só foi ao Blob
+        Assert.Equal(["nfe/tenant-a/nfe-exemplo.xml"], h.Blob.Locators);         // o XML só foi ao Blob
         Assert.Equal(2, h.Dispatcher.Submitted.Count);                   // os dois seguem para o envio (ADR-0026)
         Assert.Contains(h.Dispatcher.Submitted, d => d.AccessKey == XmlAccessKey);
         Assert.Equal(8, h.Http.Requests.Count);                          // o D365 só foi ao F&O
@@ -123,7 +123,7 @@ public class DiscoveryToPipelineTests
         TenantId = "tenant-a",
         Type = DocumentType.GoodsInvoice55,
         NaturalKey = XmlAccessKey,
-        Locator = "nfe/nfe-exemplo.xml",
+        Locator = "nfe/tenant-a/nfe-exemplo.xml",
         Origin = "Xml",
     };
 

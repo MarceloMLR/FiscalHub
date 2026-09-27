@@ -96,6 +96,8 @@ public class InboundSourceResolverTests
     {
         public string Origin => origin;
 
+        public string? CheckLocator(DocumentReference reference) => null;
+
         public Task<FetchResult<TestDocument>> FetchAsync(DocumentReference reference, CancellationToken ct = default)
             => throw new NotSupportedException("O resolver não busca.");
     }

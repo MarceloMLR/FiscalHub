@@ -53,6 +53,23 @@ internal sealed class D365GoodsInvoiceSource : IInboundSource<GoodsInvoice>
 
     public string Origin => D365ChangeFeed.OriginName;
 
+    /// <summary>
+    /// O formato <c>d365/{empresa}/{recId}</c>. O locator do D365 é lido no ERP do próprio tenant da referência, com a
+    /// credencial dele, então o formato é a regra inteira (ADR-0028).
+    /// </summary>
+    public string? CheckLocator(DocumentReference reference)
+    {
+        try
+        {
+            D365DocumentLocator.Parse(reference.Locator);
+            return null;
+        }
+        catch (FormatException ex)
+        {
+            return ex.Message;
+        }
+    }
+
     public async Task<FetchResult<GoodsInvoice>> FetchAsync(DocumentReference reference, CancellationToken ct = default)
     {
         // Locator e settings primeiro: formato ou configuração inválidos falham sem tocar a rede.

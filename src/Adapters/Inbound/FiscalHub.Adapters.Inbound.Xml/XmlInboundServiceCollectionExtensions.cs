@@ -11,14 +11,20 @@ public static class XmlInboundServiceCollectionExtensions
 {
     /// <summary>
     /// Registra o <c>IInboundSource&lt;GoodsInvoice&gt;</c> que lê o XML do Blob. Requer um
-    /// <c>BlobServiceClient</c> registrado pelo composition root (a connection string é dele).
+    /// <c>BlobServiceClient</c> registrado pelo composition root (a connection string é dele). O locator só vale
+    /// dentro de <c>{inboxContainer}/{tenant}/</c> (ADR-0028) — o mesmo container para onde o drop move os arquivos.
     /// </summary>
-    public static IServiceCollection AddXmlGoodsInvoiceSource(this IServiceCollection services)
+    public static IServiceCollection AddXmlGoodsInvoiceSource(
+        this IServiceCollection services, string inboxContainer = XmlLocator.DefaultInboxContainer)
     {
         services.TryAddSingleton<NfeXmlParser>();
         services.TryAddSingleton<IBlobReader, AzureBlobReader>();
         services.TryAddSingleton<IProcessingTrace, NoOpProcessingTrace>();
-        services.AddSingleton<IInboundSource<GoodsInvoice>, XmlGoodsInvoiceSource>();
+        services.AddSingleton<IInboundSource<GoodsInvoice>>(sp => new XmlGoodsInvoiceSource(
+            sp.GetRequiredService<IBlobReader>(),
+            sp.GetRequiredService<NfeXmlParser>(),
+            sp.GetRequiredService<IProcessingTrace>(),
+            inboxContainer));
         return services;
     }
 }

@@ -244,6 +244,19 @@ public class D365GoodsInvoiceSourceTests
     }
 
     [Fact]
+    public void Locator_check_uses_the_d365_format_without_the_network()
+    {
+        var h = new Harness();
+
+        Assert.Null(h.Source.CheckLocator(Reference(OutgoingNote, "BRMF21-10000026")));
+        string? problem = h.Source.CheckLocator(Reference(OutgoingNote, "BRMF21-10000026") with { Locator = "nfe/tenant-a/x.xml" });
+
+        Assert.NotNull(problem);
+        Assert.Contains("d365/<dataAreaId>/<FiscalDocumentRecId>", problem);
+        Assert.Empty(h.Http.Requests);
+    }
+
+    [Fact]
     public async Task Short_retry_after_is_honoured_and_the_assembly_goes_on()
     {
         var h = new Harness();
