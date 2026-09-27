@@ -23,10 +23,17 @@ public sealed class GoodsInvoiceValidator : IDocumentValidator<GoodsInvoice>
             if (string.IsNullOrWhiteSpace(item.Ncm))
                 problems.Add($"Item {item.Number}: NCM ausente.");
 
-            if (string.IsNullOrWhiteSpace(item.ReformTaxes.Cst))
+            // Grupo ausente (nota sem IBS/CBS) é um motivo só — não desdobra em CST e cClassTrib (ADR-0025).
+            if (item.ReformTaxes is not { } reform)
+            {
+                problems.Add($"Item {item.Number}: tributos da Reforma (IBS/CBS) ausentes.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(reform.Cst))
                 problems.Add($"Item {item.Number}: CST da reforma ausente.");
 
-            if (string.IsNullOrWhiteSpace(item.ReformTaxes.ClassTrib))
+            if (string.IsNullOrWhiteSpace(reform.ClassTrib))
                 problems.Add($"Item {item.Number}: cClassTrib ausente.");
         }
 

@@ -29,6 +29,18 @@ public sealed record GoodsInvoiceItem
     /// <summary>Valor total do item.</summary>
     public required decimal TotalAmount { get; init; }
 
-    /// <summary>Tributos da Reforma (IBS/CBS/IS) do item.</summary>
-    public required ReformTaxes ReformTaxes { get; init; }
+    /// <summary>
+    /// Tributos da Reforma (IBS/CBS/IS) do item. <c>null</c> = a nota não traz o grupo (ex.: nota anterior à
+    /// Reforma) — ausente, e não zerado; a validação de integração rejeita.
+    /// </summary>
+    public ReformTaxes? ReformTaxes { get; init; }
+
+    /// <summary>Tributos do item fora do grupo da Reforma (ICMS, IPI, PIS, COFINS, II…).</summary>
+    public IReadOnlyList<TaxLine> Taxes { get; init; } = [];
+
+    /// <summary>Retenções do item — separadas dos tributos para nunca serem somadas a eles.</summary>
+    public IReadOnlyList<TaxLine> Withholdings { get; init; } = [];
+
+    /// <summary>Encargos do item (frete, seguro, outras despesas), com os tributos deles.</summary>
+    public IReadOnlyList<ItemCharge> Charges { get; init; } = [];
 }

@@ -50,6 +50,31 @@ public class GoodsInvoiceValidatorTests
         Assert.False(result.IsValid);
     }
 
+    [Fact]
+    public void Item_without_the_reform_group_is_rejected_with_its_own_reason()
+    {
+        // Nota anterior à Reforma: o grupo não existe (ausente, não zerado) — ADR-0025 §6.
+        GoodsInvoice invoice = SampleInvoice() with { Items = [SampleItem() with { ReformTaxes = null }] };
+
+        ValidationResult result = _validator.Validate(invoice);
+
+        Assert.False(result.IsValid);
+        Assert.Contains("Item 1: tributos da Reforma (IBS/CBS) ausentes.", result.Problems);
+        Assert.DoesNotContain(result.Problems, p => p.Contains("CST") || p.Contains("cClassTrib"));
+    }
+
+    [Fact]
+    public void Item_with_the_reform_group_but_without_class_trib_is_still_rejected_for_it()
+    {
+        GoodsInvoiceItem item = SampleItem();
+        GoodsInvoice invoice = SampleInvoice() with { Items = [item with { ReformTaxes = item.ReformTaxes! with { ClassTrib = "" } }] };
+
+        ValidationResult result = _validator.Validate(invoice);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Problems, p => p.Contains("cClassTrib ausente"));
+    }
+
     private static GoodsInvoice SampleInvoice() => new()
     {
         AccessKey = "35260612345678000190550010000001231000000123",

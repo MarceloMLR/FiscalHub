@@ -29,7 +29,7 @@ public class NfeXmlParserTests
         Assert.Equal("12345678", item.Ncm);
 
         // bloco da reforma (Grupo UB)
-        var reform = item.ReformTaxes;
+        var reform = item.ReformTaxes!;   // o XML da NF-e com Reforma sempre traz o grupo (o parser exige)
         Assert.Equal("000", reform.Cst);
         Assert.Equal("000001", reform.ClassTrib);
         Assert.Equal(100.00m, reform.TaxBase);
