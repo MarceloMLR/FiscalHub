@@ -231,6 +231,19 @@ public class AvalaraTokenProviderTests
     }
 
     [Fact]
+    public async Task Refusal_in_the_real_sandbox_shape_names_both_fields_whatever_the_platform_text_says()
+    {
+        // A forma verificada no sandbox (2026-09-27): 400, só "error", com texto livre. Com o segredo errado, o texto cita
+        // o client_id — a mensagem não pode seguir o texto e mandar o administrador olhar só o Client ID.
+        var h = new Harness { Endpoint = { Status = HttpStatusCode.BadRequest, Body = """{"error":"client_id invalid"}""" } };
+
+        string reason = (await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-a")))).Reason;
+
+        Assert.Contains("(HTTP 400: client_id invalid)", reason);
+        Assert.EndsWith("Confira o Client ID e o Client Secret na tela de conectores.", reason);
+    }
+
+    [Fact]
     public async Task Refusal_that_echoes_the_secret_keeps_it_out_of_the_reason_and_the_log()
     {
         var h = new Harness

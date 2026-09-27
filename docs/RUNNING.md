@@ -49,6 +49,17 @@ Em **outro** terminal:
 dotnet run --project src/FiscalHub.Host --urls http://localhost:5200
 ```
 
+> **Caminho de envio: sandbox ou mock.** O `appsettings.Development.json` traz `Avalara:DocumentsPath` com o caminho do
+> sandbox (`taxcompliance/v2/fiscal/dfe`, ADR-0027 §2). O mock só responde em `/documents`: contra ele, o envio daria 404,
+> e a nota iria para o retry e a dead-letter. **Para rodar contra o mock,** sobrescreva no terminal do host (e no da
+> sonda) antes do `dotnet run`:
+>
+> ```powershell
+> $env:Avalara__DocumentsPath = "documents"
+> ```
+>
+> Para o sandbox (seção 8), rode sem essa variável.
+
 No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob, no espaço de entrada do
 tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
 que está no ar.
@@ -318,7 +329,9 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/token/aceitar
 ```
 
 Com a recusa, a nota é rejeitada com "Configuração do conector: a plataforma recusou a credencial do tenant 'tenant-a'
-no ambiente 'sandbox' (HTTP 401: invalid_client — …)", e nenhum documento é enviado. A recusa fica lembrada por 5
+no ambiente 'sandbox' (HTTP 401: invalid_client — …)", e nenhum documento é enviado. O sandbox real recusa diferente:
+HTTP 400 com `{"error": "<texto livre>"}`, e o texto não aponta o campo certo (um `client_secret` errado volta como
+"client_id invalid"). Por isso a mensagem manda conferir o Client ID **e** o Client Secret (ADR-0027 §3). A recusa fica lembrada por 5
 minutos, para não martelar o login: as notas seguintes falham com o mesmo motivo sem pedir token. **Salvar o perfil na
 tela** (mesmo sem mudar nada) esquece a recusa na hora, e a próxima nota pede token de novo.
 

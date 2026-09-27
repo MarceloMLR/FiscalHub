@@ -112,6 +112,32 @@ public class AvalaraOutboundSettingsTests
         Assert.Equal("sandbox", sandbox.Environment);
     }
 
+    [Theory]
+    [InlineData("https://api-gateway.sandbox.avalarabrasil.com.br", "https://api-gateway.sandbox.avalarabrasil.com.br/")]
+    [InlineData("https://api-gateway.sandbox.avalarabrasil.com.br/", "https://api-gateway.sandbox.avalarabrasil.com.br/")]
+    [InlineData("https://gateway.exemplo/avalara", "https://gateway.exemplo/avalara/")]
+    [InlineData("https://gateway.exemplo/avalara/", "https://gateway.exemplo/avalara/")]
+    public void Base_url_always_ends_with_a_slash_so_the_paths_are_appended(string baseUrl, string expected)
+    {
+        AvalaraOutboundSettings settings = Read($$$"""{"sandbox":{"baseUrl":"{{{baseUrl}}}"}}""");
+
+        Assert.Equal(new Uri(expected), settings.BaseUri);
+        Assert.EndsWith("/", settings.BaseUri.AbsoluteUri);
+        // Sem a barra, "…/avalara" + "taxcompliance/…" viraria "…/taxcompliance/…": o último segmento seria trocado.
+        Assert.Equal(new Uri(expected + "taxcompliance/v2/fiscal/dfe"), new Uri(settings.BaseUri, "taxcompliance/v2/fiscal/dfe"));
+        Assert.Equal(new Uri(expected + "oauth/token"), settings.TokenEndpoint("oauth/token"));
+    }
+
+    [Theory]
+    [InlineData("https://api-gateway.sandbox.avalarabrasil.com.br/oauth/token")]
+    [InlineData("https://api-gateway.sandbox.avalarabrasil.com.br/oauth/token/")]
+    public void Token_url_is_the_full_endpoint_and_is_kept_as_it_is(string tokenUrl)
+    {
+        AvalaraOutboundSettings settings = Read($$$"""{"sandbox":{"baseUrl":"https://api-gateway.sandbox.avalarabrasil.com.br","tokenUrl":"{{{tokenUrl}}}"}}""");
+
+        Assert.Equal(tokenUrl, settings.TokenEndpoint("oauth/token").AbsoluteUri);   // nenhuma barra acrescentada ou tirada
+    }
+
     [Fact]
     public void Without_token_url_the_endpoint_is_the_base_url_plus_the_token_path()
         => Assert.Equal(new Uri("https://avalara-sandbox/oauth/token"), Read(Complete).TokenEndpoint("oauth/token"));

@@ -81,12 +81,12 @@ internal sealed class AvalaraOutboundSettings
         }
         else
         {
-            (_baseUri, _baseUriProblem) = ParseUrl(baseUrl, $"{where}.baseUrl");
+            (_baseUri, _baseUriProblem) = ParseUrl(baseUrl, $"{where}.baseUrl", endWithSlash: true);
         }
 
         if (Text(section, "tokenUrl") is { } tokenUrl)
         {
-            (_tokenUri, _tokenUriProblem) = ParseUrl(tokenUrl, $"{where}.tokenUrl");
+            (_tokenUri, _tokenUriProblem) = ParseUrl(tokenUrl, $"{where}.tokenUrl", endWithSlash: false);
         }
 
         (_credential, _credentialProblem) = ReadCredential(section, where);
@@ -282,12 +282,21 @@ internal sealed class AvalaraOutboundSettings
     }
 
     // https sempre; http só em loopback (o mock local e o teste em memória). O motivo não repete a URL.
-    private static (Uri?, string?) ParseUrl(string raw, string field)
+    // A URL base termina sempre em barra: os caminhos (DocumentsPath, TokenPath) são relativos a ela, e sem a barra o último
+    // segmento seria trocado ("…/avalara" + "documents" = "…/documents"). O tokenUrl é a URL completa do endpoint, e fica
+    // como veio.
+    private static (Uri?, string?) ParseUrl(string raw, string field, bool endWithSlash)
     {
         bool valid = Uri.TryCreate(raw, UriKind.Absolute, out Uri? uri)
             && (uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback));
+        if (!valid)
+        {
+            return (null, $"{field} precisa ser uma URL https absoluta (http só em loopback).");
+        }
 
-        return valid ? (uri, null) : (null, $"{field} precisa ser uma URL https absoluta (http só em loopback).");
+        return endWithSlash && !uri!.AbsolutePath.EndsWith('/')
+            ? (new UriBuilder(uri) { Path = uri.AbsolutePath + "/" }.Uri, null)
+            : (uri, null);
     }
 
     // Um campo de escrita com valor, em qualquer nível da seção: só chega aqui por SQL direto ou seed (ADR-0027).

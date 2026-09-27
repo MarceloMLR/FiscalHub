@@ -159,8 +159,7 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
     {
         // client_credentials com corpo JSON (application/json), e não formulário, como na coleção do Postman do cliente.
         // Verificado contra o sandbox em 2026-09-27 (design D13), junto com a leitura da resposta (access_token, token_type
-        // bearer, expires_in em segundos). A leitura da recusa (error, error_description) continua suposta: só a resposta de
-        // sucesso foi vista.
+        // bearer, expires_in em segundos) e da recusa (HTTP 400 com {"error": "<texto livre>"}, sem error_description).
         using var request = new HttpRequestMessage(HttpMethod.Post, credential.TokenEndpoint)
         {
             Content = JsonContent.Create(new TokenRequestBody(credential.ClientId, credential.Secret)),
@@ -174,6 +173,8 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
         {
             string reason = $"Configuração do conector: a plataforma recusou a credencial do tenant '{credential.TenantId}' no ambiente "
                 + $"'{credential.Environment}' ({RefusalDetail((int)response.StatusCode, TokenExchangeRedaction.For(body, [credential.Secret]).Redact(body).Text)}). "
+                // Os dois campos, sempre, e nunca o que o texto da plataforma cita: um client_secret errado volta como
+                // "client_id invalid" (sandbox, 2026-09-27). Seguir o texto mandaria o administrador olhar o campo errado.
                 + "Confira o Client ID e o Client Secret na tela de conectores.";
             _refusals[key] = new Refusal(reason, _clock.GetUtcNow() + _options.CredentialRefusalHold);
             throw new DispatchRejectedException(reason);

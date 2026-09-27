@@ -86,14 +86,15 @@ coisas: a divergência fica visível e não vira reenvio.
 | HTTP do pedido de token | 200 | 200, verificado contra o sandbox em 2026-09-27 |
 | Campos da resposta de token | `access_token`, `token_type`, `expires_in` | Os três, verificados contra o sandbox em 2026-09-27, com `token_type` `bearer`. A resposta traz também `refresh_token`, `sessionId`, `userId`, `subId`, `appId` e `login` (com o nome da empresa). O provider não lê nenhum deles; a redação da troca de token os cobre (D9). |
 | `expires_in` | número, em segundos, maior que a margem de 5 min | cerca de 86400 s (24 h), verificado contra o sandbox em 2026-09-27: bem acima da margem, e o token entra no cache |
-| Escopo ou audiência exigidos | nenhum | não registrado na verificação |
-| Primeiro envio ao caminho `documents` | qualquer status diferente de 404 (o caminho existe) | **não verificado** |
-| Consulta ao caminho `documents/{id}/status` | a resposta de status | **não verificado** |
-| Host do sandbox e do endpoint de token | — | não registrado aqui |
+| Escopo ou audiência exigidos | nenhum | nenhum: o fluxo não exige nem devolve escopo ou audiência. Verificado contra o sandbox em 2026-09-27 |
+| Host do sandbox e do endpoint de token | — | `api-gateway.sandbox.avalarabrasil.com.br`, com o token em `/oauth/token` (o `TokenPath` padrão). Verificado contra o sandbox em 2026-09-27 |
+| Recusa do endpoint de token | 400 ou 401, com o código do OAuth (`invalid_client`…) em `error` e o `error_description` | HTTP 400 com `{"error": "<texto livre>"}`, sem `error_description`. Verificado contra o sandbox em 2026-09-27. O `error` **não** é o código do OAuth: um `client_secret` errado volta como "client_id invalid". O `RefusalDetail` não muda: o caso só com `error` já cobre a resposta real |
+| Primeiro envio ao caminho de envio | qualquer status diferente de 404 (o caminho existe) | O caminho configurado é `taxcompliance/v2/fiscal/dfe` (`Avalara:DocumentsPath`), tirado da URL de envio do sandbox do cliente; o host fica na `baseUrl` do perfil. O envio **não foi verificado** |
+| Consulta ao caminho de status | a resposta de status | **não verificado**. O hub monta `{DocumentsPath}/{id}/status`, convenção que veio do mock |
 
-**O que segue sem verificar:** o caminho de envio e o de consulta de status, no primeiro envio pelo hub (passo 3). A
-forma da recusa do endpoint de token (`error`, `error_description`) também não foi vista, porque só a resposta de
-sucesso foi observada: o `RefusalDetail` continua lendo esses nomes como supostos.
+**A mensagem de recusa nomeia o Client ID e o Client Secret, e não segue o texto da plataforma.** O `error` não aponta o campo certo: um `client_secret` errado volta como "client_id invalid". Uma mensagem que seguisse o texto da plataforma mandaria o administrador conferir o Client ID quando o errado é o segredo. Por isso a mensagem de recusa continua nomeando os dois campos ("Confira o Client ID e o Client Secret na tela de conectores"), e não deve ser "corrigida" pelo texto da plataforma.
+
+**O que segue sem verificar:** o caminho de envio e o de consulta de status, no primeiro envio pelo hub (passo 3).
 
 ## Goals / Non-Goals
 
@@ -492,7 +493,7 @@ internal sealed class AvalaraAccessToken { … }
 
 | Onde | Resposta | Desfecho | Por quê |
 |---|---|---|---|
-| Endpoint de token | 400 ou 401 (`invalid_client`, `unauthorized_client`, `invalid_grant`…) | `DispatchRejectedException` "Configuração do conector: a plataforma recusou a credencial do tenant 'x' no ambiente 'y' (HTTP 401: invalid_client — <descrição redigida>)." | Retentar não conserta a credencial e pode bloquear a conta. Na dead-letter, o motivo se perde. |
+| Endpoint de token | 400 ou 401. No sandbox, 400 com `{"error": "<texto livre>"}` (D13) | `DispatchRejectedException` "Configuração do conector: a plataforma recusou a credencial do tenant 'x' no ambiente 'y' (HTTP 400: client_id invalid). Confira o Client ID e o Client Secret na tela de conectores." | Retentar não conserta a credencial e pode bloquear a conta. Na dead-letter, o motivo se perde. A mensagem nomeia os dois campos porque o texto da plataforma não aponta o certo (D13). |
 | Endpoint de token | 2xx sem `access_token` | `DispatchRejectedException` "… o endpoint de token respondeu sem token." | É contrato inesperado, e retentar repete a mesma resposta. |
 | Endpoint de token | 5xx, 429, rede | exceção, retry nativo | Transitório (ADR-0004). |
 | Envio | 403 | `DispatchRejectedException` "Configuração do conector: a plataforma negou acesso ao tenant 'x' no ambiente 'y' (HTTP 403): <motivo>." | A credencial não tem acesso, e a retentativa não muda permissão. |
@@ -768,9 +769,8 @@ O passo 1 do roteiro é onde a premissa se confirma, e a regra do que fazer se e
 
    Pela tabela, há dois desfechos:
 
-   - **Bate:** client credentials, por post ou Basic, com `access_token` e `expires_in` numérico em segundos.
-     - Com post, segue como está.
-     - Com Basic, o provider manda Basic para todos. É um ajuste de forma no provider (grupo 9), com teste.
+   - **Bate:** client credentials com o segredo no corpo, com `access_token` e `expires_in` numérico em segundos.
+     Verificado em 2026-09-27, com corpo JSON (tabela da premissa, no Context).
      - Com `expires_in` menor que a margem, a margem é revista no D6.
      - Com 404 no caminho de envio, o `DocumentsPath` certo, pela documentação do sandbox, entra como opção do
        adapter (`Avalara:DocumentsPath`), sem código.
@@ -1120,7 +1120,7 @@ ativa, e a spec `tenant-boundary` só vai para `openspec/specs` no arquivamento.
 - **[O fluxo real de autenticação pode não ser o client credentials assumido]** O formato do pedido já divergiu uma
   vez: o corpo é JSON, e não formulário, pela coleção do cliente, e o ajuste coube no provider e no mock. A premissa é assumida, e só
   se confirma no teste manual, no fim da fatia (Context, D13, tarefa 15.3). O código de autenticação é todo
-  escrito e testado contra o mock antes dessa confirmação. → Um ajuste de forma (Basic, margem, `DocumentsPath`)
+  escrito e testado contra o mock antes dessa confirmação. → Um ajuste de forma (margem, `DocumentsPath`)
   cabe no provider ou na configuração, com teste. Um fluxo estruturalmente outro leva a `/opsx:update`, e o
   retrabalho fica nos grupos de autenticação: o 8, o 9, o 10 e o endpoint de token do mock, no 12. O cofre, a
   tela, a quarta foto e a parte 1, já mergeada, não dependem da premissa. É um risco aceito de propósito, em

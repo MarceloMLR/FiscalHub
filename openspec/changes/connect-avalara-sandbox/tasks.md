@@ -408,7 +408,7 @@ Manual e sem código.
   - `probe token --tenant tenant-a`, e preencher a tabela "Resultado da verificação da premissa" no Context do
     design, sem credencial e sem token;
   - no primeiro envio, conferir que o caminho `documents` existe (qualquer status diferente de 404);
-  - aplicar a regra do D13: um ajuste de forma (Basic, margem, `DocumentsPath`) entra com teste. Um fluxo
+  - aplicar a regra do D13: um ajuste de forma (margem, `DocumentsPath`) entra com teste. Um fluxo
     estruturalmente outro para o teste manual e leva a `/opsx:update`, com o retrabalho nos grupos de
     autenticação
 - [ ] 15.4 Correção pela tela:

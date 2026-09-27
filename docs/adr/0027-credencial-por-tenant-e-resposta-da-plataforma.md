@@ -11,9 +11,10 @@
 - **Change OpenSpec:** `openspec/changes/connect-avalara-sandbox` (parte 2, grupos 5 a 18), capacidades
   `connector-secret-references`, `avalara-tenant-authentication`, `platform-response-trace` e o delta de
   `compliance-dispatch-outcome`.
-- **Autenticação verificada contra o sandbox (2026-09-27):** `client_credentials` com corpo JSON; a resposta traz
-  `access_token`, `token_type` `bearer` e `expires_in` de cerca de 86400 s (ver §3). **Segue sem verificar:** o caminho
-  de envio e o de consulta de status (tarefa 15.3, no primeiro envio pelo hub).
+- **Autenticação verificada contra o sandbox (2026-09-27):** em `api-gateway.sandbox.avalarabrasil.com.br`, com o token
+  em `/oauth/token`: `client_credentials` com corpo JSON, sem escopo nem audiência; a resposta traz `access_token`,
+  `token_type` `bearer` e `expires_in` de cerca de 86400 s; a recusa é HTTP 400 com `{"error": "<texto livre>"}` (ver
+  §3). **Segue sem verificar:** o caminho de envio e o de consulta de status (tarefa 15.3, no primeiro envio pelo hub).
 
 ## Contexto
 
@@ -56,6 +57,11 @@ empresa. A consulta de status usa a mesma seção.
   saem, e os clientes HTTP ficam sem `BaseAddress`. Um fallback para uma URL que não é do tenant é o caminho pelo qual
   o segredo de um tenant chega a outro endereço. A seção `Avalara` do Host fica só com a forma da API
   (`DocumentsPath`, `TokenPath`, margens), igual para todos os clientes.
+- **O host na `baseUrl`, o caminho na configuração.** O host muda entre sandbox e produção, e fica na `baseUrl` da seção
+  do perfil. O caminho é a forma da API: o de envio do sandbox, `taxcompliance/v2/fiscal/dfe`, tirado da URL de envio do
+  cliente, está em `Avalara:DocumentsPath` no `appsettings.Development.json`. A `baseUrl` é guardada sempre com barra
+  final, porque os caminhos são relativos a ela; o `tokenUrl`, quando existe, é a URL completa do endpoint e fica como
+  veio.
 - **`https` obrigatório,** `http` só em loopback (o mock). O pedido de token leva o segredo no corpo.
 - **O `clientTokenRef` sai.** Nenhum fluxo o lia. O leitor o ignora, como a qualquer campo desconhecido.
 - Faltando algo, é `DispatchRejectedException` "Configuração do conector: …", antes de qualquer requisição, nomeando o
@@ -78,8 +84,13 @@ empresa. A consulta de status usa a mesma seção.
     redação da troca de token os cobre (§8).
   - **O `disableTokenRefresh` vem só da coleção,** e não de documentação da plataforma. O sandbox o aceitou; o efeito
     dele não foi verificado, e ele não deve ser tratado como contrato até haver documentação ou evidência.
-  - **Segue sem verificar:** o caminho de envio e o de consulta de status, no primeiro envio pelo hub. A forma da recusa
-    do endpoint de token (`error`, `error_description`) também não foi vista, porque só houve resposta de sucesso.
+  - **O endereço, verificado no mesmo dia:** o host do sandbox é `api-gateway.sandbox.avalarabrasil.com.br`, e o token
+    fica em `/oauth/token`, o `TokenPath` padrão. O fluxo não exige nem devolve escopo ou audiência.
+  - **A recusa, verificada no mesmo dia:** HTTP 400 com `{"error": "<texto livre>"}`, sem `error_description`. O `error`
+    não é o código do OAuth: um `client_secret` errado volta como "client_id invalid". O `RefusalDetail` já cobre a
+    forma (só `error`) e não muda.
+  - **Por que a mensagem de recusa nomeia o Client ID e o Client Secret.** O `error` não aponta o campo certo: um `client_secret` errado volta como "client_id invalid". Uma mensagem que seguisse o texto da plataforma mandaria o administrador conferir o Client ID quando o errado é o segredo. Por isso a mensagem de recusa continua nomeando os dois campos ("Confira o Client ID e o Client Secret na tela de conectores"), e não deve ser "corrigida" pelo texto da plataforma.
+  - **Segue sem verificar:** o caminho de envio e o de consulta de status, no primeiro envio pelo hub.
 
 ### 4. O segredo pela tela, e a referência do servidor
 
@@ -161,7 +172,7 @@ A guarda `fh-` do adapter não substitui a política. Ela serve para um defeito 
 
 | Onde | Resposta | Desfecho |
 |---|---|---|
-| Endpoint de token | 400 ou 401 | rejeição "Configuração do conector: a plataforma recusou a credencial do tenant 'x' no ambiente 'y' (HTTP 401: invalid_client — <descrição redigida>)" |
+| Endpoint de token | 400 ou 401 (no sandbox, 400 com `{"error": "<texto livre>"}`) | rejeição "Configuração do conector: a plataforma recusou a credencial do tenant 'x' no ambiente 'y' (HTTP 400: client_id invalid). Confira o Client ID e o Client Secret na tela de conectores." Os dois campos, e não o que o texto da plataforma cita (§3) |
 | Endpoint de token | 2xx sem `access_token` | rejeição "… respondeu sem token" |
 | Endpoint de token | 5xx, 429, rede | exceção, retry nativo |
 | Envio | 403, ou 401 com token recém-emitido | rejeição "a plataforma negou acesso ao tenant 'x' no ambiente 'y' (HTTP …): <motivo>" |
@@ -280,7 +291,10 @@ fica em `out/`, redigida e fora do Git.
 
 ## Validação no sandbox
 
-- **2026-09-27, o token:** o pedido `client_credentials` com corpo JSON respondeu 200, com `access_token`, `token_type`
-  `bearer` e `expires_in` de cerca de 86400 s.
+- **2026-09-27, o token:** em `api-gateway.sandbox.avalarabrasil.com.br/oauth/token`, o pedido `client_credentials` com
+  corpo JSON respondeu 200, com `access_token`, `token_type` `bearer` e `expires_in` de cerca de 86400 s, sem escopo nem
+  audiência.
+- **2026-09-27, a recusa:** HTTP 400 com `{"error": "<texto livre>"}`, sem `error_description`; um `client_secret` errado
+  volta como "client_id invalid".
 - **Pendente:** o caminho de envio e o de consulta de status (o resto da tarefa 15.3), as 5 NF-e 55 (16) e o experimento
   do campo omitido (17).
