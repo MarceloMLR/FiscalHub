@@ -226,6 +226,78 @@ public class SqlProcessingStoreTests
         Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
     }
 
+    // ---------- omissões do envio: observação visível no Reason (ADR-0026, design D11) ----------
+
+    [Fact]
+    public async Task Submission_without_omissions_leaves_the_reason_empty()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+
+        Assert.Null((await h.Db.ProcessedDocuments.SingleAsync()).Reason);
+    }
+
+    [Fact]
+    public async Task Submission_with_omissions_records_them_as_the_reason()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a", "item 2: b"] });
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Submitted, row.Status);
+        Assert.Equal("Enviado sem: item 1: a; item 2: b", row.Reason);
+    }
+
+    [Fact]
+    public async Task Confirmation_keeps_the_omissions()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a"] });
+
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Confirmed, null, 1);
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Confirmed, row.Status);
+        Assert.Equal("Enviado sem: item 1: a", row.Reason);
+    }
+
+    [Fact]
+    public async Task Still_processing_keeps_the_omissions()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a"] });
+
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Submitted, null, 1);
+
+        Assert.Equal("Enviado sem: item 1: a", (await h.Db.ProcessedDocuments.SingleAsync()).Reason);
+    }
+
+    [Fact]
+    public async Task Platform_rejection_comes_first_and_keeps_the_omissions_after_it()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a"] });
+
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.IntegrationError, "Plataforma de compliance rejeitou: X", 1);
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
+        Assert.Equal("Plataforma de compliance rejeitou: X | Enviado sem: item 1: a", row.Reason);
+    }
+
+    [Fact]
+    public async Task Platform_rejection_without_previous_omissions_is_just_the_reason()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.IntegrationError, "Plataforma de compliance rejeitou: X", 1);
+
+        Assert.Equal("Plataforma de compliance rejeitou: X", (await h.Db.ProcessedDocuments.SingleAsync()).Reason);
+    }
+
     private static Harness NewStore()
     {
         var conn = new SqliteConnection("DataSource=:memory:");
