@@ -17,7 +17,7 @@ public static class D365PollServiceCollectionExtensions
     /// Registra o <c>IDocumentChangeFeed</c> do D365 (scoped: lê o perfil do tenant pelo
     /// <c>IConnectorProfileStore</c>) com token por client credentials. Requer o <c>ISecretStore</c> (resolve
     /// o <c>kv:</c> no cofre de conectores, ADR-0027) e um <c>IConnectorProfileStore</c> registrados. Em desenvolvimento, chame
-    /// <see cref="UseD365AzureCliToken"/> para usar a sessão do Azure CLI.
+    /// <see cref="UseD365AzureCliFallback"/> para cair na sessão do Azure CLI quando o perfil não tem credencial própria.
     /// </summary>
     public static IServiceCollection AddD365ChangeFeed(this IServiceCollection services, Action<D365ChangeFeedOptions>? configure = null)
     {
@@ -75,14 +75,18 @@ public static class D365PollServiceCollectionExtensions
     }
 
     /// <summary>
-    /// SÓ DESENVOLVIMENTO: troca o client credentials pela sessão do Azure CLI do desenvolvedor
-    /// (<c>az login</c>), para rodar local antes de a app registration existir. O host deve chamar isto
-    /// apenas em <c>IsDevelopment()</c>.
+    /// SÓ DESENVOLVIMENTO: o perfil com auth completo e o segredo no cofre usa a credencial do próprio tenant; sem isso,
+    /// cai na sessão do Azure CLI do desenvolvedor (<c>az login</c>). Loga, uma vez por tenant, qual identidade
+    /// autenticou. O host deve chamar isto apenas em <c>IsDevelopment()</c>: em produção, o Azure CLI nunca entra.
     /// </summary>
-    public static IServiceCollection UseD365AzureCliToken(this IServiceCollection services)
+    public static IServiceCollection UseD365AzureCliFallback(this IServiceCollection services)
     {
         services.TryAddSingleton(TimeProvider.System);
-        services.Replace(ServiceDescriptor.Singleton<ID365TokenProvider>(sp => new AzureCliD365TokenProvider(sp.GetRequiredService<TimeProvider>())));
+        services.Replace(ServiceDescriptor.Singleton<ID365TokenProvider>(sp => new D365DevelopmentTokenProvider(
+            new ClientCredentialsD365TokenProvider(sp.GetRequiredService<ISecretStore>()),
+            new AzureCliD365TokenProvider(sp.GetRequiredService<TimeProvider>()),
+            sp.GetRequiredService<ISecretStore>(),
+            sp.GetRequiredService<ILogger<D365DevelopmentTokenProvider>>())));
         return services;
     }
 

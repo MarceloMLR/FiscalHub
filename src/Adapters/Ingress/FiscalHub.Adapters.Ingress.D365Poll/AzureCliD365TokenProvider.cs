@@ -6,8 +6,8 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 
 /// <summary>
 /// Token de DESENVOLVIMENTO: a sessão do Azure CLI do desenvolvedor (<c>az login</c>), para rodar local
-/// antes de a app registration existir. Só entra no DI quando o host chama <c>UseD365AzureCliToken()</c>,
-/// e o host só chama em Development. Cada busca abre um processo do <c>az</c>, então o token fica em cache
+/// quando o perfil do tenant não tem credencial própria. Só entra pelo <see cref="D365DevelopmentTokenProvider"/>,
+/// registrado pelo <c>UseD365AzureCliFallback()</c>, que o host só chama em Development. Cada busca abre um processo do <c>az</c>, então o token fica em cache
 /// por escopo até perto de vencer.
 /// </summary>
 internal sealed class AzureCliD365TokenProvider : ID365TokenProvider

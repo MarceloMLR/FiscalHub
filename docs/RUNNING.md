@@ -165,8 +165,16 @@ primeira passada então descobre os 83 cabeçalhos do `fiscosysdev` (empresa `br
 
 - `docker compose up -d`, que sobe SQL, Azurite e o emulador do Service Bus com a fila
   `documents-discovered`.
-- `az login` com um usuário que tenha acesso ao `fiscosysdev`. Em Development, o host usa o token da
-  sessão do Azure CLI, porque a app registration ainda não existe.
+- **A identidade no F&O.** Em Development, o perfil do tenant com auth completo (`auth.tenantId`, `auth.clientId` e
+  o Client Secret gravado na tela, presente no cofre) autentica com a credencial do próprio tenant, como em produção.
+  Sem isso, o host cai na sessão do Azure CLI: faça `az login` com um usuário que tenha acesso ao `fiscosysdev`. O log diz,
+  uma vez por tenant (e de novo se mudar), qual das duas autenticou, e por quê:
+
+  ```
+  D365: o tenant tenant-a autentica no F&O com o Azure CLI (a identidade delegada do az login), porque auth incompleto no perfil: falta tenantId, clientId.
+  ```
+
+  Em produção, o Azure CLI nunca entra.
 - Host rodando em Development. É o padrão do `dotnet run`, pelo `launchSettings.json`.
 
 **1. Ligar o poll do tenant-a** com página de 20, para exercitar 5 páginas por keyset, e marca inicial

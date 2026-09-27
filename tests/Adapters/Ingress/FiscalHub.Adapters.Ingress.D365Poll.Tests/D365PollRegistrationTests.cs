@@ -22,11 +22,12 @@ public class D365PollRegistrationTests
     }
 
     [Fact]
-    public async Task Azure_cli_token_replaces_client_credentials_only_when_asked()
+    public async Task Azure_cli_fallback_enters_only_when_asked()
     {
-        await using ServiceProvider sp = Build(services => services.AddD365ChangeFeed().UseD365AzureCliToken());
+        // O padrão (produção) é o client credentials, e o Azure CLI não entra; o host só pede o fallback em Development.
+        await using ServiceProvider sp = Build(services => services.AddD365ChangeFeed().UseD365AzureCliFallback());
 
-        Assert.IsType<AzureCliD365TokenProvider>(sp.GetRequiredService<ID365TokenProvider>());
+        Assert.IsType<D365DevelopmentTokenProvider>(sp.GetRequiredService<ID365TokenProvider>());
     }
 
     [Fact]

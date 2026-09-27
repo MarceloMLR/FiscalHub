@@ -136,8 +136,9 @@ builder.Services.AddD365ChangeFeed();
 builder.Services.AddD365GoodsInvoiceSource();   // ao lado do source XML; a esteira escolhe pela origem da referência
 if (builder.Environment.IsDevelopment())
 {
-    // Só em dev: token da sessão do Azure CLI (az login), até a app registration existir.
-    builder.Services.UseD365AzureCliToken();
+    // Só em dev: o perfil com credencial própria (auth completo e o segredo no cofre) usa a do tenant; sem ela, cai na
+    // sessão do Azure CLI (az login). Em produção, o Azure CLI nunca entra.
+    builder.Services.UseD365AzureCliFallback();
 }
 builder.Services.AddSingleton(new ChangeFeedPollerOptions());
 // Registro dos pares (documento, carimbo) já publicados (ADR-0025, D16): singleton de propósito — o poller é
