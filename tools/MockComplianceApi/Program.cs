@@ -5,6 +5,9 @@ using System.Collections.Concurrent;
 // Store em memória — some quando o processo reinicia. Nunca usar em produção.
 // Os formatos de recusa ({"mensagens":[...]}) são PRESUMIDOS até haver resposta real gravada (ADR-0026); o hub
 // extrai o motivo de forma tolerante e não depende deles.
+// Autentica como a plataforma (ADR-0027): POST /oauth/token (client_credentials, segredo no corpo — a forma assumida,
+// conferida no teste manual) emite um token, e /documents* exigem o Bearer emitido aqui. /admin/* e a inspeção do
+// payload continuam abertos, porque são ferramenta de dev.
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -16,10 +19,53 @@ var documents = new ConcurrentDictionary<string, (string Status, string? Reason,
 // query, então este toggle é o que decide — permite forçar os caminhos de recusa ao vivo.
 var toggle = new ResultToggle();
 
+// Tokens emitidos por este processo, e o toggle que força a recusa da credencial (o roteiro local do D7).
+var tokens = new ConcurrentDictionary<string, byte>();
+var tokenToggle = new TokenToggle();
+
+// Qualquer client_id e client_secret não vazios servem: o mock confere a forma, não a credencial.
+app.MapPost("/oauth/token", async (HttpRequest request) =>
+{
+    IFormCollection form = request.HasFormContentType ? await request.ReadFormAsync() : FormCollection.Empty;
+    if (form["grant_type"] != "client_credentials")
+    {
+        return Results.Json(new { error = "unsupported_grant_type" }, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    if (string.IsNullOrEmpty(form["client_id"]) || string.IsNullOrEmpty(form["client_secret"]) || tokenToggle.Refuse)
+    {
+        return Results.Json(new { error = "invalid_client", error_description = "credencial recusada pelo mock" }, statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    string token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+    tokens[token] = 0;
+    return Results.Ok(new { access_token = token, token_type = "Bearer", expires_in = 3600 });
+});
+
+// Toggle (dev): aceitar | recusar a credencial nos próximos pedidos de token.
+app.MapPost("/admin/token/{value}", (string value) =>
+{
+    tokenToggle.Refuse = value.Trim().Equals("recusar", StringComparison.OrdinalIgnoreCase);
+    return Results.Ok(new { token = tokenToggle.Refuse ? "recusar" : "aceitar" });
+});
+
+// Sem o Bearer emitido aqui, /documents* respondem 401 — o mock nunca aceita envio sem autenticação.
+bool Authorized(HttpRequest request)
+    => request.Headers.Authorization.ToString() is { } header
+        && header.StartsWith("Bearer ", StringComparison.Ordinal)
+        && tokens.ContainsKey(header["Bearer ".Length..]);
+
+IResult Unauthenticated() => Results.Json(new { mensagens = new[] { "token ausente ou inválido (mock)" } }, statusCode: StatusCodes.Status401Unauthorized);
+
 // Fase 1 — recebe o "god json" e devolve um identificador externo (GUID).
 // ?resultado=carregado|erro|rejeitar sobrepõe o toggle para exercitar cada ramo.
 app.MapPost("/documents", async (HttpRequest request, string? resultado) =>
 {
+    if (!Authorized(request))
+    {
+        return Unauthenticated();
+    }
+
     using var reader = new StreamReader(request.Body);
     var body = await reader.ReadToEndAsync();
 
@@ -37,14 +83,16 @@ app.MapPost("/documents", async (HttpRequest request, string? resultado) =>
 });
 
 // Fase 2 — consulta o status final pelo GUID. No "erro", o motivo vem em "mensagens".
-app.MapGet("/documents/{id}/status", (string id) =>
-    documents.TryGetValue(id, out var doc)
-        ? doc.Reason is null
-            ? Results.Ok(new { id, status = doc.Status })
-            : Results.Ok(new { id, status = doc.Status, mensagens = new[] { doc.Reason } })
-        : Results.NotFound(new { id, status = "desconhecido" }));
+app.MapGet("/documents/{id}/status", (HttpRequest request, string id) =>
+    !Authorized(request)
+        ? Unauthenticated()
+        : documents.TryGetValue(id, out var doc)
+            ? doc.Reason is null
+                ? Results.Ok(new { id, status = doc.Status })
+                : Results.Ok(new { id, status = doc.Status, mensagens = new[] { doc.Reason } })
+            : Results.NotFound(new { id, status = "desconhecido" }));
 
-// Inspeção: devolve o JSON exato que o hub enviou (para ver o payload gerado).
+// Inspeção: devolve o JSON exato que o hub enviou (para ver o payload gerado). Aberta: é ferramenta de dev.
 app.MapGet("/documents/{id}", (string id) =>
     documents.TryGetValue(id, out var doc)
         ? Results.Content(doc.Body, "application/json")
@@ -79,6 +127,12 @@ internal sealed class ResultToggle
         "rejeitar" => "rejeitar",
         _ => null,
     };
+}
+
+// Recusa forçada da credencial (dev).
+internal sealed class TokenToggle
+{
+    public bool Refuse { get; set; }
 }
 
 // Exposto para o teste ponta a ponta subir o mock em memória (WebApplicationFactory<Program>).

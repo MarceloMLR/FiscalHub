@@ -324,21 +324,21 @@ Manual e sem código.
 
 ## 12. Mock com autenticação e ponta a ponta em memória (D11)
 
-- [ ] 12.1 Mock:
+- [x] 12.1 Mock:
   - `POST /oauth/token`, na forma assumida (D13): `client_credentials`, com o segredo no corpo;
   - `/admin/token/{aceitar|recusar}`;
   - `/documents*` exigindo o `Bearer` emitido pelo mock, com 401 sem ele;
   - `/admin/*` e a inspeção continuam abertos
-- [ ] 12.2 `DispatchToMockTests` com a composição padrão (provider real), um `ISecretStore` em memória e o perfil
+- [x] 12.2 `DispatchToMockTests` com a composição padrão (provider real), um `ISecretStore` em memória e o perfil
   com credencial. O segredo do teste entra pelo `ConnectorProfileService`, como pela tela. Os casos que já
   existem continuam verdes
-- [ ] 12.3 Novos casos no ponta a ponta:
+- [x] 12.3 Novos casos no ponta a ponta:
   - o token recusado pelo mock: rejeição com motivo e zero POSTs de documento;
   - salvar o perfil pelo `ConnectorProfileService` e reprocessar: com o mock já aceitando, o token é pedido na
     hora e a nota é enviada;
   - o segredo ausente: rejeição e zero pedidos;
   - com um trace que grava, as fotos de resposta do envio e da consulta presentes
-- [ ] 12.4 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 12.4 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 13. Sonda do sandbox (D12)
 
