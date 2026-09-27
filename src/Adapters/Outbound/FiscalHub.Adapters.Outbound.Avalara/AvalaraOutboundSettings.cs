@@ -127,6 +127,18 @@ internal sealed class AvalaraOutboundSettings
     /// <summary>A rejeição do Client Secret que não está configurado, pela falta da referência ou do valor no cofre.</summary>
     public DispatchRejectedException SecretNotConfigured(bool vaultLacksValue) => Rejected(SecretNotConfiguredText(vaultLacksValue));
 
+    /// <summary>
+    /// A rejeição do 404 no envio: o caminho de envio não existe na URL montada. Ela tem duas partes, em dois lugares — o
+    /// host na URL base da seção do perfil (na tela) e o caminho em <c>Avalara:DocumentsPath</c> (no appsettings) —, e o
+    /// motivo aponta os dois. Só vale para o envio: na consulta de status, o 404 é o documento ainda não indexado.
+    /// </summary>
+    public DispatchRejectedException SubmitPathNotFound(Uri url, string documentsPath, string? platformReason)
+        => Rejected($"o caminho de envio não existe nessa URL (HTTP 404 em POST {url.GetLeftPart(UriPartial.Path)}). A URL tem "
+            + $"duas partes: a URL base do ambiente '{Environment}' do tenant '{TenantId}' ({BaseUri}, em "
+            + $"OutboundSettings.{Environment}.baseUrl; configure em {Screen} → {EnvironmentLabel} → URL base) e o caminho de "
+            + $"envio ('{documentsPath}', em Avalara:DocumentsPath, no appsettings do host)."
+            + (string.IsNullOrWhiteSpace(platformReason) ? string.Empty : $" Resposta da plataforma: {platformReason}"));
+
     public static AvalaraOutboundSettings Read(string tenantId, TenantConnectorProfile? profile)
     {
         if (profile is null)

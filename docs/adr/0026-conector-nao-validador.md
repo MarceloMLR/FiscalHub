@@ -83,8 +83,9 @@ da Avalara para dentro da Application.
   > tentativa seguinte pede outro. O 2xx sem identificador reconhecível também vira rejeição, sem retentativa, porque o
   > documento pode ter sido aceito. O porquê: na dead-letter o motivo se perde (fica `MaxDeliveryCountExceeded`), e
   > retentar credencial pode bloquear a conta. A decisão explícita revertida é o D10 do design arquivado da
-  > `connector-not-validator` ("tratar 401 e 403 como rejeição" estava nas alternativas descartadas). O 5xx, o 429, o
-  > 404 e a rede continuam no retry nativo.
+  > `connector-not-validator` ("tratar 401 e 403 como rejeição" estava nas alternativas descartadas). O 5xx, o 429 e
+  > a rede continuam no retry nativo. O 404 do envio também virou rejeição de configuração (o caminho de envio não
+  > existe na URL), e o da consulta de status continua pendente.
 - **Refinamento do ADR-0003.** O status continua normalizado, e o nativo "erro" não sai do adapter. O que atravessa
   é a **mensagem humana** da plataforma. A frase agnóstica de antes escondia justamente o que o usuário precisa ver.
 - **O formato real do erro da Avalara ainda não foi gravado.** A extração do motivo é tolerante: lista de mensagens,

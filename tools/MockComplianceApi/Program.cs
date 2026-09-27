@@ -28,6 +28,9 @@ var tokenToggle = new TokenToggle();
 // Qualquer client_id e client_secret não vazios servem: o mock confere a forma, não a credencial. O corpo é JSON, como
 // na coleção do cliente; formulário é recusado, para que uma regressão do provider apareça no ponta a ponta. O
 // disableTokenRefresh da coleção é aceito, e não exigido: não há documentação dele.
+// A recusa tem a forma do sandbox (2026-09-27): HTTP 400 com {"error": "<texto livre>"}, sem error_description, e o texto
+// não é o código do OAuth — o segredo errado volta como "client_id invalid". Cada diferença entre o mock e a plataforma é
+// um ensaio que passa e um envio real que falha.
 app.MapPost("/oauth/token", async (HttpRequest request) =>
 {
     JsonObject? body = null;
@@ -45,18 +48,18 @@ app.MapPost("/oauth/token", async (HttpRequest request) =>
 
     if (body is null)
     {
-        return Results.Json(new { error = "invalid_request", error_description = "o pedido de token é JSON (mock)" }, statusCode: StatusCodes.Status400BadRequest);
+        return Refused("request body invalid");
     }
 
     string? Field(string name) => body[name] is JsonValue value && value.TryGetValue(out string? text) ? text : null;
     if (Field("grant_type") != "client_credentials")
     {
-        return Results.Json(new { error = "unsupported_grant_type" }, statusCode: StatusCodes.Status400BadRequest);
+        return Refused("grant_type invalid");
     }
 
     if (string.IsNullOrEmpty(Field("client_id")) || string.IsNullOrEmpty(Field("client_secret")) || tokenToggle.Refuse)
     {
-        return Results.Json(new { error = "invalid_client", error_description = "credencial recusada pelo mock" }, statusCode: StatusCodes.Status401Unauthorized);
+        return Refused("client_id invalid");
     }
 
     // A forma da resposta real do sandbox (2026-09-27), com valores de mentira: o ensaio da sonda contra o mock passa pela
@@ -77,6 +80,8 @@ app.MapPost("/oauth/token", async (HttpRequest request) =>
     });
 });
 
+static IResult Refused(string error) => Results.Json(new { error }, statusCode: StatusCodes.Status400BadRequest);
+
 // Toggle (dev): aceitar | recusar a credencial nos próximos pedidos de token.
 app.MapPost("/admin/token/{value}", (string value) =>
 {
@@ -84,7 +89,11 @@ app.MapPost("/admin/token/{value}", (string value) =>
     return Results.Ok(new { token = tokenToggle.Refuse ? "recusar" : "aceitar" });
 });
 
-// Sem o Bearer emitido aqui, /documents* respondem 401 — o mock nunca aceita envio sem autenticação.
+// Os caminhos de envio: o do sandbox (Avalara:DocumentsPath do appsettings.Development.json, da URL de envio do cliente)
+// e o /documents de antes. Os dois atendem o mesmo store, e o status e a inspeção seguem o mesmo prefixo.
+string[] documentPaths = ["/taxcompliance/v2/fiscal/dfe", "/documents"];
+
+// Sem o Bearer emitido aqui, os caminhos de envio e de status respondem 401 — o mock nunca aceita envio sem autenticação.
 bool Authorized(HttpRequest request)
     => request.Headers.Authorization.ToString() is { } header
         && header.StartsWith("Bearer ", StringComparison.Ordinal)
@@ -92,46 +101,49 @@ bool Authorized(HttpRequest request)
 
 IResult Unauthenticated() => Results.Json(new { mensagens = new[] { "token ausente ou inválido (mock)" } }, statusCode: StatusCodes.Status401Unauthorized);
 
-// Fase 1 — recebe o "god json" e devolve um identificador externo (GUID).
-// ?resultado=carregado|erro|rejeitar sobrepõe o toggle para exercitar cada ramo.
-app.MapPost("/documents", async (HttpRequest request, string? resultado) =>
+foreach (string path in documentPaths)
 {
-    if (!Authorized(request))
+    // Fase 1 — recebe o "god json" e devolve um identificador externo (GUID).
+    // ?resultado=carregado|erro|rejeitar sobrepõe o toggle para exercitar cada ramo.
+    app.MapPost(path, async (HttpRequest request, string? resultado) =>
     {
-        return Unauthenticated();
-    }
+        if (!Authorized(request))
+        {
+            return Unauthenticated();
+        }
 
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
+        using var reader = new StreamReader(request.Body);
+        var body = await reader.ReadToEndAsync();
 
-    var result = ResultToggle.Normalize(resultado) ?? toggle.Value;
+        var result = ResultToggle.Normalize(resultado) ?? toggle.Value;
 
-    // Recusa síncrona: a plataforma não aceita o documento (o hub registra o motivo, sem retentativa).
-    if (result == "rejeitar")
-    {
-        return Results.BadRequest(new { mensagens = new[] { toggle.Reason } });
-    }
+        // Recusa síncrona: a plataforma não aceita o documento (o hub registra o motivo, sem retentativa).
+        if (result == "rejeitar")
+        {
+            return Results.BadRequest(new { mensagens = new[] { toggle.Reason } });
+        }
 
-    var id = Guid.NewGuid().ToString();
-    documents[id] = (result, result == "erro" ? toggle.Reason : null, body);
-    return Results.Ok(new { id });
-});
+        var id = Guid.NewGuid().ToString();
+        documents[id] = (result, result == "erro" ? toggle.Reason : null, body);
+        return Results.Ok(new { id });
+    });
 
-// Fase 2 — consulta o status final pelo GUID. No "erro", o motivo vem em "mensagens".
-app.MapGet("/documents/{id}/status", (HttpRequest request, string id) =>
-    !Authorized(request)
-        ? Unauthenticated()
-        : documents.TryGetValue(id, out var doc)
-            ? doc.Reason is null
-                ? Results.Ok(new { id, status = doc.Status })
-                : Results.Ok(new { id, status = doc.Status, mensagens = new[] { doc.Reason } })
-            : Results.NotFound(new { id, status = "desconhecido" }));
+    // Fase 2 — consulta o status final pelo GUID. No "erro", o motivo vem em "mensagens".
+    app.MapGet($"{path}/{{id}}/status", (HttpRequest request, string id) =>
+        !Authorized(request)
+            ? Unauthenticated()
+            : documents.TryGetValue(id, out var doc)
+                ? doc.Reason is null
+                    ? Results.Ok(new { id, status = doc.Status })
+                    : Results.Ok(new { id, status = doc.Status, mensagens = new[] { doc.Reason } })
+                : Results.NotFound(new { id, status = "desconhecido" }));
 
-// Inspeção: devolve o JSON exato que o hub enviou (para ver o payload gerado). Aberta: é ferramenta de dev.
-app.MapGet("/documents/{id}", (string id) =>
-    documents.TryGetValue(id, out var doc)
-        ? Results.Content(doc.Body, "application/json")
-        : Results.NotFound());
+    // Inspeção: devolve o JSON exato que o hub enviou (para ver o payload gerado). Aberta: é ferramenta de dev.
+    app.MapGet($"{path}/{{id}}", (string id) =>
+        documents.TryGetValue(id, out var doc)
+            ? Results.Content(doc.Body, "application/json")
+            : Results.NotFound());
+}
 
 // Toggle (dev): força o resultado padrão dos próximos documentos (carregado | erro | rejeitar), com motivo
 // opcional (?motivo=...), pra exercitar erro, recusa e reprocesso ao vivo.

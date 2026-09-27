@@ -18,8 +18,12 @@ As respostas de autenticação no envio têm regra própria:
 - **401 com token do cache:** o token é invalidado (`avalara-tenant-authentication`), e a mensagem segue o
   retry nativo.
 
+O **404 no envio** também tem regra própria: o caminho de envio não existe na URL montada, e o documento MUST ser
+registrado como impossibilidade do lado do conector, sem retentativa (ver "Impossibilidade do lado do conector"). O
+**404 na consulta de status** não muda: é o documento ainda não indexado logo depois do envio, e segue pendente.
+
 As demais respostas sem sucesso seguem o retry nativo do transporte e a dead-letter, como hoje (ADR-0004).
-São elas: 5xx, 429, 404 e falha de rede.
+São elas: 5xx, 429 e falha de rede.
 
 Regras para extrair o motivo:
 
@@ -58,6 +62,17 @@ Regras para extrair o motivo:
 - **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector
 - **AND** a mensagem não volta para a fila
 
+#### Scenario: Caminho de envio inexistente
+- **WHEN** a plataforma responde 404 ao envio
+- **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que diz que o caminho de
+  envio não existe nessa URL e aponta as duas partes dela: a URL base do ambiente, no perfil do tenant (tela de
+  conectores), e o caminho de envio, na configuração do host (`Avalara:DocumentsPath`)
+- **AND** foi feita uma única requisição de envio, e a mensagem não volta para a fila
+
+#### Scenario: Documento ainda não indexado na consulta
+- **WHEN** a consulta de status responde 404 logo depois do envio
+- **THEN** o documento segue pendente, e a consulta se repete na próxima passada
+
 #### Scenario: Token do cache recusado
 - **WHEN** o token veio do cache e a plataforma responde 401 ao envio
 - **THEN** o envio falha e segue o retry nativo
@@ -74,8 +89,11 @@ rejeitado. Isso acontece antes de qualquer requisição à plataforma nos casos 
 - a URL do ambiente não é aceita;
 - o endpoint de token recusa a credencial.
 
-Há ainda um caso depois da requisição: a plataforma nega a credencial (403, ou 401 com token
-recém-emitido), como na rejeição síncrona.
+Há ainda dois casos depois da requisição, como na rejeição síncrona:
+
+- a plataforma nega a credencial (403, ou 401 com token recém-emitido);
+- o caminho de envio não existe na URL montada (404 no envio). O motivo aponta a URL base do perfil e o
+  `Avalara:DocumentsPath` do host, que são as duas partes da URL.
 
 O motivo MUST identificar o problema como do conector (configuração ou contrato do destino). A mensagem da
 fila MUST ser concluída sem retentativa.

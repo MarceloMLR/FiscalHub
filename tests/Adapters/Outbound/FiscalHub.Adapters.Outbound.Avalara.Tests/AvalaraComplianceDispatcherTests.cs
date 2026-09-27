@@ -140,6 +140,35 @@ public class AvalaraComplianceDispatcherTests
         await Assert.ThrowsAsync<HttpRequestException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("""{"message":"no Route matched with those values"}""")]
+    public async Task Not_found_on_submit_is_a_configuration_rejection_naming_both_parts_of_the_url(string body)
+    {
+        // O caminho de envio do sandbox vem da URL do cliente e só é exercitado no teste manual: se estiver errado, o
+        // motivo tem de dizer onde corrigir, e não virar retentativa até a dead-letter.
+        var handler = new StubHttpMessageHandler(body, HttpStatusCode.NotFound);
+        var trace = new RecordingTrace();
+        var dispatcher = Build(handler, trace: trace, documentsPath: "taxcompliance/v2/fiscal/dfe");
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
+
+        Assert.StartsWith("Configuração do conector:", ex.Reason);
+        Assert.Contains("o caminho de envio não existe nessa URL", ex.Reason);
+        Assert.Contains("HTTP 404 em POST http://localhost/taxcompliance/v2/fiscal/dfe", ex.Reason);
+        Assert.Contains("OutboundSettings.sandbox.baseUrl", ex.Reason);                           // o host, no perfil
+        Assert.Contains("Configurações → Conectores → Avalara → Sandbox → URL base", ex.Reason);  // na tela
+        Assert.Contains("Avalara:DocumentsPath", ex.Reason);                                      // o caminho, no appsettings
+        Assert.Contains("taxcompliance/v2/fiscal/dfe", ex.Reason);
+        if (body.Length > 0)
+        {
+            Assert.Contains("no Route matched with those values", ex.Reason);
+        }
+
+        Assert.Equal(1, handler.RequestCount);                                                    // sem retentativa
+        Assert.True(trace.Responses.ContainsKey(TraceExchanges.Submit));                          // e a resposta fotografada
+    }
+
     [Fact]
     public async Task CheckStatus_treats_204_no_content_as_still_pending()
     {
@@ -600,10 +629,11 @@ public class AvalaraComplianceDispatcherTests
         IAvalaraTokenProvider? token = null,
         IProcessingTrace? trace = null,
         IConnectorProfileStore? profiles = null,
-        ILogger<AvalaraComplianceDispatcher>? logger = null)
+        ILogger<AvalaraComplianceDispatcher>? logger = null,
+        string documentsPath = "documents")
     {
         var http = new HttpClient(handler);   // sem BaseAddress: toda URI é absoluta, da seção do tenant
-        var options = Options.Create(new AvalaraOptions { Destination = "avalara" });
+        var options = Options.Create(new AvalaraOptions { Destination = "avalara", DocumentsPath = documentsPath });
         return new AvalaraComplianceDispatcher(
             http, options, token ?? new FakeTokenProvider("tok-padrao"), trace ?? new NoOpProcessingTrace(),
             profiles ?? Profile(), logger ?? new CapturingLogger<AvalaraComplianceDispatcher>(), new FixedClock(Now));

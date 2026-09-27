@@ -31,6 +31,9 @@ public class DispatchToMockTests
     private const string OutgoingKey = "brmf|BRMF21-10000026";
     private const string ImportKey = "brmf|BRMF06-110000031";
 
+    // O caminho de envio do sandbox, o mesmo do appsettings.Development.json.
+    private const string SandboxDocumentsPath = "taxcompliance/v2/fiscal/dfe";
+
     [Fact]
     public async Task Recorded_d365_note_is_sent_with_the_new_contract_and_confirmed()
     {
@@ -148,7 +151,8 @@ public class DispatchToMockTests
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
         Assert.StartsWith("Configuração do conector:", row.Reason);
-        Assert.Contains("invalid_client", row.Reason);
+        Assert.Contains("(HTTP 400: client_id invalid)", row.Reason);                            // a forma do sandbox
+        Assert.EndsWith("Confira o Client ID e o Client Secret na tela de conectores.", row.Reason);
         Assert.Contains("'tenant-a'", row.Reason);
         Assert.DoesNotContain(Harness.Secret, row.Reason);
         Assert.Equal(1, h.TokenRequests);
@@ -177,6 +181,38 @@ public class DispatchToMockTests
 
         Assert.Equal(IntegrationStatus.Submitted, h.Store.Rows[OutgoingKey].Status);
         Assert.Equal(2, h.TokenRequests);
+        Assert.Equal(1, h.DocumentPosts);
+    }
+
+    [Fact]
+    public async Task The_mock_answers_on_the_sandbox_submit_path_like_the_platform()
+    {
+        using Harness h = await Harness.CreateAsync(documentsPath: SandboxDocumentsPath);
+        h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+        await h.PollAsync();
+
+        Assert.Equal(IntegrationStatus.Submitted, h.Store.Rows[OutgoingKey].Status);
+        Assert.Equal(IntegrationStatus.Confirmed, h.Store.Polled[OutgoingKey].Status);
+        Assert.All(h.DocumentPaths, p => Assert.StartsWith("/" + SandboxDocumentsPath, p));   // envio e consulta
+        Assert.Equal(2, h.DocumentPaths.Count);
+    }
+
+    [Fact]
+    public async Task Wrong_submit_path_is_a_configuration_rejection_after_a_single_post()
+    {
+        using Harness h = await Harness.CreateAsync(documentsPath: "taxcompliance/v1/caminho-errado");
+        h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+
+        StoredRow row = h.Store.Rows[OutgoingKey];
+        Assert.Equal(IntegrationStatus.IntegrationError, row.Status);                            // e não a dead-letter
+        Assert.Contains("o caminho de envio não existe nessa URL", row.Reason);
+        Assert.Contains("OutboundSettings.sandbox.baseUrl", row.Reason);
+        Assert.Contains("Avalara:DocumentsPath", row.Reason);
+        Assert.Contains("taxcompliance/v1/caminho-errado", row.Reason);
         Assert.Equal(1, h.DocumentPosts);
     }
 
@@ -241,8 +277,10 @@ public class DispatchToMockTests
 
         public IReadOnlyList<string> DocumentAuthorizations => _toMock.DocumentAuthorizations;
 
+        public IReadOnlyList<string> DocumentPaths => _toMock.DocumentPaths;
+
         /// <summary>O host em memória, com o perfil do tenant-a gravado pelo caso de uso da tela (o segredo vai ao cofre).</summary>
-        public static async Task<Harness> CreateAsync(string? clientSecret = Secret, IProcessingTrace? trace = null)
+        public static async Task<Harness> CreateAsync(string? clientSecret = Secret, IProcessingTrace? trace = null, string documentsPath = "documents")
         {
             var h = new Harness();
             var profiles = new InMemoryProfiles();
@@ -252,7 +290,7 @@ public class DispatchToMockTests
             services.AddSingleton<IConnectorProfileStore>(profiles);
             services.AddSingleton<ISecretStore, InMemorySecrets>();
             services.AddSingleton(trace);
-            services.AddAvalaraComplianceDispatcher();   // a composição padrão: autenticada
+            services.AddAvalaraComplianceDispatcher(o => o.DocumentsPath = documentsPath);   // a composição padrão: autenticada
             services.ConfigureHttpClientDefaults(b => b.ConfigurePrimaryHttpMessageHandler(() => h._toMock));
             h._services = services.BuildServiceProvider();
 
@@ -347,12 +385,15 @@ public class DispatchToMockTests
     private sealed class CountingHandler(HttpMessageHandler inner) : DelegatingHandler(inner)
     {
         private readonly List<string> _authorizations = [];
+        private readonly List<string> _paths = [];
 
         public int DocumentPosts { get; private set; }
 
         public int TokenRequests { get; private set; }
 
         public IReadOnlyList<string> DocumentAuthorizations => _authorizations;
+
+        public IReadOnlyList<string> DocumentPaths => _paths;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
@@ -361,8 +402,10 @@ public class DispatchToMockTests
             {
                 TokenRequests++;
             }
-            else if (path.StartsWith("/documents", StringComparison.Ordinal))
+            else if (!path.StartsWith("/admin", StringComparison.Ordinal))
             {
+                // Envio e consulta, em qualquer caminho de envio: o /documents ou o do sandbox.
+                _paths.Add(path);
                 _authorizations.Add(request.Headers.Authorization?.ToString() ?? string.Empty);
                 if (request.Method == HttpMethod.Post)
                 {

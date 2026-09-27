@@ -3,8 +3,8 @@
 - **Status:** Aceito
 - **Data:** 2026-09-27
 - **Revisa:**
-  - **ADR-0026 §2:** o 403 e o 401 com token recém-emitido deixam de ser falha transitória, e o aceite sem
-    identificador deixa de ser retentado.
+  - **ADR-0026 §2:** o 403, o 401 com token recém-emitido e o 404 no envio deixam de ser falha transitória, e o aceite
+    sem identificador deixa de ser retentado.
   - **ADR-0006:** quatro fotos, com a resposta da plataforma gravada por melhor esforço.
   - **ADR-0019:** o segredo entra pela tela e vai para o cofre; a referência é do servidor, e o valor cru persistido é
     recusado na leitura.
@@ -177,10 +177,15 @@ A guarda `fh-` do adapter não substitui a política. Ela serve para um defeito 
 | Endpoint de token | 5xx, 429, rede | exceção, retry nativo |
 | Envio | 403, ou 401 com token recém-emitido | rejeição "a plataforma negou acesso ao tenant 'x' no ambiente 'y' (HTTP …): <motivo>" |
 | Envio ou consulta | 401 com token do cache | `Invalidate` e exceção, retry nativo; a próxima tentativa pede outro token |
+| Envio | 404 | rejeição "o caminho de envio não existe nessa URL (HTTP 404 em POST <url>)", que aponta as duas partes da URL: a `baseUrl` do perfil, na tela, e o `Avalara:DocumentsPath`, no appsettings. Na consulta de status, o 404 continua pendente |
 | Envio | 2xx sem identificador reconhecível | rejeição "a plataforma respondeu HTTP 201 com sucesso, mas sem identificador… pode ter sido aceito e não será reenviado automaticamente" |
 
 - **Por que a rejeição, e não a dead-letter:** a dead-letter registra `MaxDeliveryCountExceeded`, e não o motivo da
   plataforma. Retentar credencial pode bloquear a conta, e não muda permissão. É a revisão do §2 do ADR-0026.
+- **O 404 no envio é configuração:** retentar repete o 404 até a dead-letter, onde o motivo se perde. O caminho de envio
+  do sandbox vem da URL do cliente e só é exercitado no teste manual; se estiver errado, tem de aparecer como mensagem,
+  com os dois lugares que compõem a URL. Na consulta de status, o 404 é o documento ainda não indexado logo depois do
+  envio, e retentar é o certo.
 - **O aceite sem identificador não é retentado:** retentar mandaria de novo um documento talvez já aceito. A resposta
   inteira fica na foto.
 - **A recusa lembrada.** A recusa da credencial fica guardada pela chave do §3 por `CredentialRefusalHold` (5 min). Sem

@@ -41,6 +41,10 @@ Em um terminal:
 dotnet run --project tools/MockComplianceApi --urls http://localhost:5100
 ```
 
+O mock imita a plataforma no que já foi verificado no sandbox: responde no caminho de envio do sandbox
+(`taxcompliance/v2/fiscal/dfe`, o do `appsettings.Development.json`) e em `/documents`, exige o token que ele emite, e
+recusa a credencial com HTTP 400 e `{"error": "<texto livre>"}`.
+
 ## 3. Rodar o host
 
 Em **outro** terminal:
@@ -48,17 +52,6 @@ Em **outro** terminal:
 ```powershell
 dotnet run --project src/FiscalHub.Host --urls http://localhost:5200
 ```
-
-> **Caminho de envio: sandbox ou mock.** O `appsettings.Development.json` traz `Avalara:DocumentsPath` com o caminho do
-> sandbox (`taxcompliance/v2/fiscal/dfe`, ADR-0027 §2). O mock só responde em `/documents`: contra ele, o envio daria 404,
-> e a nota iria para o retry e a dead-letter. **Para rodar contra o mock,** sobrescreva no terminal do host (e no da
-> sonda) antes do `dotnet run`:
->
-> ```powershell
-> $env:Avalara__DocumentsPath = "documents"
-> ```
->
-> Para o sandbox (seção 8), rode sem essa variável.
 
 No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob, no espaço de entrada do
 tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
@@ -324,14 +317,15 @@ impressão.
 **Recusa da credencial, ao vivo.** O mock também simula a recusa do endpoint de token:
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/token/recusar   # 401 invalid_client
+Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/token/recusar   # 400 {"error":"client_id invalid"}
 Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/token/aceitar
 ```
 
 Com a recusa, a nota é rejeitada com "Configuração do conector: a plataforma recusou a credencial do tenant 'tenant-a'
-no ambiente 'sandbox' (HTTP 401: invalid_client — …)", e nenhum documento é enviado. O sandbox real recusa diferente:
-HTTP 400 com `{"error": "<texto livre>"}`, e o texto não aponta o campo certo (um `client_secret` errado volta como
-"client_id invalid"). Por isso a mensagem manda conferir o Client ID **e** o Client Secret (ADR-0027 §3). A recusa fica lembrada por 5
+no ambiente 'sandbox' (HTTP 400: client_id invalid). Confira o Client ID e o Client Secret na tela de conectores.", e
+nenhum documento é enviado. É a forma do sandbox: HTTP 400 com `{"error": "<texto livre>"}`, e o texto não aponta o campo
+certo (um `client_secret` errado volta como "client_id invalid"). Por isso a mensagem manda conferir o Client ID **e** o
+Client Secret (ADR-0027 §3). A recusa fica lembrada por 5
 minutos, para não martelar o login: as notas seguintes falham com o mesmo motivo sem pedir token. **Salvar o perfil na
 tela** (mesmo sem mudar nada) esquece a recusa na hora, e a próxima nota pede token de novo.
 
@@ -407,8 +401,9 @@ dotnet run --project tools/AvalaraSandboxProbe -- token --tenant tenant-a
 ```
 
 Ela diz se obteve o token, os campos da resposta e o `expires_in`, e nunca imprime o token. No primeiro envio, confira
-que o caminho de envio existe (qualquer status diferente de 404). Um ajuste de forma entra por configuração ou com teste:
-o caminho certo vai em `Avalara:DocumentsPath` (ou `Avalara:TokenPath`) no `appsettings`, sem código. Um fluxo
+que o caminho de envio existe. Se ele não existir, a nota é rejeitada na hora, sem retentativa, com "o caminho de envio
+não existe nessa URL", e o motivo aponta as duas partes da URL: a URL base do sandbox, na tela, e o
+`Avalara:DocumentsPath`, no `appsettings`. O caminho certo entra ali, sem código, e a nota é reprocessada. Um fluxo
 estruturalmente outro (escopo ou audiência obrigatórios, token por empresa, mTLS) para o teste.
 
 **3. Corrigir pela tela.** Com um Client Secret errado de propósito, a primeira nota é rejeitada com o motivo da

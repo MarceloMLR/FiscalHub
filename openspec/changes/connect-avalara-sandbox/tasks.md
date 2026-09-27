@@ -286,6 +286,8 @@ Manual e sem código.
   - a classificação do D7;
   - o corpo lido uma vez como texto
 - [x] 10.3 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 10.4 O 404 no envio vira rejeição de configuração, que aponta a `baseUrl` do perfil e o `Avalara:DocumentsPath`,
+  com um único POST; o 404 na consulta de status continua pendente. Com teste no dispatcher e no ponta a ponta
 
 ## 11. Quarta foto, redação e a aba Resposta (D8, D9, D10)
 
@@ -340,6 +342,9 @@ Manual e sem código.
   - o segredo ausente: rejeição e zero pedidos;
   - com um trace que grava, as fotos de resposta do envio e da consulta presentes
 - [x] 12.4 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 12.5 O mock imita o que o sandbox mostrou: responde também no caminho de envio do sandbox
+  (`taxcompliance/v2/fiscal/dfe`) e recusa a credencial com HTTP 400 e `{"error": "<texto livre>"}`. Com teste no ponta
+  a ponta
 
 ## 13. Sonda do sandbox (D12)
 

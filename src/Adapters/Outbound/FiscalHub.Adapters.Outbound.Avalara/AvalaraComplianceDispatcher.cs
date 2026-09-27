@@ -103,9 +103,15 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
             // Token do cache vencido ou revogado: descarta, e a próxima tentativa pede outro (retry nativo).
             case HttpStatusCode.Unauthorized:
                 throw Unauthorized(token, settings);
+
+            // O caminho de envio não existe nessa URL: retentar repete o 404 até a dead-letter, sem motivo legível. É
+            // configuração, e o motivo aponta as duas partes da URL (ADR-0027). Só no envio: na consulta, o 404 é pendente.
+            case HttpStatusCode.NotFound:
+                throw settings.SubmitPathNotFound(request.RequestUri!, _options.DocumentsPath,
+                    body.Length == 0 ? null : PlatformMessage.Extract(body, status));
         }
 
-        // O resto (5xx, 429, 404) segue como exceção, para o retry nativo e a dead-letter (ADR-0004). Só o status.
+        // O resto (5xx, 429) segue como exceção, para o retry nativo e a dead-letter (ADR-0004). Só o status.
         response.EnsureSuccessStatusCode();
 
         // 6. Recibo, com o que o destino não levou. Sucesso sem identificador não é reenviado: retentar mandaria de novo

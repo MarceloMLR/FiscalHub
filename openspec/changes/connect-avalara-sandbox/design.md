@@ -499,6 +499,7 @@ internal sealed class AvalaraAccessToken { … }
 | Envio | 403 | `DispatchRejectedException` "Configuração do conector: a plataforma negou acesso ao tenant 'x' no ambiente 'y' (HTTP 403): <motivo>." | A credencial não tem acesso, e a retentativa não muda permissão. |
 | Envio | 401 com token recém-emitido | igual ao 403 | O token acabou de sair do endpoint e foi recusado, e outra tentativa não muda isso. |
 | Envio | 401 com token do cache | `Invalidate` + exceção, retry nativo | Token vencido ou revogado. A próxima tentativa busca outro. |
+| Envio | 404 | `DispatchRejectedException` "Configuração do conector: o caminho de envio não existe nessa URL (HTTP 404 em POST <url>). A URL tem duas partes: a URL base do ambiente … (OutboundSettings.<ambiente>.baseUrl, na tela) e o caminho de envio (… em Avalara:DocumentsPath, no appsettings do host)." | Retentar repete o 404 até a dead-letter, sem motivo legível. O caminho do sandbox vem da URL do cliente e só é exercitado no teste manual: se estiver errado, tem de aparecer como mensagem. Na consulta de status, o 404 continua pendente (documento ainda não indexado). |
 | Envio | 2xx sem identificador reconhecível | `DispatchRejectedException` "Conector: a plataforma respondeu HTTP 201 com sucesso, mas sem identificador reconhecível. O documento pode ter sido aceito e não será reenviado automaticamente. Veja a resposta gravada." | Retentar reenviaria um documento talvez aceito. É a pergunta "reenvio: atualiza ou duplica?", que ninguém respondeu. |
 | Consulta | 401 com token do cache | `Invalidate` + exceção | O poll repete na próxima passada (limite em `MaxAttempts`). |
 
@@ -541,7 +542,8 @@ token nem estava ligado:
 - retentar credencial pode bloquear a conta;
 - "é do tenant inteiro" também vale para a falta de `establishments`, que já é rejeição com motivo.
 
-O 5xx, o 429, o 404 e a rede continuam no retry nativo.
+O 5xx, o 429 e a rede continuam no retry nativo. O 404 do envio virou rejeição de configuração (a tabela acima), e o
+da consulta de status continua pendente.
 
 **Onde a decisão revertida está registrada, e onde fica a nota.** O ADR-0026 não cita o 401 nem o 403. O §2
 dele diz só "Falha transitória. Continua como exceção, com retry nativo e dead-letter (ADR-0004)", e é essa
@@ -695,13 +697,15 @@ payload na aba Destino, em silêncio. O mesmo ramo já pega hoje a fonte do D365
 ### D11. Mock com autenticação
 
 - **`POST /oauth/token`** (corpo JSON, como na coleção do cliente; formulário é recusado): aceita qualquer `client_id`
-  e `client_secret` não vazios, aceita sem exigir o `disableTokenRefresh`, e devolve
-  `{ access_token, expires_in: 3600 }`, com um token aleatório guardado em memória.
-- **`/admin/token/{aceitar|recusar}`:** força a recusa `401 {"error":"invalid_client"}`, para o roteiro local
+  e `client_secret` não vazios, aceita sem exigir o `disableTokenRefresh`, e devolve a forma da resposta do sandbox
+  (`access_token`, `token_type` `bearer`, `expires_in` 86400 e os identificadores, com valores de mentira), com um token
+  aleatório guardado em memória.
+- **`/admin/token/{aceitar|recusar}`:** força a recusa na forma do sandbox, `400 {"error":"client_id invalid"}`, para o roteiro local
   do D7.
-- **`/documents*`:** exigem `Bearer` emitido pelo mock. Sem ele, respondem
-  `401 {"mensagens":["token ausente ou inválido (mock)"]}`.
-- **`/admin/*` e `GET /documents/{id}`** (inspeção) continuam abertos, porque são ferramenta de dev.
+- **Os caminhos de envio** (`/taxcompliance/v2/fiscal/dfe`, o do sandbox, e `/documents`), com o status em
+  `{caminho}/{id}/status`: exigem `Bearer` emitido pelo mock. Sem ele, respondem
+  `401 {"mensagens":["token ausente ou inválido (mock)"]}`. Um caminho que o mock não conhece dá 404, como a plataforma.
+- **`/admin/*` e `GET {caminho}/{id}`** (inspeção) continuam abertos, porque são ferramenta de dev.
 
 Com isso, o mock nunca mais aceita envio sem autenticação, e o `DispatchToMockTests` exercita o caminho real
 de token em memória.
@@ -772,8 +776,9 @@ O passo 1 do roteiro é onde a premissa se confirma, e a regra do que fazer se e
    - **Bate:** client credentials com o segredo no corpo, com `access_token` e `expires_in` numérico em segundos.
      Verificado em 2026-09-27, com corpo JSON (tabela da premissa, no Context).
      - Com `expires_in` menor que a margem, a margem é revista no D6.
-     - Com 404 no caminho de envio, o `DocumentsPath` certo, pela documentação do sandbox, entra como opção do
-       adapter (`Avalara:DocumentsPath`), sem código.
+     - Com 404 no caminho de envio, a nota é rejeitada com o motivo que aponta a URL base e o
+       `Avalara:DocumentsPath` (D7). O caminho certo, pela documentação do sandbox, entra nessa opção do adapter, sem
+       código.
    - **Não bate** (outro fluxo, escopo ou audiência obrigatórios, token por empresa, mTLS, resposta sem
      `access_token` ou `expires_in` reconhecível): o teste manual para, e a change volta a `/opsx:update`. O
      retrabalho fica nos grupos de autenticação (Context).
