@@ -11,8 +11,8 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// <list type="bullet">
 ///   <item><b>Credenciais</b> — o segredo em uso e o que a resposta traz com nome de credencial (<c>access_token</c>,
 ///   <c>refresh_token</c>…) — saem como <c>[redigido]</c>, por nome e por valor, pelo <see cref="SensitiveText"/>.</item>
-///   <item><b>Identificadores da sessão e da conta</b> — <c>sessionId</c>, <c>userId</c>, <c>subId</c>, <c>appId</c> e o
-///   <c>login</c>, que traz o nome da empresa — saem como <c>[mascarado]</c>, por nome e por valor.</item>
+///   <item><b>Identificadores da sessão e da conta</b> — <c>sessionId</c>, <c>userId</c>, <c>subId</c>, <c>appId</c>, o
+///   <c>login</c>, que traz o nome da empresa, e o <c>email</c> — saem como <c>[mascarado]</c>, por nome e por valor.</item>
 /// </list>
 /// Os valores são tirados da própria resposta, e a mesma regra vale para o corpo e para os cabeçalhos. O resto
 /// (<c>token_type</c>, <c>expires_in</c>) fica: é o que a evidência precisa mostrar.
@@ -25,7 +25,8 @@ internal sealed class TokenExchangeRedaction
     private const int MinValueLength = 6;
 
     // Comparados sem maiúscula, "_" ou "-", como os nomes do SensitiveText.
-    private static readonly HashSet<string> IdentifierNames = ["sessionid", "userid", "subid", "appid", "login"];
+    // O email veio vazio na resposta real do sandbox, mas é da mesma classe: identifica a conta de quem autentica.
+    private static readonly HashSet<string> IdentifierNames = ["sessionid", "userid", "subid", "appid", "login", "email"];
 
     private static readonly JsonSerializerOptions Compact = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 

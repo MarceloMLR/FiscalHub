@@ -19,15 +19,16 @@ public class TokenExchangeRedactionTests
     private const string SubId = "sub-7788990011";
     private const string AppId = "app-4455667788";
     private const string Login = "integracao@contoso-comercio-ltda";
+    private const string Email = "fiscal@contoso-comercio.com.br";
     private const long UserId = 90817263;
 
     // A forma da resposta real do sandbox (2026-09-27), com valores de mentira.
     private static readonly string Response = $$"""
         {"access_token":"{{AccessToken}}","token_type":"bearer","expires_in":86400,"refresh_token":"{{RefreshToken}}",
-         "sessionId":"{{SessionId}}","userId":{{UserId}},"subId":"{{SubId}}","appId":"{{AppId}}","login":"{{Login}}"}
+         "sessionId":"{{SessionId}}","userId":{{UserId}},"subId":"{{SubId}}","appId":"{{AppId}}","login":"{{Login}}","email":"{{Email}}"}
         """;
 
-    private static readonly string[] Values = [Secret, AccessToken, RefreshToken, SessionId, SubId, AppId, Login, UserId.ToString()];
+    private static readonly string[] Values = [Secret, AccessToken, RefreshToken, SessionId, SubId, AppId, Login, Email, UserId.ToString()];
 
     [Fact]
     public void No_value_of_the_real_response_shape_is_left_in_clear()
@@ -38,14 +39,14 @@ public class TokenExchangeRedactionTests
         JsonNode root = JsonNode.Parse(text)!;
         Assert.Equal("[redigido]", (string?)root["access_token"]);
         Assert.Equal("[redigido]", (string?)root["refresh_token"]);
-        foreach (string id in new[] { "sessionId", "userId", "subId", "appId", "login" })
+        foreach (string id in new[] { "sessionId", "userId", "subId", "appId", "login", "email" })
         {
             Assert.Equal("[mascarado]", (string?)root[id]);
         }
 
         Assert.Equal("bearer", (string?)root["token_type"]);    // o que a evidência precisa mostrar fica
         Assert.Equal(86400, (int?)root["expires_in"]);
-        Assert.Equal(7, count);
+        Assert.Equal(8, count);
     }
 
     [Fact]
@@ -92,6 +93,17 @@ public class TokenExchangeRedactionTests
     }
 
     [Fact]
+    public void An_empty_email_as_in_the_real_response_is_masked_by_name()
+    {
+        // Na resposta real do sandbox o email veio vazio: pelo nome ele sai mascarado do mesmo jeito, e nada muda de forma.
+        const string response = """{"access_token":"tok-longo-o-bastante","expires_in":86400,"email":""}""";
+
+        (string text, _) = TokenExchangeRedaction.For(response, []).Redact(response);
+
+        Assert.Equal("[mascarado]", (string?)JsonNode.Parse(text)!["email"]);
+    }
+
+    [Fact]
     public void Response_without_anything_to_hide_stays_the_same()
     {
         const string response = """{"token_type":"bearer","expires_in":86400}""";
@@ -116,6 +128,6 @@ public class TokenExchangeRedactionTests
         Assert.Equal("[mascarado]", (string?)photo["response"]!["headers"]!["Request-Id"]);
         Assert.Null(photo["response"]!["headers"]!["Set-Cookie"]);                    // fora da lista, como sempre
         Assert.Equal("https://login.sandbox.exemplo/oauth/token", (string?)photo["request"]!["url"]);   // sem a query
-        Assert.Equal(8, (int?)photo["redactions"]);                                    // os 7 do corpo e o do cabeçalho
+        Assert.Equal(9, (int?)photo["redactions"]);                                    // os 8 do corpo e o do cabeçalho
     }
 }

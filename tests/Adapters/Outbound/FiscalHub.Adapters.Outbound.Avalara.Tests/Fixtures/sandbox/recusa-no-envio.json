@@ -1,0 +1,44 @@
+{
+  "exchange": "submit",
+  "request": {
+    "method": "POST",
+    "url": "https://api-gateway.sandbox.avalarabrasil.com.br/taxcompliance/v2/fiscal/dfe"
+  },
+  "response": {
+    "status": 400,
+    "receivedAt": "2026-09-27T22:23:50.3493767+00:00",
+    "headers": {
+      "Date": "Sun, 27 Sep 2026 22:23:50 GMT"
+    },
+    "body": {
+      "errors": {
+        "operacao": [
+          "'Operacao' não pode ser nulo."
+        ],
+        "tipoPagamento": [
+          "'Tipo Pagamento' não pode ser nulo."
+        ],
+        "parceiro.Codigo": [
+          "'Codigo' não pode ser nulo.",
+          "'Codigo' deve ser informado."
+        ],
+        "itens[0].Item.TipoItem": [
+          "'Tipo Item' não pode ser nulo."
+        ],
+        "itens[0].UnidadeMedida.Descricao": [
+          "'Descricao' não pode ser nulo.",
+          "'Descricao' deve ser informado."
+        ],
+        "itens[0].Item.UnidadeMedida.Descricao": [
+          "'Descricao' não pode ser nulo.",
+          "'Descricao' deve ser informado."
+        ]
+      },
+      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+      "title": "One or more validation errors occurred.",
+      "status": 400,
+      "traceId": "00-bb582c93ed4d2544429b0af1cbf7fd05-c04a22f297974e99-00"
+    }
+  },
+  "redactions": 0
+}

@@ -454,8 +454,8 @@ dotnet run --project tools/AvalaraSandboxProbe -- get --tenant tenant-a --id <id
 - `--ref-suffix` acrescenta `#<sufixo>` ao `codigoReferenciaIntegracao`, para as variantes não colidirem entre si.
 - Cada comando grava o envelope redigido: `out/token.json`, `out/<label>.payload.json`, `out/<label>.submit.json`,
   `out/<label>.status.json` e `out/<label>.readback.json`. Só o que for curado para evidência sai de lá.
-- No `out/token.json`, o `access_token` e o `refresh_token` saem como `[redigido]`, e a sessão, a conta e o login
-  (`sessionId`, `userId`, `subId`, `appId`, `login`) como `[mascarado]`. O `token_type` e o `expires_in` ficam: é o que a
+- No `out/token.json`, o `access_token` e o `refresh_token` saem como `[redigido]`, e a sessão, a conta, o login e o
+  e-mail (`sessionId`, `userId`, `subId`, `appId`, `login`, `email`) como `[mascarado]`. O `token_type` e o `expires_in` ficam: é o que a
   evidência precisa mostrar.
 - Contra o mock, a sonda funciona igual: é o jeito de ensaiar o roteiro sem o sandbox.
 

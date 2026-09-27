@@ -186,25 +186,34 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
     item mais perigoso da lista.
   - **Evidência parcial (2026-09-27):** o sandbox recusou as 5 NF-e 55 exigindo `operacao` e `tipoPagamento`, entre
     outros campos. Para esses dois, omitir falha alto. O `finalidadeNotaFiscal` não apareceu na recusa, e o item
-    continua aberto para ele: o experimento do campo omitido (tarefa 17 da change) não rodou.
+    continua aberto para ele: o experimento do campo omitido (tarefa 17 da change) não rodou, e foi movido para a
+    próxima fatia.
 - [ ] **Blocos tirados do schema.** (CNV D6)
   - **Falta:** IPI, II, ICMS-ST, ISS retido, a `TabB` e as bases isenta e em "outras" vêm do schema, e não
     de JSON aceito.
   - **Prova:** envio ao sandbox de notas com esses tributos.
   - **Sintoma:** recusa visível, ou pior, os campos ignorados sem erro e o IPI ausente na escrituração.
+  - **Evidência (2026-09-27): não respondido.** A recusa das 5 NF-e 55 parou nos campos obrigatórios, e nenhum bloco
+    foi citado, o que não prova que sejam aceitos ([relatório do primeiro envio](avalara-sandbox-primeiro-envio.md)).
 - [ ] **Totais de imposto.** (CNV D3)
   - **Falta:** saber se `totais.icms`, `pis` e `cofins` são exigidos. Hoje vão omitidos, e o hub não soma.
   - **Prova:** envio ao sandbox.
   - **Sintoma:** toda nota recusada.
+  - **Evidência (2026-09-27): não respondido.** A recusa não citou os totais, mas parou nos campos obrigatórios
+    ([relatório do primeiro envio](avalara-sandbox-primeiro-envio.md)).
 - [ ] **Formato real do erro.** (CNV D10)
-  - **Falta:** a extração do motivo é tolerante, mas foi escrita sem uma resposta real.
-  - **Prova:** gravar uma recusa síncrona e uma consulta com erro no sandbox.
+  - **Provado (2026-09-27), a recusa síncrona:** ProblemDetails, com o mapa `errors` do caminho do campo para as
+    mensagens. A `PlatformMessage` o transforma em texto legível, provado sobre a resposta gravada
+    (`SandboxFixtureTests.Platform_message_on_the_real_refusal_is_readable_text`, [relatório do primeiro envio](avalara-sandbox-primeiro-envio.md)).
+  - **Falta:** a consulta de status com erro, que não aconteceu (nenhuma nota aceita).
+  - **Prova:** gravar uma consulta com erro no sandbox.
   - **Sintoma:** motivo ilegível no dashboard, como JSON cru ou texto demais.
 - [ ] **Reenvio: atualiza ou duplica?** (CNV D17)
   - **Falta:** saber o que a plataforma faz com o mesmo `codigoReferenciaIntegracao` enviado de novo, numa
     correção ou num reprocesso.
   - **Prova:** enviar duas vezes ao sandbox.
   - **Sintoma (silencioso):** documento duplicado na plataforma.
+  - **Evidência (2026-09-27): não respondido.** Nenhuma nota foi aceita.
 - [ ] **CST que não é número.** (CNV D6)
   - **Falta:** dado real. No D365, todo CST medido é numérico, então o risco vem de outro ERP ou do XML.
   - **Prova:** coberto por teste. Fecha com a medição na base do cliente.
@@ -549,7 +558,9 @@ consulta de status. Nenhuma nota foi aceita, e sem `id` não houve consulta. Se 
 até virar "sem retorno".
 
 **Próxima fatia: a correção do payload.** Entrada, da recusa do sandbox — os seis campos que a Avalara exigiu e a
-montagem não preenche:
+montagem não preenche, todos classificados como **nosso: contrato ou mapeamento** ([relatório do primeiro envio](avalara-sandbox-primeiro-envio.md)). As duas
+`UnidadeMedida.Descricao` o domínio atual já resolve; os outros quatro pedem enriquecer o domínio ou a leitura da origem,
+e o valor esperado de cada um é pergunta à Avalara:
 
 - `operacao`;
 - `tipoPagamento`;
@@ -562,6 +573,32 @@ Junto, das lacunas conhecidas do checklist: o interruptor de integração autom�
 `CompanyCode` pelo estabelecimento próprio. O seed de dev sem guarda de ambiente é risco de primeiro cliente, e precisa
 fechar antes do primeiro deploy.
 
-**Pendências da change** (ficaram abertas nas tarefas): as conferências 15.1, 15.2 e 15.4 e 16.2 a 16.4, o experimento
-do campo omitido (17) e a evidência (18: as respostas reais como fixtures, os testes de reprodução e o relatório
-`docs/avalara-sandbox-primeiro-envio.md`).
+Também para a próxima fatia, do teste manual:
+
+- **O motivo cortado em 1000 caracteres.** Numa nota com muitos itens (a `BRMF21-10000026`), o motivo gravado para no
+  limite da `PlatformMessage`, e o resto só aparece na foto. Na fatia que vem, que é justamente corrigir esses campos, ver
+  a lista inteira na tela importa.
+- **O host em dev não escreve arquivo de log.** A saída vai só para a console, e foi o que impediu a conferência dos logs
+  (tarefa 16.4); vai impedir de novo. Resolve uma saída para arquivo no Development, ou a instrução no RUNNING de
+  redirecionar a saída do `dotnet run`.
+
+**Movido da change para a próxima fatia:**
+
+- as duas conferências que faltam da 15.2: o `PUT` à mão com `clientSecretRef` no corpo dando 400, e o reinício do
+  emulador levando a "não configurado";
+- a 15.4, a correção pela tela com o segredo errado de propósito;
+- a 16.3, os zips e as cinco fotos de cada nota;
+- o experimento do campo omitido (17), porque o `finalidadeNotaFiscal` não apareceu na recusa e ele fica mais informativo
+  depois que uma nota for aceita;
+- do 18.5, o item "Campo omitido virando 0", que depende do experimento.
+
+**Ficou sem marcar na change:** a 16.2, parcial (o motivo das 5 notas conferido no registro; as abas "Resposta" e
+"Destino" na tela, não), e a 16.4, não exercitada (o host rodou numa console, sem arquivo de log). A evidência (18.1 a
+18.4) está feita: a recusa real como fixture, os testes de reprodução e o [relatório do primeiro envio](avalara-sandbox-primeiro-envio.md).
+
+**Achados do teste, já resolvidos:**
+
+- a resposta de token do sandbox traz um `email` (vazio neste tenant) que a máscara da troca de token não cobria; ele
+  passou a ser mascarado, como os outros identificadores da conta;
+- a foto da recusa não teve `Content-Type` porque a resposta do endpoint de envio do sandbox não o traz. A foto lê os
+  cabeçalhos de conteúdo, e o capturou na resposta de token do mesmo sandbox e nas do mock.

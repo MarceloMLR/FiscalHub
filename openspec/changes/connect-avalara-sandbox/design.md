@@ -635,8 +635,8 @@ antes da foto, do motivo (`PlatformMessage`) e de qualquer log. Faz três passad
    token também.
    - **Na troca de token** (o motivo da recusa e o `out/token.json` da sonda; o trace nunca a fotografa), a regra é
      o `TokenExchangeRedaction`. As credenciais da resposta (`access_token`, `refresh_token`…) entram na redação por
-     valor, e os identificadores da sessão e da conta (`sessionId`, `userId`, `subId`, `appId` e o `login`, com o nome
-     da empresa) viram `[mascarado]`, por nome e por valor. Um valor curto só é mascarado pelo nome, para não apagar
+     valor, e os identificadores da sessão e da conta (`sessionId`, `userId`, `subId`, `appId`, o `login`, com o nome
+     da empresa, e o `email`) viram `[mascarado]`, por nome e por valor. Um valor curto só é mascarado pelo nome, para não apagar
      dígitos de outro campo.
 2. **Por padrão:** `Bearer <valor>` vira `Bearer [redigido]`, em qualquer texto.
 3. **Por nome, quando é JSON:** o valor das propriedades de nome sensível vira `[redigido]`, em qualquer

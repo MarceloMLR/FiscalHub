@@ -215,8 +215,8 @@ A guarda `fh-` do adapter não substitui a política. Ela serve para um defeito 
 - **A troca de token tem regra própria,** o `TokenExchangeRedaction`, onde ela é gravada ou ecoada: o motivo da recusa
   da credencial e o `out/token.json` da sonda, que existe para ser colado em PR (o trace nunca a fotografa). As
   credenciais da resposta, inclusive o `refresh_token`, são redigidas por nome e por valor; os identificadores da sessão
-  e da conta (`sessionId`, `userId`, `subId`, `appId`) e o `login`, que traz o nome da empresa, viram `[mascarado]`, por
-  nome e por valor, no corpo e nos cabeçalhos. O `token_type` e o `expires_in` ficam, porque são a evidência.
+  e da conta (`sessionId`, `userId`, `subId`, `appId`, `email`) e o `login`, que traz o nome da empresa, viram
+  `[mascarado]`, por nome e por valor, no corpo e nos cabeçalhos. O `token_type` e o `expires_in` ficam, porque são a evidência.
 - **Logs HTTP:** os dois clientes (envio e token) usam `RedactLoggedHeaders(_ => true)`, sem depender do padrão do
   framework.
 - **Melhor esforço, e a assimetria.** A foto da resposta é a primeira gravação depois da requisição. Se a falha nela

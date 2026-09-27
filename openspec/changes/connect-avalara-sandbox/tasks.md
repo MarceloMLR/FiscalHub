@@ -400,15 +400,20 @@ Manual e sem código.
 
 ## 15. Teste manual: configuração e correção pela tela (D13)
 
-- [ ] 15.1 Na tela de conectores, preencher a seção `sandbox` do tenant-a: `baseUrl`, `tokenUrl`, `clientId` e o
+- [x] 15.1 Na tela de conectores, preencher a seção `sandbox` do tenant-a: `baseUrl`, `tokenUrl`, `clientId` e o
   Client Secret real, digitado no campo de escrita. O segredo real nunca vai para arquivo do repositório,
   terminal compartilhado ou chat
+  - **Conferido no banco (2026-09-27):** a seção `sandbox` do tenant-a tem `baseUrl`, `tokenUrl`, `clientId` e o
+    `clientSecretRef` no formato `fh-tenant-a--…`
 - [ ] 15.2 Conferir o caminho do segredo:
   - a tela mostra "configurado em <data>", e o `GET /connector` não traz o valor, nem parte dele, nem a
     referência;
   - a linha do perfil no SQL tem só o `clientSecretRef` `fh-tenant-a--…`;
   - um `PUT` feito à mão com `clientSecretRef` no corpo dá 400;
   - reiniciar o emulador faz a tela mostrar "não configurado", e o envio falha apontando para a tela
+  - **Parcial (2026-09-27).** Verificado: a linha do perfil no SQL tem só o `clientSecretRef`, sem valor nem parte
+    dele. Não exercitados: o `PUT` à mão com `clientSecretRef` no corpo dando 400, e o reinício do emulador levando
+    a "não configurado". **Os dois vão para a próxima fatia** (`docs/STATUS.md`)
 - [x] 15.3 Verificação da premissa de autenticação (design D13, passo 1):
   - `probe token --tenant tenant-a`, e preencher a tabela "Resultado da verificação da premissa" no Context do
     design, sem credencial e sem token;
@@ -419,6 +424,7 @@ Manual e sem código.
 - [ ] 15.4 Correção pela tela:
   - com o segredo errado de propósito, uma nota recusa com o motivo;
   - salvar o perfil com o certo e reprocessar faz o token ser pedido na hora, sem esperar o intervalo
+  - **Movida para a próxima fatia** (`docs/STATUS.md`)
 
 ## 16. Teste manual: as 5 NF-e 55 contra o sandbox (D13, passos 3 a 5)
 
@@ -426,10 +432,18 @@ Manual e sem código.
   payload
 - [ ] 16.2 Conferir no dashboard o desfecho e o motivo de cada nota, e a aba "Resposta". Nenhuma nota pode
   ficar sem motivo legível quando rejeitada, e a aba Destino continua mostrando o payload
+  - **Parcial (2026-09-27).** Verificado: as 5 NF-e têm motivo legível gravado, com o texto da validação da Avalara
+    (`docs/avalara-sandbox-primeiro-envio.md`). Não conferidas: as abas "Resposta" e "Destino" na tela
 - [ ] 16.3 Baixar o zip de cada nota e conferir as cinco fotos. Anotar toda foto com `redactions > 0`
+  - **Movida para a próxima fatia** (`docs/STATUS.md`)
 - [ ] 16.4 Conferir nos logs do host que nenhum token, segredo ou valor de cabeçalho aparece
+  - **Não exercitada (2026-09-27).** O host rodou numa console interativa do PowerShell, sem arquivo de log, e a
+    saída dele não pôde ser varrida. Fica sem marcar
 
 ## 17. Experimento do campo omitido (D14)
+
+**Movido inteiro para a próxima fatia (2026-09-27).** O `finalidadeNotaFiscal` não apareceu na recusa, e o experimento
+fica mais informativo depois que uma nota for aceita (`docs/STATUS.md`).
 
 - [ ] 17.1 Escolher a nota com menos motivos de recusa na passada 16 e baixar o payload de destino dela
 - [ ] 17.2 Enviar pela sonda as variantes A (`--omit finalidadeNotaFiscal`), B (`--set finalidadeNotaFiscal=1`) e C
@@ -440,18 +454,26 @@ Manual e sem código.
 
 ## 18. Evidência, relatório e checklist (D13, D14, D15)
 
-- [ ] 18.1 Curar as respostas reais, no formato do envelope e redigidas, em
+- [x] 18.1 Curar as respostas reais, no formato do envelope e redigidas, em
   `tests/Adapters/Outbound/FiscalHub.Adapters.Outbound.Avalara.Tests/Fixtures/sandbox/`: aceite, recusa no envio,
   consulta com erro e recusa de credencial, os que tiverem acontecido
-- [ ] 18.2 Teste de varredura das fixtures: sem `Bearer` com valor, sem JWT, sem `access_token` ou
+  - **Feito (2026-09-27):** `recusa-no-envio.json`, o envelope da `brmf|BRMF12-30000001`. O aceite, a consulta com
+    erro e a recusa de credencial não aconteceram pelo hub, e não viraram arquivo
+- [x] 18.2 Teste de varredura das fixtures: sem `Bearer` com valor, sem JWT, sem `access_token` ou
   `client_secret` com valor
-- [ ] 18.3 Testes de reprodução:
+  - `SandboxFixtureTests.No_fixture_carries_a_credential_or_a_token`, com `The_scan_catches_what_it_looks_for`
+    provando as expressões contra amostras
+- [x] 18.3 Testes de reprodução:
   - o stub devolve cada resposta gravada, e o dispatcher e o ponta a ponta registram o desfecho do spec;
   - a recusa real fica `IntegrationError`, com o motivo dela, um único POST e nenhuma exceção;
   - a `PlatformMessage` sobre o formato real dá texto legível.
+  - **Feito:** no dispatcher (`SandboxFixtureTests.Real_refusal_is_a_rejection_with_its_reason_after_a_single_post_and_the_photo_recorded`),
+    no ponta a ponta (`DispatchToMockTests.Recorded_sandbox_refusal_is_an_integration_error_with_its_reason_end_to_end`) e
+    na `PlatformMessage` (`Platform_message_on_the_real_refusal_is_readable_text`). **Não exercitados:** o aceite, a
+    consulta de status e a recusa de credencial em produção
 
   Se nenhuma recusa real ocorreu, registrar como não exercitado
-- [ ] 18.4 Escrever `docs/avalara-sandbox-primeiro-envio.md`:
+- [x] 18.4 Escrever `docs/avalara-sandbox-primeiro-envio.md`:
   - ambiente, sem credencial;
   - o resultado da verificação da premissa (15.3);
   - uma linha por nota;
@@ -459,11 +481,20 @@ Manual e sem código.
     indeterminado);
   - o experimento com as três respostas e a conclusão pela tabela;
   - as respostas às perguntas do CNV D18, só as que a evidência sustenta
+  - **Feito:** os seis motivos classificados como "nosso: contrato ou mapeamento". O experimento não rodou (17,
+    movido)
 - [ ] 18.5 `docs/STATUS.md`:
   - o item "Campo omitido virando 0" fechado ou reescrito com a evidência e o link;
   - os itens "Formato real do erro", "Blocos tirados do schema", "Totais de imposto" e "Reenvio" atualizados
     só pelo que a evidência mostrou;
   - a próxima fatia (correção do payload e da leitura da resposta) com as rejeições classificadas como
     "nosso"
-- [ ] 18.6 `dotnet build` com 0 warnings e `dotnet test` verde. Conferir `git status` e `git diff` sem nenhum
+  - **Parcial (2026-09-27).** Feito: "Formato real do erro" reescrito com a evidência (a recusa síncrona provada; a
+    consulta com erro segue aberta); "Blocos", "Totais" e "Reenvio" atualizados só com o que a evidência mostrou; a
+    próxima fatia com os seis motivos classificados. **Movido para a próxima fatia:** o item "Campo omitido virando
+    0", que depende do experimento
+- [x] 18.6 `dotnet build` com 0 warnings e `dotnet test` verde. Conferir `git status` e `git diff` sem nenhum
   segredo, token ou arquivo de `out/`
+  - **Conferido (2026-09-27):** 0 warnings de compilação (o Host compilado à parte, porque o `bin` dele estava travado
+    pelo host em execução), 686 testes passando e 3 pulados, e nenhum segredo, token ou arquivo de `out/` no
+    `git status` nem no `git diff`. Os únicos trechos com forma de token são as amostras fabricadas do teste da varredura

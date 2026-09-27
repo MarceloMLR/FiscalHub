@@ -217,6 +217,25 @@ public class DispatchToMockTests
     }
 
     [Fact]
+    public async Task Recorded_sandbox_refusal_is_an_integration_error_with_its_reason_end_to_end()
+    {
+        // A recusa real do sandbox (2026-09-27), gravada pela quarta foto, no lugar da resposta do mock ao envio. A esteira
+        // registra IntegrationError com o motivo dela, depois de um único POST, sem exceção — ou seja, sem dead-letter.
+        using Harness h = await Harness.CreateAsync(documentsPath: SandboxDocumentsPath, recordedSubmit: RecordedSubmit("recusa-no-envio.json"));
+        h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+
+        await h.ProcessAsync(OutgoingKey, "35637156582");   // não lança
+
+        StoredRow row = h.Store.Rows[OutgoingKey];
+        Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
+        Assert.StartsWith("Plataforma de compliance recusou: operacao: 'Operacao' não pode ser nulo.; tipoPagamento:", row.Reason);
+        Assert.Contains("parceiro.Codigo: 'Codigo' deve ser informado.", row.Reason);
+        Assert.Contains("itens[0].Item.TipoItem: 'Tipo Item' não pode ser nulo.", row.Reason);
+        Assert.Contains("One or more validation errors occurred.", row.Reason);
+        Assert.Equal(1, h.DocumentPosts);
+    }
+
+    [Fact]
     public async Task Missing_secret_is_a_rejection_pointing_to_the_screen_with_no_request()
     {
         using Harness h = await Harness.CreateAsync(clientSecret: null);
@@ -254,6 +273,14 @@ public class DispatchToMockTests
 
     private static string Fixture(string relative) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", relative));
 
+    // O status e o corpo de um envelope gravado do sandbox (os mesmos arquivos dos testes do adapter, por link).
+    private static (int Status, string Body) RecordedSubmit(string file)
+    {
+        using JsonDocument envelope = JsonDocument.Parse(Fixture(Path.Combine("sandbox", file)));
+        JsonElement response = envelope.RootElement.GetProperty("response");
+        return (response.GetProperty("status").GetInt32(), response.GetProperty("body").GetRawText());
+    }
+
     private sealed class Harness : IDisposable
     {
         public const string Secret = "segredo-de-teste";
@@ -280,9 +307,11 @@ public class DispatchToMockTests
         public IReadOnlyList<string> DocumentPaths => _toMock.DocumentPaths;
 
         /// <summary>O host em memória, com o perfil do tenant-a gravado pelo caso de uso da tela (o segredo vai ao cofre).</summary>
-        public static async Task<Harness> CreateAsync(string? clientSecret = Secret, IProcessingTrace? trace = null, string documentsPath = "documents")
+        public static async Task<Harness> CreateAsync(
+            string? clientSecret = Secret, IProcessingTrace? trace = null, string documentsPath = "documents", (int Status, string Body)? recordedSubmit = null)
         {
             var h = new Harness();
+            h._toMock.RecordedSubmit = recordedSubmit;
             var profiles = new InMemoryProfiles();
             trace ??= new NoTrace();
 
@@ -395,6 +424,9 @@ public class DispatchToMockTests
 
         public IReadOnlyList<string> DocumentPaths => _paths;
 
+        /// <summary>Uma resposta real gravada, devolvida no lugar da do mock a cada envio (o token continua o do mock).</summary>
+        public (int Status, string Body)? RecordedSubmit { get; set; }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             string path = request.RequestUri!.AbsolutePath;
@@ -410,6 +442,13 @@ public class DispatchToMockTests
                 if (request.Method == HttpMethod.Post)
                 {
                     DocumentPosts++;
+                    if (RecordedSubmit is { } recorded)
+                    {
+                        return Task.FromResult(new HttpResponseMessage((HttpStatusCode)recorded.Status)
+                        {
+                            Content = new StringContent(recorded.Body, Encoding.UTF8, "application/problem+json"),
+                        });
+                    }
                 }
             }
 
