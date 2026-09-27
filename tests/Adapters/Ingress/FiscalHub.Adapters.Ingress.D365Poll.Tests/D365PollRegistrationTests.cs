@@ -1,5 +1,6 @@
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Inbound;
+using FiscalHub.Domain.Goods;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +30,24 @@ public class D365PollRegistrationTests
     }
 
     [Fact]
+    public async Task Goods_invoice_source_resolves_alongside_the_other_sources()
+    {
+        await using ServiceProvider sp = Build(services =>
+        {
+            services.AddSingleton<IInboundSource<GoodsInvoice>, XmlLikeSource>();   // o XML segue registrado
+            services.AddD365ChangeFeed();
+            services.AddD365GoodsInvoiceSource();
+        });
+        await using AsyncServiceScope scope = sp.CreateAsyncScope();
+
+        IInboundSource<GoodsInvoice>[] sources = [.. scope.ServiceProvider.GetServices<IInboundSource<GoodsInvoice>>()];
+
+        Assert.Equal(["Xml", "Dynamics365"], sources.Select(s => s.Origin));
+        Assert.IsType<D365GoodsInvoiceSource>(sources[1]);
+        Assert.Same(sp.GetRequiredService<D365ReferenceDataCache>(), sp.GetRequiredService<D365ReferenceDataCache>());   // cache singleton
+    }
+
+    [Fact]
     public void Settle_margin_below_one_second_is_a_configuration_error()
     {
         var services = new ServiceCollection();
@@ -37,6 +56,14 @@ public class D365PollRegistrationTests
             () => services.AddD365ChangeFeed(o => o.StampSettleMargin = TimeSpan.Zero));
 
         Assert.Contains("StampSettleMargin", ex.Message);
+    }
+
+    private sealed class XmlLikeSource : IInboundSource<GoodsInvoice>
+    {
+        public string Origin => "Xml";
+
+        public Task<FetchResult<GoodsInvoice>> FetchAsync(DocumentReference reference, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 
     private static ServiceProvider Build(Action<IServiceCollection> register)

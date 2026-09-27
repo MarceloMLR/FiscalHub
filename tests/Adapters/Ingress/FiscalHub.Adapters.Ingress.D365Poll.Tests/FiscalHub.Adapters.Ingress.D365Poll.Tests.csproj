@@ -20,4 +20,9 @@
     <ProjectReference Include="..\..\..\..\src\Adapters\Ingress\FiscalHub.Adapters.Ingress.D365Poll\FiscalHub.Adapters.Ingress.D365Poll.csproj" />
   </ItemGroup>
 
+  <!-- Respostas gravadas do fiscosysdev (tools/d365-fixtures): lidas pelos testes da montagem, sem rede. -->
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

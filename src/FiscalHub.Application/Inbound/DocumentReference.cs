@@ -14,7 +14,10 @@ public sealed record DocumentReference
     /// <summary>Chave de negócio da origem (ex.: chave de acesso da NF-e).</summary>
     public required string NaturalKey { get; init; }
 
-    /// <summary>Localizador interpretado pelo adapter da origem (caminho no Blob, id no ERP, etc.).</summary>
+    /// <summary>
+    /// Localizador interpretado pelo adapter da origem: caminho no Blob (<c>nfe/nota.xml</c>), chave no ERP
+    /// (<c>d365/&lt;empresa&gt;/&lt;FiscalDocumentRecId&gt;</c> no D365), etc.
+    /// </summary>
     public required string Locator { get; init; }
 
     /// <summary>

@@ -264,28 +264,28 @@ public class D365ChangeFeedTests
     {
         var h = new Harness();
         h.Http.Respond(Rows(
-            Row("BRMF21-10000027", "2017-01-21T21:23:19Z", 1, model: "55"),
+            Row("BRMF21-10000027", "2017-01-21T21:23:19Z", 5637148912, model: "55"),
             Row("BRMF21-10000019", "2016-11-28T20:58:29Z", 2, model: "SE")));
 
         DocumentReference[] refs = (await h.PullAllAsync(Since2015)).SelectMany(p => p.Items).Select(i => i.Reference).ToArray();
 
         Assert.Equal("tenant-a", refs[0].TenantId);
         Assert.Equal("brmf|BRMF21-10000027", refs[0].NaturalKey);
-        Assert.Equal("d365/brmf/BRMF21-10000027", refs[0].Locator);
+        Assert.Equal("d365/brmf/5637148912", refs[0].Locator);   // contrato com a montagem: RecId, não Voucher
         Assert.Equal(DocumentType.GoodsInvoice55, refs[0].Type);
         Assert.Equal(IngestionTrigger.Event, refs[0].Trigger);
         Assert.Equal(DocumentType.ServiceNfse, refs[1].Type);
     }
 
     [Fact]
-    public async Task Locator_segments_are_url_encoded()
+    public async Task Voucher_with_special_characters_stays_only_in_the_natural_key()
     {
         var h = new Harness();
-        h.Http.Respond(Rows(Row("NF/2017 01", "2017-01-21T21:23:19Z", 1)));
+        h.Http.Respond(Rows(Row("NF/2017 01", "2017-01-21T21:23:19Z", 5637149001)));
 
         DocumentReference reference = (await h.PullAllAsync(Since2015)).Single().Items.Single().Reference;
 
-        Assert.Equal("d365/brmf/NF%2F2017%2001", reference.Locator);
+        Assert.Equal("d365/brmf/5637149001", reference.Locator);
         Assert.Equal("brmf|NF/2017 01", reference.NaturalKey);
     }
 
