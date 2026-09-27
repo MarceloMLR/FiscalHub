@@ -45,7 +45,7 @@ public sealed class ChangeFeedPoller
     /// <summary>Faz uma passada por todos os tenants da origem e devolve o resumo.</summary>
     public async Task<ChangeFeedPassSummary> RunOnceAsync(CancellationToken ct = default)
     {
-        var pass = new PassTally();
+        var pass = new PassTally { Origin = _feed.Origin };
         IReadOnlyList<TenantConnectorProfile> profiles = await _profiles.ListByInboundAdapterAsync(_feed.Origin, ct);
 
         foreach (TenantConnectorProfile profile in profiles)
@@ -85,6 +85,12 @@ public sealed class ChangeFeedPoller
 
         if (settings is { Enabled: false })
         {
+            // Desligado de propósito, calado; desligado por falta da seção, avisado.
+            if (!settings.Configured)
+            {
+                pass.PollNotConfigured.Add(tenant);
+            }
+
             return;
         }
 
@@ -243,9 +249,13 @@ public sealed class ChangeFeedPoller
         public List<string> LeasesLost { get; } = [];
         public Dictionary<string, string> Failures { get; } = [];
         public List<string> Stalled { get; } = [];
+        public List<string> PollNotConfigured { get; } = [];
+        public string Origin { get; init; } = string.Empty;
 
         public ChangeFeedPassSummary ToSummary() => new()
         {
+            Origin = Origin,
+            PollNotConfigured = PollNotConfigured,
             TenantsPolled = TenantsPolled,
             ReferencesEnqueued = ReferencesEnqueued,
             ReferencesSuppressed = ReferencesSuppressed,

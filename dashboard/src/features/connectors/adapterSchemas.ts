@@ -1,35 +1,40 @@
 // Schema dos campos de cada adapter. No modelo de produção, isto viria do backend (cada adapter
-// declara o próprio schema); aqui fica no front pra simplificar a demo. Segredos entram como
-// REFERÊNCIA (kv:...) — o valor real fica no Key Vault, nunca digitado aqui.
+// declara o próprio schema); aqui fica no front pra simplificar a demo. Segredos são CAMPOS DE ESCRITA
+// (ADR-0027): o valor digitado vai para o servidor, que o grava no cofre e guarda só a referência no
+// perfil. A leitura nunca devolve o valor — a tela mostra só se está configurado e quando.
 
 export interface AdapterField {
+  // Caminho no JSON das settings; ponto para objeto aninhado (ex.: 'auth.clientId').
   key: string;
   label: string;
   placeholder?: string;
-  reference?: boolean; // campo que guarda uma referência de segredo (kv:...)
+  secret?: boolean; // campo de escrita: senha, sem preenchimento, enviado só quando digitado
 }
 
-// Adapters de entrada (ERP) — settings num objeto plano.
+// Adapters de entrada (ERP). Os campos que a tela não mostra (companies, poll…) são preservados ao salvar.
 export const INBOUND_ADAPTERS: Record<string, AdapterField[]> = {
   Dynamics365: [
-    { key: 'url', label: 'URL da instância', placeholder: 'https://empresa.crm.dynamics.com/' },
-    { key: 'clientIdRef', label: 'Client ID (referência)', placeholder: 'kv:d365-clientid', reference: true },
-    { key: 'clientSecretRef', label: 'Client Secret (referência)', placeholder: 'kv:d365-secret', reference: true },
+    { key: 'url', label: 'URL do ambiente F&O', placeholder: 'https://empresa.operations.dynamics.com' },
+    { key: 'auth.tenantId', label: 'Tenant do Entra ID', placeholder: '00000000-0000-0000-0000-000000000000' },
+    { key: 'auth.clientId', label: 'Client ID', placeholder: '00000000-0000-0000-0000-000000000000' },
+    { key: 'auth.clientSecret', label: 'Client Secret', secret: true },
   ],
   iScala: [
     { key: 'host', label: 'Host', placeholder: 'iscala.cliente.local' },
     { key: 'company', label: 'Empresa (código)', placeholder: 'B01' },
-    { key: 'userRef', label: 'Usuário (referência)', placeholder: 'kv:iscala-user', reference: true },
-    { key: 'passwordRef', label: 'Senha (referência)', placeholder: 'kv:iscala-pass', reference: true },
+    { key: 'user', label: 'Usuário', placeholder: 'integracao' },
+    { key: 'password', label: 'Senha', secret: true },
   ],
 };
 
-// Adapters de saída (compliance) — settings por ambiente (sandbox/production).
+// Adapters de saída (compliance) — settings por ambiente (sandbox/production). Os campos que a tela não
+// mostra (establishments…) são preservados ao salvar.
 export const OUTBOUND_ADAPTERS: Record<string, AdapterField[]> = {
   Avalara: [
     { key: 'baseUrl', label: 'URL base', placeholder: 'https://api.avalara.com/' },
-    { key: 'clientSecretRef', label: 'Client Secret (referência)', placeholder: 'kv:avalara-secret', reference: true },
-    { key: 'clientTokenRef', label: 'Client Token (referência)', placeholder: 'kv:avalara-token', reference: true },
+    { key: 'tokenUrl', label: 'URL do token (opcional)', placeholder: 'padrão: URL base + caminho do token' },
+    { key: 'clientId', label: 'Client ID' },
+    { key: 'clientSecret', label: 'Client Secret', secret: true },
   ],
   Mock: [{ key: 'baseUrl', label: 'URL base', placeholder: 'http://localhost:5100/' }],
 };

@@ -43,14 +43,17 @@ outros furos são da mesma regra.
 
 - **Duas partes, e a primeira é mergeada sozinha** (design D19).
   - **Parte 1, grupos 1 a 4:** o limite de tenant. São correções de segurança que valem independente da
-    Avalara. Ela é commitada e mergeada antes do portão.
-  - **Parte 2, do grupo 5 em diante:** a Avalara. Se o portão não bater, a parte 1 não fica presa atrás de uma
-    premissa sobre a autenticação de um terceiro.
-- **Portão antes do código da parte Avalara.** A premissa do client credentials sustenta a parte 2 do desenho. Um
-  curl contra o sandbox confirma o fluxo, o formato da resposta de token e o `expires_in`, e confere o caminho de
-  envio, antes de qualquer código dessa parte. É o grupo 5, e ele também prova o emulador do cofre.
-  - **Proteção:** o segredo entra pelo prompt, e o token nunca é impresso.
-  - **Se não bater:** `/opsx:update` antes do código da parte 2. A parte 1 já mergeada não volta.
+    Avalara. Ela foi commitada e mergeada sozinha (#58).
+  - **Parte 2, do grupo 5 em diante:** a Avalara. Se a premissa de autenticação não bater, a parte 1 não fica
+    presa atrás dela.
+- **Premissa de autenticação assumida, e confirmada no teste manual.** A parte 2 assume `client_credentials`, com
+  o segredo no corpo do pedido, `access_token` e `expires_in` numérico em segundos, e o caminho de envio
+  `documents`.
+  - **Quando se confirma:** não há portão antes do código. A premissa é confirmada no teste manual contra o
+    sandbox, no fim da fatia (tarefa 15.3).
+  - **Se estiver errada:** o retrabalho fica nos grupos de autenticação (credencial e URLs, provider, dispatcher e
+    o endpoint de token do mock).
+  - **A prova do emulador do cofre (grupo 5):** foi feita antes do código, porque não depende de credencial.
 - **Provider real por padrão.** `AddAvalaraComplianceDispatcher` passa a registrar o provider de token real.
   O envio sem autenticação só existe quando pedido explicitamente, com `UseAvalaraWithoutAuthentication()`,
   que o Host não chama.
@@ -191,7 +194,7 @@ outros furos são da mesma regra.
   - no dev, até contra o mock, é preciso digitar o Client Secret na tela, e de novo a cada reinício do
     emulador do cofre. Sem ele, cada nota falha alto apontando para a tela;
   - o `PUT /connector` deixa de aceitar `*Ref` no corpo, e as referências do seed passam ao formato
-    `fh-{tenant}-…`;
+    `fh-{tenant}--…`;
   - o locator de XML fora de `nfe/{tenant}/` é recusado. O `/ingest` do RUNNING §4 passa a
     `nfe/tenant-a/nfe-exemplo.xml`, sem `tenantId` no corpo;
   - o arquivo na raiz do drop deixa de ir para o tenant-a e não é ingerido.
@@ -278,7 +281,7 @@ outros furos são da mesma regra.
   - `KeyVaultSecretStore`, sobre o `SecretClient`, com cache curto do valor lido;
   - `BlobProcessingTrace` grava a quarta foto no mesmo prefixo das outras, pelo `TracePaths`;
   - `SqlScheduleStore.DeactivateAsync` filtra pelo tenant;
-  - o seed traz `clientId` e as referências `fh-{tenant}-…`, sem `clientTokenRef` e sem nenhum valor.
+  - o seed traz `clientId` e as referências `fh-{tenant}--…`, sem `clientTokenRef` e sem nenhum valor.
 - **Adapters:**
   - `Outbound.Avalara`: credencial e endpoints por seção; provider por credencial, com cache, margem e
     invalidação; classificação das falhas; redação; envelope da resposta; `AvalaraOptions` sem campos

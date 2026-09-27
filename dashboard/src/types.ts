@@ -25,11 +25,13 @@ export interface DocumentSummary {
 // GET /trace devolve { "<caminho>": <conteudo> } — JSON aninhado ou string (o XML cru).
 export type TraceResponse = Record<string, unknown>;
 
-// As tres fotos ja categorizadas.
+// As fotos ja categorizadas: fonte, dominio, payload de destino e as respostas da plataforma (ADR-0027) —
+// a do ultimo envio e a da ultima consulta de status, cada uma um envelope ja redigido.
 export interface DocumentTrace {
   source?: string;
   domain?: unknown;
   destination?: { name: string; payload: unknown };
+  responses?: { submit?: unknown; status?: unknown };
 }
 
 // Diretorio de empresas/filiais (GET /companies, /companies/{code}/branches) — dropdowns da manual.
@@ -103,7 +105,14 @@ export interface TenantInfo {
   active: boolean;
 }
 
-// Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores.
+// Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores. A leitura vem sem os
+// segredos e sem as referências: `secrets` diz, por caminho (`outbound.sandbox.clientSecret`), se o
+// segredo está no cofre e quando foi gravado (ADR-0027).
+export interface SecretStatus {
+  configured: boolean;
+  updatedOn: string | null;
+}
+
 export interface ConnectorProfile {
   tenantId: string;
   environment: string;
@@ -112,6 +121,9 @@ export interface ConnectorProfile {
   inboundSettings: string;
   outboundAdapter: string;
   outboundSettings: string;
+  supportAdapter: string | null;
+  supportSettings: string;
+  secrets: Record<string, SecretStatus>;
 }
 
 export interface ConnectorProfileRequest {

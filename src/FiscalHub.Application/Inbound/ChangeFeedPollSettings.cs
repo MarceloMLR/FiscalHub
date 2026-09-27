@@ -19,6 +19,12 @@ public sealed record ChangeFeedPollSettings
     /// <summary>Poll ligado para o tenant. Ausente = desligado.</summary>
     public bool Enabled { get; init; }
 
+    /// <summary>
+    /// A seção <c>poll</c> existe nas settings. Sem ela, o poll também fica desligado, mas por ausência de configuração,
+    /// e não por decisão: o poller avisa, porque um coletor desligado em silêncio é o pior modo de falha.
+    /// </summary>
+    public bool Configured { get; init; }
+
     /// <summary>Intervalo mínimo entre dois polls do tenant, contado do fim do anterior.</summary>
     public TimeSpan Interval { get; init; } = DefaultInterval;
 
@@ -66,6 +72,7 @@ public sealed record ChangeFeedPollSettings
 
         return new ChangeFeedPollSettings
         {
+            Configured = true,
             Enabled = poll.Enabled ?? false,
             Interval = TimeSpan.FromSeconds(intervalSeconds),
             Overlap = TimeSpan.FromSeconds(overlapSeconds),

@@ -34,6 +34,8 @@
   <ItemGroup>
     <None Include="..\Adapters\Ingress\FiscalHub.Adapters.Ingress.D365Poll.Tests\Fixtures\**\*" Link="Fixtures\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Adapters\Inbound\FiscalHub.Adapters.Inbound.Xml.Tests\Fixtures\nfe-com-reforma.xml" Link="Fixtures\xml\nfe-com-reforma.xml" CopyToOutputDirectory="PreserveNewest" />
+    <!-- As respostas reais do sandbox (design D15), as mesmas dos testes do adapter Avalara. -->
+    <None Include="..\Adapters\Outbound\FiscalHub.Adapters.Outbound.Avalara.Tests\Fixtures\sandbox\*.json" Link="Fixtures\sandbox\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

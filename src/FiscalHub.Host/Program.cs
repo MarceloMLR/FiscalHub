@@ -27,6 +27,7 @@ using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
 using FiscalHub.Host;
 using FiscalHub.Infrastructure;
+using FiscalHub.Infrastructure.Secrets;
 using FiscalHub.Application.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -72,7 +73,14 @@ builder.Services.AddSingleton(new BlobServiceClient(cfg.GetConnectionString("Blo
 builder.Services.AddBlobProcessingTrace("traces");
 builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
-builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
+// Cofre dos segredos de conector (ADR-0027): Key Vault em produção, o emulador em memória no dev (appsettings.Development).
+// Sem a seção, o host não sobe — nunca segue sem cofre.
+builder.Services.AddKeyVaultSecretStore(cfg.GetSection("SecretStore").Get<KeyVaultSecretStoreSettings>() ?? new KeyVaultSecretStoreSettings());
+// Perfil de conector pela tela: o segredo vai para o cofre, o perfil guarda só a referência, e a leitura nunca o devolve.
+builder.Services.AddScoped<ConnectorProfileService>();
+// Autenticado por padrão: URL e credencial vêm da seção do ambiente ativo do tenant, e o segredo, do cofre (ADR-0027).
+// A seção Avalara (opcional) só ajusta a forma da API — DocumentsPath, TokenPath, margens —, a mesma que a sonda lê.
+builder.Services.AddAvalaraComplianceDispatcher(options => cfg.GetSection("Avalara").Bind(options));
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddScoped<DocumentTraceQuery>();   // fotos de um documento, só para o tenant de quem está logado (ADR-0028)
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
@@ -128,8 +136,9 @@ builder.Services.AddD365ChangeFeed();
 builder.Services.AddD365GoodsInvoiceSource();   // ao lado do source XML; a esteira escolhe pela origem da referência
 if (builder.Environment.IsDevelopment())
 {
-    // Só em dev: token da sessão do Azure CLI (az login), até a app registration existir.
-    builder.Services.UseD365AzureCliToken();
+    // Só em dev: o perfil com credencial própria (auth completo e o segredo no cofre) usa a do tenant; sem ela, cai na
+    // sessão do Azure CLI (az login). Em produção, o Azure CLI nunca entra.
+    builder.Services.UseD365AzureCliFallback();
 }
 builder.Services.AddSingleton(new ChangeFeedPollerOptions());
 // Registro dos pares (documento, carimbo) já publicados (ADR-0025, D16): singleton de propósito — o poller é
@@ -163,11 +172,9 @@ app.UseAuthorization();
 // Dev local: cria o schema no SQL, o container no Blob, sobe um XML de exemplo e semeia os usuários.
 await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
-await app.Services.EnsureDevUsersAsync();
-await app.Services.EnsureDevTenantsAsync();
-await app.Services.EnsureDevConnectorProfilesAsync();
-await app.Services.EnsureDevDocumentsAsync();   // notas de exemplo p/ paginação, KPIs do dia e reprocessar
-await app.Services.EnsureDevSchedulesAndExecutionsAsync();   // agendamentos + execuções p/ paginação em Integrações
+// Usuários, tenants e perfis sempre; a demonstração (notas, execuções, agendamentos) só com Seed:DemoData = true, por
+// escolha explícita: sem a chave, não entra, e limpar a base e subir o host não a traz de volta (docs/RUNNING.md §10).
+await app.Services.SeedDevDataAsync(DevSeedOptions.From(cfg));
 
 app.MapGet("/", () =>
     $"FiscalHub host. POST /ingest com {{ naturalKey, locator }}, no tenant do login. XML de exemplo semeado em '{LocalSeed.Locator}'.")
@@ -479,26 +486,22 @@ app.MapGet("/info", async (IConnectorProfileStore profiles, ITenantContext tenan
     });
 });
 
-// Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita.
-app.MapGet("/connector", async (IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
-{
-    TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
-    return profile is null ? Results.NotFound() : Results.Ok(profile);
-}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+// Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita. O segredo entra pela tela
+// como campo de escrita e vai para o cofre; a leitura diz só "configurado" e a data (ADR-0027).
+app.MapGet("/connector", async (ConnectorProfileService connector, CancellationToken ct) =>
+    await connector.GetAsync(ct) is { } view ? Results.Ok(view) : Results.NotFound())
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
-app.MapPut("/connector", async (ConnectorProfileRequest req, IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
+app.MapPut("/connector", async (ConnectorProfileRequest req, ConnectorProfileService connector, CancellationToken ct) =>
 {
-    await profiles.UpsertAsync(new TenantConnectorProfile
+    // O tenant é sempre o do usuário (ADR-0028); ninguém edita o perfil de outro tenant.
+    ConnectorProfileSaveResult result = await connector.SaveAsync(req, ct);
+    return result.Status switch
     {
-        TenantId = tenant.TenantId,   // sempre o do usuário; ninguém edita o perfil de outro tenant
-        Environment = req.Environment,
-        Realtime = req.Realtime,
-        InboundAdapter = req.InboundAdapter,
-        InboundSettings = req.InboundSettings ?? "{}",
-        OutboundAdapter = req.OutboundAdapter,
-        OutboundSettings = req.OutboundSettings ?? "{}",
-    }, ct);
-    return Results.NoContent();
+        ConnectorProfileSaveStatus.Saved => Results.NoContent(),
+        ConnectorProfileSaveStatus.Invalid => Results.BadRequest(new { message = result.Message }),
+        _ => Results.Json(new { message = result.Message }, statusCode: StatusCodes.Status502BadGateway),
+    };
 }).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 // ---- Administração de usuários (escopada ao tenant do Admin logado) ----
@@ -609,15 +612,6 @@ public sealed record UpdateTenantRequest(string Name, string? Cnpj);
 
 /// <summary>Corpo do POST /support/tickets/estimate — só as notas, pra estimar o tamanho dos logs.</summary>
 public sealed record EstimateTicketRequest(IReadOnlyList<string>? NaturalKeys);
-
-/// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
-public sealed record ConnectorProfileRequest(
-    string Environment,
-    bool Realtime,
-    string InboundAdapter,
-    string? InboundSettings,
-    string OutboundAdapter,
-    string? OutboundSettings);
 
 /// <summary>Corpo do POST /ingest. O tenant vem do usuário logado, não do corpo (ADR-0028).</summary>
 public sealed record IngestRequest(string NaturalKey, string Locator);

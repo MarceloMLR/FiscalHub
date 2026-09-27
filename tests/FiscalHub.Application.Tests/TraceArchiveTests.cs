@@ -27,6 +27,25 @@ public class TraceArchiveTests
     }
 
     [Fact]
+    public void The_two_platform_responses_go_with_the_other_three_under_distinct_names()
+    {
+        byte[] zip = TraceArchive.Zip(
+        [
+            new TraceFile("source.json", [1]),
+            new TraceFile("domain.json", [2]),
+            new TraceFile("avalara.json", [3]),
+            new TraceFile("avalara.response.submit.json", [4]),
+            new TraceFile("avalara.response.status.json", [5]),
+        ]);
+
+        Dictionary<string, byte[]> entries = Read(zip);
+        Assert.Equal(5, entries.Count);
+        Assert.Equal([4], entries["avalara.response.submit.json"]);
+        Assert.Equal([5], entries["avalara.response.status.json"]);
+        Assert.Equal([3], entries["avalara.json"]);
+    }
+
+    [Fact]
     public void No_files_gives_an_empty_archive()
     {
         Assert.Empty(Read(TraceArchive.Zip([])));

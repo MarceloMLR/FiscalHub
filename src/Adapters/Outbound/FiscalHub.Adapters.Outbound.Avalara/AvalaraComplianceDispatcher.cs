@@ -6,6 +6,7 @@ using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FiscalHub.Adapters.Outbound.Avalara;
@@ -14,29 +15,35 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// Despacha uma <see cref="GoodsInvoice"/> para a plataforma de compliance (Avalara) por HTTP.
 /// Reusa o mapeamento testado (<see cref="GoodsInvoiceToAvalara"/>) e traduz o status nativo da
 /// plataforma para o <see cref="IntegrationStatus"/> comum (camada anticorrupção — ADR-0003).
+/// <para>Toda resposta da plataforma é lida uma vez, redigida (<see cref="SensitiveText"/>) e fotografada antes de ser
+/// classificada: a foto, o motivo e o identificador saem do mesmo texto (ADR-0027).</para>
 /// </summary>
 internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsInvoice>
 {
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);   // leitura das respostas
-
     private readonly HttpClient _http;
     private readonly AvalaraOptions _options;
     private readonly IAvalaraTokenProvider _tokenProvider;
     private readonly IProcessingTrace _trace;
     private readonly IConnectorProfileStore _profiles;
+    private readonly ILogger<AvalaraComplianceDispatcher> _logger;
+    private readonly TimeProvider _clock;
 
     public AvalaraComplianceDispatcher(
         HttpClient http,
         IOptions<AvalaraOptions> options,
         IAvalaraTokenProvider tokenProvider,
         IProcessingTrace trace,
-        IConnectorProfileStore profiles)
+        IConnectorProfileStore profiles,
+        ILogger<AvalaraComplianceDispatcher> logger,
+        TimeProvider clock)
     {
         _http = http;
         _options = options.Value;
         _tokenProvider = tokenProvider;
         _trace = trace;
         _profiles = profiles;
+        _logger = logger;
+        _clock = clock;
     }
 
     /// <inheritdoc/>
@@ -62,32 +69,57 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         //    domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
         await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, AvalaraJson.Options), ct);
 
-        // 5. POST.
-        Uri baseUri = BaseOf(settings);
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, _options.DocumentsPath))
+        // 5. POST, com o token do tenant no ambiente ativo. Sem credencial ou sem segredo, a rejeição sai do provider,
+        //    antes de qualquer requisição (ADR-0027).
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(settings.BaseUri, _options.DocumentsPath))
         {
             Content = JsonContent.Create(payload, options: AvalaraJson.Options),
         };
-        await ApplyAuthAsync(request, context.TenantId, ct);
+        AvalaraAccessToken token = await ApplyAuthAsync(request, settings, ct);
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
 
-        // Recusa de conteúdo: permanente — registrada com o motivo da plataforma, sem retentativa (ADR-0026). O
-        // resto (5xx, 429, 401/403, 404) segue como exceção, para o retry nativo e a dead-letter (ADR-0004).
-        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity)
+        // O corpo é lido uma vez, como texto, e redigido: a foto, o motivo e o identificador saem dele. A foto vem antes
+        // de classificar, em qualquer status, e por melhor esforço — uma falha nela não pode provocar reenvio.
+        (string body, int redactions) = await ReadRedactedAsync(response, token, ct);
+        await PhotographAsync(context, TraceExchanges.Submit, request, response, body, redactions, token, ct);
+        int status = (int)response.StatusCode;
+
+        switch (response.StatusCode)
         {
-            string refusal = await response.Content.ReadAsStringAsync(ct);
-            string omitted = mapping.Omissions.Count == 0 ? string.Empty : $" | Enviado sem: {string.Join("; ", mapping.Omissions)}";
-            throw new DispatchRejectedException(
-                $"Plataforma de compliance recusou: {PlatformMessage.Extract(refusal, (int)response.StatusCode)}{omitted}");
+            // Recusa de conteúdo: permanente — registrada com o motivo da plataforma, sem retentativa (ADR-0026).
+            case HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity:
+                string omitted = mapping.Omissions.Count == 0 ? string.Empty : $" | Enviado sem: {string.Join("; ", mapping.Omissions)}";
+                throw new DispatchRejectedException($"Plataforma de compliance recusou: {PlatformMessage.Extract(body, status)}{omitted}");
+
+            // A credencial não tem acesso, ou o token recém-emitido foi recusado: retentar não muda permissão, e pode
+            // bloquear a conta. Rejeição com o motivo da plataforma, que na dead-letter se perderia (ADR-0027).
+            case HttpStatusCode.Forbidden:
+            case HttpStatusCode.Unauthorized when token.IsFresh:
+                throw new DispatchRejectedException(
+                    $"Configuração do conector: a plataforma negou acesso ao tenant '{settings.TenantId}' no ambiente '{settings.Environment}' "
+                    + $"(HTTP {status}{(status == 401 ? ", com token recém-emitido" : string.Empty)}): {PlatformMessage.Extract(body, status)}");
+
+            // Token do cache vencido ou revogado: descarta, e a próxima tentativa pede outro (retry nativo).
+            case HttpStatusCode.Unauthorized:
+                throw Unauthorized(token, settings);
+
+            // O caminho de envio não existe nessa URL: retentar repete o 404 até a dead-letter, sem motivo legível. É
+            // configuração, e o motivo aponta as duas partes da URL (ADR-0027). Só no envio: na consulta, o 404 é pendente.
+            case HttpStatusCode.NotFound:
+                throw settings.SubmitPathNotFound(request.RequestUri!, _options.DocumentsPath,
+                    body.Length == 0 ? null : PlatformMessage.Extract(body, status));
         }
 
+        // O resto (5xx, 429) segue como exceção, para o retry nativo e a dead-letter (ADR-0004). Só o status.
         response.EnsureSuccessStatusCode();
 
-        // 6. Recibo, com o que o destino não levou.
-        AvalaraSubmitResponse body = await ReadJsonAsync<AvalaraSubmitResponse>(response, ct);
-        string externalId = body.Id
-            ?? throw new InvalidOperationException("Resposta de envio da plataforma sem identificador externo.");
+        // 6. Recibo, com o que o destino não levou. Sucesso sem identificador não é reenviado: retentar mandaria de novo
+        //    um documento talvez já aceito (ADR-0027).
+        string externalId = SubmittedId(body)
+            ?? throw new DispatchRejectedException(
+                $"Conector: a plataforma respondeu HTTP {status} com sucesso, mas sem identificador reconhecível. O documento pode ter "
+                + "sido aceito e não será reenviado automaticamente. Veja a resposta gravada.");
 
         return new IntegrationReceipt { ExternalId = externalId, Status = IntegrationStatus.Submitted, Omissions = mapping.Omissions };
     }
@@ -95,13 +127,26 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     /// <inheritdoc/>
     public async Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
     {
-        Uri baseUri = BaseOf(AvalaraOutboundSettings.Read(context.TenantId, await _profiles.GetAsync(context.TenantId, ct)));
-        var statusUri = new Uri(baseUri, $"{_options.DocumentsPath}/{Uri.EscapeDataString(externalId)}/status");
+        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, await _profiles.GetAsync(context.TenantId, ct));
+        var statusUri = new Uri(settings.BaseUri, $"{_options.DocumentsPath}/{Uri.EscapeDataString(externalId)}/status");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, statusUri);
-        await ApplyAuthAsync(request, context.TenantId, ct);
+        AvalaraAccessToken token = await ApplyAuthAsync(request, settings, ct);
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
+
+        // Toda resposta com corpo sobrescreve a foto da consulta; a sem corpo (204, 404 pendente) não.
+        (string raw, int redactions) = await ReadRedactedAsync(response, token, ct);
+        if (raw.Length > 0)
+        {
+            await PhotographAsync(context, TraceExchanges.Status, request, response, raw, redactions, token, ct);
+        }
+
+        // 401 na consulta: descarta o token e deixa para a próxima passada do poll (limite em MaxAttempts).
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw Unauthorized(token, settings);
+        }
 
         // 204 (sem conteúdo) e 404 (identificador ainda desconhecido) = a plataforma não processou
         // o documento ainda → segue pendente, não é erro. A consulta se repete e, no limite de
@@ -113,7 +158,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
 
         response.EnsureSuccessStatusCode();
 
-        using JsonDocument body = await ReadJsonDocumentAsync(response, ct);
+        using JsonDocument body = ParseStatus(raw);
         IntegrationStatus status = Translate(StringProperty(body.RootElement, "status"));
 
         // O status nativo nunca sai do adapter; o que atravessa é o texto da plataforma (ADR-0003, refinado pelo
@@ -136,43 +181,68 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         _ => IntegrationStatus.Submitted,
     };
 
-    // Resolução por tenant (ADR-0019): a URL base vem do perfil do tenant (ambiente ativo). Sem
-    // perfil ou settings, cai na config do adapter — a consulta de status não depende dos códigos da empresa.
-    // Em produção o secret/token seguem o mesmo padrão, resolvidos no Key Vault pelas referências das settings.
-    private Uri BaseOf(AvalaraOutboundSettings settings)
-        => new(string.IsNullOrWhiteSpace(settings.BaseUrl) ? _options.BaseUrl : settings.BaseUrl, UriKind.Absolute);
-
-    // Gancho de token: aplica Bearer por-requisição (thread-safe; não mexe no HttpClient compartilhado).
-    // Stub no-op devolve cadeia vazia → sem header.
-    private async Task ApplyAuthAsync(HttpRequestMessage request, string tenantId, CancellationToken ct)
+    // Bearer por requisição (thread-safe; não mexe no HttpClient compartilhado), com a credencial do tenant no ambiente
+    // ativo. Só a composição sem autenticação, pedida explicitamente, devolve "sem token" (ADR-0027).
+    private async Task<AvalaraAccessToken> ApplyAuthAsync(HttpRequestMessage request, AvalaraOutboundSettings settings, CancellationToken ct)
     {
-        string token = await _tokenProvider.GetTokenAsync(tenantId, ct);
-        if (!string.IsNullOrWhiteSpace(token))
+        AvalaraAccessToken token = await _tokenProvider.GetTokenAsync(settings, ct);
+        if (!token.IsNone)
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
         }
+
+        return token;
     }
 
-    // Lê o JSON da resposta; um corpo vazio ou malformado vira exceção do adapter (não vaza
-    // JsonException da camada de serialização). A falha propaga → o Service Bus reconta (ADR-0004).
-    private static async Task<T> ReadJsonAsync<T>(HttpResponseMessage response, CancellationToken ct)
-        where T : class
+    // O corpo cru, redigido antes de qualquer uso: nem a foto, nem o motivo, nem um log veem o token em uso.
+    private static async Task<(string Body, int Redactions)> ReadRedactedAsync(HttpResponseMessage response, AvalaraAccessToken token, CancellationToken ct)
+        => SensitiveText.Redact(await response.Content.ReadAsStringAsync(ct), [token.Value]);
+
+    // A quarta foto: o envelope do D8, já redigido. Melhor esforço — a falha é logada sem o conteúdo, e o desfecho segue
+    // como se tivesse dado certo, porque a requisição já saiu.
+    private async Task PhotographAsync(
+        DispatchContext context, string exchange, HttpRequestMessage request, HttpResponseMessage response, string body, int redactions,
+        AvalaraAccessToken token, CancellationToken ct)
     {
         try
         {
-            return await response.Content.ReadFromJsonAsync<T>(JsonOpts, ct)
-                ?? throw new InvalidOperationException("Resposta da plataforma de compliance vazia.");
+            string envelope = PlatformResponseEnvelope.Build(
+                exchange, request, response, body, redactions, value => SensitiveText.Redact(value, [token.Value]), _clock.GetUtcNow());
+            await _trace.SaveResponseAsync(context.TenantId, context.NaturalKey, Destination, exchange, envelope, ct);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            throw new InvalidOperationException("Resposta da plataforma de compliance não é um JSON válido.", ex);
+            _logger.LogWarning(
+                "A foto da resposta ({Exchange}) do documento {NaturalKey} do tenant {Tenant} não foi gravada ({Error}); o desfecho segue.",
+                exchange, context.NaturalKey, context.TenantId, ex.GetType().Name);
+        }
+    }
+
+    private HttpRequestException Unauthorized(AvalaraAccessToken token, AvalaraOutboundSettings settings)
+    {
+        _tokenProvider.Invalidate(token);
+        return new HttpRequestException(
+            $"A plataforma recusou o token em cache do tenant '{settings.TenantId}' no ambiente '{settings.Environment}' (HTTP 401); "
+            + "o token foi descartado, e a próxima tentativa pede outro.", null, HttpStatusCode.Unauthorized);
+    }
+
+    // O identificador do envio: o "id" texto não vazio de um objeto JSON. Qualquer outra coisa é "sem identificador".
+    internal static string? SubmittedId(string body)
+    {
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(body);
+            return doc.RootElement.ValueKind == JsonValueKind.Object ? StringProperty(doc.RootElement, "id") is { Length: > 0 } id ? id : null : null;
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 
     // A consulta de status é lida como JSON cru: além do status, o motivo da recusa vem em formato ainda não gravado.
-    private static async Task<JsonDocument> ReadJsonDocumentAsync(HttpResponseMessage response, CancellationToken ct)
+    private static JsonDocument ParseStatus(string raw)
     {
-        string raw = await response.Content.ReadAsStringAsync(ct);
         if (string.IsNullOrWhiteSpace(raw))
         {
             throw new InvalidOperationException("Resposta da plataforma de compliance vazia.");
@@ -194,10 +264,4 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
             && root.EnumerateObject().FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is { Value.ValueKind: JsonValueKind.String } property
                 ? property.Value.GetString()
                 : null;
-
-    // Resposta nativa do envio — internal: o formato externo fica preso no adapter.
-    private sealed record AvalaraSubmitResponse
-    {
-        public string? Id { get; init; }
-    }
 }

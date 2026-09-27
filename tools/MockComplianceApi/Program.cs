@@ -1,10 +1,15 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 // Mock minimal-API que simula a plataforma de compliance (Avalara) para testes manuais e2e.
 // Fluxo de duas fases (ADR-0003): POST devolve um GUID (aceito); GET status devolve o resultado.
 // Store em memória — some quando o processo reinicia. Nunca usar em produção.
 // Os formatos de recusa ({"mensagens":[...]}) são PRESUMIDOS até haver resposta real gravada (ADR-0026); o hub
 // extrai o motivo de forma tolerante e não depende deles.
+// Autentica como a plataforma (ADR-0027): POST /oauth/token (client_credentials com corpo JSON, a forma da coleção do
+// Postman do cliente) emite um token, e /documents* exigem o Bearer emitido aqui. /admin/* e a inspeção do payload
+// continuam abertos, porque são ferramenta de dev.
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -16,39 +21,129 @@ var documents = new ConcurrentDictionary<string, (string Status, string? Reason,
 // query, então este toggle é o que decide — permite forçar os caminhos de recusa ao vivo.
 var toggle = new ResultToggle();
 
-// Fase 1 — recebe o "god json" e devolve um identificador externo (GUID).
-// ?resultado=carregado|erro|rejeitar sobrepõe o toggle para exercitar cada ramo.
-app.MapPost("/documents", async (HttpRequest request, string? resultado) =>
+// Tokens emitidos por este processo, e o toggle que força a recusa da credencial (o roteiro local do D7).
+var tokens = new ConcurrentDictionary<string, byte>();
+var tokenToggle = new TokenToggle();
+
+// Qualquer client_id e client_secret não vazios servem: o mock confere a forma, não a credencial. O corpo é JSON, como
+// na coleção do cliente; formulário é recusado, para que uma regressão do provider apareça no ponta a ponta. O
+// disableTokenRefresh da coleção é aceito, e não exigido: não há documentação dele.
+// A recusa tem a forma do sandbox (2026-09-27): HTTP 400 com {"error": "<texto livre>"}, sem error_description, e o texto
+// não é o código do OAuth — o segredo errado volta como "client_id invalid". Cada diferença entre o mock e a plataforma é
+// um ensaio que passa e um envio real que falha.
+app.MapPost("/oauth/token", async (HttpRequest request) =>
 {
-    using var reader = new StreamReader(request.Body);
-    var body = await reader.ReadToEndAsync();
-
-    var result = ResultToggle.Normalize(resultado) ?? toggle.Value;
-
-    // Recusa síncrona: a plataforma não aceita o documento (o hub registra o motivo, sem retentativa).
-    if (result == "rejeitar")
+    JsonObject? body = null;
+    if (request.HasJsonContentType())
     {
-        return Results.BadRequest(new { mensagens = new[] { toggle.Reason } });
+        try
+        {
+            body = await JsonNode.ParseAsync(request.Body) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            // corpo inválido: cai no 400 abaixo
+        }
     }
 
-    var id = Guid.NewGuid().ToString();
-    documents[id] = (result, result == "erro" ? toggle.Reason : null, body);
-    return Results.Ok(new { id });
+    if (body is null)
+    {
+        return Refused("request body invalid");
+    }
+
+    string? Field(string name) => body[name] is JsonValue value && value.TryGetValue(out string? text) ? text : null;
+    if (Field("grant_type") != "client_credentials")
+    {
+        return Refused("grant_type invalid");
+    }
+
+    if (string.IsNullOrEmpty(Field("client_id")) || string.IsNullOrEmpty(Field("client_secret")) || tokenToggle.Refuse)
+    {
+        return Refused("client_id invalid");
+    }
+
+    // A forma da resposta real do sandbox (2026-09-27), com valores de mentira: o ensaio da sonda contra o mock passa pela
+    // mesma redação (as credenciais [redigido], a sessão, a conta e o login [mascarado]).
+    string token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
+    tokens[token] = 0;
+    return Results.Ok(new
+    {
+        access_token = token,
+        token_type = "bearer",
+        expires_in = 86400,
+        refresh_token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)),
+        sessionId = Guid.NewGuid().ToString(),
+        userId = 900001,
+        subId = "mock-sub-0001",
+        appId = "mock-app-0001",
+        login = "integracao@empresa-do-mock",
+    });
 });
 
-// Fase 2 — consulta o status final pelo GUID. No "erro", o motivo vem em "mensagens".
-app.MapGet("/documents/{id}/status", (string id) =>
-    documents.TryGetValue(id, out var doc)
-        ? doc.Reason is null
-            ? Results.Ok(new { id, status = doc.Status })
-            : Results.Ok(new { id, status = doc.Status, mensagens = new[] { doc.Reason } })
-        : Results.NotFound(new { id, status = "desconhecido" }));
+static IResult Refused(string error) => Results.Json(new { error }, statusCode: StatusCodes.Status400BadRequest);
 
-// Inspeção: devolve o JSON exato que o hub enviou (para ver o payload gerado).
-app.MapGet("/documents/{id}", (string id) =>
-    documents.TryGetValue(id, out var doc)
-        ? Results.Content(doc.Body, "application/json")
-        : Results.NotFound());
+// Toggle (dev): aceitar | recusar a credencial nos próximos pedidos de token.
+app.MapPost("/admin/token/{value}", (string value) =>
+{
+    tokenToggle.Refuse = value.Trim().Equals("recusar", StringComparison.OrdinalIgnoreCase);
+    return Results.Ok(new { token = tokenToggle.Refuse ? "recusar" : "aceitar" });
+});
+
+// Os caminhos de envio: o do sandbox (Avalara:DocumentsPath do appsettings.Development.json, da URL de envio do cliente)
+// e o /documents de antes. Os dois atendem o mesmo store, e o status e a inspeção seguem o mesmo prefixo.
+string[] documentPaths = ["/taxcompliance/v2/fiscal/dfe", "/documents"];
+
+// Sem o Bearer emitido aqui, os caminhos de envio e de status respondem 401 — o mock nunca aceita envio sem autenticação.
+bool Authorized(HttpRequest request)
+    => request.Headers.Authorization.ToString() is { } header
+        && header.StartsWith("Bearer ", StringComparison.Ordinal)
+        && tokens.ContainsKey(header["Bearer ".Length..]);
+
+IResult Unauthenticated() => Results.Json(new { mensagens = new[] { "token ausente ou inválido (mock)" } }, statusCode: StatusCodes.Status401Unauthorized);
+
+foreach (string path in documentPaths)
+{
+    // Fase 1 — recebe o "god json" e devolve um identificador externo (GUID).
+    // ?resultado=carregado|erro|rejeitar sobrepõe o toggle para exercitar cada ramo.
+    app.MapPost(path, async (HttpRequest request, string? resultado) =>
+    {
+        if (!Authorized(request))
+        {
+            return Unauthenticated();
+        }
+
+        using var reader = new StreamReader(request.Body);
+        var body = await reader.ReadToEndAsync();
+
+        var result = ResultToggle.Normalize(resultado) ?? toggle.Value;
+
+        // Recusa síncrona: a plataforma não aceita o documento (o hub registra o motivo, sem retentativa).
+        if (result == "rejeitar")
+        {
+            return Results.BadRequest(new { mensagens = new[] { toggle.Reason } });
+        }
+
+        var id = Guid.NewGuid().ToString();
+        documents[id] = (result, result == "erro" ? toggle.Reason : null, body);
+        return Results.Ok(new { id });
+    });
+
+    // Fase 2 — consulta o status final pelo GUID. No "erro", o motivo vem em "mensagens".
+    app.MapGet($"{path}/{{id}}/status", (HttpRequest request, string id) =>
+        !Authorized(request)
+            ? Unauthenticated()
+            : documents.TryGetValue(id, out var doc)
+                ? doc.Reason is null
+                    ? Results.Ok(new { id, status = doc.Status })
+                    : Results.Ok(new { id, status = doc.Status, mensagens = new[] { doc.Reason } })
+                : Results.NotFound(new { id, status = "desconhecido" }));
+
+    // Inspeção: devolve o JSON exato que o hub enviou (para ver o payload gerado). Aberta: é ferramenta de dev.
+    app.MapGet($"{path}/{{id}}", (string id) =>
+        documents.TryGetValue(id, out var doc)
+            ? Results.Content(doc.Body, "application/json")
+            : Results.NotFound());
+}
 
 // Toggle (dev): força o resultado padrão dos próximos documentos (carregado | erro | rejeitar), com motivo
 // opcional (?motivo=...), pra exercitar erro, recusa e reprocesso ao vivo.
@@ -79,6 +174,12 @@ internal sealed class ResultToggle
         "rejeitar" => "rejeitar",
         _ => null,
     };
+}
+
+// Recusa forçada da credencial (dev).
+internal sealed class TokenToggle
+{
+    public bool Refuse { get; set; }
 }
 
 // Exposto para o teste ponta a ponta subir o mock em memória (WebApplicationFactory<Program>).

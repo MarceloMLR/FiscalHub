@@ -6,6 +6,8 @@
   - **ADR-0025 §6:** o item sem o grupo IBS/CBS, ou com o grupo sem classificação, deixa de ser rejeitado.
   - **ADR-0003:** refina a mensagem da rejeição. O texto da plataforma atravessa o adapter, e o status continua
     normalizado.
+- **Revisado por:** [ADR-0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md). No §2, o 403 e o 401 com token recém-emitido deixam de ser falha transitória, e o
+  aceite sem identificador deixa de ser retentado.
 - **Change OpenSpec:** `openspec/changes/connector-not-validator`
 - **Validado no ambiente:** 2026-09-27, contra o `fiscosysdev` e o mock (ver o fim do documento).
 
@@ -74,6 +76,16 @@ da Avalara para dentro da Application.
 - **Recusa na consulta de status.** O "erro" leva a mensagem da resposta da plataforma. Sem mensagem, diz que a
   plataforma não informou a causa.
 - **Falha transitória.** Continua como exceção, com retry nativo e dead-letter (ADR-0004).
+
+  > **Revisado pelo ADR-0027 (2026-09-27).** Esta frase cobria o 401 e o 403 sem nomeá-los, porque o token ainda nem
+  > estava ligado. Agora o 403, e o 401 com token recém-emitido, são impossibilidade do lado do conector: rejeição com o
+  > motivo da plataforma, sem retentativa. O 401 com token do cache invalida o token e segue o retry nativo, e a
+  > tentativa seguinte pede outro. O 2xx sem identificador reconhecível também vira rejeição, sem retentativa, porque o
+  > documento pode ter sido aceito. O porquê: na dead-letter o motivo se perde (fica `MaxDeliveryCountExceeded`), e
+  > retentar credencial pode bloquear a conta. A decisão explícita revertida é o D10 do design arquivado da
+  > `connector-not-validator` ("tratar 401 e 403 como rejeição" estava nas alternativas descartadas). O 5xx, o 429 e
+  > a rede continuam no retry nativo. O 404 do envio também virou rejeição de configuração (o caminho de envio não
+  > existe na URL), e o da consulta de status continua pendente.
 - **Refinamento do ADR-0003.** O status continua normalizado, e o nativo "erro" não sai do adapter. O que atravessa
   é a **mensagem humana** da plataforma. A frase agnóstica de antes escondia justamente o que o usuário precisa ver.
 - **O formato real do erro da Avalara ainda não foi gravado.** A extração do motivo é tolerante: lista de mensagens,

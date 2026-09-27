@@ -13,7 +13,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0003](0003-despacho-assincrono-status-integracao.md) | Despacho assíncrono e status de integração normalizado | Aceito |
 | [0004](0004-esteira-nucleo-puro-retry-nativo.md) | Esteira: núcleo puro, retry/DLQ nativos, envio direto | Aceito |
 | [0005](0005-idempotencia-no-banco.md) | Idempotência no banco (índice único) para o rastreio | Aceito |
-| [0006](0006-rastreabilidade-fotos-no-blob.md) | Rastreabilidade por "fotos" (domínio/destino) no Blob | Aceito |
+| [0006](0006-rastreabilidade-fotos-no-blob.md) | Rastreabilidade por "fotos" (domínio/destino) no Blob | Aceito — revisado pelo 0027 |
 | [0007](0007-poll-de-status-e-idempotencia-por-estado.md) | Poll de status assíncrono e idempotência por estado | Aceito |
 | [0008](0008-gatilho-por-service-bus.md) | Gatilho por Service Bus (fila + claim-check) | Aceito |
 | [0009](0009-gatilho-de-ingestao-por-drop.md) | Gatilho de ingestão por drop no Blob (local; Event Grid no cloud) | Aceito — revisado pelo 0028 |
@@ -26,23 +26,20 @@ substitui o anterior (em vez de reescrever a história).
 | [0016](0016-idempotencia-por-conteudo.md) | Idempotência por conteúdo (nota de entrada pode ser corrigida) | Aceito |
 | [0017](0017-agendador-e-execucao-compartilhada.md) | Agendador in-process + execução compartilhada (runner) | Aceito |
 | [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito — revisado pelo 0028 |
-| [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito |
+| [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito — revisado pelo 0027 |
 | [0020](0020-topologia-de-deploy-por-cliente-e-frontend-unico.md) | Topologia de deploy (backend por-cliente, frontend único, subdomínio) | Aceito |
 | [0021](0021-adapter-de-chamados-de-suporte.md) | Adapter de chamados de suporte (Freshdesk) — porta + anexos zipados por nota | Aceito |
 | [0022](0022-adapter-de-entrada-dynamics-365-fo.md) | Adapter de entrada Dynamics 365 F&O (pacote de data entities de nome fixo) | Proposto — revisado pelo 0023 |
 | [0023](0023-descoberta-por-polling-com-change-tracking-no-d365.md) | Descoberta por polling como garantia de captura no D365 F&O | Aceito — revisado pelo 0024 |
 | [0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md) | Feed de mudanças por janela de data no D365 (porta, marca d'água, keyset, lease) | Aceito — revisado pelo 0025 |
 | [0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md) | Montagem do documento D365, origem na referência e supressão de republicação | Aceito — §6 revisado pelo 0026 |
-| [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito |
+| [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito — §2 revisado pelo 0027 |
+| [0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md) | Credencial da plataforma por tenant, segredo pela tela no cofre, e a resposta como quarta foto | Aceito |
 | [0028](0028-limite-de-tenant.md) | Limite de tenant: o tenant vem de quem está logado, nunca da requisição; o locator mora em quem o lê | Aceito |
 
 ## Planejados
 
 Decisões já tomadas em conversa, a serem registradas conforme as fatias avançam:
-
-- **0027 (reservado):** credencial da plataforma por tenant, segredo pela tela e cofre, e a resposta como quarta foto.
-  É a parte 2 da change `connect-avalara-sandbox`, que começa pelo portão contra o sandbox. O 0028, parte 1 da mesma
-  change, foi mergeado antes dela.
 
 - Ports & adapters (arquitetura hexagonal).
 - Blob + Azure SQL em vez de CosmosDB.

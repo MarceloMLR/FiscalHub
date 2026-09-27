@@ -2,6 +2,7 @@
 
 - **Status:** Aceito
 - **Data:** 2026-07-24
+- **Revisado por:** [ADR-0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md). O segredo entra pela tela e vai para o cofre; a referência é do servidor.
 
 ## Contexto
 
@@ -20,6 +21,13 @@ aqui tudo era single-tenant hardcoded (um Avalara, uma fonte). Precisávamos dec
 - **Segredos NÃO ficam em claro.** As settings guardam **referências** (`kv:...`), nunca o valor —
   em produção resolvidas no **Key Vault**. No banco fica o não-secreto (adapter, urls, flags) + as
   referências.
+
+  > **Revisado pelo ADR-0027 (2026-09-27).** O valor entra pela tela, como campo de escrita (`clientSecret`, `password`,
+  > `apiKey`…), no `PUT /connector`, e o servidor o grava no cofre. O perfil guarda só a referência que o servidor deriva,
+  > no prefixo do tenant (`kv:fh-{tenant}--{tipo}--{caminho}--{campo}`); um `*Ref` vindo da requisição é recusado. O
+  > `GET` nunca devolve o valor nem a referência, só se está configurado e quando. O adapter recusa, na leitura, o valor
+  > cru e a referência fora do prefixo do tenant. Em dev, o cofre é um emulador da API do Key Vault, em memória, pelo
+  > mesmo adapter de produção.
 - **Config gerida por Admin**: `GET`/`PUT /connector` exigem a role `Admin` e são **escopados ao
   tenant do usuário** (ninguém edita o perfil de outro tenant).
 - `GET /info` passa a ler o **ambiente do perfil do tenant** (cada tenant o seu), no lugar de uma

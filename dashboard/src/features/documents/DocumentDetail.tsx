@@ -9,7 +9,7 @@ import { useTrace } from './useTrace';
 import { isFailure } from './StatusChip';
 import type { DocumentSummary } from '../../types';
 
-type Tab = 'source' | 'domain' | 'destination';
+type Tab = 'source' | 'domain' | 'destination' | 'response';
 const pretty = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v, null, 2));
 
 export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
@@ -81,13 +81,33 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
             <TabButton active={tab === 'source'} onClick={() => setTab('source')}>Origem</TabButton>
             <TabButton active={tab === 'domain'} onClick={() => setTab('domain')}>Domínio</TabButton>
             <TabButton active={tab === 'destination'} onClick={() => setTab('destination')}>Destino</TabButton>
+            <TabButton active={tab === 'response'} onClick={() => setTab('response')}>Resposta</TabButton>
           </div>
 
           {tab === 'source' && (data.source ? <Code>{data.source}</Code> : <Empty />)}
           {tab === 'domain' && (data.domain !== undefined ? <Code>{pretty(data.domain)}</Code> : <Empty />)}
           {tab === 'destination' && (data.destination ? <Code>{pretty(data.destination.payload)}</Code> : <Empty />)}
+          {tab === 'response' &&
+            (data.responses ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <ResponseBlock title="Envio" envelope={data.responses.submit} />
+                <ResponseBlock title="Consulta de status" envelope={data.responses.status} />
+              </div>
+            ) : (
+              <Empty />
+            ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// Um envelope de resposta da plataforma (já redigido no servidor), ou a falta dele.
+function ResponseBlock({ title, envelope }: { title: string; envelope: unknown }) {
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>{title}</div>
+      {envelope !== undefined ? <Code>{pretty(envelope)}</Code> : <Empty />}
     </div>
   );
 }

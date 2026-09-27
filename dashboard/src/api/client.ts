@@ -247,9 +247,12 @@ export const api = {
     });
     if (res.status === 401) {
       handleUnauthorized();
+      throw new Error('Sessão expirada.');
     }
     if (!res.ok) {
-      throw new Error(`${res.status} ${res.statusText}`);
+      // 400 (settings recusadas) e 502 (cofre) trazem { message }, que cita o campo e nunca o valor.
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(data.message ?? `${res.status} ${res.statusText}`);
     }
   },
 };

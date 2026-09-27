@@ -64,7 +64,9 @@ O nome do segredo no cofre MUST ser derivado pelo servidor a partir de quatro co
 - o campo.
 
 O nome MUST usar só o que o cofre aceita: letras ASCII, dígitos e hífen, com até 127 caracteres. Um exemplo é
-`fh-tenant-a-outbound-sandbox-clientsecret`. Todo nome do tenant começa pelo prefixo dele.
+`fh-tenant-a--outbound--sandbox--clientsecret`. Os segmentos são separados por `--`, e nenhum segmento pode
+conter `--`. Assim, todo nome do tenant começa pelo prefixo exato `fh-{tenant}--`, que não é prefixo do nome de
+nenhum outro tenant.
 
 - **Na gravação:** um campo `*Ref` vindo da requisição MUST ser recusado com HTTP 400. A referência não é dado do
   cliente, e aceitá-la deixaria um tenant apontar para o segredo de outro.
@@ -72,11 +74,11 @@ O nome MUST usar só o que o cofre aceita: letras ASCII, dígitos e hífen, com 
   conector, sem ler o cofre.
 
 #### Scenario: Referência de outro tenant na requisição
-- **WHEN** um Admin do tenant-b grava `"sandbox": {"clientSecretRef": "kv:fh-tenant-a-outbound-sandbox-clientsecret"}`
+- **WHEN** um Admin do tenant-b grava `"sandbox": {"clientSecretRef": "kv:fh-tenant-a--outbound--sandbox--clientsecret"}`
 - **THEN** a gravação responde 400, e o perfil do tenant-b não muda
 
 #### Scenario: Referência de outro tenant gravada direto no banco
-- **WHEN** as settings do tenant-b, gravadas por SQL, apontam para `kv:fh-tenant-a-outbound-sandbox-clientsecret`, e a
+- **WHEN** as settings do tenant-b, gravadas por SQL, apontam para `kv:fh-tenant-a--outbound--sandbox--clientsecret`, e a
   esteira envia uma nota do tenant-b
 - **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector
 - **AND** o cofre não é lido, e nenhuma requisição sai com a credencial do tenant-a
@@ -170,7 +172,7 @@ O host MUST recusar, antes de chamar o cofre, a leitura ou gravação de um nome
 - **THEN** o cofre recusa a operação por falta de permissão
 
 #### Scenario: Segredo de conector, em staging
-- **WHEN** a identidade do host grava e lê `fh-tenant-a-outbound-sandbox-clientsecret` no cofre de staging
+- **WHEN** a identidade do host grava e lê `fh-tenant-a--outbound--sandbox--clientsecret` no cofre de staging
 - **THEN** as duas operações funcionam
 
 #### Scenario: Nome fora do prefixo no código

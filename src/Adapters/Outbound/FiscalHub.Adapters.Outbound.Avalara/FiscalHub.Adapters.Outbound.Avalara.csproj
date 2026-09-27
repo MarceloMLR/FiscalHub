@@ -13,6 +13,8 @@
   <!-- DTOs do contrato da Avalara ficam internal; o projeto de teste enxerga via isto. -->
   <ItemGroup>
     <InternalsVisibleTo Include="FiscalHub.Adapters.Outbound.Avalara.Tests" />
+    <!-- A sonda do sandbox (tools/AvalaraSandboxProbe) reusa as settings, o provider, a redação e o envelope. -->
+    <InternalsVisibleTo Include="AvalaraSandboxProbe" />
   </ItemGroup>
 
   <PropertyGroup>

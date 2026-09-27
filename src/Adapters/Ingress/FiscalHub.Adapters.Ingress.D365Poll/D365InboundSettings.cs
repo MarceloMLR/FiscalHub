@@ -115,7 +115,7 @@ internal sealed record D365InboundSettings
             throw new ConnectorSettingsException("auth.clientSecret em claro não é aceito: use auth.clientSecretRef = \"kv:<nome>\".");
         }
 
-        if (raw.ClientSecretRef is not null && !SecretReference.IsReference(raw.ClientSecretRef))
+        if (raw.ClientSecretRef is not null && !SecretReference.TryParse(raw.ClientSecretRef, out _))
         {
             throw new ConnectorSettingsException("auth.clientSecretRef deve ser uma referência \"kv:<nome>\", nunca o segredo em claro.");
         }

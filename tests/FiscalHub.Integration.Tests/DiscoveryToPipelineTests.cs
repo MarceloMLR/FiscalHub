@@ -296,5 +296,7 @@ public class DiscoveryToPipelineTests
         }
 
         public Task SaveOutboundAsync(string tenantId, string naturalKey, string destination, string json, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task SaveResponseAsync(string tenantId, string naturalKey, string destination, string exchange, string json, CancellationToken ct = default) => Task.CompletedTask;
     }
 }
