@@ -27,6 +27,19 @@ public class DeadLetterHandlerTests
     }
 
     [Fact]
+    public async Task Discovery_queue_reference_is_recorded_as_dead_lettered_too()
+    {
+        // Referência publicada pelo feed do D365 na documents-discovered: a mesma dead-letter visível (ADR-0010).
+        var store = new FakeStore();
+        var handler = new DeadLetterHandler(store);
+        DocumentReference discovered = Reference() with { NaturalKey = "brmf|BRMF21-10000026", Locator = "d365/brmf/35637156582", Origin = "Dynamics365" };
+
+        await handler.HandleAsync(BinaryData.FromObjectAsJson(discovered, DocumentQueueSerialization.Options), "MaxDeliveryCountExceeded");
+
+        Assert.Equal(("brmf|BRMF21-10000026", "MaxDeliveryCountExceeded"), store.DeadLettered);
+    }
+
+    [Fact]
     public async Task Handle_throws_on_empty_body()
     {
         var handler = new DeadLetterHandler(new FakeStore());

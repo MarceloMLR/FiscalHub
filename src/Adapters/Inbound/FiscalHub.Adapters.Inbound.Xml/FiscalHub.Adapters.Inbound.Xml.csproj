@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="FiscalHub.Adapters.Inbound.Xml.Tests" />
+    <InternalsVisibleTo Include="FiscalHub.Integration.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

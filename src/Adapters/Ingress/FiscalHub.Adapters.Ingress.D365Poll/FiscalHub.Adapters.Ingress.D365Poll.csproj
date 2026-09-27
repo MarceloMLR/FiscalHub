@@ -19,6 +19,7 @@
   <!-- Contrato OData e token ficam internal; o projeto de teste enxerga via isto. -->
   <ItemGroup>
     <InternalsVisibleTo Include="FiscalHub.Adapters.Ingress.D365Poll.Tests" />
+    <InternalsVisibleTo Include="FiscalHub.Integration.Tests" />
   </ItemGroup>
 
 </Project>

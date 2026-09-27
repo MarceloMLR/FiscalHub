@@ -1,13 +1,15 @@
 using FiscalHub.Application.Inbound;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FiscalHub.Adapters.Messaging.ServiceBus.Tests;
 
 /// <summary>
 /// Especifica o registro da fila de descoberta: <c>IDocumentQueue</c> por chave, apontando para a fila
-/// própria, sem consumidor, e sem mexer na fila de entrada da esteira. Nada conecta no bus: o cliente do
-/// Service Bus só abre conexão no primeiro envio.
+/// própria, com consumidor e dead-letter próprios (ADR-0025), sem mexer na fila de entrada da esteira. Nada
+/// conecta no bus: o cliente do Service Bus só abre conexão no primeiro envio, e as cascas não são iniciadas.
 /// </summary>
 public class DiscoveryQueueRegistrationTests
 {
@@ -47,20 +49,25 @@ public class DiscoveryQueueRegistrationTests
     }
 
     [Fact]
-    public void Discovery_queue_adds_no_consumer()
+    public async Task Each_queue_gets_one_consumer_and_one_dead_letter_listener()
     {
-        var services = new ServiceCollection();
-        services.AddServiceBusDocumentQueue(o => o.ConnectionString = EmulatorConnection);
-        int hostedBefore = services.Count(d => d.ServiceType == typeof(IHostedService));
+        await using ServiceProvider sp = Build(services => services.AddServiceBusDiscoveryQueue());
 
-        services.AddServiceBusDiscoveryQueue();
+        IHostedService[] hosted = [.. sp.GetServices<IHostedService>()];
 
-        Assert.Equal(hostedBefore, services.Count(d => d.ServiceType == typeof(IHostedService)));
+        Assert.Equal(
+            ["documents-in", "documents-discovered"],
+            hosted.OfType<ServiceBusTriggerService>().Select(s => s.QueueName));
+        Assert.Equal(
+            ["documents-in", "documents-discovered"],
+            hosted.OfType<DeadLetterTriggerService>().Select(s => s.QueueName));
+        Assert.Equal(4, hosted.Length);
     }
 
     private static ServiceProvider Build(Action<IServiceCollection> extra)
     {
         var services = new ServiceCollection();
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddServiceBusDocumentQueue(o =>
         {
             o.ConnectionString = EmulatorConnection;

@@ -33,6 +33,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/FiscalHub.Application.Tests/FiscalHub.Application.Tests.csproj" />
     <Project Path="tests/FiscalHub.Infrastructure.Tests/FiscalHub.Infrastructure.Tests.csproj" />
+    <Project Path="tests/FiscalHub.Integration.Tests/FiscalHub.Integration.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Adapters/Inbound/">
     <Project Path="tests/Adapters/Inbound/FiscalHub.Adapters.Inbound.Xml.Tests/FiscalHub.Adapters.Inbound.Xml.Tests.csproj" />

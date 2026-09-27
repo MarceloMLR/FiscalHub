@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="FiscalHub.Adapters.Messaging.ServiceBus.Tests" />
+    <InternalsVisibleTo Include="FiscalHub.Integration.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

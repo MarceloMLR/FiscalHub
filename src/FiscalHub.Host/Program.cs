@@ -118,10 +118,12 @@ builder.Services.AddScoped<IntegrationScheduler>();
 builder.Services.AddHostedService<SchedulerHostedService>();
 
 // Feed de mudanças do D365 (ADR-0024): o worker pergunta ao F&O o que mudou (janela por data, keyset,
-// lease por tenant) e publica cada referência na fila de DESCOBERTA — sem consumidor nesta fatia; a
-// montagem liga depois. Poll desligado por padrão: cada tenant liga no perfil (poll.enabled).
+// lease por tenant) e publica cada referência na fila de DESCOBERTA. O consumidor dela entra pelo roteador:
+// a NF-e 55 é montada pelo source do D365 (4 GETs + cadastros em cache) e segue a mesma esteira; NFS-e e
+// CT-e viram "ignorado" (ADR-0025). Poll desligado por padrão: cada tenant liga no perfil (poll.enabled).
 builder.Services.AddServiceBusDiscoveryQueue(o => o.QueueName = cfg["ServiceBus:DiscoveryQueue"] ?? "documents-discovered");
 builder.Services.AddD365ChangeFeed();
+builder.Services.AddD365GoodsInvoiceSource();   // ao lado do source XML; a esteira escolhe pela origem da referência
 if (builder.Environment.IsDevelopment())
 {
     // Só em dev: token da sessão do Azure CLI (az login), até a app registration existir.
