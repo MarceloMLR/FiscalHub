@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount)","value":[
+    {
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTgyNic=\"","FiscalDocumentLineRecId":5637149826,"FiscalDocumentRecId":5637149826,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":10,"UnitPrice":350,"LineAmount":3500
+    }
+  ]
+}

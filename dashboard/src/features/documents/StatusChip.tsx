@@ -9,6 +9,8 @@ const map: Record<IntegrationStatus, { label: string; tone: Tone }> = {
   IntegrationError: { label: 'Rejeitado', tone: 'error' },
   Unconfirmed: { label: 'Sem retorno', tone: 'warn' },
   DeadLettered: { label: 'Falha', tone: 'dead' },
+  // Fora do escopo da esteira (NFS-e, CT-e, nota não autorizada) — desfecho explícito, não é falha (ADR-0025).
+  Ignored: { label: 'Ignorado', tone: 'pending' },
 };
 
 // Status de falha — habilitam o reprocessamento (rebuscar na origem e reintegrar).

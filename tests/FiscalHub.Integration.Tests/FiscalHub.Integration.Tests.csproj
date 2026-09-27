@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Ponta a ponta sem Azure (ADR-0025): consumidor da fila -> roteador -> esteira com resolver -> sources reais
+    (D365 sobre as respostas gravadas do fiscosysdev, XML sobre o Blob falso). TargetFramework etc. vêm do
+    Directory.Build.props.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Adapters\Messaging\FiscalHub.Adapters.Messaging.ServiceBus\FiscalHub.Adapters.Messaging.ServiceBus.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Ingress\FiscalHub.Adapters.Ingress.D365Poll\FiscalHub.Adapters.Ingress.D365Poll.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Inbound\FiscalHub.Adapters.Inbound.Xml\FiscalHub.Adapters.Inbound.Xml.csproj" />
+  </ItemGroup>
+
+  <!-- As mesmas respostas gravadas dos testes do adapter D365 e o XML de exemplo do adapter XML — por link, sem cópia. -->
+  <ItemGroup>
+    <None Include="..\Adapters\Ingress\FiscalHub.Adapters.Ingress.D365Poll.Tests\Fixtures\**\*" Link="Fixtures\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Adapters\Inbound\FiscalHub.Adapters.Inbound.Xml.Tests\Fixtures\nfe-com-reforma.xml" Link="Fixtures\xml\nfe-com-reforma.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

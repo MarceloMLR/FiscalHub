@@ -12,6 +12,20 @@
   - **Teste manual (`docs/RUNNING.md` §6):**
     - primeira passada: 5 requisições, 14 referências enfileiradas e 69 avisos de modelo fora do mapa;
     - segunda passada, um minuto depois: 0 referências.
+- **Revisado por:** [ADR-0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md)
+
+> **Nota de 2026-09-26.** O feed e a marca d'água continuam valendo. Três pontos mudaram com a fatia de
+> montagem e estão no [ADR-0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md):
+>
+> 1. **Locator.** Passa de `d365/<dataAreaId>/<Voucher>` para `d365/<dataAreaId>/<FiscalDocumentRecId>`.
+>    A montagem lê o cabeçalho pela chave primária.
+> 2. **Fila de descoberta.** A `documents-discovered` ganhou consumidor. A referência leva a origem do
+>    feed, e o carimbo de alteração viaja na página.
+> 3. **Repetidos da sobreposição.** A alternativa "filtrar os repetidos", rejeitada abaixo como "quarto
+>    esquema de idempotência", foi **adotada como filtro de tráfego**. A premissa da rejeição, "a fatia
+>    de roteamento pode absorver os repetidos barato", não se sustentou: a esteira busca o documento
+>    antes de checar o hash, e cada repetido custa uma montagem completa no F&O. A chave inclui o
+>    carimbo, só o par assentado é suprimido, e a garantia continua sendo o ADR-0016.
 
 ## Contexto
 

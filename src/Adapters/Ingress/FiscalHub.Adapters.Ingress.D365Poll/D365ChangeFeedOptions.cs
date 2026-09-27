@@ -11,4 +11,12 @@ public sealed class D365ChangeFeedOptions
 
     /// <summary>Tentativas por requisição (a primeira mais as repetições) antes de desistir por throttling.</summary>
     public int MaxAttempts { get; set; } = 5;
+
+    /// <summary>
+    /// Quanto o horizonte estável de cada página recua do header <c>Date</c> da primeira resposta (design D16).
+    /// Cobre a resolução de segundo do <c>SysModifiedDateTime</c> e a diferença entre o relógio do web server e
+    /// o que carimba o registro. Mínimo 1s: abaixo disso, duas gravações no mesmo segundo poderiam ter a segunda
+    /// suprimida.
+    /// </summary>
+    public TimeSpan StampSettleMargin { get; set; } = TimeSpan.FromSeconds(10);
 }

@@ -2,7 +2,6 @@ using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace FiscalHub.Adapters.Messaging.ServiceBus;
 
@@ -22,14 +21,17 @@ internal sealed class DeadLetterTriggerService : BackgroundService
     public DeadLetterTriggerService(
         ServiceBusClient client,
         IServiceProvider services,
-        IOptions<ServiceBusOptions> options,
+        string queueName,
         ILogger<DeadLetterTriggerService> logger)
     {
         _client = client;
         _services = services;
         _logger = logger;
-        _queueName = options.Value.QueueName;
+        _queueName = queueName;
     }
+
+    /// <summary>Fila que esta casca assina — uma instância por fila (entrada da esteira e descoberta).</summary>
+    public string QueueName => _queueName;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

@@ -20,4 +20,10 @@ public enum IntegrationStatus
 
     /// <summary>Processamento falhou repetidamente e a mensagem foi pra dead-letter. Item em aberto.</summary>
     DeadLettered,
+
+    /// <summary>
+    /// Fora do escopo desta esteira (ex.: NFS-e, CT-e, nota não autorizada) — desfecho explícito, com o motivo
+    /// no registro (ADR-0025). Não é falha: não entra nos KPIs de falha do dashboard.
+    /// </summary>
+    Ignored,
 }

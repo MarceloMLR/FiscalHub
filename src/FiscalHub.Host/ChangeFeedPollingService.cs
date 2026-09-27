@@ -43,8 +43,8 @@ internal sealed class ChangeFeedPollingService(IServiceProvider services, ILogge
         if (summary.TenantsPolled > 0)
         {
             logger.LogInformation(
-                "Feed de mudanças: {Tenants} tenant(s) consultado(s), {Enqueued} referência(s) na fila de descoberta.",
-                summary.TenantsPolled, summary.ReferencesEnqueued);
+                "Feed de mudanças: {Tenants} tenant(s) consultado(s), {Enqueued} referência(s) na fila de descoberta, {Suppressed} suprimida(s) por já publicadas.",
+                summary.TenantsPolled, summary.ReferencesEnqueued, summary.ReferencesSuppressed);
         }
 
         foreach ((string tenant, string error) in summary.Failures)

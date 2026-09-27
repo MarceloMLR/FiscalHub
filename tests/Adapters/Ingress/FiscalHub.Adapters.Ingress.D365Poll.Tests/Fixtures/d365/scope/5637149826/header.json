@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentBRs(FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount)","value":[
+    {
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTgyNic=\"","FiscalDocumentRecId":5637149826,"dataAreaId":"brmf","Voucher":"BRMF21-10000006","Model":"SE","Status":"Approved","Direction":"Outgoing","FiscalDocumentIssuer":"OwnEstablishment","AccessKey":"","FiscalDocumentSeries":"03","FiscalDocumentNumber":"000001","FiscalDocumentDate":"2015-12-12T12:00:00Z","FiscalDocumentDateTime":"1900-01-01T00:00:00Z","FiscalEstablishmentCNPJCPF":"442782250002-60","FiscalEstablishmentName":"Filial de servi\u00e7os","FiscalEstablishmentIE":"ISENTO","FiscalEstablishmentPostalAddress":22565428566,"ThirdPartyCNPJCPF":"874223310001-06","ThirdPartyName":"A. Dantum Brasil Ltda","ThirdPartyIE":"435362180285","ThirdPartyPostalAddress":22565429296,"TotalAmount":3500
+    }
+  ]
+}

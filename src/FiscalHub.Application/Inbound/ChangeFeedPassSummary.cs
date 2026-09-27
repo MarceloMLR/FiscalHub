@@ -9,6 +9,12 @@ public sealed record ChangeFeedPassSummary
     /// <summary>Referências publicadas na fila de descoberta.</summary>
     public int ReferencesEnqueued { get; init; }
 
+    /// <summary>
+    /// Referências não republicadas porque o par (documento, carimbo) já tinha sido publicado, assentado,
+    /// por esta réplica (design D16). Zero depois de um restart é esperado: o registro é em memória.
+    /// </summary>
+    public int ReferencesSuppressed { get; init; }
+
     /// <summary>Tenants pulados porque outra réplica detinha o lease.</summary>
     public int LeasesBusy { get; init; }
 

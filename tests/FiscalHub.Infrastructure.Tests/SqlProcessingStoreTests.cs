@@ -175,6 +175,57 @@ public class SqlProcessingStoreTests
         Assert.Empty(await h.Store.ListPendingAsync(50));                        // saiu da fila de poll
     }
 
+    [Fact]
+    public async Task Ignored_document_is_recorded_with_its_reason()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordIgnoredAsync(Reference("brmf|SE-1") with { Type = DocumentType.ServiceNfse }, "ignorado: tipo fora do escopo (ServiceNfse)");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Ignored, row.Status);
+        Assert.Equal("ignorado: tipo fora do escopo (ServiceNfse)", row.Reason);
+        Assert.Equal(DocumentType.ServiceNfse, row.Type);
+    }
+
+    [Fact]
+    public async Task Ignoring_a_confirmed_document_keeps_its_external_id()
+    {
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Confirmed, null, 1);
+
+        // Nota enviada e depois cancelada no F&O (ADR-0025 §4): passa a ignorada, sem perder o GUID do destino.
+        await h.Store.RecordIgnoredAsync(Reference("nfe-1"), "ignorado: status Cancelled fora do escopo");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Ignored, row.Status);
+        Assert.Equal("guid-1", row.ExternalId);
+        Assert.Equal("ignorado: status Cancelled fora do escopo", row.Reason);
+    }
+
+    [Fact]
+    public async Task Ignoring_the_same_document_again_keeps_one_row()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordIgnoredAsync(Reference("brmf|SE-1"), "ignorado: tipo fora do escopo (ServiceNfse)");
+        await h.Store.RecordIgnoredAsync(Reference("brmf|SE-1"), "ignorado: tipo fora do escopo (ServiceNfse)");
+
+        Assert.Equal(1, await h.Db.ProcessedDocuments.CountAsync());
+    }
+
+    [Fact]
+    public async Task Ignored_document_does_not_count_as_already_processed()
+    {
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+        await h.Store.RecordIgnoredAsync(Reference("nfe-1"), "ignorado: status Cancelled fora do escopo");
+
+        Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
+    }
+
     private static Harness NewStore()
     {
         var conn = new SqliteConnection("DataSource=:memory:");

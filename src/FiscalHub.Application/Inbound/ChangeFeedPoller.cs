@@ -7,8 +7,9 @@ namespace FiscalHub.Application.Inbound;
 /// Núcleo do worker de feed de mudanças (ADR-0024): a cada passada, para cada tenant com o adapter da
 /// origem e o poll ligado, vencido o intervalo, toma o lease, lê a marca d'água, puxa o delta com
 /// sobreposição, enfileira cada referência na fila de descoberta e avança a marca página a página.
-/// Falha não avança a marca; a próxima passada repete. Lógica pura — um BackgroundService só chama
-/// <see cref="RunOnceAsync"/> num timer.
+/// Falha não avança a marca; a próxima passada repete. O par (documento, carimbo) já publicado e assentado
+/// não é republicado na releitura da sobreposição (ADR-0025, design D16). Lógica pura — um
+/// BackgroundService só chama <see cref="RunOnceAsync"/> num timer.
 /// </summary>
 public sealed class ChangeFeedPoller
 {
@@ -17,6 +18,7 @@ public sealed class ChangeFeedPoller
     private readonly IChangeFeedCursorStore _cursors;
     private readonly ILeaseStore _leases;
     private readonly IDocumentQueue _queue;
+    private readonly ChangeFeedPublicationLog _published;
     private readonly ChangeFeedPollerOptions _options;
     private readonly TimeProvider _clock;
 
@@ -26,6 +28,7 @@ public sealed class ChangeFeedPoller
         IChangeFeedCursorStore cursors,
         ILeaseStore leases,
         IDocumentQueue queue,
+        ChangeFeedPublicationLog published,
         ChangeFeedPollerOptions options,
         TimeProvider clock)
     {
@@ -34,6 +37,7 @@ public sealed class ChangeFeedPoller
         _cursors = cursors;
         _leases = leases;
         _queue = queue;
+        _published = published;
         _options = options;
         _clock = clock;
     }
@@ -149,13 +153,37 @@ public sealed class ChangeFeedPoller
         pass.TenantsPolled++;
 
         // A sobreposição é daqui, não do adapter: a marca é nossa, o relógio é da origem.
-        await foreach (ChangeFeedPage page in _feed.PullAsync(tenant, watermark - settings.Overlap, ct).WithCancellation(ct))
+        DateTimeOffset since = watermark - settings.Overlap;
+
+        // Marca abaixo da última vista = rebobinamento: o registro de publicações zera (quem rebobina quer
+        // tudo de volta). E esquece o que a consulta "gt since" não devolve mais.
+        _published.BeginPull(tenant, _feed.Origin, watermark, since);
+
+        await foreach (ChangeFeedPage page in _feed.PullAsync(tenant, since, ct).WithCancellation(ct))
         {
             // Enfileira a página inteira ANTES de avançar a marca: uma falha aqui repete a página, nunca a pula.
-            foreach (DocumentReference reference in page.References)
+            // A origem é a do feed (ADR-0025): é por ela que a esteira escolhe o adapter que busca o documento.
+            foreach (ChangeFeedItem item in page.Items)
             {
-                await _queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Event }, ct);
+                string key = item.Reference.NaturalKey;
+
+                // Mesmo par, já publicado e assentado: é a sobreposição relendo, nada mudou. A chave inclui o
+                // carimbo — alteração real tem carimbo novo e passa. Suprimido conta como enfileirado.
+                if (_published.WasPublished(tenant, _feed.Origin, key, item.ChangedAt))
+                {
+                    pass.ReferencesSuppressed++;
+                    continue;
+                }
+
+                await _queue.EnqueueAsync(item.Reference with { Trigger = IngestionTrigger.Event, Origin = _feed.Origin }, ct);
                 pass.ReferencesEnqueued++;
+
+                // Só o par assentado entra no registro: acima do horizonte, outra gravação ainda pode ganhar o
+                // mesmo carimbo (resolução de segundo), e a próxima passada precisa republicá-lo.
+                if (page.StableThrough is { } stable && item.ChangedAt <= stable)
+                {
+                    _published.Record(tenant, _feed.Origin, key, item.ChangedAt);
+                }
             }
 
             // Renovar só mantém o lease vivo numa leitura longa; quem protege o cursor é o avanço condicionado.
@@ -172,6 +200,7 @@ public sealed class ChangeFeedPoller
                 }
 
                 watermark = high;
+                _published.Advanced(tenant, _feed.Origin, high);
             }
 
             if (++pages >= _options.MaxPagesPerPass)
@@ -209,6 +238,7 @@ public sealed class ChangeFeedPoller
     {
         public int TenantsPolled { get; set; }
         public int ReferencesEnqueued { get; set; }
+        public int ReferencesSuppressed { get; set; }
         public int LeasesBusy { get; set; }
         public List<string> LeasesLost { get; } = [];
         public Dictionary<string, string> Failures { get; } = [];
@@ -218,6 +248,7 @@ public sealed class ChangeFeedPoller
         {
             TenantsPolled = TenantsPolled,
             ReferencesEnqueued = ReferencesEnqueued,
+            ReferencesSuppressed = ReferencesSuppressed,
             LeasesBusy = LeasesBusy,
             LeasesLost = LeasesLost,
             Failures = Failures,

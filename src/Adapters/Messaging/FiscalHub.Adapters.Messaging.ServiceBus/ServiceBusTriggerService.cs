@@ -2,7 +2,6 @@ using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace FiscalHub.Adapters.Messaging.ServiceBus;
 
@@ -22,20 +21,26 @@ internal sealed class ServiceBusTriggerService : BackgroundService
     public ServiceBusTriggerService(
         ServiceBusClient client,
         IServiceProvider services,
-        IOptions<ServiceBusOptions> options,
+        string queueName,
         ILogger<ServiceBusTriggerService> logger)
     {
         _client = client;
         _services = services;
         _logger = logger;
-        _queueName = options.Value.QueueName;
+        _queueName = queueName;
     }
+
+    /// <summary>Fila que esta casca assina — uma instância por fila (entrada da esteira e descoberta).</summary>
+    public string QueueName => _queueName;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _processor = _client.CreateProcessor(_queueName, new ServiceBusProcessorOptions
         {
             AutoCompleteMessages = false,
+            // Uma por vez, de propósito (ADR-0025): cópias do mesmo documento (sobreposição do feed, reinício)
+            // chegam em sequência; em paralelo, passariam juntas pela checagem de idempotência e iriam duas vezes
+            // ao destino. Subir a concorrência exige antes serializar por documento.
             MaxConcurrentCalls = 1,
         });
 

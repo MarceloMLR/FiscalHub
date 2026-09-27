@@ -2,52 +2,65 @@ using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Domain.Envelope;
-using FiscalHub.Domain.Goods;
 
 namespace FiscalHub.Adapters.Messaging.ServiceBus.Tests;
 
 /// <summary>
 /// Especifica a lógica do consumidor: desserializa a referência da mensagem, monta o contexto e
-/// chama a esteira. A esteira é falsa (IDocumentPipeline stub) — sem Service Bus nem Azure.
+/// chama o roteador (ADR-0025). O roteador é falso (IDocumentRouter stub) — sem Service Bus nem Azure.
 /// </summary>
 public class QueuedDocumentProcessorTests
 {
     [Fact]
-    public async Task Handle_deserializes_reference_and_invokes_pipeline()
+    public async Task Handle_deserializes_reference_and_invokes_the_router()
     {
-        var pipeline = new FakePipeline();
-        var processor = new QueuedDocumentProcessor(pipeline);
+        var router = new FakeRouter();
+        var processor = new QueuedDocumentProcessor(router);
         BinaryData body = BinaryData.FromObjectAsJson(Reference(), DocumentQueueSerialization.Options);
 
         await processor.HandleAsync(body, "corr-42");
 
-        Assert.NotNull(pipeline.Reference);
-        Assert.Equal("nfe-1", pipeline.Reference!.NaturalKey);
-        Assert.Equal(DocumentType.GoodsInvoice55, pipeline.Reference.Type);
-        Assert.Equal("nfe/nfe-1.xml", pipeline.Reference.Locator);
+        Assert.NotNull(router.Reference);
+        Assert.Equal("nfe-1", router.Reference!.NaturalKey);
+        Assert.Equal(DocumentType.GoodsInvoice55, router.Reference.Type);
+        Assert.Equal("nfe/nfe-1.xml", router.Reference.Locator);
 
-        Assert.NotNull(pipeline.Context);
-        Assert.Equal("tenant-a", pipeline.Context!.TenantId);
-        Assert.Equal("nfe-1", pipeline.Context.NaturalKey);
-        Assert.Equal("corr-42", pipeline.Context.CorrelationId);   // usa o correlationId da mensagem
+        Assert.NotNull(router.Context);
+        Assert.Equal("tenant-a", router.Context!.TenantId);
+        Assert.Equal("nfe-1", router.Context.NaturalKey);
+        Assert.Equal("corr-42", router.Context.CorrelationId);   // usa o correlationId da mensagem
+    }
+
+    [Fact]
+    public async Task Origin_survives_the_round_trip_and_its_absence_stays_absent()
+    {
+        var router = new FakeRouter();
+        var processor = new QueuedDocumentProcessor(router);
+
+        await processor.HandleAsync(BinaryData.FromObjectAsJson(Reference() with { Origin = "Dynamics365" }, DocumentQueueSerialization.Options), "c");
+        Assert.Equal("Dynamics365", router.Reference!.Origin);
+
+        // Mensagem publicada antes do campo existir: continua válida, sem origem (cai no perfil do tenant).
+        await processor.HandleAsync(BinaryData.FromString("""{"tenantId":"tenant-a","type":"GoodsInvoice55","naturalKey":"nfe-1","locator":"nfe/nfe-1.xml"}"""), "c");
+        Assert.Null(router.Reference!.Origin);
     }
 
     [Fact]
     public async Task Handle_generates_correlation_id_when_message_has_none()
     {
-        var pipeline = new FakePipeline();
-        var processor = new QueuedDocumentProcessor(pipeline);
+        var router = new FakeRouter();
+        var processor = new QueuedDocumentProcessor(router);
         BinaryData body = BinaryData.FromObjectAsJson(Reference(), DocumentQueueSerialization.Options);
 
         await processor.HandleAsync(body, correlationId: null);
 
-        Assert.False(string.IsNullOrWhiteSpace(pipeline.Context!.CorrelationId));
+        Assert.False(string.IsNullOrWhiteSpace(router.Context!.CorrelationId));
     }
 
     [Fact]
     public async Task Handle_throws_on_empty_message_body()
     {
-        var processor = new QueuedDocumentProcessor(new FakePipeline());
+        var processor = new QueuedDocumentProcessor(new FakeRouter());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => processor.HandleAsync(BinaryData.FromString("null"), "corr-1"));
@@ -61,12 +74,12 @@ public class QueuedDocumentProcessorTests
         Locator = "nfe/nfe-1.xml",
     };
 
-    private sealed class FakePipeline : IDocumentPipeline<GoodsInvoice>
+    private sealed class FakeRouter : IDocumentRouter
     {
         public DocumentReference? Reference { get; private set; }
         public DispatchContext? Context { get; private set; }
 
-        public Task ProcessAsync(DocumentReference reference, DispatchContext context, CancellationToken ct = default)
+        public Task RouteAsync(DocumentReference reference, DispatchContext context, CancellationToken ct = default)
         {
             Reference = reference;
             Context = context;

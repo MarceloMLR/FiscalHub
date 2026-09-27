@@ -1,0 +1,27 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSTaxTransBRs(TaxTransRecId,Voucher,TaxType,TaxBaseAmount,TaxValue,TaxAmount)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyMzkn\"","TaxTransRecId":35637488239,"Voucher":"BRMF21-10000026","TaxType":"COFINS","TaxBaseAmount":-3500,"TaxValue":7.6,"TaxAmount":-266
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDAn\"","TaxTransRecId":35637488240,"Voucher":"BRMF21-10000026","TaxType":"ICMS","TaxBaseAmount":-3500,"TaxValue":12,"TaxAmount":-420
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDEn\"","TaxTransRecId":35637488241,"Voucher":"BRMF21-10000026","TaxType":"IPI","TaxBaseAmount":-3500,"TaxValue":15,"TaxAmount":-525
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDIn\"","TaxTransRecId":35637488242,"Voucher":"BRMF21-10000026","TaxType":"PIS","TaxBaseAmount":-3500,"TaxValue":1.65,"TaxAmount":-57.75
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDMn\"","TaxTransRecId":35637488243,"Voucher":"BRMF21-10000026","TaxType":"COFINS","TaxBaseAmount":-2250,"TaxValue":7.6,"TaxAmount":-171
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDQn\"","TaxTransRecId":35637488244,"Voucher":"BRMF21-10000026","TaxType":"ICMS","TaxBaseAmount":-2250,"TaxValue":4,"TaxAmount":-90
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDUn\"","TaxTransRecId":35637488245,"Voucher":"BRMF21-10000026","TaxType":"PIS","TaxBaseAmount":-2250,"TaxValue":1.65,"TaxAmount":-37.13
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDYn\"","TaxTransRecId":35637488246,"Voucher":"BRMF21-10000026","TaxType":"COFINS","TaxBaseAmount":-5500,"TaxValue":7.6,"TaxAmount":-418
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDcn\"","TaxTransRecId":35637488247,"Voucher":"BRMF21-10000026","TaxType":"ICMS","TaxBaseAmount":-5500,"TaxValue":12,"TaxAmount":-660
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDgn\"","TaxTransRecId":35637488248,"Voucher":"BRMF21-10000026","TaxType":"IPI","TaxBaseAmount":-5500,"TaxValue":15,"TaxAmount":-825
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNDkn\"","TaxTransRecId":35637488249,"Voucher":"BRMF21-10000026","TaxType":"PIS","TaxBaseAmount":-5500,"TaxValue":1.65,"TaxAmount":-90.75
+    }
+  ]
+}

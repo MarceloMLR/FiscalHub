@@ -16,3 +16,7 @@
 # O Visual Studio grava e le em CRLF. Sem fixar, o checkout no Windows sai em LF
 # e nao bate byte a byte com o model store, gerando diff fantasma a cada build.
 d365/model/**/*.xml text eol=crlf
+
+# Fixtures gravadas do D365 (tools/d365-fixtures) — exceção à normalização: são as respostas do F&O
+# byte a byte (CRLF como veio). Normalizar quebraria a promessa de "gravada, não reformatada".
+**/Fixtures/d365/** -text

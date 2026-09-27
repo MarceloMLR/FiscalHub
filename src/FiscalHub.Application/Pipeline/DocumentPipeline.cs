@@ -16,7 +16,7 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
-    private readonly IInboundSource<TDocument> _source;
+    private readonly IInboundSourceResolver<TDocument> _sources;
     private readonly IDocumentValidator<TDocument> _validator;
     private readonly IComplianceDispatcher<TDocument> _dispatcher;
     private readonly IProcessingStore _store;
@@ -24,14 +24,14 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
     private readonly IDocumentMetadataExtractor<TDocument> _metadata;
 
     public DocumentPipeline(
-        IInboundSource<TDocument> source,
+        IInboundSourceResolver<TDocument> sources,
         IDocumentValidator<TDocument> validator,
         IComplianceDispatcher<TDocument> dispatcher,
         IProcessingStore store,
         IProcessingTrace trace,
         IDocumentMetadataExtractor<TDocument> metadata)
     {
-        _source = source;
+        _sources = sources;
         _validator = validator;
         _dispatcher = dispatcher;
         _store = store;
@@ -47,8 +47,11 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
     public async Task ProcessAsync(
         DocumentReference reference, DispatchContext context, CancellationToken ct = default)
     {
+        // A origem da referência escolhe o adapter (ADR-0025): o mesmo tenant pode ter XML e D365.
+        IInboundSource<TDocument> source = await _sources.ResolveAsync(reference, ct);
+
         // Busca primeiro pra conhecer o conteúdo cru — é ele que decide a idempotência.
-        FetchResult<TDocument> fetched = await _source.FetchAsync(reference, ct);
+        FetchResult<TDocument> fetched = await source.FetchAsync(reference, ct);
         TDocument document = fetched.Document;
 
         // Idempotência por conteúdo (ADR-0016): já processei ESTE cru (mesmo hash, estado terminal)?

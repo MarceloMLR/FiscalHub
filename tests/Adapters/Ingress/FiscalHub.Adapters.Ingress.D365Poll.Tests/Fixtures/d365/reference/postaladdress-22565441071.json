@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMjI1NjU0NDEwNzEn\"","PostalAddressRecId":22565441071,"CityRecId":22565694958
+    }
+  ]
+}

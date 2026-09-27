@@ -23,7 +23,7 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = false };
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -41,7 +41,7 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = true };   // mesmo cru já processado
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -58,7 +58,7 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = true };   // nota já confirmada
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference() with { Trigger = IngestionTrigger.Manual }, Context());
 
@@ -74,7 +74,7 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = false };
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(source, new FakeValidator { Valid = false }, dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator { Valid = false }, dispatcher, store, trace, new FakeExtractor());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
@@ -83,6 +83,35 @@ public class DocumentPipelineTests
         Assert.Equal(0, store.RecordCount);       // não registrou envio
         Assert.Equal(1, store.RejectionCount);    // registrou a rejeição
         Assert.Equal("nfe-key-1", trace.DomainKey); // fotografou o domínio mesmo rejeitando
+    }
+
+    [Fact]
+    public async Task Document_is_fetched_from_the_source_resolved_for_its_reference()
+    {
+        var xml = new FakeSource();
+        var d365 = new FakeSource();
+        var resolver = new FakeResolver(xml) { ByOrigin = { ["Dynamics365"] = d365 } };
+        var pipeline = new DocumentPipeline<TestDocument>(resolver, new FakeValidator(), new FakeDispatcher(), new FakeStore(), new RecordingTrace(), new FakeExtractor());
+
+        await pipeline.ProcessAsync(Reference() with { Origin = "Dynamics365" }, Context());
+
+        Assert.Equal(1, d365.FetchCount);   // buscou no source da origem da referência
+        Assert.Equal(0, xml.FetchCount);
+    }
+
+    [Fact]
+    public async Task Resolution_failure_propagates_before_touching_store_or_trace()
+    {
+        var store = new FakeStore();
+        var trace = new RecordingTrace();
+        var pipeline = new DocumentPipeline<TestDocument>(new FailingResolver(), new FakeValidator(), new FakeDispatcher(), store, trace, new FakeExtractor());
+
+        await Assert.ThrowsAsync<InboundSourceNotFoundException>(() => pipeline.ProcessAsync(Reference(), Context()));
+
+        Assert.Equal(0, store.RecordCount);
+        Assert.Equal(0, store.RejectionCount);
+        Assert.Null(trace.SourceKey);
+        Assert.Null(trace.DomainKey);
     }
 
     private static DocumentReference Reference() => new()
@@ -111,6 +140,22 @@ public class DocumentPipelineTests
             FetchCount++;
             return Task.FromResult(new FetchResult<TestDocument> { Document = new TestDocument("doc-1"), ContentHash = "hash-1" });
         }
+    }
+
+    /// <summary>Resolve pela origem da referência; sem origem mapeada, o source padrão.</summary>
+    private sealed class FakeResolver(FakeSource fallback) : IInboundSourceResolver<TestDocument>
+    {
+        public Dictionary<string, FakeSource> ByOrigin { get; } = [];
+
+        public Task<IInboundSource<TestDocument>> ResolveAsync(DocumentReference reference, CancellationToken ct = default)
+            => Task.FromResult<IInboundSource<TestDocument>>(
+                reference.Origin is { } origin && ByOrigin.TryGetValue(origin, out FakeSource? source) ? source : fallback);
+    }
+
+    private sealed class FailingResolver : IInboundSourceResolver<TestDocument>
+    {
+        public Task<IInboundSource<TestDocument>> ResolveAsync(DocumentReference reference, CancellationToken ct = default)
+            => throw new InboundSourceNotFoundException("sem adapter para a origem");
     }
 
     private sealed class FakeValidator : IDocumentValidator<TestDocument>
@@ -182,6 +227,9 @@ public class DocumentPipelineTests
             => Task.CompletedTask;
 
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Task.CompletedTask;
 
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)

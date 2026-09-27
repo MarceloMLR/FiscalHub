@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSAddressCityBRs(AddressCityRecId,IBGECode)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMjI1NjU2OTQ5NTUn\"","AddressCityRecId":22565694955,"IBGECode":"3550308"
+    }
+  ]
+}

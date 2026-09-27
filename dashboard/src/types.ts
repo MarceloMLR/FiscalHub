@@ -6,7 +6,8 @@ export type IntegrationStatus =
   | 'Confirmed'
   | 'IntegrationError'
   | 'Unconfirmed'
-  | 'DeadLettered';
+  | 'DeadLettered'
+  | 'Ignored';
 
 export interface DocumentSummary {
   tenantId: string;

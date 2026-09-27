@@ -76,7 +76,13 @@ builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
 builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInvoiceMetadataExtractor>();
+// A esteira escolhe o source por documento, pela origem da referência (fallback: perfil do tenant) —
+// o mesmo tenant recebe XML pelo drop e D365 pelo feed (ADR-0025).
+builder.Services.AddScoped(typeof(IInboundSourceResolver<>), typeof(InboundSourceResolver<>));
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
+// Os consumidores de fila entram pelo roteador: NF-e 55 vai à esteira; NFS-e/CT-e e o fora-do-escopo
+// constatado na montagem viram o desfecho "ignorado" (ADR-0025).
+builder.Services.AddScoped<IDocumentRouter, DocumentRouter>();
 
 // Gatilho por fila (Etapa 2): /ingest enfileira; o consumidor do Service Bus chama a esteira,
 // com retry e dead-letter nativos do transporte.
@@ -112,22 +118,28 @@ builder.Services.AddScoped<IntegrationScheduler>();
 builder.Services.AddHostedService<SchedulerHostedService>();
 
 // Feed de mudanças do D365 (ADR-0024): o worker pergunta ao F&O o que mudou (janela por data, keyset,
-// lease por tenant) e publica cada referência na fila de DESCOBERTA — sem consumidor nesta fatia; a
-// montagem liga depois. Poll desligado por padrão: cada tenant liga no perfil (poll.enabled).
+// lease por tenant) e publica cada referência na fila de DESCOBERTA. O consumidor dela entra pelo roteador:
+// a NF-e 55 é montada pelo source do D365 (4 GETs + cadastros em cache) e segue a mesma esteira; NFS-e e
+// CT-e viram "ignorado" (ADR-0025). Poll desligado por padrão: cada tenant liga no perfil (poll.enabled).
 builder.Services.AddServiceBusDiscoveryQueue(o => o.QueueName = cfg["ServiceBus:DiscoveryQueue"] ?? "documents-discovered");
 builder.Services.AddD365ChangeFeed();
+builder.Services.AddD365GoodsInvoiceSource();   // ao lado do source XML; a esteira escolhe pela origem da referência
 if (builder.Environment.IsDevelopment())
 {
     // Só em dev: token da sessão do Azure CLI (az login), até a app registration existir.
     builder.Services.UseD365AzureCliToken();
 }
 builder.Services.AddSingleton(new ChangeFeedPollerOptions());
+// Registro dos pares (documento, carimbo) já publicados (ADR-0025, D16): singleton de propósito — o poller é
+// recriado a cada tick (escopo) e perderia o conjunto; sem ele, cada nota voltaria ~6× pela sobreposição.
+builder.Services.AddSingleton<ChangeFeedPublicationLog>();
 builder.Services.AddScoped(sp => new ChangeFeedPoller(
     sp.GetRequiredService<IDocumentChangeFeed>(),
     sp.GetRequiredService<IConnectorProfileStore>(),
     sp.GetRequiredService<IChangeFeedCursorStore>(),
     sp.GetRequiredService<ILeaseStore>(),
     sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
+    sp.GetRequiredService<ChangeFeedPublicationLog>(),
     sp.GetRequiredService<ChangeFeedPollerOptions>(),
     sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddHostedService<ChangeFeedPollingService>();
@@ -222,6 +234,7 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
         Type = DocumentType.GoodsInvoice55,
         NaturalKey = req.NaturalKey,
         Locator = req.Locator,
+        Origin = "Xml",   // o locator é de um XML no Blob — vale mesmo para tenant cujo feed é outro ERP (ADR-0025)
     };
 
     await queue.EnqueueAsync(reference, ct);

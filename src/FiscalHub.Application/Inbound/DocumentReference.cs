@@ -14,7 +14,10 @@ public sealed record DocumentReference
     /// <summary>Chave de negócio da origem (ex.: chave de acesso da NF-e).</summary>
     public required string NaturalKey { get; init; }
 
-    /// <summary>Localizador interpretado pelo adapter da origem (caminho no Blob, id no ERP, etc.).</summary>
+    /// <summary>
+    /// Localizador interpretado pelo adapter da origem: caminho no Blob (<c>nfe/nota.xml</c>), chave no ERP
+    /// (<c>d365/&lt;empresa&gt;/&lt;FiscalDocumentRecId&gt;</c> no D365), etc.
+    /// </summary>
     public required string Locator { get; init; }
 
     /// <summary>
@@ -30,4 +33,12 @@ public sealed record DocumentReference
     /// pelo runner). É só rótulo — a política de idempotência continua no <see cref="Trigger"/>.
     /// </summary>
     public string? SourceMode { get; init; }
+
+    /// <summary>
+    /// Origem que sabe buscar o documento — casa com <see cref="IInboundSource{TDocument}.Origin"/>
+    /// (ex.: <c>Dynamics365</c>, <c>Xml</c>). Quem publica preenche: o feed põe a dele, os gatilhos de XML
+    /// põem <c>Xml</c>. Mensagens antigas, sem o campo, caem no adapter de entrada do perfil do tenant
+    /// (ADR-0025) — o perfil diz o que varrer; a referência diz de onde o documento veio.
+    /// </summary>
+    public string? Origin { get; init; }
 }

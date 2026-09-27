@@ -39,6 +39,18 @@ public class GoodsInvoiceToAvalaraTests
         Assert.Equal(0.90m, cbs.ValorTributoBruto);
     }
 
+    [Fact]
+    public void Item_without_reform_group_is_a_defect_not_an_empty_payload()
+    {
+        // A validação rejeita antes do envio; se escapar, o mapeamento falha em vez de mandar imposto vazio.
+        GoodsInvoice invoice = SampleInvoice();
+        invoice = invoice with { Items = [invoice.Items[0] with { ReformTaxes = null }] };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => GoodsInvoiceToAvalara.Map(invoice));
+
+        Assert.Contains("Item 1", ex.Message);
+    }
+
     private static GoodsInvoice SampleInvoice() => new()
     {
         AccessKey = AccessKey,

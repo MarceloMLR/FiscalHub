@@ -101,3 +101,42 @@ warnings no PR).
 **Pendências.** Poll de reconciliação (backlog); definir promoção real (pipeline Azure DevOps / sandbox);
 validar pós-deploy; **montar CI**; teste runtime do Cancelled; **entidades novas em andamento** (Marcelo
 criando no VS).
+
+---
+
+## Sessão 2026-09-26 — Montagem do D365 (fatia 2, change `add-d365-document-assembly`)
+
+**Entregue.** A fila `documents-discovered` ganhou consumidor. Cada referência vai a um roteador:
+
+- **NF-e 55:** o source do D365 monta a nota (4 GETs por entidade, com a contábil só para o `ImportTax` zerado) e
+  a entrega à mesma esteira do XML;
+- **NFS-e e CT-e:** saem como `Ignored`, com o motivo.
+
+Outras mudanças da fatia:
+
+- a origem viaja na referência, com fallback no perfil, e um resolver escolhe o source por documento;
+- o Locator carrega o RecId;
+- o hash é calculado sobre um JSON canônico, que também é a foto da fonte;
+- o poller deixou de republicar o par (documento, carimbo) já publicado e assentado. Isso corta a
+  repetição da sobreposição de ~6× para ~1,15×.
+
+Decisões no ADR-0025. As fixtures são respostas gravadas do fiscosysdev (`tools/d365-fixtures`).
+
+**Desfecho real hoje: nenhuma nota do D365 chega à Avalara.** As 5 notas 55 da base são de 2016, sem IBS/CBS,
+e são rejeitadas na validação; as 9 `SE` são ignoradas. Mesmo com IBS/CBS, o `cClassTrib` não é resolvível
+sem entidade nova.
+
+**Próximos passos (fatias):**
+1. **Nota de serviço (NFS-e):** domínio de serviço com CCM, município de prestação, ISS e item da lista de
+   serviços. É a fatia seguinte.
+2. **Entidade de `CClassTribTable_BR`** no pacote D365, para resolver o `cClassTrib` (RecId → código).
+3. **Despacho de cancelamento**, com os status configuráveis por tenant do ADR-0023. Hoje nota cancelada vira
+   `Ignored`.
+4. **Impostos, retenções e encargos no parser do XML.** Hoje só o D365 preenche os campos novos do domínio.
+5. **Renomear o projeto `Ingress.D365Poll`.** Ele agora contém também o source.
+6. **Dead-letter imediata com motivo** para erro permanente de montagem. Hoje o motivo gravado é
+   `MaxDeliveryCountExceeded`, e a causa fica no log e na foto da fonte.
+7. **Concorrência do consumidor com serialização por documento.** Hoje é serial por segurança: ~43 notas/min.
+8. **Agrupamento do dashboard em nota de entrada.** O extrator usa o CNPJ do emitente, então a entrada de
+   terceiro agrupa pelo fornecedor.
+9. **Persistir o registro de publicações do poller**, se reinício ou troca de réplica pesarem.

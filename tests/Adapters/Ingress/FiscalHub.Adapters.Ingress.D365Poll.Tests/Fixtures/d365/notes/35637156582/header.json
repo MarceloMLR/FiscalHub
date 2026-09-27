@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentBRs(FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODIn\"","FiscalDocumentRecId":35637156582,"dataAreaId":"brmf","Voucher":"BRMF21-10000026","Model":"55","Status":"Approved","Direction":"Outgoing","FiscalDocumentIssuer":"OwnEstablishment","AccessKey":"35130344278225000180550020000000011000190380","FiscalDocumentSeries":"02","FiscalDocumentNumber":"000001","FiscalDocumentDate":"2016-03-01T12:00:00Z","FiscalDocumentDateTime":"1900-01-01T00:00:00Z","FiscalEstablishmentCNPJCPF":"442782250001-80","FiscalEstablishmentName":"Contoso Entertainment System Brazil","FiscalEstablishmentIE":"652128379113","FiscalEstablishmentPostalAddress":22565428565,"ThirdPartyCNPJCPF":"724584880001-06","ThirdPartyName":"Southridge Video Brasil Ltda","ThirdPartyIE":"55166625","ThirdPartyPostalAddress":22565441071,"TotalAmount":12600
+    }
+  ]
+}

@@ -26,7 +26,9 @@ internal static class GoodsInvoiceToAvalara
         NumeroSequencia = item.Number,
         Cfop = int.Parse(item.Cfop, CultureInfo.InvariantCulture),
         ValorTotal = item.TotalAmount,
-        Impostos = MapReformTaxes(item.ReformTaxes),
+        // Item sem o grupo da Reforma é rejeitado na validação antes do envio (ADR-0025): chegar aqui é defeito.
+        Impostos = MapReformTaxes(item.ReformTaxes
+            ?? throw new InvalidOperationException($"Item {item.Number} sem tributos da Reforma chegou ao envio; a validação deveria tê-lo rejeitado.")),
     };
 
     // O IBS/CBS/IS, explícito no domínio, vira N entradas no array genérico da Avalara.

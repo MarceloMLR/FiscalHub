@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -16,7 +14,8 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 /// Feed de mudanças do D365 F&amp;O sobre a <c>FSFiscalDocumentBRs</c> (ADR-0024): janela por data em
 /// <c>SysModifiedDateTime</c>, paginação por keyset em (<c>SysModifiedDateTime</c>, <c>FiscalDocumentRecId</c>)
 /// com <c>$top</c> — nunca pelo <c>@odata.nextLink</c>, que no F&amp;O é offset e pula linha quando uma nota
-/// já lida é atualizada. Cada cabeçalho vira uma referência leve; a montagem é de outra fatia.
+/// já lida é atualizada. Cada cabeçalho vira uma referência leve (<c>d365/&lt;empresa&gt;/&lt;RecId&gt;</c>), que o
+/// <see cref="D365GoodsInvoiceSource"/> monta; cada item leva o carimbo, e a página, o horizonte estável (ADR-0025).
 /// </summary>
 internal sealed class D365ChangeFeed : IDocumentChangeFeed
 {
@@ -25,11 +24,9 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
     private const string EntitySet = "data/FSFiscalDocumentBRs";
     private const string Select = "dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,SysModifiedDateTime,FiscalDocumentRecId";
 
-    private readonly HttpClient _http;
+    private readonly D365ODataClient _client;
     private readonly IConnectorProfileStore _profiles;
-    private readonly ID365TokenProvider _tokens;
     private readonly D365ChangeFeedOptions _options;
-    private readonly TimeProvider _clock;
     private readonly ILogger<D365ChangeFeed> _logger;
 
     public D365ChangeFeed(
@@ -40,11 +37,9 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
         TimeProvider clock,
         ILogger<D365ChangeFeed> logger)
     {
-        _http = http;
+        _client = new D365ODataClient(http, tokens, options, clock);
         _profiles = profiles;
-        _tokens = tokens;
         _options = options;
-        _clock = clock;
         _logger = logger;
     }
 
@@ -66,7 +61,7 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
         {
             Uri url = BuildUrl(settings, since, anchor);
             ODataPage body;
-            using (HttpResponseMessage response = await SendAsync(url, connection, ct))
+            using (HttpResponseMessage response = await _client.SendAsync(url, connection, ct))
             {
                 scanStartedAt ??= response.Headers.Date;
                 body = await response.Content.ReadFromJsonAsync<ODataPage>(ct)
@@ -74,7 +69,7 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
             }
 
             List<Row> rows = body.Value ?? [];
-            var references = new List<DocumentReference>(rows.Count);
+            var items = new List<ChangeFeedItem>(rows.Count);
             DateTimeOffset? highest = null;
 
             foreach (Row row in rows)
@@ -85,7 +80,7 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
                 // Registro ruim não trava a marca: aviso e segue (falha isolada por documento).
                 if (Map(row, tenantId, settings) is { } reference)
                 {
-                    references.Add(reference);
+                    items.Add(new ChangeFeedItem(reference, modified));
                 }
             }
 
@@ -97,7 +92,13 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
                 highest = serverNow;
             }
 
-            yield return new ChangeFeedPage { References = references, HighWatermark = highest };
+            // Horizonte estável (design D16): o SysModifiedDateTime tem resolução de segundo, então um carimbo
+            // muito recente ainda pode ser dado a outra gravação. Recuar a margem do relógio do início da
+            // varredura cobre a resolução e a diferença entre o web server e quem carimba. Sem Date, nada é
+            // definitivo e o motor não suprime nada desta leitura.
+            DateTimeOffset? stableThrough = scanStartedAt - _options.StampSettleMargin;
+
+            yield return new ChangeFeedPage { Items = items, HighWatermark = highest, StableThrough = stableThrough };
 
             if (last)
             {
@@ -134,69 +135,6 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
         return new Uri($"{settings.Url.GetLeftPart(UriPartial.Authority)}/{EntitySet}?{query}");
     }
 
-    /// <summary>
-    /// Rotina única de envio: repete a MESMA requisição (mesma âncora) em 429, ou 503 com <c>Retry-After</c>,
-    /// honrando o intervalo pedido. Espera acima do teto ou tentativas esgotadas → throttling, e o worker
-    /// adia o tenant. Qualquer outro erro falha a leitura na hora.
-    /// </summary>
-    private async Task<HttpResponseMessage> SendAsync(Uri url, D365Connection connection, CancellationToken ct)
-    {
-        for (int attempt = 1; ; attempt++)
-        {
-            string token = await _tokens.GetTokenAsync(connection, ct);
-            using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            HttpResponseMessage response = await _http.SendAsync(request, ct);
-            if (response.IsSuccessStatusCode)
-            {
-                return response;
-            }
-
-            bool throttled = response.StatusCode == HttpStatusCode.TooManyRequests
-                || (response.StatusCode == HttpStatusCode.ServiceUnavailable && response.Headers.RetryAfter is not null);
-            if (!throttled)
-            {
-                string detail = await ReadSnippetAsync(response, ct);
-                HttpStatusCode status = response.StatusCode;
-                response.Dispose();
-                throw new HttpRequestException($"OData do F&O respondeu {(int)status} {status}: {detail}", null, status);
-            }
-
-            TimeSpan wait = RetryAfter(response.Headers.RetryAfter) ?? TimeSpan.FromSeconds(Math.Pow(2, attempt - 1));
-            response.Dispose();
-
-            if (wait > _options.MaxThrottleWait)
-            {
-                throw new ChangeFeedThrottledException(wait, $"F&O pediu {wait.TotalSeconds:0}s de espera (throttling); o tenant fica adiado.");
-            }
-
-            if (attempt >= _options.MaxAttempts)
-            {
-                throw new ChangeFeedThrottledException(wait, $"F&O seguiu em throttling depois de {attempt} tentativas.");
-            }
-
-            await Task.Delay(wait, _clock, ct);
-        }
-    }
-
-    private TimeSpan? RetryAfter(RetryConditionHeaderValue? header)
-    {
-        if (header?.Delta is { } delta)
-        {
-            return delta;
-        }
-
-        if (header?.Date is { } date)
-        {
-            TimeSpan until = date - _clock.GetUtcNow();
-            return until > TimeSpan.Zero ? until : TimeSpan.Zero;
-        }
-
-        return null;
-    }
-
     private DocumentReference? Map(Row row, string tenantId, D365InboundSettings settings)
     {
         if (string.IsNullOrWhiteSpace(row.DataAreaId) || string.IsNullOrWhiteSpace(row.Voucher))
@@ -220,7 +158,9 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
             TenantId = tenantId,
             Type = type,
             NaturalKey = $"{row.DataAreaId}|{row.Voucher}",
-            Locator = $"d365/{Uri.EscapeDataString(row.DataAreaId)}/{Uri.EscapeDataString(row.Voucher)}",
+            // Contrato com a montagem (ADR-0025): o RecId é a chave primária do cabeçalho — o Voucher não lidera
+            // nenhum índice da FiscalDocument_BR. O Voucher segue na NaturalKey, que a montagem confere.
+            Locator = $"d365/{Uri.EscapeDataString(row.DataAreaId)}/{row.FiscalDocumentRecId.ToString(CultureInfo.InvariantCulture)}",
             Trigger = IngestionTrigger.Event,
         };
     }
@@ -229,12 +169,6 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
         => DateTimeOffset.TryParse(row.SysModifiedDateTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset value)
             ? value
             : throw new InvalidOperationException($"SysModifiedDateTime inválido no F&O: '{row.SysModifiedDateTime}' (RecId {row.FiscalDocumentRecId}).");
-
-    private static async Task<string> ReadSnippetAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-        string body = await response.Content.ReadAsStringAsync(ct);
-        return body.Length > 300 ? body[..300] : body;
-    }
 
     /// <summary>Última linha lida: o literal de data como veio e o RecId.</summary>
     private sealed record Anchor(string Modified, long RecId);

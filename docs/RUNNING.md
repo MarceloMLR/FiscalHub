@@ -80,8 +80,8 @@ Invoke-RestMethod -Uri http://localhost:5100/documents/<GUID>/status
 
 O worker de feed de mudanças (ADR-0024) pergunta ao F&O o que mudou na `FSFiscalDocumentBRs`. Ele
 consulta por janela de data em `SysModifiedDateTime`, pagina por keyset e usa um lease por tenant, e
-publica cada referência na fila **`documents-discovered`**. Essa fila ainda não tem consumidor: a
-montagem do documento é a próxima fatia.
+publica cada referência na fila **`documents-discovered`**. Quem consome essa fila é a montagem
+(seção 7).
 
 Para simular "chegou nota nova" sem inserir nada no ERP, o roteiro rebobina a marca para 2015. A
 primeira passada então descobre os 83 cabeçalhos do `fiscosysdev` (empresa `brmf`).
@@ -112,7 +112,7 @@ Dá para usar o `PUT /connector` no lugar do SQL, mas ele regrava o perfil intei
 **2. Rodar o host** (seção 3). Em até 15 segundos aparece no log:
 
 ```
-Feed de mudanças: 1 tenant(s) consultado(s), 14 referência(s) na fila de descoberta.
+Feed de mudanças: 1 tenant(s) consultado(s), 14 referência(s) na fila de descoberta, 0 suprimida(s) por já publicadas.
 ```
 
 Junto vêm **69 avisos** `Modelo '01' fora do mapa…`. Isso é esperado. Os 83 cabeçalhos da brmf têm
@@ -143,9 +143,8 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
 
 **Desligar:** `poll.enabled = false` nas settings; vale na próxima passada.
 
-> **TTL de 1 hora no emulador.** A fila `documents-discovered` não tem consumidor nesta fatia, e as
-> mensagens expiram em 1 hora (limite do emulador). A evidência do teste é o log da passada e o cursor
-> no SQL.
+> **TTL de 1 hora no emulador.** As mensagens das duas filas expiram em 1 hora (limite do emulador). Com o
+> host no ar, a `documents-discovered` é consumida na hora (seção 7).
 
 **Teste de integração contra o F&O real.** Ele é opt-in e fica pulado sem a variável:
 
@@ -155,6 +154,49 @@ $env:FISCALHUB_D365_COMPANY = "brmf"
 $env:FISCALHUB_D365_EXPECTED_ROWS = "83"
 dotnet test tests/Adapters/Ingress/FiscalHub.Adapters.Ingress.D365Poll.Tests --filter "FullyQualifiedName~Integration"
 ```
+
+## 7. Montagem do D365 (fatia 2: consumir a descoberta e montar a nota)
+
+O consumidor da `documents-discovered` entrega cada referência ao roteador (ADR-0025):
+
+- **NF-e (modelo 55):** o source do D365 monta a nota. São 4 GETs (cabeçalho, linhas, impostos, encargos),
+  mais a contábil do voucher quando há `ImportTax` zerado, e endereço e cidade pelo cache. Depois a nota
+  segue a mesma esteira do XML: idempotência, foto do domínio, validação, envio.
+- **NFS-e e CT-e:** saem como **"ignorado: tipo fora do escopo"**, gravado, sem nenhuma chamada ao F&O.
+
+**Roteiro.** O mesmo da seção 6: ligar o poll do tenant-a com `startFrom` em 2015 e rodar o host (e o mock).
+As 14 referências da primeira passada são consumidas na sequência, uma por vez.
+
+**Desfecho esperado no fiscosysdev: 5 rejeitadas, 9 ignoradas, 0 enviadas.**
+
+```powershell
+docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub `
+  -Q "SELECT NaturalKey, Type, Status, Reason FROM ProcessedDocuments WHERE TenantId = 'tenant-a' AND NaturalKey LIKE 'brmf|%' ORDER BY Status, NaturalKey;"
+```
+
+- **5 NF-e 55 com `IntegrationError`** ("Rejeitado" no dashboard) e motivo "tributos da Reforma (IBS/CBS)
+  ausentes". As notas da base são de 2016, sem IBS/CBS, e o grupo sai ausente, não zerado. A
+  `BRMF06-110000027`, de entrada de terceiro, também tem a chave de acesso vazia. Uma nota com IBS/CBS
+  ainda seria rejeitada por "cClassTrib ausente", porque o código não é resolvível sem uma entidade nova no
+  pacote D365 (ADR-0025 §6).
+- **9 NFS-e com `Ignored`** ("Ignorado" no dashboard, fora do filtro de falhas) e motivo "ignorado: tipo
+  fora do escopo (ServiceNfse)".
+- **Nada é enviado ao mock.**
+
+**Foto da fonte.** O JSON canônico que a montagem hasheia fica no Blob, em
+`traces/tenant-a/<período>/brmf|<voucher>/source.json`. A impressão gravada em `ProcessedDocuments.ContentHash`
+é o SHA-256 desse arquivo. Diante de um "por que reenviou?", basta comparar duas fotos.
+
+**Supressão de republicação.** O log da passada conta as referências suprimidas: pares (documento,
+carimbo) já publicados, com o carimbo assentado (ADR-0025 §9). No roteiro acima ela não aparece, porque
+nenhuma nota muda durante o teste e, depois da primeira passada, as notas de 2016 ficam fora da janela de
+sobreposição. Ela aparece com nota sendo alterada no ERP. A repetição volta, por uma janela de
+sobreposição, depois de reiniciar o host, trocar de réplica ou rebobinar a marca. O hash por conteúdo
+continua impedindo o reenvio.
+
+**Teste de integração da montagem contra o F&O real.** É o mesmo opt-in da seção 6: com as variáveis
+definidas, o filtro `Integration` também monta as 5 notas 55 da `brmf`, duas vezes cada, e confere a
+impressão.
 
 ## Notas
 
