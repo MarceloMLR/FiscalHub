@@ -154,18 +154,19 @@ public class ChangeFeedPollerTests
     }
 
     [Fact]
-    public async Task Overlap_repeat_is_reenqueued_and_the_watermark_does_not_regress()
+    public async Task Overlap_repeat_without_stable_horizon_is_reenqueued_and_the_watermark_does_not_regress()
     {
         var h = new Harness().WithTenant("tenant-a", Enabled);
         h.Cursors.Seed("tenant-a", At(11, 50));
-        h.Feed.Read("tenant-a", Page(At(12, 0), "A"));
-        h.Feed.Read("tenant-a", Page(At(11, 58), "A"));   // A de novo, dentro da janela
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), null, ("A", At(11, 57))));
+        h.Feed.Read("tenant-a", Stamped(At(11, 58), null, ("A", At(11, 57))));   // A de novo, dentro da janela
 
         await h.RunAsync();
         h.Clock.Advance(TimeSpan.FromSeconds(61));
         await h.RunAsync();
 
-        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);   // o motor não filtra: dedupe é da esteira
+        // Sem horizonte, nada é definitivo: o repetido volta à fila e a esteira o absorve pelo hash.
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
         Assert.Equal(At(12, 0), h.Cursors.Find("tenant-a")!.Watermark);
     }
 
@@ -442,7 +443,7 @@ public class ChangeFeedPollerTests
         var h = new Harness().WithTenant("tenant-a", Enabled);
         h.Cursors.Seed("tenant-a", At(12, 0));
         var manual = Ref("tenant-a", "A") with { Trigger = IngestionTrigger.Manual };
-        h.Feed.Read("tenant-a", new Step(new ChangeFeedPage { References = [manual], HighWatermark = At(12, 1) }));
+        h.Feed.Read("tenant-a", new Step(new ChangeFeedPage { Items = [new ChangeFeedItem(manual, At(12, 1))], HighWatermark = At(12, 1) }));
 
         await h.RunAsync();
 
@@ -461,6 +462,162 @@ public class ChangeFeedPollerTests
         DocumentReference enqueued = h.Queue.Items.Single();
         Assert.Equal(Origin, enqueued.Origin);
         Assert.Equal(IngestionTrigger.Event, enqueued.Trigger);
+    }
+
+    // ---------- supressão de republicação (design D16) ----------
+
+    [Fact]
+    public async Task Settled_pair_is_not_republished_and_is_counted()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 58))));
+
+        ChangeFeedPassSummary first = await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        ChangeFeedPassSummary second = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A"], h.Queue.Keys);
+        Assert.Equal(0, first.ReferencesSuppressed);
+        Assert.Equal(1, second.ReferencesSuppressed);
+        Assert.Equal(0, second.ReferencesEnqueued);
+    }
+
+    [Fact]
+    public async Task Hot_pair_of_the_same_second_is_republished_once_before_being_suppressed()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        // Lido com carimbo 12:00:00 numa leitura com horizonte 11:59:50: outra gravação no mesmo segundo
+        // ainda pode ganhar o mesmo carimbo. A passada seguinte republica (conteúdo final) e só então registra.
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(12, 0))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(12, 0))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 2), At(12, 1, 50), ("A", At(12, 0))));
+
+        await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        ChangeFeedPassSummary third = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+        Assert.Equal(1, third.ReferencesSuppressed);
+    }
+
+    [Fact]
+    public async Task Page_without_stable_horizon_records_and_suppresses_nothing()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), null, ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        ChangeFeedPassSummary second = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+        Assert.Equal(0, second.ReferencesSuppressed);
+    }
+
+    [Fact]
+    public async Task Document_changed_within_the_window_is_republished()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 59, 30))));   // carimbo novo
+
+        await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+    }
+
+    [Fact]
+    public async Task Process_restart_republishes_the_settled_pair()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        h.RestartProcess();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        await h.RunAsync();
+
+        // Registro em memória perdido: volta o comportamento de antes (caro e correto), nunca uma perda.
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+    }
+
+    [Fact]
+    public async Task Watermark_rewind_republishes_everything_in_the_reread_window()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        h.Cursors.Seed("tenant-a", At(8, 0));   // o operador rebobina a marca
+        await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+    }
+
+    [Fact]
+    public async Task After_a_failure_mid_page_the_enqueued_ones_are_suppressed_and_the_rest_enqueued()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        (string, DateTimeOffset)[] page = [("A", At(11, 58)), ("B", At(11, 58)), ("C", At(11, 58)), ("D", At(11, 58)), ("E", At(11, 58))];
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), page));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(12, 0, 50), page));
+        h.Queue.FailOn = "tenant-a|D";
+
+        await h.RunAsync();
+        h.Queue.FailOn = null;
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        ChangeFeedPassSummary retry = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|B", "tenant-a|C", "tenant-a|D", "tenant-a|E"], h.Queue.Keys);
+        Assert.Equal(3, retry.ReferencesSuppressed);
+        Assert.Equal(At(12, 0), h.Cursors.Find("tenant-a")!.Watermark);
+    }
+
+    [Fact]
+    public async Task Pair_that_left_the_window_is_forgotten()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 10), At(12, 9, 50), ("A", At(11, 58))));
+        // Consulta seguinte parte de 12:05 (marca 12:10 − 300s); A em 11:58 saiu da janela. Se voltar
+        // mesmo assim (o feed falso devolve), não está mais no registro.
+        h.Feed.Read("tenant-a", Stamped(At(12, 11), At(12, 10, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+    }
+
+    [Fact]
+    public async Task Fully_suppressed_page_still_advances_the_watermark()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        await h.RunAsync();
+
+        Assert.Equal(At(12, 1), h.Cursors.Find("tenant-a")!.Watermark);
     }
 
     // ---------- isolamento e registro ----------
@@ -547,8 +704,17 @@ public class ChangeFeedPollerTests
         Locator = $"d365/brmf/{key}",
     };
 
+    /// <summary>Página sem horizonte estável (nada suprimível); o carimbo de cada item é a marca alta.</summary>
     private static Step Page(DateTimeOffset? highWatermark, params string[] keys)
-        => new(new ChangeFeedPage { References = keys.Select(k => Ref("?", k)).ToList(), HighWatermark = highWatermark });
+        => Stamped(highWatermark, stableThrough: null, [.. keys.Select(k => (k, highWatermark ?? At(12, 0)))]);
+
+    private static Step Stamped(DateTimeOffset? highWatermark, DateTimeOffset? stableThrough, params (string Key, DateTimeOffset ChangedAt)[] items)
+        => new(new ChangeFeedPage
+        {
+            Items = [.. items.Select(i => new ChangeFeedItem(Ref("?", i.Key), i.ChangedAt))],
+            HighWatermark = highWatermark,
+            StableThrough = stableThrough,
+        });
 
     private static Step Fail(Exception error) => new(null, Error: error);
 
@@ -562,11 +728,11 @@ public class ChangeFeedPollerTests
             Clock = new StubClock(Now);
             Leases = new FakeLeases(Clock);
             Cursors = new FakeCursors(Leases);
-            Poller = new ChangeFeedPoller(
-                Feed, Profiles, Cursors, Leases, Queue,
-                new ChangeFeedPollerOptions { OwnerId = Owner, MaxPagesPerPass = maxPagesPerPass, LeaseTtl = TimeSpan.FromMinutes(2) },
-                Clock);
+            _maxPagesPerPass = maxPagesPerPass;
+            Poller = NewPoller();
         }
+
+        private readonly int _maxPagesPerPass;
 
         public StubClock Clock { get; }
         public FakeFeed Feed { get; } = new();
@@ -574,7 +740,20 @@ public class ChangeFeedPollerTests
         public FakeLeases Leases { get; }
         public FakeCursors Cursors { get; }
         public FakeQueue Queue { get; } = new();
-        public ChangeFeedPoller Poller { get; }
+        public ChangeFeedPublicationLog Log { get; private set; } = new();
+        public ChangeFeedPoller Poller { get; private set; }
+
+        /// <summary>Simula o reinício do processo: o registro de publicações (em memória) começa vazio.</summary>
+        public void RestartProcess()
+        {
+            Log = new ChangeFeedPublicationLog();
+            Poller = NewPoller();
+        }
+
+        private ChangeFeedPoller NewPoller() => new(
+            Feed, Profiles, Cursors, Leases, Queue, Log,
+            new ChangeFeedPollerOptions { OwnerId = Owner, MaxPagesPerPass = _maxPagesPerPass, LeaseTtl = TimeSpan.FromMinutes(2) },
+            Clock);
 
         public Harness WithTenant(string tenant, string inboundSettings, string inboundAdapter = Origin)
         {
@@ -634,7 +813,7 @@ public class ChangeFeedPollerTests
                     // O feed real devolve referências do próprio tenant.
                     yield return step.Page with
                     {
-                        References = step.Page.References.Select(r => r.TenantId == "?" ? r with { TenantId = tenantId } : r).ToList(),
+                        Items = step.Page.Items.Select(i => i.Reference.TenantId == "?" ? i with { Reference = i.Reference with { TenantId = tenantId } } : i).ToList(),
                     };
                 }
             }

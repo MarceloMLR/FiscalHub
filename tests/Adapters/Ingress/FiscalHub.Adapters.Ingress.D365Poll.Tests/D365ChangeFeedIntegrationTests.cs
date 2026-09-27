@@ -51,8 +51,8 @@ public class D365ChangeFeedIntegrationTests
         int rows = capture.RecIds.Count;
         Assert.Equal(rows, capture.RecIds.Distinct().Count());                     // nenhum RecId repetido entre páginas
         Assert.Equal(rows / PageSize + 1, pages.Count);                            // páginas cheias + a curta final
-        Assert.Equal(rows, pages.Sum(p => p.References.Count) + logger.Warnings.Count);   // cada cabeçalho: referência ou aviso
-        Assert.All(pages.SelectMany(p => p.References), r => Assert.Contains('|', r.NaturalKey));
+        Assert.Equal(rows, pages.Sum(p => p.Items.Count) + logger.Warnings.Count);   // cada cabeçalho: referência ou aviso
+        Assert.All(pages.SelectMany(p => p.Items).Select(i => i.Reference), r => Assert.Contains('|', r.NaturalKey));
         Assert.NotNull(pages[^1].HighWatermark);                                   // última página: relógio do F&O
 
         if (int.TryParse(Environment.GetEnvironmentVariable("FISCALHUB_D365_EXPECTED_ROWS"), out int expected))

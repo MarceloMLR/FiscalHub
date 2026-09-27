@@ -23,6 +23,12 @@ public static class D365PollServiceCollectionExtensions
         var options = new D365ChangeFeedOptions();
         configure?.Invoke(options);
 
+        if (options.StampSettleMargin < TimeSpan.FromSeconds(1))
+        {
+            throw new InvalidOperationException(
+                $"Configuração inválida do feed do D365: StampSettleMargin deve ser de pelo menos 1s (veio {options.StampSettleMargin}).");
+        }
+
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpClient(HttpClientName);
 

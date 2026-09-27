@@ -125,12 +125,16 @@ if (builder.Environment.IsDevelopment())
     builder.Services.UseD365AzureCliToken();
 }
 builder.Services.AddSingleton(new ChangeFeedPollerOptions());
+// Registro dos pares (documento, carimbo) já publicados (ADR-0025, D16): singleton de propósito — o poller é
+// recriado a cada tick (escopo) e perderia o conjunto; sem ele, cada nota voltaria ~6× pela sobreposição.
+builder.Services.AddSingleton<ChangeFeedPublicationLog>();
 builder.Services.AddScoped(sp => new ChangeFeedPoller(
     sp.GetRequiredService<IDocumentChangeFeed>(),
     sp.GetRequiredService<IConnectorProfileStore>(),
     sp.GetRequiredService<IChangeFeedCursorStore>(),
     sp.GetRequiredService<ILeaseStore>(),
     sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
+    sp.GetRequiredService<ChangeFeedPublicationLog>(),
     sp.GetRequiredService<ChangeFeedPollerOptions>(),
     sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddHostedService<ChangeFeedPollingService>();

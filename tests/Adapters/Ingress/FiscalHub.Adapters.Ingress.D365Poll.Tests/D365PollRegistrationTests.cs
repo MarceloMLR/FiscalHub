@@ -28,6 +28,17 @@ public class D365PollRegistrationTests
         Assert.IsType<AzureCliD365TokenProvider>(sp.GetRequiredService<ID365TokenProvider>());
     }
 
+    [Fact]
+    public void Settle_margin_below_one_second_is_a_configuration_error()
+    {
+        var services = new ServiceCollection();
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => services.AddD365ChangeFeed(o => o.StampSettleMargin = TimeSpan.Zero));
+
+        Assert.Contains("StampSettleMargin", ex.Message);
+    }
+
     private static ServiceProvider Build(Action<IServiceCollection> register)
     {
         var services = new ServiceCollection();

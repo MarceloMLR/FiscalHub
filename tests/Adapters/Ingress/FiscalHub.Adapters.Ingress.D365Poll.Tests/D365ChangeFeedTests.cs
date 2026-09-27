@@ -84,7 +84,7 @@ public class D365ChangeFeedTests
 
         List<ChangeFeedPage> pages = await h.PullAllAsync(Since2015);
 
-        Assert.Equal([2, 2, 1], pages.Select(p => p.References.Count));
+        Assert.Equal([2, 2, 1], pages.Select(p => p.Items.Count));
         Assert.Equal(3, h.Http.Requests.Count);   // parou na página curta
         Assert.Equal(
             "(SysModifiedDateTime gt 2017-01-01T10:00:05Z) or (SysModifiedDateTime eq 2017-01-01T10:00:05Z and FiscalDocumentRecId gt 102)",
@@ -135,7 +135,7 @@ public class D365ChangeFeedTests
         List<ChangeFeedPage> pages = await h.PullAllAsync(Since2015);
 
         Assert.Equal($"(SysModifiedDateTime gt {t}) or (SysModifiedDateTime eq {t} and FiscalDocumentRecId gt 101)", Query(h.Http.Requests[1])["$filter"]);
-        Assert.Equal(["brmf|V1", "brmf|V2", "brmf|V3"], pages.SelectMany(p => p.References).Select(r => r.NaturalKey));
+        Assert.Equal(["brmf|V1", "brmf|V2", "brmf|V3"], pages.SelectMany(p => p.Items).Select(i => i.Reference).Select(r => r.NaturalKey));
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public class D365ChangeFeedTests
 
         List<ChangeFeedPage> pages = await h.PullAllAsync(Since2015);
 
-        Assert.Equal([2, 0], pages.Select(p => p.References.Count));
+        Assert.Equal([2, 0], pages.Select(p => p.Items.Count));
         Assert.Equal(2, h.Http.Requests.Count);
     }
 
@@ -204,7 +204,7 @@ public class D365ChangeFeedTests
 
         ChangeFeedPage page = Assert.Single(await h.PullAllAsync(Since2015));
 
-        Assert.Empty(page.References);
+        Assert.Empty(page.Items);
         Assert.Equal(ServerNow, page.HighWatermark);
     }
 
@@ -219,6 +219,44 @@ public class D365ChangeFeedTests
         Assert.Null(page.HighWatermark);
     }
 
+    // ---------- carimbo e horizonte estável (design D16) ----------
+
+    [Fact]
+    public async Task Every_page_of_the_read_carries_the_horizon_from_the_first_response()
+    {
+        var h = new Harness(pageSize: 2);
+        h.Http
+            .Respond(Rows(Row("V1", "2017-01-21T21:23:10Z", 1), Row("V2", "2017-01-21T21:23:19Z", 2)), date: ServerNow)
+            .Respond(Rows(Row("V3", "2017-01-21T21:24:00Z", 3)), date: ServerNow.AddSeconds(30));
+
+        List<ChangeFeedPage> pages = await h.PullAllAsync(Since2015);
+
+        Assert.All(pages, p => Assert.Equal(ServerNow.AddSeconds(-10), p.StableThrough));   // Date da 1ª resposta − 10s
+    }
+
+    [Fact]
+    public async Task Read_without_date_has_no_stable_horizon()
+    {
+        var h = new Harness();
+        h.Http.Respond(Rows(Row("V1", "2017-01-21T21:23:19Z", 1)));
+
+        ChangeFeedPage page = Assert.Single(await h.PullAllAsync(Since2015));
+
+        Assert.Null(page.StableThrough);
+    }
+
+    [Fact]
+    public async Task Each_item_carries_the_sys_modified_date_time_as_its_stamp()
+    {
+        var h = new Harness();
+        h.Http.Respond(Rows(Row("BRMF21-10000027", "2017-01-21T21:23:19Z", 1)));
+
+        ChangeFeedItem item = (await h.PullAllAsync(Since2015)).Single().Items.Single();
+
+        Assert.Equal(new DateTimeOffset(2017, 1, 21, 21, 23, 19, TimeSpan.Zero), item.ChangedAt);
+        Assert.Equal("brmf|BRMF21-10000027", item.Reference.NaturalKey);
+    }
+
     // ---------- mapeamento ----------
 
     [Fact]
@@ -229,7 +267,7 @@ public class D365ChangeFeedTests
             Row("BRMF21-10000027", "2017-01-21T21:23:19Z", 1, model: "55"),
             Row("BRMF21-10000019", "2016-11-28T20:58:29Z", 2, model: "SE")));
 
-        DocumentReference[] refs = (await h.PullAllAsync(Since2015)).SelectMany(p => p.References).ToArray();
+        DocumentReference[] refs = (await h.PullAllAsync(Since2015)).SelectMany(p => p.Items).Select(i => i.Reference).ToArray();
 
         Assert.Equal("tenant-a", refs[0].TenantId);
         Assert.Equal("brmf|BRMF21-10000027", refs[0].NaturalKey);
@@ -245,7 +283,7 @@ public class D365ChangeFeedTests
         var h = new Harness();
         h.Http.Respond(Rows(Row("NF/2017 01", "2017-01-21T21:23:19Z", 1)));
 
-        DocumentReference reference = (await h.PullAllAsync(Since2015)).Single().References.Single();
+        DocumentReference reference = (await h.PullAllAsync(Since2015)).Single().Items.Single().Reference;
 
         Assert.Equal("d365/brmf/NF%2F2017%2001", reference.Locator);
         Assert.Equal("brmf|NF/2017 01", reference.NaturalKey);
@@ -263,7 +301,7 @@ public class D365ChangeFeedTests
 
         List<ChangeFeedPage> pages = await h.PullAllAsync(Since2015);
 
-        Assert.Equal(["brmf|V1"], pages[0].References.Select(r => r.NaturalKey));
+        Assert.Equal(["brmf|V1"], pages[0].Items.Select(i => i.Reference.NaturalKey));
         Assert.Equal(new DateTimeOffset(2017, 1, 1, 10, 0, 2, TimeSpan.Zero), pages[0].HighWatermark);   // os pulados contam como lidos
         Assert.Equal(2, h.Logger.Warnings.Count);
         Assert.Contains(h.Logger.Warnings, w => w.Contains("65") && w.Contains("V2") && w.Contains("brmf"));
@@ -321,7 +359,7 @@ public class D365ChangeFeedTests
 
         Assert.Equal([TimeSpan.FromSeconds(5)], h.Time.Delays);
         Assert.Equal(h.Http.Requests[0].RequestUri, h.Http.Requests[1].RequestUri);
-        Assert.Single(pages.Single().References);
+        Assert.Single(pages.Single().Items);
     }
 
     [Fact]

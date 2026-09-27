@@ -74,7 +74,7 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
             }
 
             List<Row> rows = body.Value ?? [];
-            var references = new List<DocumentReference>(rows.Count);
+            var items = new List<ChangeFeedItem>(rows.Count);
             DateTimeOffset? highest = null;
 
             foreach (Row row in rows)
@@ -85,7 +85,7 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
                 // Registro ruim não trava a marca: aviso e segue (falha isolada por documento).
                 if (Map(row, tenantId, settings) is { } reference)
                 {
-                    references.Add(reference);
+                    items.Add(new ChangeFeedItem(reference, modified));
                 }
             }
 
@@ -97,7 +97,13 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
                 highest = serverNow;
             }
 
-            yield return new ChangeFeedPage { References = references, HighWatermark = highest };
+            // Horizonte estável (design D16): o SysModifiedDateTime tem resolução de segundo, então um carimbo
+            // muito recente ainda pode ser dado a outra gravação. Recuar a margem do relógio do início da
+            // varredura cobre a resolução e a diferença entre o web server e quem carimba. Sem Date, nada é
+            // definitivo e o motor não suprime nada desta leitura.
+            DateTimeOffset? stableThrough = scanStartedAt - _options.StampSettleMargin;
+
+            yield return new ChangeFeedPage { Items = items, HighWatermark = highest, StableThrough = stableThrough };
 
             if (last)
             {
