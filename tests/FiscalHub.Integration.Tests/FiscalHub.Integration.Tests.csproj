@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <!-- Sobe o mock de compliance em memória para o ponta a ponta com o contrato novo (ADR-0026). -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
@@ -24,6 +26,8 @@
     <ProjectReference Include="..\..\src\Adapters\Messaging\FiscalHub.Adapters.Messaging.ServiceBus\FiscalHub.Adapters.Messaging.ServiceBus.csproj" />
     <ProjectReference Include="..\..\src\Adapters\Ingress\FiscalHub.Adapters.Ingress.D365Poll\FiscalHub.Adapters.Ingress.D365Poll.csproj" />
     <ProjectReference Include="..\..\src\Adapters\Inbound\FiscalHub.Adapters.Inbound.Xml\FiscalHub.Adapters.Inbound.Xml.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Outbound\FiscalHub.Adapters.Outbound.Avalara\FiscalHub.Adapters.Outbound.Avalara.csproj" />
+    <ProjectReference Include="..\..\tools\MockComplianceApi\MockComplianceApi.csproj" />
   </ItemGroup>
 
   <!-- As mesmas respostas gravadas dos testes do adapter D365 e o XML de exemplo do adapter XML — por link, sem cópia. -->
