@@ -41,8 +41,9 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
 
     /// <summary>
     /// Processa um documento: idempotência, busca, validação de integração, envio e registro.
-    /// Documento inválido é rejeitado (registrado com o motivo) e não é enviado. Qualquer falha
-    /// propaga como exceção, deixando o retry/DLQ a cargo do transporte.
+    /// Documento inválido é rejeitado (registrado com o motivo) e não é enviado; recusa permanente no envio
+    /// (<see cref="DispatchRejectedException"/>) também. Qualquer outra falha propaga como exceção, deixando o
+    /// retry/DLQ a cargo do transporte.
     /// </summary>
     public async Task ProcessAsync(
         DocumentReference reference, DispatchContext context, CancellationToken ct = default)
@@ -77,7 +78,18 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
             return;
         }
 
-        IntegrationReceipt receipt = await _dispatcher.SubmitAsync(document, context, ct);
+        // Recusa permanente descoberta no envio (plataforma recusou, ou o conector não monta a requisição): mesmo
+        // desfecho da rejeição na validação — registrada, sem retentativa (ADR-0026). Transitório propaga.
+        IntegrationReceipt receipt;
+        try
+        {
+            receipt = await _dispatcher.SubmitAsync(document, context, ct);
+        }
+        catch (DispatchRejectedException rejected)
+        {
+            await _store.RecordRejectionAsync(reference, rejected.Reason, ct);
+            return;
+        }
 
         await _store.RecordSubmissionAsync(reference, receipt, ct);
     }
