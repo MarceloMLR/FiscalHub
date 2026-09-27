@@ -8,7 +8,8 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// Extrai o motivo humano de uma recusa da plataforma (design D10). O formato real da resposta de erro ainda não
 /// foi gravado, então a extração é tolerante: junta os textos das propriedades de mensagem conhecidas (lista de
 /// mensagens, <c>ProblemDetails</c>, objetos com descrição); sem nenhuma, devolve o JSON compactado; sem JSON, o
-/// texto. O status nativo nunca entra — só o texto da plataforma atravessa o adapter (ADR-0003).
+/// texto. O status nativo nunca entra — só o texto da plataforma atravessa o adapter (ADR-0003). Recebe o corpo já
+/// redigido pelo <see cref="SensitiveText"/> (ADR-0027): o motivo nunca vê o token em uso.
 /// </summary>
 internal static partial class PlatformMessage
 {

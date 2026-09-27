@@ -295,5 +295,8 @@ public class DocumentPipelineTests
             OutboundKey = naturalKey;
             return Task.CompletedTask;
         }
+
+        public Task SaveResponseAsync(string tenantId, string naturalKey, string destination, string exchange, string json, CancellationToken ct = default)
+            => Task.CompletedTask;
     }
 }

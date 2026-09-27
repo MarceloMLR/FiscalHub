@@ -8,8 +8,8 @@ namespace FiscalHub.Infrastructure.Tracing;
 /// <summary>
 /// Grava as fotos de rastreabilidade no Blob (object storage — feito para escala; milhões de
 /// objetos são o uso normal, e a retenção sai por lifecycle policy no container, fora do código).
-/// Layout: <c>{tenant}/{aaaaMM}/{chave}/source.{fmt}</c>, <c>.../domain.json</c> e
-/// <c>.../{destino}.json</c>. Reprocessar o mesmo documento sobrescreve a foto.
+/// O layout é o do <see cref="TracePaths"/>: a fonte, o domínio, o payload de destino e as duas respostas, sob o prefixo
+/// do documento. Reprocessar o mesmo documento sobrescreve a foto.
 /// </summary>
 internal sealed class BlobProcessingTrace : IProcessingTrace
 {
@@ -23,20 +23,23 @@ internal sealed class BlobProcessingTrace : IProcessingTrace
     }
 
     public Task SaveSourceAsync(string tenantId, string naturalKey, string content, string format, CancellationToken ct = default)
-        => WriteAsync(tenantId, naturalKey, $"source.{format}", MediaTypeFor(format), content, ct);
+        => WriteAsync(tenantId, naturalKey, TracePaths.Source(format), MediaTypeFor(format), content, ct);
 
     public Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default)
-        => WriteAsync(tenantId, naturalKey, "domain.json", "application/json", json, ct);
+        => WriteAsync(tenantId, naturalKey, TracePaths.Domain, "application/json", json, ct);
 
     public Task SaveOutboundAsync(string tenantId, string naturalKey, string destination, string json, CancellationToken ct = default)
-        => WriteAsync(tenantId, naturalKey, $"{destination}.json", "application/json", json, ct);
+        => WriteAsync(tenantId, naturalKey, TracePaths.Outbound(destination), "application/json", json, ct);
+
+    public Task SaveResponseAsync(string tenantId, string naturalKey, string destination, string exchange, string json, CancellationToken ct = default)
+        => WriteAsync(tenantId, naturalKey, TracePaths.Response(destination, exchange), "application/json", json, ct);
 
     private async Task WriteAsync(string tenantId, string naturalKey, string fileName, string contentType, string content, CancellationToken ct)
     {
         await _container.CreateIfNotExistsAsync(cancellationToken: ct);
 
         string period = _time.GetUtcNow().ToString("yyyyMM");
-        BlobClient blob = _container.GetBlobClient($"{tenantId}/{period}/{naturalKey}/{fileName}");
+        BlobClient blob = _container.GetBlobClient(TracePaths.Blob(tenantId, period, naturalKey, fileName));
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
         await blob.UploadAsync(

@@ -25,11 +25,13 @@ export interface DocumentSummary {
 // GET /trace devolve { "<caminho>": <conteudo> } — JSON aninhado ou string (o XML cru).
 export type TraceResponse = Record<string, unknown>;
 
-// As tres fotos ja categorizadas.
+// As fotos ja categorizadas: fonte, dominio, payload de destino e as respostas da plataforma (ADR-0027) —
+// a do ultimo envio e a da ultima consulta de status, cada uma um envelope ja redigido.
 export interface DocumentTrace {
   source?: string;
   domain?: unknown;
   destination?: { name: string; payload: unknown };
+  responses?: { submit?: unknown; status?: unknown };
 }
 
 // Diretorio de empresas/filiais (GET /companies, /companies/{code}/branches) — dropdowns da manual.

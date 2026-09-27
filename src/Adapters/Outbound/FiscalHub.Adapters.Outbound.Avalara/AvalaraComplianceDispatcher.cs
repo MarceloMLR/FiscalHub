@@ -1,11 +1,14 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FiscalHub.Adapters.Outbound.Avalara;
@@ -14,27 +17,45 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// Despacha uma <see cref="GoodsInvoice"/> para a plataforma de compliance (Avalara) por HTTP.
 /// Reusa o mapeamento testado (<see cref="GoodsInvoiceToAvalara"/>) e traduz o status nativo da
 /// plataforma para o <see cref="IntegrationStatus"/> comum (camada anticorrupção — ADR-0003).
+/// <para>Toda resposta da plataforma é lida uma vez, redigida (<see cref="SensitiveText"/>) e fotografada antes de ser
+/// classificada: a foto, o motivo e o identificador saem do mesmo texto (ADR-0027).</para>
 /// </summary>
 internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsInvoice>
 {
+    // A lista fechada de cabeçalhos de resposta que entram na foto. Cresce com evidência, se o sandbox usar outro
+    // identificador de correlação. Cabeçalho de requisição nunca entra.
+    private static readonly string[] PhotographedHeaders = ["Content-Type", "Date", "X-Correlation-Id", "X-Request-Id", "Request-Id", "traceparent"];
+
+    private static readonly JsonSerializerOptions EnvelopeOptions = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     private readonly HttpClient _http;
     private readonly AvalaraOptions _options;
     private readonly IAvalaraTokenProvider _tokenProvider;
     private readonly IProcessingTrace _trace;
     private readonly IConnectorProfileStore _profiles;
+    private readonly ILogger<AvalaraComplianceDispatcher> _logger;
+    private readonly TimeProvider _clock;
 
     public AvalaraComplianceDispatcher(
         HttpClient http,
         IOptions<AvalaraOptions> options,
         IAvalaraTokenProvider tokenProvider,
         IProcessingTrace trace,
-        IConnectorProfileStore profiles)
+        IConnectorProfileStore profiles,
+        ILogger<AvalaraComplianceDispatcher> logger,
+        TimeProvider clock)
     {
         _http = http;
         _options = options.Value;
         _tokenProvider = tokenProvider;
         _trace = trace;
         _profiles = profiles;
+        _logger = logger;
+        _clock = clock;
     }
 
     /// <inheritdoc/>
@@ -70,8 +91,10 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
 
-        // O corpo é lido uma vez, como texto: o motivo e o identificador saem dele.
-        string body = await response.Content.ReadAsStringAsync(ct);
+        // O corpo é lido uma vez, como texto, e redigido: a foto, o motivo e o identificador saem dele. A foto vem antes
+        // de classificar, em qualquer status, e por melhor esforço — uma falha nela não pode provocar reenvio.
+        (string body, int redactions) = await ReadRedactedAsync(response, token, ct);
+        await PhotographAsync(context, TraceExchanges.Submit, request, response, body, redactions, token, ct);
         int status = (int)response.StatusCode;
 
         switch (response.StatusCode)
@@ -118,6 +141,13 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
 
+        // Toda resposta com corpo sobrescreve a foto da consulta; a sem corpo (204, 404 pendente) não.
+        (string raw, int redactions) = await ReadRedactedAsync(response, token, ct);
+        if (raw.Length > 0)
+        {
+            await PhotographAsync(context, TraceExchanges.Status, request, response, raw, redactions, token, ct);
+        }
+
         // 401 na consulta: descarta o token e deixa para a próxima passada do poll (limite em MaxAttempts).
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
@@ -134,7 +164,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
 
         response.EnsureSuccessStatusCode();
 
-        using JsonDocument body = await ReadJsonDocumentAsync(response, ct);
+        using JsonDocument body = ParseStatus(raw);
         IntegrationStatus status = Translate(StringProperty(body.RootElement, "status"));
 
         // O status nativo nunca sai do adapter; o que atravessa é o texto da plataforma (ADR-0003, refinado pelo
@@ -170,6 +200,76 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         return token;
     }
 
+    // O corpo cru, redigido antes de qualquer uso: nem a foto, nem o motivo, nem um log veem o token em uso.
+    private static async Task<(string Body, int Redactions)> ReadRedactedAsync(HttpResponseMessage response, AvalaraAccessToken token, CancellationToken ct)
+        => SensitiveText.Redact(await response.Content.ReadAsStringAsync(ct), [token.Value]);
+
+    // A quarta foto: o envelope do D8, já redigido. Melhor esforço — a falha é logada sem o conteúdo, e o desfecho segue
+    // como se tivesse dado certo, porque a requisição já saiu.
+    private async Task PhotographAsync(
+        DispatchContext context, string exchange, HttpRequestMessage request, HttpResponseMessage response, string body, int redactions,
+        AvalaraAccessToken token, CancellationToken ct)
+    {
+        try
+        {
+            var headers = new JsonObject();
+            foreach (string name in PhotographedHeaders)
+            {
+                if (response.Headers.TryGetValues(name, out IEnumerable<string>? values)
+                    || response.Content.Headers.TryGetValues(name, out values))
+                {
+                    (string value, int count) = SensitiveText.Redact(string.Join(", ", values), [token.Value]);
+                    headers[name] = value;
+                    redactions += count;
+                }
+            }
+
+            var envelope = new JsonObject
+            {
+                ["exchange"] = exchange,
+                ["request"] = new JsonObject
+                {
+                    ["method"] = request.Method.Method,
+                    ["url"] = request.RequestUri!.GetLeftPart(UriPartial.Path),   // sem query string
+                },
+                ["response"] = new JsonObject
+                {
+                    ["status"] = (int)response.StatusCode,
+                    ["receivedAt"] = _clock.GetUtcNow().ToString("O"),
+                    ["headers"] = headers,
+                    ["body"] = BodyNode(body),
+                },
+                ["redactions"] = redactions,
+            };
+
+            await _trace.SaveResponseAsync(context.TenantId, context.NaturalKey, Destination, exchange, envelope.ToJsonString(EnvelopeOptions), ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(
+                "A foto da resposta ({Exchange}) do documento {NaturalKey} do tenant {Tenant} não foi gravada ({Error}); o desfecho segue.",
+                exchange, context.NaturalKey, context.TenantId, ex.GetType().Name);
+        }
+    }
+
+    // O corpo entra como JSON quando é JSON, e como texto nos outros casos.
+    private static JsonNode? BodyNode(string body)
+    {
+        if (body.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonNode.Parse(body);
+        }
+        catch (JsonException)
+        {
+            return JsonValue.Create(body);
+        }
+    }
+
     private HttpRequestException Unauthorized(AvalaraAccessToken token, AvalaraOutboundSettings settings)
     {
         _tokenProvider.Invalidate(token);
@@ -193,9 +293,8 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     }
 
     // A consulta de status é lida como JSON cru: além do status, o motivo da recusa vem em formato ainda não gravado.
-    private static async Task<JsonDocument> ReadJsonDocumentAsync(HttpResponseMessage response, CancellationToken ct)
+    private static JsonDocument ParseStatus(string raw)
     {
-        string raw = await response.Content.ReadAsStringAsync(ct);
         if (string.IsNullOrWhiteSpace(raw))
         {
             throw new InvalidOperationException("Resposta da plataforma de compliance vazia.");
@@ -217,5 +316,4 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
             && root.EnumerateObject().FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is { Value.ValueKind: JsonValueKind.String } property
                 ? property.Value.GetString()
                 : null;
-
 }

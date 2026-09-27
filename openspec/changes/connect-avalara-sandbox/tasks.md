@@ -288,14 +288,14 @@ Manual e sem código.
 
 ## 11. Quarta foto, redação e a aba Resposta (D8, D9, D10)
 
-- [ ] 11.1 Testes primeiro do `SensitiveText`:
+- [x] 11.1 Testes primeiro do `SensitiveText`:
   - por valor (token e segredo);
   - `Bearer <valor>` em texto e em JSON;
   - as propriedades de nome sensível, em qualquer nível;
   - a contagem de redações;
   - o texto sem nada sensível fica igual
-- [ ] 11.2 Implementar o `SensitiveText` no adapter. A `PlatformMessage` passa a receber o corpo já redigido
-- [ ] 11.3 Acrescentar à porta e às duas implementações:
+- [x] 11.2 Implementar o `SensitiveText` no adapter. A `PlatformMessage` passa a receber o corpo já redigido
+- [x] 11.3 Acrescentar à porta e às duas implementações:
   - `SaveResponseAsync` no `IProcessingTrace` e no `NoOpProcessingTrace`;
   - `TracePaths` na Infrastructure, com os nomes `{destino}.response.submit.json` e
     `{destino}.response.status.json`;
@@ -303,7 +303,7 @@ Manual e sem código.
 
   Com testes de que os nomes são distintos e ficam sob o prefixo do documento (Infrastructure.Tests), e de que o
   `TraceArchive.Zip` leva as duas respostas com nomes distintos (Application.Tests)
-- [ ] 11.4 Testes primeiro (dispatcher, com um trace que grava e um logger que captura):
+- [x] 11.4 Testes primeiro (dispatcher, com um trace que grava e um logger que captura):
   - a foto do envio em 200, 400 e 503, com status, URL sem query, os cabeçalhos da lista e o corpo;
   - `Set-Cookie` e `WWW-Authenticate` ausentes;
   - a foto da consulta com corpo sobrescreve, e o 204 não;
@@ -312,15 +312,15 @@ Manual e sem código.
   - o endpoint de token recusado com o segredo ecoado na descrição: nem o motivo nem o log têm o segredo;
   - o trace que falha ao gravar a resposta de um aceite: o recibo sai normal, com um único POST e um aviso
     no log sem conteúdo
-- [ ] 11.5 Implementar no dispatcher o envelope do D8 e a gravação por melhor esforço, com
+- [x] 11.5 Implementar no dispatcher o envelope do D8 e a gravação por melhor esforço, com
   `ILogger<AvalaraComplianceDispatcher>`
-- [ ] 11.6 Dashboard:
+- [x] 11.6 Dashboard:
   - o `shape()` do `useTrace.ts` reconhece, nesta ordem, `source.*`, `domain.json`, `*.response.submit.json`,
     `*.response.status.json` e o `<destino>.json`;
   - o `DocumentDetail` ganha a aba "Resposta", com os dois envelopes;
   - o `DocumentTrace` ganha as respostas;
   - se houver suíte de front, um teste do `shape()` com a fonte do D365 e as duas respostas
-- [ ] 11.7 `dotnet build` com 0 warnings, `dotnet test` verde e o build do dashboard
+- [x] 11.7 `dotnet build` com 0 warnings, `dotnet test` verde e o build do dashboard
 
 ## 12. Mock com autenticação e ponta a ponta em memória (D11)
 

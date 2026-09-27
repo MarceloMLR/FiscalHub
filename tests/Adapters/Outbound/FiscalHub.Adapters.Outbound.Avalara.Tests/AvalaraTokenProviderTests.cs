@@ -189,6 +189,23 @@ public class AvalaraTokenProviderTests
         Assert.DoesNotContain("segredo-a", reason);
     }
 
+    [Fact]
+    public async Task Refusal_that_echoes_the_secret_keeps_it_out_of_the_reason_and_the_log()
+    {
+        var h = new Harness
+        {
+            Endpoint = { Status = HttpStatusCode.Unauthorized, Body = """{"error":"invalid_client","error_description":"client_secret segredo-a não confere para id-a"}""" },
+        };
+
+        string reason = (await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-a")))).Reason;
+
+        Assert.DoesNotContain("segredo-a", reason);
+        Assert.Contains("[redigido]", reason);
+        Assert.Contains("invalid_client", reason);
+        Assert.DoesNotContain("segredo-a", h.Logger.All);
+        Assert.DoesNotContain("grant_type", reason);   // nem o corpo do pedido de token
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.InternalServerError)]
     [InlineData(HttpStatusCode.ServiceUnavailable)]

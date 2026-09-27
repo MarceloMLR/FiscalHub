@@ -167,13 +167,13 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
         };
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
-        string body = await response.Content.ReadAsStringAsync(ct);
+        string body = await response.Content.ReadAsStringAsync(ct);   // a troca com o endpoint de token nunca é fotografada
 
         // Credencial recusada: retentar não conserta e pode bloquear a conta. Lembrada, e rejeição com o motivo.
         if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
             string reason = $"Configuração do conector: a plataforma recusou a credencial do tenant '{credential.TenantId}' no ambiente "
-                + $"'{credential.Environment}' ({RefusalDetail((int)response.StatusCode, body)}). "
+                + $"'{credential.Environment}' ({RefusalDetail((int)response.StatusCode, SensitiveText.Redact(body, [credential.Secret]).Text)}). "
                 + "Confira o Client ID e o Client Secret na tela de conectores.";
             _refusals[key] = new Refusal(reason, _clock.GetUtcNow() + _options.CredentialRefusalHold);
             throw new DispatchRejectedException(reason);
@@ -206,7 +206,8 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
         return new AvalaraAccessToken(credential.TenantId, credential.Environment, value, isFresh: true, key);
     }
 
-    // O código e a descrição do erro do OAuth ("invalid_client — …"). O corpo cru nunca entra.
+    // O código e a descrição do erro do OAuth ("invalid_client — …"), do corpo já redigido: a descrição pode ecoar o
+    // segredo. O corpo em si nunca entra.
     private static string RefusalDetail(int status, string body)
     {
         string? error = null, description = null;

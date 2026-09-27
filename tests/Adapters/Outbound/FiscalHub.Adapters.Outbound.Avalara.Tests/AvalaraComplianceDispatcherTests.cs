@@ -1,10 +1,12 @@
 using System.Net;
+using System.Text.Json.Nodes;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
 using FiscalHub.Domain.Goods.Reform;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
@@ -335,6 +337,129 @@ public class AvalaraComplianceDispatcherTests
         Assert.Equal(1, handler.RequestCount);
     }
 
+    // ---------- a quarta foto: a resposta da plataforma (ADR-0027) ----------
+
+    [Theory]
+    [InlineData(HttpStatusCode.OK, """{"id":"ext-1"}""")]
+    [InlineData(HttpStatusCode.BadRequest, """{"mensagens":["codigoEmpresa não cadastrado"]}""")]
+    [InlineData(HttpStatusCode.ServiceUnavailable, """{"mensagens":["indisponível"]}""")]
+    public async Task Submit_response_is_photographed_in_any_status(HttpStatusCode status, string body)
+    {
+        var handler = new HeaderedHandler(status, body);
+        var trace = new RecordingTrace();
+        var dispatcher = Build(handler, trace: trace);
+
+        try
+        {
+            await dispatcher.SubmitAsync(SampleInvoice(), Context());
+        }
+        catch (Exception ex) when (ex is DispatchRejectedException or HttpRequestException)
+        {
+            // o desfecho é dos outros testes; aqui, só a foto
+        }
+
+        JsonNode photo = JsonNode.Parse(trace.Responses[TraceExchanges.Submit])!;
+        Assert.Equal("submit", (string?)photo["exchange"]);
+        Assert.Equal("POST", (string?)photo["request"]!["method"]);
+        Assert.Equal("http://localhost/documents", (string?)photo["request"]!["url"]);
+        Assert.Equal((int)status, (int?)photo["response"]!["status"]);
+        Assert.Equal(Now, DateTimeOffset.Parse((string)photo["response"]!["receivedAt"]!));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(body), photo["response"]!["body"]));
+        Assert.Equal(0, (int?)photo["redactions"]);
+
+        JsonObject headers = photo["response"]!["headers"]!.AsObject();
+        Assert.StartsWith("application/json", (string?)headers["Content-Type"]);
+        Assert.Equal("corr-da-plataforma", (string?)headers["X-Correlation-Id"]);
+        Assert.NotNull(headers["Date"]);
+        Assert.DoesNotContain(headers, h => h.Key.Equals("Set-Cookie", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(headers, h => h.Key.Equals("WWW-Authenticate", StringComparison.OrdinalIgnoreCase));
+        Assert.Null(photo["request"]!["headers"]);   // nenhum cabeçalho de requisição
+    }
+
+    [Fact]
+    public async Task Body_that_is_not_json_goes_as_text()
+    {
+        var trace = new RecordingTrace();
+        var dispatcher = Build(new HeaderedHandler(HttpStatusCode.BadRequest, "Documento inválido"), trace: trace);
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
+
+        Assert.Equal("Documento inválido", (string?)JsonNode.Parse(trace.Responses[TraceExchanges.Submit])!["response"]!["body"]);
+        Assert.Contains("Documento inválido", ex.Reason);   // o motivo sai do mesmo corpo
+    }
+
+    [Fact]
+    public async Task Status_response_with_body_overwrites_the_photo_and_204_does_not()
+    {
+        var handler = new SequencedHandler(
+            (HttpStatusCode.OK, """{"id":"ext-1","status":"processando"}"""),
+            (HttpStatusCode.NoContent, ""),
+            (HttpStatusCode.OK, """{"id":"ext-1","status":"erro","mensagens":["CFOP inválido"]}"""),
+            (HttpStatusCode.NotFound, ""));
+        var trace = new RecordingTrace();
+        var dispatcher = Build(handler, trace: trace);
+
+        await dispatcher.CheckStatusAsync("ext-1", Context());
+        string first = trace.Responses[TraceExchanges.Status];
+        await dispatcher.CheckStatusAsync("ext-1", Context());
+        Assert.Equal(first, trace.Responses[TraceExchanges.Status]);   // o 204 não sobrescreve
+        await dispatcher.CheckStatusAsync("ext-1", Context());
+        await dispatcher.CheckStatusAsync("ext-1", Context());         // nem o 404 sem corpo
+
+        JsonNode photo = JsonNode.Parse(trace.Responses[TraceExchanges.Status])!;
+        Assert.Equal("status", (string?)photo["exchange"]);
+        Assert.Equal("GET", (string?)photo["request"]!["method"]);
+        Assert.Equal("http://localhost/documents/ext-1/status", (string?)photo["request"]!["url"]);
+        Assert.Equal("CFOP inválido", (string?)photo["response"]!["body"]!["mensagens"]![0]);
+        Assert.Equal(2, trace.ResponseWrites);
+        Assert.False(trace.Responses.ContainsKey(TraceExchanges.Submit));
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task Echoed_bearer_and_access_token_never_reach_the_photo_the_reason_the_log_or_the_exception(HttpStatusCode status)
+    {
+        const string token = "tok-segredo-123";
+        var handler = new HeaderedHandler(status, $$"""{"mensagens":["recusado para Bearer {{token}}"],"access_token":"{{token}}"}""");
+        var trace = new RecordingTrace();
+        var logger = new CapturingLogger<AvalaraComplianceDispatcher>();
+        var dispatcher = Build(handler, new FakeTokenProvider(token), trace, logger: logger);
+
+        Exception ex = await Assert.ThrowsAnyAsync<Exception>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
+
+        string photo = trace.Responses[TraceExchanges.Submit];
+        Assert.DoesNotContain(token, photo);
+        Assert.True((int)JsonNode.Parse(photo)!["redactions"]! >= 2);
+        Assert.DoesNotContain(token, ex.Message);
+        Assert.DoesNotContain(token, ex.ToString());
+        Assert.DoesNotContain(token, logger.All);
+        if (ex is DispatchRejectedException rejected)
+        {
+            Assert.DoesNotContain(token, rejected.Reason);
+            Assert.Contains("recusado para Bearer [redigido]", rejected.Reason);
+        }
+    }
+
+    [Fact]
+    public async Task Photo_failure_after_an_accept_does_not_change_the_outcome()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1","protocolo":"p-9"}""");
+        var trace = new RecordingTrace { FailResponses = true };
+        var logger = new CapturingLogger<AvalaraComplianceDispatcher>();
+        var dispatcher = Build(handler, trace: trace, logger: logger);
+
+        IntegrationReceipt receipt = await dispatcher.SubmitAsync(SampleInvoice(), Context());
+
+        Assert.Equal("ext-guid-1", receipt.ExternalId);
+        Assert.Equal(1, handler.RequestCount);
+        (LogLevel level, string text) = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Warning, level);
+        Assert.Contains("nfe-1", text);
+        Assert.DoesNotContain("p-9", text);          // sem o conteúdo da resposta
+        Assert.DoesNotContain("blob fora do ar", text);
+    }
+
     [Fact]
     public async Task CheckStatus_propagates_on_non_success_status()
     {
@@ -439,6 +564,20 @@ public class AvalaraComplianceDispatcherTests
                     "establishments":{"{{ownCnpj}}":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"} } } }
         """;
 
+    /// <summary>Responde com os cabeçalhos de uma plataforma real: os da lista e os que nunca entram na foto.</summary>
+    private sealed class HeaderedHandler(HttpStatusCode status, string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var response = new HttpResponseMessage(status) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+            response.Headers.Date = Now;
+            response.Headers.Add("X-Correlation-Id", "corr-da-plataforma");
+            response.Headers.Add("Set-Cookie", "sessao=abc; HttpOnly");
+            response.Headers.Add("WWW-Authenticate", "Bearer realm=\"avalara\"");
+            return Task.FromResult(response);
+        }
+    }
+
     /// <summary>Responde em sequência e guarda o cabeçalho de autorização de cada pedido.</summary>
     private sealed class SequencedHandler(params (HttpStatusCode Status, string Body)[] responses) : HttpMessageHandler
     {
@@ -454,17 +593,25 @@ public class AvalaraComplianceDispatcherTests
         }
     }
 
+    private static readonly DateTimeOffset Now = new(2026, 9, 27, 15, 0, 0, TimeSpan.Zero);
+
     private static AvalaraComplianceDispatcher Build(
         HttpMessageHandler handler,
         IAvalaraTokenProvider? token = null,
         IProcessingTrace? trace = null,
-        IConnectorProfileStore? profiles = null)
+        IConnectorProfileStore? profiles = null,
+        ILogger<AvalaraComplianceDispatcher>? logger = null)
     {
         var http = new HttpClient(handler);   // sem BaseAddress: toda URI é absoluta, da seção do tenant
         var options = Options.Create(new AvalaraOptions { Destination = "avalara" });
         return new AvalaraComplianceDispatcher(
             http, options, token ?? new FakeTokenProvider("tok-padrao"), trace ?? new NoOpProcessingTrace(),
-            profiles ?? Profile());
+            profiles ?? Profile(), logger ?? new CapturingLogger<AvalaraComplianceDispatcher>(), new FixedClock(Now));
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     private sealed class FakeProfileStore(TenantConnectorProfile? profile) : IConnectorProfileStore
@@ -515,6 +662,25 @@ public class AvalaraComplianceDispatcherTests
         public Task SaveOutboundAsync(string tenantId, string naturalKey, string destination, string json, CancellationToken ct = default)
         {
             Outbound = (tenantId, naturalKey, destination, json);
+            return Task.CompletedTask;
+        }
+
+        /// <summary>A última resposta gravada de cada troca, como gravada (o envelope em JSON).</summary>
+        public Dictionary<string, string> Responses { get; } = [];
+
+        public int ResponseWrites { get; private set; }
+
+        public bool FailResponses { get; set; }
+
+        public Task SaveResponseAsync(string tenantId, string naturalKey, string destination, string exchange, string json, CancellationToken ct = default)
+        {
+            if (FailResponses)
+            {
+                throw new InvalidOperationException("blob fora do ar");
+            }
+
+            ResponseWrites++;
+            Responses[exchange] = json;
             return Task.CompletedTask;
         }
     }
