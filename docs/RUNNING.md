@@ -335,15 +335,55 @@ da Contoso de demonstração, de 2016, sem IBS/CBS. Corrigir o payload a partir 
 **A credencial do sandbox** é distribuída fora do repositório e fora do chat, pelo canal de segredos da equipe. Ela é
 digitada só na tela. Nunca vai para arquivo do repositório, terminal compartilhado, print ou mensagem.
 
-**1. Configurar pela tela.** Em **Configurações → Conectores → Saída**, na seção **Sandbox** do tenant-a: a URL base do
-sandbox, a URL do token (se a documentação do sandbox der uma diferente de URL base + `oauth/token`), o Client ID e o
-Client Secret. Confira:
+**1. Configurar pela tela, com a guarda antes.** A tela mostra só alguns campos, e salvar regrava as settings inteiras.
+Antes de confiar nela, prove que ela não apaga o que não mostra: os `establishments`, as `companies` e o `poll`. Sem os
+`establishments`, toda nota é rejeitada por falta de tradução; sem o `poll`, o feed do D365 para de descobrir notas.
 
-- a tela mostra "configurado em <data>", e o `GET /connector` não traz o valor, nem parte dele, nem a referência;
+a) **Antes de salvar pela tela,** guarde a resposta do `GET /connector`. Ela nunca traz segredo nem referência, então
+   pode ir para um arquivo, mas fora do repositório:
+
+```powershell
+$login = Invoke-RestMethod -Method Post -Uri http://localhost:5200/auth/login -ContentType application/json `
+  -Body '{"email":"admin@fiscalhub.local","password":"Fiscal@123"}'
+$auth = @{ Authorization = "Bearer $($login.token)" }
+$antes = Invoke-RestMethod -Uri http://localhost:5200/connector -Headers $auth
+$antes | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 "$env:TEMP\connector-antes.json"
+```
+
+b) **Salve pela tela.** Em **Configurações → Conectores → Saída**, na seção **Sandbox** do tenant-a: a URL base do
+   sandbox, a URL do token (se a documentação do sandbox der uma diferente de URL base + `oauth/token`), o Client ID e o
+   Client Secret.
+
+c) **Faça o `GET` de novo e compare** o que tem de sobreviver:
+
+```powershell
+$depois = Invoke-RestMethod -Uri http://localhost:5200/connector -Headers $auth
+$depois | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 "$env:TEMP\connector-depois.json"
+$in0 = $antes.inboundSettings | ConvertFrom-Json;   $in1 = $depois.inboundSettings | ConvertFrom-Json
+$out0 = $antes.outboundSettings | ConvertFrom-Json; $out1 = $depois.outboundSettings | ConvertFrom-Json
+$itens = @(
+  @('inbound.companies', $in0.companies, $in1.companies),
+  @('inbound.poll', $in0.poll, $in1.poll),
+  @('outbound.sandbox.establishments', $out0.sandbox.establishments, $out1.sandbox.establishments),
+  @('outbound.production.establishments', $out0.production.establishments, $out1.production.establishments)
+)
+foreach ($i in $itens) {
+  $a = ConvertTo-Json -InputObject $i[1] -Depth 10 -Compress
+  $b = ConvertTo-Json -InputObject $i[2] -Depth 10 -Compress
+  if ($a -eq $b) { "ok     $($i[0])" } else { "MUDOU  $($i[0])`n  antes:  $a`n  depois: $b" }
+}
+```
+
+Os quatro têm de sair `ok`. **Se algum sumir ou mudar, o teste para aqui:** o problema é da tela de conectores (ou do
+`PUT /connector`), e não da Avalara. Não siga para a premissa de autenticação; restaure o perfil pelo arquivo de antes (ou
+pelo SQL da seção 3) e registre o achado.
+
+d) **Confira o caminho do segredo:**
+
+- a tela mostra "configurado em <data>", e o `GET /connector` não traz o valor, nem parte dele, nem a referência (no
+  `$depois`, o `secrets."outbound.sandbox.clientSecret"` tem `configured: true` e a data);
 - a linha do perfil no SQL tem só o `clientSecretRef` `kv:fh-tenant-a--outbound--sandbox--clientsecret`;
 - um `PUT /connector` feito à mão com `clientSecretRef` no corpo dá 400.
-
-O `establishments` do sandbox (seção 3) continua valendo: a tela só mexe nos campos que mostra.
 
 **2. Verificar a premissa de autenticação.** O hub assume OAuth `client_credentials`, com o segredo no corpo do
 formulário (ADR-0027 §3). Antes das notas, rode a sonda (seção 9):

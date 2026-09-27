@@ -3,6 +3,9 @@ namespace FiscalHub.Application.Inbound;
 /// <summary>Resumo de uma passada do worker de feed de mudanças, para o log da casca de infraestrutura.</summary>
 public sealed record ChangeFeedPassSummary
 {
+    /// <summary>A origem da passada (o adapter de entrada, ex.: <c>Dynamics365</c>).</summary>
+    public string Origin { get; init; } = string.Empty;
+
     /// <summary>Tenants cuja origem foi consultada (com ou sem sucesso).</summary>
     public int TenantsPolled { get; init; }
 
@@ -29,4 +32,10 @@ public sealed record ChangeFeedPassSummary
     /// sobreposição. Se repetir, há mais linhas na janela do que <c>teto × página</c> — ajuste a página.
     /// </summary>
     public IReadOnlyList<string> Stalled { get; init; } = [];
+
+    /// <summary>
+    /// Tenants da origem cujas settings não têm a seção <c>poll</c>: o poll está desligado por ausência de configuração.
+    /// Não é falha da passada, mas não pode ser silêncio (<see cref="PollNotConfiguredNotices"/>).
+    /// </summary>
+    public IReadOnlyList<string> PollNotConfigured { get; init; } = [];
 }

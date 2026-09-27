@@ -16,9 +16,22 @@ public class ChangeFeedPollSettingsTests
         ChangeFeedPollSettings settings = ChangeFeedPollSettings.Parse(json);
 
         Assert.False(settings.Enabled);
+        Assert.False(settings.Configured);   // desligado por ausência, e não por decisão
         Assert.Equal(TimeSpan.FromSeconds(60), settings.Interval);
         Assert.Equal(TimeSpan.FromSeconds(300), settings.Overlap);
         Assert.Null(settings.StartFrom);
+    }
+
+    [Theory]
+    [InlineData("""{"poll":{"enabled":false}}""", false)]
+    [InlineData("""{"poll":{}}""", false)]
+    [InlineData("""{"poll":{"enabled":true}}""", true)]
+    public void A_present_poll_section_is_configured_even_when_disabled(string json, bool enabled)
+    {
+        ChangeFeedPollSettings settings = ChangeFeedPollSettings.Parse(json);
+
+        Assert.True(settings.Configured);
+        Assert.Equal(enabled, settings.Enabled);
     }
 
     [Fact]

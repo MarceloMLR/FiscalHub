@@ -10,9 +10,12 @@ namespace FiscalHub.Host;
 /// chama <see cref="ChangeFeedPoller.RunOnceAsync"/>. O intervalo por tenant (padrão 60s) é decidido
 /// pelo poller; o tick só dá a resolução. A lógica vive no poller (testável); aqui é só o timer.
 /// </summary>
-internal sealed class ChangeFeedPollingService(IServiceProvider services, ILogger<ChangeFeedPollingService> logger) : BackgroundService
+internal sealed class ChangeFeedPollingService(IServiceProvider services, TimeProvider clock, ILogger<ChangeFeedPollingService> logger) : BackgroundService
 {
     private static readonly TimeSpan Tick = TimeSpan.FromSeconds(15);
+
+    // O aviso de poll sem configuração repete de hora em hora enquanto durar: some do log só quando é corrigido.
+    private readonly PollNotConfiguredNotices _pollNotConfigured = new(TimeSpan.FromHours(1));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -55,6 +58,11 @@ internal sealed class ChangeFeedPollingService(IServiceProvider services, ILogge
         foreach (string tenant in summary.LeasesLost)
         {
             logger.LogWarning("Feed de mudanças: lease do tenant {Tenant} perdido no meio do poll; outra réplica segue.", tenant);
+        }
+
+        foreach (string tenant in _pollNotConfigured.Due(summary.PollNotConfigured, clock.GetUtcNow()))
+        {
+            logger.LogWarning(PollNotConfiguredNotices.Message, summary.Origin, tenant);   // o modelo é constante e testado
         }
 
         foreach (string tenant in summary.Stalled)

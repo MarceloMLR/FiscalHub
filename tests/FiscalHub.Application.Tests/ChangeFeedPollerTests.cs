@@ -43,6 +43,32 @@ public class ChangeFeedPollerTests
         Assert.Null(h.Cursors.Find("tenant-a"));
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"url":"https://erp.example/","companies":["brmf"]}""")]
+    public async Task Missing_poll_section_is_reported_so_the_collector_is_not_silently_off(string settings)
+    {
+        var h = new Harness().WithTenant("tenant-a", settings).WithTenant("tenant-c", Enabled);
+        h.Feed.Read("tenant-c", Page(At(12, 5), "C1"));
+
+        ChangeFeedPassSummary summary = await h.RunAsync();
+
+        Assert.Equal(["tenant-a"], summary.PollNotConfigured);
+        Assert.Equal(Origin, summary.Origin);
+        Assert.DoesNotContain(h.Feed.Calls, c => c.Tenant == "tenant-a");   // continua desligado: só deixa de ser silêncio
+        Assert.Contains(h.Feed.Calls, c => c.Tenant == "tenant-c");
+    }
+
+    [Fact]
+    public async Task Poll_disabled_on_purpose_is_not_reported()
+    {
+        var h = new Harness().WithTenant("tenant-a", """{"poll":{"enabled":false}}""");
+
+        ChangeFeedPassSummary summary = await h.RunAsync();
+
+        Assert.Empty(summary.PollNotConfigured);
+    }
+
     [Fact]
     public async Task Tenant_of_another_adapter_is_ignored()
     {
