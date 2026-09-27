@@ -11,8 +11,8 @@ namespace FiscalHub.Infrastructure.Tests;
 
 /// <summary>
 /// Especifica o seed de dev: usuários, tenants e perfis de conector sempre (sem eles não há login nem credencial); os
-/// dados de demonstração — notas, execuções e agendamentos — só com <c>Seed:DemoData</c>. Desligado, limpar a base e
-/// subir o host não traz a demonstração de volta.
+/// dados de demonstração — notas, execuções e agendamentos — só com <c>Seed:DemoData = true</c>, escolha explícita: sem
+/// a chave, não entram. Desligado, limpar a base e subir o host não traz a demonstração de volta.
 /// </summary>
 public sealed class DevSeedTests : IDisposable
 {
@@ -77,7 +77,7 @@ public sealed class DevSeedTests : IDisposable
     }
 
     [Theory]
-    [InlineData(null, true)]      // sem a chave: o comportamento de antes
+    [InlineData(null, false)]     // sem a chave: a demonstração é opt-in, e não entra
     [InlineData("false", false)]
     [InlineData("true", true)]
     public void The_key_is_read_from_the_seed_section(string? value, bool expected)
@@ -91,6 +91,17 @@ public sealed class DevSeedTests : IDisposable
         IConfiguration cfg = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
         Assert.Equal(expected, DevSeedOptions.From(cfg).DemoData);
+    }
+
+    [Fact]
+    public async Task Without_the_key_nothing_fake_is_seeded()
+    {
+        // Um ambiente sem a seção Seed: nenhum documento, execução ou agendamento falso.
+        await _sp.SeedDevDataAsync(DevSeedOptions.From(new ConfigurationBuilder().Build()));
+
+        Counts counts = await CountAsync();
+        Assert.Equal((0, 0, 0), (counts.Documents, counts.Executions, counts.Schedules));
+        Assert.Empty(_blobs.Uploaded);
     }
 
     [Fact]

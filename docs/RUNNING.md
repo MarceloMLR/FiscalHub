@@ -464,8 +464,9 @@ dotnet run --project tools/AvalaraSandboxProbe -- get --tenant tenant-a --id <id
 O seed de dev tem duas partes:
 
 - **usuários, tenants e perfis de conector:** semeados sempre, porque sem eles não há login nem credencial;
-- **a demonstração** (notas com fotos, execuções e agendamentos, para a paginação e os KPIs): só com
-  `Seed:DemoData = true`. O `appsettings.Development.json` a deixa em `false`.
+- **a demonstração** (notas com fotos, execuções e agendamentos, para a paginação e os KPIs): **opt-in**, só com
+  `Seed:DemoData = true`. Sem a chave, vale `false`: um ambiente não ganha documentos, execuções e agendamentos falsos
+  por padrão. O `appsettings.Development.json` traz a chave explícita, em `false`.
 
 Cada parte só semeia a tabela vazia. Com a demonstração ligada, limpar a base e subir o host trazia tudo de volta, e
 parecia que a limpeza tinha falhado. Desligada, a base limpa continua limpa.

@@ -172,8 +172,8 @@ app.UseAuthorization();
 // Dev local: cria o schema no SQL, o container no Blob, sobe um XML de exemplo e semeia os usuários.
 await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
-// Usuários, tenants e perfis sempre; a demonstração (notas, execuções, agendamentos) só com Seed:DemoData, que o
-// Development desliga: limpar a base e subir o host não a traz de volta (docs/RUNNING.md §10).
+// Usuários, tenants e perfis sempre; a demonstração (notas, execuções, agendamentos) só com Seed:DemoData = true, por
+// escolha explícita: sem a chave, não entra, e limpar a base e subir o host não a traz de volta (docs/RUNNING.md §10).
 await app.Services.SeedDevDataAsync(DevSeedOptions.From(cfg));
 
 app.MapGet("/", () =>
