@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using Microsoft.Extensions.Logging;
@@ -113,7 +115,7 @@ public class AvalaraTokenProviderTests
         AvalaraAccessToken rotated = await h.Provider.GetTokenAsync(h.Settings("tenant-a"));
 
         Assert.Equal(2, h.Endpoint.Calls);
-        Assert.Equal("segredo-novo", h.Endpoint.Requests[1].Form["client_secret"]);
+        Assert.Equal("segredo-novo", h.Endpoint.Requests[1].Field("client_secret"));
         Assert.True(rotated.IsFresh);
     }
 
@@ -152,9 +154,10 @@ public class AvalaraTokenProviderTests
     }
 
     [Fact]
-    public async Task Token_request_is_client_credentials_with_the_secret_in_the_form_body()
+    public async Task Token_request_is_client_credentials_with_a_json_body()
     {
-        // A premissa assumida (design D13): client_credentials com o segredo no corpo. Confirmada só no teste manual.
+        // A forma da coleção do Postman do cliente (design D13): corpo JSON, e não formulário. O disableTokenRefresh vem da
+        // coleção, e não de documentação.
         var h = new Harness();
 
         await h.Provider.GetTokenAsync(h.Settings("tenant-a", tokenUrl: "https://login.avalara-a/connect/token"));
@@ -162,11 +165,49 @@ public class AvalaraTokenProviderTests
         TokenRequest request = Assert.Single(h.Endpoint.Requests);
         Assert.Equal(HttpMethod.Post, request.Method);
         Assert.Equal("https://login.avalara-a/connect/token", request.Url);
-        Assert.Equal("application/x-www-form-urlencoded", request.ContentType);
-        Assert.Equal("client_credentials", request.Form["grant_type"]);
-        Assert.Equal("id-a", request.Form["client_id"]);
-        Assert.Equal("segredo-a", request.Form["client_secret"]);
+        Assert.Equal("application/json", request.ContentType);
+        JsonObject body = Assert.IsType<JsonObject>(request.Json);
+        Assert.Equal(["client_id", "client_secret", "disableTokenRefresh", "grant_type"], body.Select(p => p.Key).Order());   // só os quatro
+        Assert.Equal("client_credentials", request.Field("grant_type"));
+        Assert.Equal("id-a", request.Field("client_id"));
+        Assert.Equal("segredo-a", request.Field("client_secret"));
+        Assert.Equal(JsonValueKind.True, body["disableTokenRefresh"]!.GetValueKind());   // booleano, e não o texto "true"
         Assert.False(request.HadAuthorizationHeader);
+    }
+
+    [Fact]
+    public async Task The_secret_never_reaches_a_log_or_an_error_message()
+    {
+        const string secret = "segredo-a";
+        var messages = new List<string>();
+
+        // Sucesso, e sucesso sem validade (o caminho que loga um aviso).
+        var ok = new Harness { Endpoint = { ExpiresIn = null } };
+        await ok.Provider.GetTokenAsync(ok.Settings("tenant-a"));
+
+        // Endpoint indisponível (a exceção do retry nativo), recusa da credencial e sucesso sem token.
+        foreach ((HttpStatusCode status, string? body) in new (HttpStatusCode, string?)[]
+        {
+            (HttpStatusCode.ServiceUnavailable, "fora do ar"),
+            (HttpStatusCode.Unauthorized, """{"error":"invalid_client"}"""),
+            (HttpStatusCode.OK, """{"token_type":"Bearer"}"""),
+        })
+        {
+            var h = new Harness { Endpoint = { Status = status, Body = body } };
+            Exception ex = await Assert.ThrowsAnyAsync<Exception>(() => h.Provider.GetTokenAsync(h.Settings("tenant-a")));
+            messages.Add(ex.ToString());
+            if (ex is DispatchRejectedException rejected)
+            {
+                messages.Add(rejected.Reason);
+            }
+
+            messages.Add(h.Logger.All);
+        }
+
+        messages.Add(ok.Logger.All);
+        Assert.Contains(ok.Logger.Entries, e => e.Level == LogLevel.Warning);   // o aviso saiu, e sem o segredo
+        Assert.All(messages, m => Assert.DoesNotContain(secret, m));
+        Assert.All(messages, m => Assert.DoesNotContain("client_secret", m));   // nem o corpo do pedido
     }
 
     // ---------- falhas do endpoint de token ----------
@@ -474,9 +515,12 @@ public class AvalaraTokenProviderTests
         public void Advance(TimeSpan by) => _now = _now.Add(by);
     }
 
-    internal sealed record TokenRequest(HttpMethod Method, string Url, string? ContentType, Dictionary<string, string> Form, bool HadAuthorizationHeader)
+    internal sealed record TokenRequest(HttpMethod Method, string Url, string? ContentType, JsonNode? Json, bool HadAuthorizationHeader)
     {
-        public (string Url, string ClientId, string Secret) Summary => (Url, Form["client_id"], Form["client_secret"]);
+        public (string Url, string? ClientId, string? Secret) Summary => (Url, Field("client_id"), Field("client_secret"));
+
+        /// <summary>Um campo de texto do corpo JSON, ou <c>null</c>.</summary>
+        public string? Field(string name) => Json is JsonObject obj && obj[name] is JsonValue v && v.TryGetValue(out string? s) ? s : null;
     }
 
     /// <summary>Endpoint de token falso: guarda cada pedido e devolve um token distinto a cada um.</summary>
@@ -514,13 +558,21 @@ public class AvalaraTokenProviderTests
         {
             int n = Interlocked.Increment(ref _calls);
             string raw = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(ct);
-            Dictionary<string, string> form = raw.Split('&', StringSplitOptions.RemoveEmptyEntries)
-                .Select(pair => pair.Split('=', 2))
-                .ToDictionary(p => Uri.UnescapeDataString(p[0]), p => Uri.UnescapeDataString(p.Length > 1 ? p[1].Replace('+', ' ') : string.Empty));
+            JsonNode? json;
+            try
+            {
+                json = raw.Length == 0 ? null : JsonNode.Parse(raw);
+            }
+            catch (JsonException)
+            {
+                json = null;
+            }
+
+            var recorded = new TokenRequest(request.Method, request.RequestUri!.ToString(), request.Content?.Headers.ContentType?.MediaType,
+                json, request.Headers.Authorization is not null);
             lock (_requests)
             {
-                _requests.Add(new TokenRequest(request.Method, request.RequestUri!.ToString(), request.Content?.Headers.ContentType?.MediaType,
-                    form, request.Headers.Authorization is not null));
+                _requests.Add(recorded);
             }
 
             if (Delay > TimeSpan.Zero)
@@ -528,7 +580,7 @@ public class AvalaraTokenProviderTests
                 await Task.Delay(Delay, ct);
             }
 
-            if (form.TryGetValue("client_id", out string? clientId) && RefusedClientIds.Contains(clientId))
+            if (recorded.Field("client_id") is { } clientId && RefusedClientIds.Contains(clientId))
             {
                 return Response(HttpStatusCode.Unauthorized, """{"error":"invalid_client"}""");
             }

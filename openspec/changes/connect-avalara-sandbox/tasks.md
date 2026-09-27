@@ -235,7 +235,8 @@ Manual e sem código.
   - sem `expires_in`, o token não entra no cache;
   - `Invalidate`;
   - `IsFresh` verdadeiro só na busca;
-  - o pedido de token vai com `client_secret` no corpo do formulário, a premissa assumida (D13)
+  - o pedido de token vai com `client_secret` no corpo JSON, na forma da coleção do cliente (D13; a premissa inicial
+    era formulário)
 - [x] 9.2 Testes primeiro das falhas do endpoint de token:
   - 400 e 401 viram `DispatchRejectedException` com tenant, ambiente e código do erro;
   - 5xx e 429 viram exceção transitória;

@@ -11,8 +11,9 @@
 - **Change OpenSpec:** `openspec/changes/connect-avalara-sandbox` (parte 2, grupos 5 a 18), capacidades
   `connector-secret-references`, `avalara-tenant-authentication`, `platform-response-trace` e o delta de
   `compliance-dispatch-outcome`.
-- **Premissa pendente:** a forma de autenticação da plataforma (ver §3) é assumida, e só é confirmada no teste manual
-  contra o sandbox (tarefa 15.3). O resultado entra no fim deste documento.
+- **Premissa parcialmente verificada:** o pedido de token é `client_credentials` com corpo JSON, verificado contra a
+  coleção do Postman do cliente (ver §3). O restante do contrato de token segue não verificado até a sonda rodar contra
+  o sandbox (tarefa 15.3). O resultado entra no fim deste documento.
 
 ## Contexto
 
@@ -67,9 +68,16 @@ empresa. A consulta de status usa a mesma seção.
   como chave. Uma busca por chave sob concorrência, e a `TokenRenewalMargin` de antes.
 - **Sem `expires_in` utilizável,** o token é usado e não entra no cache, com um aviso por chave. Inventar validade seria
   chutar a regra da plataforma.
-- **A premissa:** o pedido é OAuth `client_credentials`, com `client_id` e `client_secret` no corpo do formulário. É a
-  forma mais comum, mas não foi confirmada com a plataforma. Ela é conferida no teste manual (a sonda `token` e o envio
-  pelo hub). Se estiver errada, o retrabalho fica no provider e no mock, e o resto desta decisão não muda.
+- **O pedido de token:** OAuth `client_credentials`, com corpo JSON (`application/json`): `grant_type` fixo em
+  `client_credentials`, `client_id`, `client_secret` e `disableTokenRefresh: true`.
+  - **Verificado contra a coleção do Postman do cliente** (2026-09-27), e não contra o sandbox. A premissa inicial era o
+    corpo em formulário. O ajuste coube no provider e no mock, como previsto.
+  - **O `disableTokenRefresh` vem só da coleção,** e não de documentação da plataforma. Vai porque é o que o cliente
+    manda; o efeito dele não foi verificado, e ele não deve ser tratado como contrato até haver documentação ou
+    evidência.
+  - **O restante do contrato de token segue não verificado** até a sonda rodar contra o sandbox: os nomes da resposta
+    (`access_token`, `expires_in`), os da recusa (`error`, `error_description`) e o caminho do endpoint (`TokenPath`).
+    Se divergirem, o retrabalho fica no provider e no mock, e o resto desta decisão não muda.
 
 ### 4. O segredo pela tela, e a referência do servidor
 
@@ -260,6 +268,8 @@ fica em `out/`, redigida e fora do Git.
   imprimi-lo; `send` com `--omit` e com `--set`, com `--poll`, e `get`. Os arquivos de `out/` saíram redigidos (o
   `access_token` como `[redigido]`) e fora do `git status`.
 - **Os logs do host** não tiveram o segredo nem `Bearer` com valor.
+- **Depois dessa conferência,** o pedido de token passou a JSON (§3), e o mock passou a recusar formulário. O ponta a
+  ponta em memória cobre o formato novo.
 
 ## Validação no sandbox
 

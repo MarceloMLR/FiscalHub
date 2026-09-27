@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using Microsoft.Extensions.Logging;
@@ -155,15 +157,12 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
 
     private async Task<AvalaraAccessToken> FetchAsync(AvalaraResolvedCredential credential, CacheKey key, CancellationToken ct)
     {
+        // client_credentials com corpo JSON (application/json), e não formulário: conferido na coleção do Postman do cliente
+        // (2026-09-27, design D13). A leitura da resposta (access_token, expires_in) e a da recusa (error,
+        // error_description) continuam supostas até a sonda rodar contra o sandbox (tarefa 15.3).
         using var request = new HttpRequestMessage(HttpMethod.Post, credential.TokenEndpoint)
         {
-            // A premissa assumida (design D13): client_credentials com o segredo no corpo. Confirmada no teste manual.
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = "client_credentials",
-                ["client_id"] = credential.ClientId,
-                ["client_secret"] = credential.Secret,
-            }),
+            Content = JsonContent.Create(new TokenRequestBody(credential.ClientId, credential.Secret)),
         };
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
@@ -258,6 +257,24 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
 
     private static string? Text(JsonElement root, string name)
         => root.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    // O corpo do pedido de token. Classe, e não record: nenhum ToString imprime o segredo.
+    private sealed class TokenRequestBody(string clientId, string secret)
+    {
+        [JsonPropertyName("grant_type")]
+        public string GrantType => "client_credentials";
+
+        [JsonPropertyName("client_id")]
+        public string ClientId { get; } = clientId;
+
+        [JsonPropertyName("client_secret")]
+        public string ClientSecret { get; } = secret;
+
+        // ORIGEM: a coleção do Postman do cliente, e não documentação da plataforma. Mandamos porque é o que o cliente
+        // manda; o efeito na plataforma não foi verificado. Não tratar como contrato até haver documentação ou evidência.
+        [JsonPropertyName("disableTokenRefresh")]
+        public bool DisableTokenRefresh => true;
+    }
 
     // A chave nunca vai para log: a impressão do segredo é derivada dele.
     private sealed record CacheKey(string TenantId, string Environment, string TokenEndpoint, string ClientId, string SecretFingerprint)

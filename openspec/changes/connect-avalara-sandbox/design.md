@@ -62,7 +62,8 @@ Aqui fica o estado que molda o desenho.
 **Premissa de autenticação assumida (decisão de 2026-09-27).** A parte Avalara do desenho (D2, D6, D7, D11, D12)
 assume três coisas:
 
-- a autenticação é `client_credentials`, com o `client_secret` no corpo do formulário (`client_secret_post`);
+- a autenticação é `client_credentials`, com o `client_secret` no corpo do pedido. *(Corrigido em 2026-09-27: o
+  corpo é JSON, e não formulário, pela coleção do Postman do cliente. Ver a tabela abaixo.)*
 - a resposta de token traz `access_token` e `expires_in`, este numérico e em segundos;
 - o caminho de envio é `documents`.
 
@@ -81,13 +82,18 @@ coisas: a divergência fica visível e não vira reenvio.
 
 | Item | Esperado pelo desenho | Observado |
 |---|---|---|
-| Método de autenticação do cliente | `client_secret` no corpo do formulário (post) | pendente |
+| Método de autenticação do cliente | `client_secret` no corpo do formulário (post) | **O fluxo bateu, o formato não.** `client_credentials` com corpo JSON (`application/json`): `grant_type` fixo em `client_credentials`, `client_id`, `client_secret` e `disableTokenRefresh: true`. Verificado contra a coleção do Postman do cliente (2026-09-27), e não contra o sandbox. O `disableTokenRefresh` vem só da coleção, sem documentação. Pela regra do passo 1 abaixo, é ajuste de forma: o provider (grupo 9) e o mock (grupo 12) passaram a JSON, com teste. |
 | HTTP do pedido de token | 200 | pendente |
 | Campos da resposta de token | `access_token`, `token_type`, `expires_in` | pendente |
 | `expires_in` | número, em segundos, maior que a margem de 5 min | pendente |
 | Escopo ou audiência exigidos | nenhum | pendente |
 | Primeiro envio ao caminho `documents` | qualquer status diferente de 404 (o caminho existe) | pendente |
 | Host do sandbox e do endpoint de token | — | pendente |
+
+O resto do contrato de token segue **não verificado** até a sonda rodar contra o sandbox: os nomes da resposta
+(`access_token`, `token_type`, `expires_in`), os da recusa (`error`, `error_description`) e o caminho do endpoint
+(`TokenPath`). O provider continua lendo esses nomes como supostos, de propósito: a sonda imprime os nomes reais na
+primeira execução.
 
 ## Goals / Non-Goals
 
@@ -682,7 +688,8 @@ payload na aba Destino, em silêncio. O mesmo ramo já pega hoje a fonte do D365
 
 ### D11. Mock com autenticação
 
-- **`POST /oauth/token`** (formulário): aceita qualquer `client_id` e `client_secret` não vazios e devolve
+- **`POST /oauth/token`** (corpo JSON, como na coleção do cliente; formulário é recusado): aceita qualquer `client_id`
+  e `client_secret` não vazios, aceita sem exigir o `disableTokenRefresh`, e devolve
   `{ access_token, expires_in: 3600 }`, com um token aleatório guardado em memória.
 - **`/admin/token/{aceitar|recusar}`:** força a recusa `401 {"error":"invalid_client"}`, para o roteiro local
   do D7.
@@ -1105,7 +1112,8 @@ ativa, e a spec `tenant-boundary` só vai para `openspec/specs` no arquivamento.
 
 ## Risks / Trade-offs
 
-- **[O fluxo real de autenticação pode não ser o client credentials por formulário]** A premissa é assumida, e só
+- **[O fluxo real de autenticação pode não ser o client credentials assumido]** O formato do pedido já divergiu uma
+  vez: o corpo é JSON, e não formulário, pela coleção do cliente, e o ajuste coube no provider e no mock. A premissa é assumida, e só
   se confirma no teste manual, no fim da fatia (Context, D13, tarefa 15.3). O código de autenticação é todo
   escrito e testado contra o mock antes dessa confirmação. → Um ajuste de forma (Basic, margem, `DocumentsPath`)
   cabe no provider ou na configuração, com teste. Um fluxo estruturalmente outro leva a `/opsx:update`, e o

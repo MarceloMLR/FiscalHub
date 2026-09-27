@@ -385,8 +385,9 @@ d) **Confira o caminho do segredo:**
 - a linha do perfil no SQL tem só o `clientSecretRef` `kv:fh-tenant-a--outbound--sandbox--clientsecret`;
 - um `PUT /connector` feito à mão com `clientSecretRef` no corpo dá 400.
 
-**2. Verificar a premissa de autenticação.** O hub assume OAuth `client_credentials`, com o segredo no corpo do
-formulário (ADR-0027 §3). Antes das notas, rode a sonda (seção 9):
+**2. Verificar a premissa de autenticação.** O hub manda OAuth `client_credentials` com corpo JSON, na forma da coleção
+do Postman do cliente (ADR-0027 §3). O resto do contrato de token (os nomes da resposta, a validade, o caminho do endpoint)
+ainda é suposto. Antes das notas, rode a sonda (seção 9):
 
 ```powershell
 dotnet run --project tools/AvalaraSandboxProbe -- token --tenant tenant-a

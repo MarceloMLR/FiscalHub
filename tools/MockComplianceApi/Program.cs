@@ -1,13 +1,15 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 // Mock minimal-API que simula a plataforma de compliance (Avalara) para testes manuais e2e.
 // Fluxo de duas fases (ADR-0003): POST devolve um GUID (aceito); GET status devolve o resultado.
 // Store em memória — some quando o processo reinicia. Nunca usar em produção.
 // Os formatos de recusa ({"mensagens":[...]}) são PRESUMIDOS até haver resposta real gravada (ADR-0026); o hub
 // extrai o motivo de forma tolerante e não depende deles.
-// Autentica como a plataforma (ADR-0027): POST /oauth/token (client_credentials, segredo no corpo — a forma assumida,
-// conferida no teste manual) emite um token, e /documents* exigem o Bearer emitido aqui. /admin/* e a inspeção do
-// payload continuam abertos, porque são ferramenta de dev.
+// Autentica como a plataforma (ADR-0027): POST /oauth/token (client_credentials com corpo JSON, a forma da coleção do
+// Postman do cliente) emite um token, e /documents* exigem o Bearer emitido aqui. /admin/* e a inspeção do payload
+// continuam abertos, porque são ferramenta de dev.
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -23,16 +25,36 @@ var toggle = new ResultToggle();
 var tokens = new ConcurrentDictionary<string, byte>();
 var tokenToggle = new TokenToggle();
 
-// Qualquer client_id e client_secret não vazios servem: o mock confere a forma, não a credencial.
+// Qualquer client_id e client_secret não vazios servem: o mock confere a forma, não a credencial. O corpo é JSON, como
+// na coleção do cliente; formulário é recusado, para que uma regressão do provider apareça no ponta a ponta. O
+// disableTokenRefresh da coleção é aceito, e não exigido: não há documentação dele.
 app.MapPost("/oauth/token", async (HttpRequest request) =>
 {
-    IFormCollection form = request.HasFormContentType ? await request.ReadFormAsync() : FormCollection.Empty;
-    if (form["grant_type"] != "client_credentials")
+    JsonObject? body = null;
+    if (request.HasJsonContentType())
+    {
+        try
+        {
+            body = await JsonNode.ParseAsync(request.Body) as JsonObject;
+        }
+        catch (JsonException)
+        {
+            // corpo inválido: cai no 400 abaixo
+        }
+    }
+
+    if (body is null)
+    {
+        return Results.Json(new { error = "invalid_request", error_description = "o pedido de token é JSON (mock)" }, statusCode: StatusCodes.Status400BadRequest);
+    }
+
+    string? Field(string name) => body[name] is JsonValue value && value.TryGetValue(out string? text) ? text : null;
+    if (Field("grant_type") != "client_credentials")
     {
         return Results.Json(new { error = "unsupported_grant_type" }, statusCode: StatusCodes.Status400BadRequest);
     }
 
-    if (string.IsNullOrEmpty(form["client_id"]) || string.IsNullOrEmpty(form["client_secret"]) || tokenToggle.Refuse)
+    if (string.IsNullOrEmpty(Field("client_id")) || string.IsNullOrEmpty(Field("client_secret")) || tokenToggle.Refuse)
     {
         return Results.Json(new { error = "invalid_client", error_description = "credencial recusada pelo mock" }, statusCode: StatusCodes.Status401Unauthorized);
     }
