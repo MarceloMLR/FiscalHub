@@ -31,7 +31,8 @@ substitui o anterior (em vez de reescrever a história).
 | [0021](0021-adapter-de-chamados-de-suporte.md) | Adapter de chamados de suporte (Freshdesk) — porta + anexos zipados por nota | Aceito |
 | [0022](0022-adapter-de-entrada-dynamics-365-fo.md) | Adapter de entrada Dynamics 365 F&O (pacote de data entities de nome fixo) | Proposto — revisado pelo 0023 |
 | [0023](0023-descoberta-por-polling-com-change-tracking-no-d365.md) | Descoberta por polling como garantia de captura no D365 F&O | Aceito — revisado pelo 0024 |
-| [0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md) | Feed de mudanças por janela de data no D365 (porta, marca d'água, keyset, lease) | Aceito |
+| [0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md) | Feed de mudanças por janela de data no D365 (porta, marca d'água, keyset, lease) | Aceito — revisado pelo 0025 |
+| [0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md) | Montagem do documento D365, origem na referência e supressão de republicação | Aceito |
 
 ## Planejados
 
