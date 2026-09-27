@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
@@ -22,6 +21,7 @@ using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Application.Queries;
 using FiscalHub.Application.Support;
+using FiscalHub.Application.Tracing;
 using FiscalHub.Application.Validation;
 using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
@@ -74,12 +74,14 @@ builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
+builder.Services.AddScoped<DocumentTraceQuery>();   // fotos de um documento, só para o tenant de quem está logado (ADR-0028)
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
 builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInvoiceMetadataExtractor>();
 // A esteira escolhe o source por documento, pela origem da referência (fallback: perfil do tenant) —
 // o mesmo tenant recebe XML pelo drop e D365 pelo feed (ADR-0025).
 builder.Services.AddScoped(typeof(IInboundSourceResolver<>), typeof(InboundSourceResolver<>));
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
+builder.Services.AddScoped<ManualIngestion>();   // /ingest: tenant do login, locator pela regra da origem (ADR-0028)
 // Os consumidores de fila entram pelo roteador: NF-e 55 vai à esteira; NFS-e/CT-e e o fora-do-escopo
 // constatado na montagem viram o desfecho "ignorado" (ADR-0025).
 builder.Services.AddScoped<IDocumentRouter, DocumentRouter>();
@@ -168,7 +170,7 @@ await app.Services.EnsureDevDocumentsAsync();   // notas de exemplo p/ paginaç�
 await app.Services.EnsureDevSchedulesAndExecutionsAsync();   // agendamentos + execuções p/ paginação em Integrações
 
 app.MapGet("/", () =>
-    $"FiscalHub host. POST /ingest com {{ tenantId, naturalKey, locator }}. XML de exemplo semeado em '{LocalSeed.Locator}'.")
+    $"FiscalHub host. POST /ingest com {{ naturalKey, locator }}, no tenant do login. XML de exemplo semeado em '{LocalSeed.Locator}'.")
     .AllowAnonymous();
 
 // Login: valida credenciais e devolve um JWT com os claims do usuário (inclui o tenant).
@@ -225,20 +227,14 @@ app.MapGet("/auth/me", (ClaimsPrincipal principal) => Results.Ok(new
 }));
 
 // Etapa 2: enfileira a referência (claim-check). O consumidor do Service Bus processa a esteira;
-// retry e dead-letter ficam por conta do transporte.
-app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, CancellationToken ct) =>
+// retry e dead-letter ficam por conta do transporte. O tenant é o do usuário logado, e o locator tem de estar
+// no espaço de entrada dele (ADR-0028).
+app.MapPost("/ingest", async (IngestRequest req, ManualIngestion ingestion, ITenantContext tenant, CancellationToken ct) =>
 {
-    var reference = new DocumentReference
-    {
-        TenantId = req.TenantId,
-        Type = DocumentType.GoodsInvoice55,
-        NaturalKey = req.NaturalKey,
-        Locator = req.Locator,
-        Origin = "Xml",   // o locator é de um XML no Blob — vale mesmo para tenant cujo feed é outro ERP (ADR-0025)
-    };
-
-    await queue.EnqueueAsync(reference, ct);
-    return Results.Accepted($"/trace/{req.TenantId}/{req.NaturalKey}", new { queued = req.NaturalKey });
+    string? problem = await ingestion.EnqueueAsync(req.NaturalKey, req.Locator, ct);
+    return problem is null
+        ? Results.Accepted($"/trace/{tenant.TenantId}/{req.NaturalKey}", new { queued = req.NaturalKey })
+        : Results.BadRequest(new { message = $"Locator recusado: {problem}" });
 });
 
 // Integração manual (modo pull): o cliente escolhe empresa/filial/período; a descoberta lista as
@@ -345,11 +341,9 @@ app.MapPut("/schedules/{id:int}", async (int id, ScheduleRequest req, IScheduleS
 app.MapGet("/schedules", async (IScheduleStore store, CancellationToken ct) =>
     Results.Ok(await store.ListAsync(ct)));
 
+// Escopado ao tenant logado (ADR-0028): o id de outro tenant dá 404, como no reactivate e no PUT.
 app.MapPost("/schedules/{id:int}/deactivate", async (int id, IScheduleStore store, CancellationToken ct) =>
-{
-    await store.DeactivateAsync(id, ct);
-    return Results.NoContent();
-});
+    await store.DeactivateAsync(id, ct) ? Results.NoContent() : Results.NotFound());
 
 // Reativa um recorrente pausado. O único (ScheduledOnce) não reativa — já cumpriu seu papel.
 app.MapPost("/schedules/{id:int}/reactivate", async (int id, IScheduleStore store, TimeProvider clock, CancellationToken ct) =>
@@ -379,8 +373,9 @@ app.MapPost("/schedules/{id:int}/reactivate", async (int id, IScheduleStore stor
 });
 
 // Debug (dev local): copia o XML de exemplo pra zona de drop, simulando um arquivo que "cai" no
-// Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual.
-app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient blobs, CancellationToken ct) =>
+// Blob. O watcher de ingestão pega, move pro container durável e enfileira — sem /ingest manual. O arquivo cai
+// no prefixo do tenant de quem está logado, e nunca no de outro (ADR-0028).
+app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient blobs, ITenantContext tenant, CancellationToken ct) =>
 {
     string sampleName = string.Equals(empresa, "b", StringComparison.OrdinalIgnoreCase) ? LocalSeed.BlobName2 : LocalSeed.BlobName;
     BlobClient sample = blobs.GetBlobContainerClient(LocalSeed.Container).GetBlobClient(sampleName);
@@ -392,76 +387,45 @@ app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient
     BlobDownloadResult content = await sample.DownloadContentAsync(ct);
     BlobContainerClient drop = blobs.GetBlobContainerClient("drop");
     await drop.CreateIfNotExistsAsync(cancellationToken: ct);
-    await drop.GetBlobClient($"tenant-a/{key}.xml").UploadAsync(content.Content.ToStream(), overwrite: true, ct);
+    string dropped = $"{tenant.TenantId}/{key}.xml";
+    await drop.GetBlobClient(dropped).UploadAsync(content.Content.ToStream(), overwrite: true, ct);
 
-    return Results.Accepted($"/trace/tenant-a/{key}", new { dropped = $"tenant-a/{key}.xml" });
+    return Results.Accepted($"/trace/{tenant.TenantId}/{key}", new { dropped });
 });
 
-// Debug (dev local): devolve as fotos de rastreabilidade de um documento — dominio e destino,
-// direto do Blob, sem Storage Explorer. A fonte crua (XML) fica no container de entrada.
-app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string naturalKey, BlobServiceClient blobs, CancellationToken ct) =>
+// A mesma resposta para "é de outro tenant" e "não tem fotos": não se confirma a existência de nota alheia.
+const string NoTraceMessage = "sem fotos para esse documento.";
+
+// Fotos de rastreabilidade de um documento (fonte, domínio, destino), para o detalhe do dashboard. Só o tenant de
+// quem está logado (ADR-0028): outro tenant e documento sem fotos têm o mesmo 404 — não se confirma nota alheia.
+app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string naturalKey, DocumentTraceQuery traces, CancellationToken ct) =>
 {
-    BlobContainerClient container = blobs.GetBlobContainerClient("traces");
-    if (!(await container.ExistsAsync(ct)).Value)
+    IReadOnlyList<TraceFile>? files = await traces.GetAsync(tenantId, naturalKey, ct);
+    if (files is null)
     {
-        return Results.NotFound(new { message = "container 'traces' ainda nao existe — rode um /ingest antes." });
+        return Results.NotFound(new { message = NoTraceMessage });
     }
 
+    // JSON entra aninhado (legível); a fonte crua (XML) entra como string. A foto repetida em dois períodos
+    // (reprocesso em outro mês) vem por último na listagem e prevalece.
     var snapshots = new Dictionary<string, object>();
-    await foreach (BlobItem item in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{tenantId}/", ct))
+    foreach (TraceFile file in files)
     {
-        if (!item.Name.Contains($"/{naturalKey}/", StringComparison.Ordinal))
-        {
-            continue;
-        }
-
-        BlobDownloadResult blob = await container.GetBlobClient(item.Name).DownloadContentAsync(ct);
-        // JSON entra aninhado (legível); a fonte crua (XML) entra como string.
-        snapshots[item.Name] = item.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-            ? blob.Content.ToObjectFromJson<JsonElement>()
-            : blob.Content.ToString();
+        snapshots[file.Name] = file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+            ? JsonSerializer.Deserialize<JsonElement>(file.Content)
+            : Encoding.UTF8.GetString(file.Content);
     }
 
-    return snapshots.Count == 0
-        ? Results.NotFound(new { tenantId, naturalKey, message = "sem fotos para esse documento." })
-        : Results.Ok(snapshots);
+    return Results.Ok(snapshots);
 });
 
-// Download: zipa as fotos (fonte/domínio/destino) de um documento pra baixar de uma vez.
-app.MapGet("/documents/{tenantId}/{naturalKey}/download", async (string tenantId, string naturalKey, BlobServiceClient blobs, CancellationToken ct) =>
+// Download: zipa as fotos de um documento pra baixar de uma vez, com a mesma regra de tenant do /trace.
+app.MapGet("/documents/{tenantId}/{naturalKey}/download", async (string tenantId, string naturalKey, DocumentTraceQuery traces, CancellationToken ct) =>
 {
-    BlobContainerClient container = blobs.GetBlobContainerClient("traces");
-    if (!(await container.ExistsAsync(ct)).Value)
-    {
-        return Results.NotFound(new { message = "sem arquivos para esse documento." });
-    }
-
-    var zipStream = new MemoryStream();
-    var added = 0;
-    using (var zip = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
-    {
-        await foreach (BlobItem item in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, $"{tenantId}/", ct))
-        {
-            if (!item.Name.Contains($"/{naturalKey}/", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            BlobDownloadResult blob = await container.GetBlobClient(item.Name).DownloadContentAsync(ct);
-            ZipArchiveEntry entry = zip.CreateEntry(item.Name.Split('/')[^1], CompressionLevel.Optimal);
-            await using Stream entryStream = entry.Open();
-            using Stream source = blob.Content.ToStream();
-            await source.CopyToAsync(entryStream, ct);
-            added++;
-        }
-    }
-
-    if (added == 0)
-    {
-        return Results.NotFound(new { message = "sem arquivos para esse documento." });
-    }
-
-    return Results.File(zipStream.ToArray(), "application/zip", $"{naturalKey}.zip");
+    IReadOnlyList<TraceFile>? files = await traces.GetAsync(tenantId, naturalKey, ct);
+    return files is null
+        ? Results.NotFound(new { message = NoTraceMessage })
+        : Results.File(TraceArchive.Zip(files), "application/zip", $"{naturalKey}.zip");
 });
 
 // Leitura pro dashboard: os documentos mais recentes com status. Em produção, atrás de auth e
@@ -655,24 +619,24 @@ public sealed record ConnectorProfileRequest(
     string OutboundAdapter,
     string? OutboundSettings);
 
-/// <summary>Corpo do POST /ingest.</summary>
-public sealed record IngestRequest(string TenantId, string NaturalKey, string Locator);
+/// <summary>Corpo do POST /ingest. O tenant vem do usuário logado, não do corpo (ADR-0028).</summary>
+public sealed record IngestRequest(string NaturalKey, string Locator);
 
 /// <summary>
-/// Corpo do POST /integrations/manual. Filial vazia = todas; tenant nulo cai no de dev.
-/// <c>DocumentNumber</c> preenchido restringe a uma nota específica (dentro do período).
+/// Corpo do POST /integrations/manual. Filial vazia = todas. O tenant é o do usuário logado, e não vem do corpo
+/// (ADR-0028). <c>DocumentNumber</c> preenchido restringe a uma nota específica (dentro do período).
 /// </summary>
 public sealed record ManualIntegrationRequest(
     string CompanyCode,
     string? BranchCode,
     DateTimeOffset PeriodStart,
     DateTimeOffset PeriodEnd,
-    string? TenantId,
     string? DocumentNumber);
 
 /// <summary>
 /// Corpo do POST /schedules. Diário (ScheduledDaily): informe <c>TimeOfDay</c> "HH:mm" (roda D-1).
-/// Único (ScheduledOnce): informe <c>RunAt</c> e o par <c>PeriodStart</c>/<c>PeriodEnd</c>.
+/// Único (ScheduledOnce): informe <c>RunAt</c> e o par <c>PeriodStart</c>/<c>PeriodEnd</c>. O tenant é o do usuário
+/// logado, e não vem do corpo (ADR-0028).
 /// </summary>
 public sealed record ScheduleRequest(
     string Mode,
@@ -681,5 +645,4 @@ public sealed record ScheduleRequest(
     string? TimeOfDay,
     DateTimeOffset? RunAt,
     DateTimeOffset? PeriodStart,
-    DateTimeOffset? PeriodEnd,
-    string? TenantId);
+    DateTimeOffset? PeriodEnd);

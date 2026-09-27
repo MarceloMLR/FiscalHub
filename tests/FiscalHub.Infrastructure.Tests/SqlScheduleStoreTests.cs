@@ -34,6 +34,19 @@ public class SqlScheduleStoreTests
     }
 
     [Fact]
+    public async Task Deactivate_by_another_tenant_is_not_found_and_leaves_the_schedule_active()
+    {
+        using var h = NewStore();
+        int id = await h.Store.CreateAsync(Daily(new DateTimeOffset(2026, 7, 20, 9, 0, 0, TimeSpan.Zero)));
+
+        bool found = await h.StoreFor("tenant-b").DeactivateAsync(id);   // o id é do tenant-a (ADR-0028)
+
+        Assert.False(found);
+        Assert.True((await h.Store.ListAsync()).First(s => s.Id == id).Active);
+        Assert.True(await h.Store.DeactivateAsync(id));                  // o dono desativa
+    }
+
+    [Fact]
     public async Task Reschedule_with_null_deactivates()
     {
         using var h = NewStore();
@@ -65,6 +78,9 @@ public class SqlScheduleStoreTests
     private sealed class Harness(ProcessingDbContext db, SqliteConnection conn, SqlScheduleStore store) : IDisposable
     {
         public SqlScheduleStore Store => store;
+
+        /// <summary>O mesmo banco, visto por um usuário de outro tenant.</summary>
+        public SqlScheduleStore StoreFor(string tenantId) => new(db, TimeProvider.System, new StubTenantContext(tenantId));
 
         public void Dispose()
         {

@@ -19,15 +19,30 @@ public class XmlGoodsInvoiceSourceTests
         var trace = new RecordingTrace();
         var source = new XmlGoodsInvoiceSource(reader, new NfeXmlParser(), trace);
 
-        FetchResult<GoodsInvoice> result = await source.FetchAsync(Reference("nfe/nfe-1.xml"));
+        FetchResult<GoodsInvoice> result = await source.FetchAsync(Reference("nfe/tenant-a/nfe-1.xml"));
         GoodsInvoice invoice = result.Document;
 
         Assert.Equal("35260612345678000190550010000001231000000123", invoice.AccessKey);
         Assert.Single(invoice.Items);
-        Assert.Equal("nfe/nfe-1.xml", reader.LastLocator);   // usou o Locator da referência
+        Assert.Equal("nfe/tenant-a/nfe-1.xml", reader.LastLocator);   // usou o Locator da referência
         Assert.Equal(fixture, trace.SourceContent);          // fotografou a fonte crua, intacta
         Assert.Equal("xml", trace.SourceFormat);
         Assert.Equal(ContentFingerprint.Of(fixture), result.ContentHash);   // hash do cru, pra idempotência
+    }
+
+    [Theory]
+    [InlineData("traces/tenant-a/202609/nfe-1/source.xml")]
+    [InlineData("nfe/tenant-b/nfe-1.xml")]
+    [InlineData("nfe/tenant-a/../tenant-b/nfe-1.xml")]
+    public async Task Fetch_refuses_a_locator_outside_the_tenant_space_without_reading_the_blob(string locator)
+    {
+        var reader = new FakeBlobReader(LoadFixture("nfe-com-reforma.xml"));
+        var source = new XmlGoodsInvoiceSource(reader, new NfeXmlParser(), new NoOpProcessingTrace());
+
+        ArgumentException refused = await Assert.ThrowsAsync<ArgumentException>(() => source.FetchAsync(Reference(locator)));
+
+        Assert.Null(reader.LastLocator);                     // o armazenamento nem foi lido
+        Assert.Contains("Locator recusado", refused.Message);  // a exceção nomeia a regra
     }
 
     [Fact]

@@ -2,6 +2,8 @@
 
 - **Status:** Aceito
 - **Data:** 2026-07-24
+- **Revisado por:** [ADR-0028](0028-limite-de-tenant.md). A regra do escopo vale para todo endpoint e para a ingestão, e os
+  endpoints de debug foram endurecidos.
 
 ## Contexto
 
@@ -49,3 +51,9 @@ O painel e a API precisavam de login, e cada usuário só pode enxergar os dados
 - A **chave JWT** no appsettings é de dev; em produção é segredo (Key Vault), fora do repositório.
 - Os endpoints de **debug** (`/trace`, `/drop`, download) recebem o tenant no path e **não** foram
   endurecidos com o claim — a UI só os alcança via dados já escopados, mas fica a ressalva.
+
+  > **Revisado pelo ADR-0028 (2026-09-27).** A ressalva está fechada. O argumento de que "a UI só os alcança via dados
+  > já escopados" não protegia nada, porque quem ataca não usa a UI. O `/trace` e o download comparam o tenant da rota
+  > com o do usuário (outro tenant dá o mesmo 404 de documento inexistente, sem ler o Blob), e o `/drop` grava no
+  > prefixo do tenant do login. A varredura de todos os endpoints achou mais dois furos, também fechados: o `/ingest`,
+  > que aceitava o tenant do corpo e um locator livre, e o `deactivate`, que buscava o agendamento só pelo id.

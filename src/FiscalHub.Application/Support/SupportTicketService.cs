@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Text;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Queries;
@@ -140,22 +139,7 @@ public sealed class SupportTicketService : ISupportTicketService
     private async Task<byte[]?> BuildNoteZipAsync(string tenantId, string naturalKey, CancellationToken ct)
     {
         IReadOnlyList<TraceFile> files = await _traces.ReadAsync(tenantId, naturalKey, ct);
-        if (files.Count == 0)
-        {
-            return null;
-        }
-
-        using var ms = new MemoryStream();
-        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            foreach (TraceFile file in files)
-            {
-                ZipArchiveEntry entry = zip.CreateEntry(file.Name, CompressionLevel.Optimal);
-                await using Stream stream = entry.Open();
-                await stream.WriteAsync(file.Content, ct);
-            }
-        }
-        return ms.ToArray();
+        return files.Count == 0 ? null : TraceArchive.Zip(files);
     }
 
     private static string ComposeDescription(string userText, IReadOnlyList<DocumentSummary> notes)

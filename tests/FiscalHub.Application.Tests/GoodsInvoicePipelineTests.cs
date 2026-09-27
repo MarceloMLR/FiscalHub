@@ -89,6 +89,8 @@ public class GoodsInvoicePipelineTests
     {
         public string Origin => "fake";
 
+        public string? CheckLocator(DocumentReference reference) => null;
+
         public Task<IInboundSource<GoodsInvoice>> ResolveAsync(DocumentReference reference, CancellationToken ct = default)
             => Task.FromResult<IInboundSource<GoodsInvoice>>(this);
 

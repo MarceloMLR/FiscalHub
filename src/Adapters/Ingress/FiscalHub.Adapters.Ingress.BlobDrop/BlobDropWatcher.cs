@@ -19,6 +19,7 @@ internal sealed class BlobDropWatcher : BackgroundService
     private readonly IDocumentQueue _queue;
     private readonly ILogger<BlobDropWatcher> _logger;
     private readonly BlobDropOptions _options;
+    private readonly DropWarnings _warnings = new();
 
     public BlobDropWatcher(
         BlobServiceClient blobs,
@@ -61,7 +62,18 @@ internal sealed class BlobDropWatcher : BackgroundService
     {
         await foreach (BlobItem item in drop.GetBlobsAsync(cancellationToken: ct))
         {
-            (string tenant, string key) = DropBlobNaming.Parse(item.Name, _options.DefaultTenant);
+            // Sem tenant padrão (ADR-0028): fora do formato, o arquivo fica no drop e não entra em tenant nenhum.
+            if (!DropBlobNaming.TryParse(item.Name, out string tenant, out string key))
+            {
+                if (_warnings.FirstSighting(item.Name))
+                {
+                    _logger.LogWarning(
+                        "Arquivo no drop fora do formato {{tenant}}/{{chave}}.xml, não ingerido: {Blob}.", item.Name);
+                }
+
+                continue;
+            }
+
             string inboxName = $"{tenant}/{key}.xml";
 
             // Move: baixa da zona de drop, grava no container durável, apaga o original. O locator

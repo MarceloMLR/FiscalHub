@@ -162,6 +162,8 @@ public class DocumentPipelineTests
     private sealed class FakeSource : IInboundSource<TestDocument>
     {
         public string Origin => "fake";
+
+        public string? CheckLocator(DocumentReference reference) => null;
         public int FetchCount { get; private set; }
 
         public Task<FetchResult<TestDocument>> FetchAsync(DocumentReference reference, CancellationToken ct = default)

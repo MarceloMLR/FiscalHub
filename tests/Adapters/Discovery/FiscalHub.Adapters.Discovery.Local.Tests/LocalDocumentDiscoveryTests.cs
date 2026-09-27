@@ -22,7 +22,7 @@ public class LocalDocumentDiscoveryTests
         IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(Junho());
 
         Assert.Equal(2, found.Count);
-        Assert.All(found, r => Assert.Equal("nfe", r.Locator.Split('/')[0]));
+        Assert.All(found, r => Assert.StartsWith($"nfe/{r.TenantId}/", r.Locator));   // espaço de entrada do tenant (ADR-0028)
         Assert.All(found, r => Assert.Equal(44, r.NaturalKey.Length)); // chave de acesso da NF-e
     }
 

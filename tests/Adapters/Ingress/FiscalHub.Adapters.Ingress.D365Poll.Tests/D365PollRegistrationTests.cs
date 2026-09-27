@@ -62,6 +62,8 @@ public class D365PollRegistrationTests
     {
         public string Origin => "Xml";
 
+        public string? CheckLocator(DocumentReference reference) => null;
+
         public Task<FetchResult<GoodsInvoice>> FetchAsync(DocumentReference reference, CancellationToken ct = default)
             => throw new NotSupportedException();
     }

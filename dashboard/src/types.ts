@@ -49,7 +49,6 @@ export interface ManualIntegrationRequest {
   branchCode: string | null;
   periodStart: string;
   periodEnd: string;
-  tenantId?: string | null;
   documentNumber?: string | null;   // preenchido = uma nota específica (nNF)
 }
 
@@ -161,7 +160,6 @@ export interface CreateScheduleRequest {
   runAt?: string | null;
   periodStart?: string | null;
   periodEnd?: string | null;
-  tenantId?: string | null;
 }
 
 // Grupo (empresa/filial/dia) com contagens — a linha principal do dashboard.

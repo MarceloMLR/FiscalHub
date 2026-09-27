@@ -19,5 +19,6 @@ public interface IScheduleStore
     /// <summary>Reprograma o próximo disparo; <paramref name="nextRunAt"/> <c>null</c> desativa (caso único).</summary>
     Task RescheduleAsync(int id, DateTimeOffset? nextRunAt, CancellationToken ct = default);
 
-    Task DeactivateAsync(int id, CancellationToken ct = default);
+    /// <summary>Desativa um agendamento (escopado ao tenant). <c>false</c> se não achou.</summary>
+    Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
 }

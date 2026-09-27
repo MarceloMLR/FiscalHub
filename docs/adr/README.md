@@ -16,7 +16,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0006](0006-rastreabilidade-fotos-no-blob.md) | Rastreabilidade por "fotos" (domínio/destino) no Blob | Aceito |
 | [0007](0007-poll-de-status-e-idempotencia-por-estado.md) | Poll de status assíncrono e idempotência por estado | Aceito |
 | [0008](0008-gatilho-por-service-bus.md) | Gatilho por Service Bus (fila + claim-check) | Aceito |
-| [0009](0009-gatilho-de-ingestao-por-drop.md) | Gatilho de ingestão por drop no Blob (local; Event Grid no cloud) | Aceito |
+| [0009](0009-gatilho-de-ingestao-por-drop.md) | Gatilho de ingestão por drop no Blob (local; Event Grid no cloud) | Aceito — revisado pelo 0028 |
 | [0010](0010-dead-letter-visivel-e-poll-resiliente.md) | Dead-letter visível e poll resiliente | Aceito |
 | [0011](0011-stack-do-dashboard.md) | Stack do dashboard (Vite + React + MUI + TanStack Query) | Aceito |
 | [0012](0012-ef-migrations.md) | Migrations de schema (EF Core) no lugar de EnsureCreated | Aceito |
@@ -25,7 +25,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0015](0015-idempotencia-por-gatilho.md) | Idempotência por gatilho (evento dedupa, manual recarrega) | Aceito |
 | [0016](0016-idempotencia-por-conteudo.md) | Idempotência por conteúdo (nota de entrada pode ser corrigida) | Aceito |
 | [0017](0017-agendador-e-execucao-compartilhada.md) | Agendador in-process + execução compartilhada (runner) | Aceito |
-| [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito |
+| [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito — revisado pelo 0028 |
 | [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito |
 | [0020](0020-topologia-de-deploy-por-cliente-e-frontend-unico.md) | Topologia de deploy (backend por-cliente, frontend único, subdomínio) | Aceito |
 | [0021](0021-adapter-de-chamados-de-suporte.md) | Adapter de chamados de suporte (Freshdesk) — porta + anexos zipados por nota | Aceito |
@@ -34,10 +34,15 @@ substitui o anterior (em vez de reescrever a história).
 | [0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md) | Feed de mudanças por janela de data no D365 (porta, marca d'água, keyset, lease) | Aceito — revisado pelo 0025 |
 | [0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md) | Montagem do documento D365, origem na referência e supressão de republicação | Aceito — §6 revisado pelo 0026 |
 | [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito |
+| [0028](0028-limite-de-tenant.md) | Limite de tenant: o tenant vem de quem está logado, nunca da requisição; o locator mora em quem o lê | Aceito |
 
 ## Planejados
 
 Decisões já tomadas em conversa, a serem registradas conforme as fatias avançam:
+
+- **0027 (reservado):** credencial da plataforma por tenant, segredo pela tela e cofre, e a resposta como quarta foto.
+  É a parte 2 da change `connect-avalara-sandbox`, que começa pelo portão contra o sandbox. O 0028, parte 1 da mesma
+  change, foi mergeado antes dela.
 
 - Ports & adapters (arquitetura hexagonal).
 - Blob + Azure SQL em vez de CosmosDB.

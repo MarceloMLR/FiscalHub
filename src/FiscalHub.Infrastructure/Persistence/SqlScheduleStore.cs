@@ -116,16 +116,19 @@ internal sealed class SqlScheduleStore : IScheduleStore
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task DeactivateAsync(int id, CancellationToken ct = default)
+    public async Task<bool> DeactivateAsync(int id, CancellationToken ct = default)
     {
-        ScheduledIntegrationRow? row = await _db.ScheduledIntegrations.FirstOrDefaultAsync(s => s.Id == id, ct);
+        // Escopado ao tenant logado, como o Update e o Reactivate (ADR-0028): o id de outro tenant não é achado.
+        ScheduledIntegrationRow? row = await _db.ScheduledIntegrations
+            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == _tenant.TenantId, ct);
         if (row is null)
         {
-            return;
+            return false;
         }
 
         row.Active = false;
         await _db.SaveChangesAsync(ct);
+        return true;
     }
 
     private static ScheduledIntegration Map(ScheduledIntegrationRow s) => new()
