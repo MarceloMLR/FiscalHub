@@ -1,9 +1,11 @@
 A change tem duas partes (design D19):
 
-- **Parte 1 (grupos 1 a 4): o limite de tenant.** São correções de segurança que não dependem da Avalara nem do
-  portão. A parte é commitada e mergeada sozinha, no fim do grupo 4.
-- **Parte 2 (grupos 5 em diante): a Avalara.** Começa pelo portão (grupo 5). Se o portão não bater e a change
-  voltar para `/opsx:update`, a parte 1 já está na `main` e não fica presa.
+- **Parte 1 (grupos 1 a 4): o limite de tenant.** São correções de segurança que não dependem da Avalara. A parte
+  é commitada e mergeada sozinha, no fim do grupo 4 (#58).
+- **Parte 2 (grupos 5 em diante): a Avalara.** Não há portão antes do código. A premissa de autenticação
+  (`client_credentials`, segredo no corpo do pedido) é assumida e só se confirma no teste manual, na tarefa 15.3.
+  Se estiver errada, o retrabalho fica nos grupos de autenticação (8, 9, 10 e o mock do 12), e a parte 1 já está
+  na `main`.
 
 ## 1. Fotos só para o tenant dono (D10, `tenant-boundary`)
 
@@ -94,31 +96,17 @@ A change tem duas partes (design D19):
   - o `/ingest` com `tenantId: tenant-a` no corpo cai no tenant-b;
   - o `deactivate` de um agendamento do tenant-a dá 404 e não desativa;
   - o `/drop` grava no prefixo do tenant-b
-- [ ] 4.6 Ponto de merge da parte 1:
+- [x] 4.6 Ponto de merge da parte 1:
   - `dotnet build` com 0 warnings, `dotnet test` verde e o build do dashboard;
   - commit e PR só com os grupos 1 a 4, e com a pasta da change, que segue ativa;
   - merge na `main`;
   - a parte 2 continua num branch a partir da `main` atualizada
 
-## 5. Portão antes do código da parte Avalara: handshake contra o sandbox e o emulador do cofre (D13, D3)
+## 5. Prova do emulador do cofre (D3)
 
-Manual e sem código. Os grupos 6 em diante só começam com este grupo concluído. Os grupos 1 a 4 não dependem
-dele.
+Manual e sem código.
 
-- [ ] 5.1 Rodar o curl do portão (design D13, "Portão"):
-  - o segredo entra pelo prompt: fora do histórico, da linha de comando e de arquivo;
-  - o token nunca é impresso;
-  - anotar o HTTP, o `content-type`, os campos da resposta, o `token_type`, o `expires_in` (valor e tipo) e o
-    `scope`;
-  - se vier `invalid_client`, repetir com a variante Basic antes de concluir
-- [ ] 5.2 Conferir o caminho de envio sem token: 401 ou 403 = existe; 404 = anotar o caminho certo pela
-  documentação do sandbox
-- [ ] 5.3 Preencher a tabela "Resultado do portão" no Context do design, sem credencial e sem token
-- [ ] 5.4 Decidir pela regra do D13:
-  - **bate** (client credentials, por post ou Basic, com `access_token` e `expires_in` numérico em segundos):
-    seguir para o grupo 6, registrando no design um eventual ajuste de forma (Basic, margem, `DocumentsPath`);
-  - **não bate:** `/opsx:update` antes de qualquer código da parte 2. A parte 1 já mergeada não volta
-- [ ] 5.5 Emulador do cofre (D3):
+- [x] 5.5 Emulador do cofre (D3):
   - subir o Lowkey Vault numa versão fixada, sem volume, sem import e sem export;
   - provar pela API REST do Key Vault, com curl e uma credencial falsa, que funcionam o set, o get e a leitura
     das versões (os metadados sem o valor);
@@ -130,47 +118,47 @@ dele.
 
 ## 6. A porta do cofre, com escrita, e o mesmo adapter em dev e em produção (D3, D4)
 
-- [ ] 6.1 Testes primeiro (Application.Tests):
+- [x] 6.1 Testes primeiro (Application.Tests):
   - o `SecretReference` aceita `kv:<nome>` e recusa a referência sem prefixo, o nome vazio, o nome com mais
     de 127 caracteres e o caractere fora de `[0-9A-Za-z-]`;
-  - o `SecretNames.For(tenant, settings, caminho, campo)` deriva `fh-tenant-a-outbound-sandbox-clientsecret`, só
+  - o `SecretNames.For(tenant, settings, caminho, campo)` deriva `fh-tenant-a--outbound--sandbox--clientsecret`, só
     com o que o cofre aceita, em até 127 caracteres, sempre no prefixo do tenant
-- [ ] 6.2 Criar em `Application/Connectors`:
+- [x] 6.2 Criar em `Application/Connectors`:
   - o `SecretReference` e o `SecretNames`, puros;
   - o `ISecretStore`, com `GetAsync` (vazio conta como ausente), `SetAsync` e `DescribeAsync` (existe e a data,
     sem o valor)
-- [ ] 6.3 Testes primeiro (Infrastructure.Tests) do `KeyVaultSecretStore`, sobre um `SecretClient` escrito à mão:
+- [x] 6.3 Testes primeiro (Infrastructure.Tests) do `KeyVaultSecretStore`, sobre um `SecretClient` escrito à mão:
   - o set grava uma versão;
   - o get devolve o valor, e o ausente devolve `null`;
   - o describe usa só os metadados, sem ler o valor;
   - o valor lido fica em cache pelo intervalo, e o set invalida o cache;
   - a falha do cofre vira exceção sem o valor na mensagem;
   - o store recusa gravar ou ler nome fora do prefixo `fh-`, antes de chamar o cofre
-- [ ] 6.4 Implementar o `KeyVaultSecretStore` na Infrastructure, com o `Azure.Security.KeyVault.Secrets` e o log
+- [x] 6.4 Implementar o `KeyVaultSecretStore` na Infrastructure, com o `Azure.Security.KeyVault.Secrets` e o log
   de conteúdo do SDK desligado
-- [ ] 6.5 Testes primeiro (Infrastructure.Tests) da montagem das opções do cliente do cofre:
+- [x] 6.5 Testes primeiro (Infrastructure.Tests) da montagem das opções do cliente do cofre:
   - `DisableChallengeResourceVerification` é `true` só com URI de loopback (`localhost`, `127.0.0.1`, `::1`);
   - com `https://<cofre>.vault.azure.net/`, ela é `false`;
   - nenhuma chave de configuração a liga;
   - a credencial `Emulator` ou a impressão fixada com URI fora do loopback é recusada na subida
-- [ ] 6.6 Host:
+- [x] 6.6 Host:
   - a seção `SecretStore` (`VaultUri`, `Credential`, `EmulatorCertificateThumbprint`, `ValueCacheSeconds`);
   - a verificação do desafio derivada da URI, e nunca de configuração;
   - em dev, no `appsettings.Development.json`, o emulador em loopback com o certificado fixado;
   - registrar o `KeyVaultSecretStore`
-- [ ] 6.7 `docker-compose.yml`: o emulador do cofre na versão do portão 5.5, sem volume, com um comentário
+- [x] 6.7 `docker-compose.yml`: o emulador do cofre na versão conferida na 5.5, sem volume, com um comentário
   dizendo por que a persistência fica desligada
-- [ ] 6.8 Teste de integração opt-in (só com a variável de ambiente, no padrão do teste de integração do D365):
+- [x] 6.8 Teste de integração opt-in (só com a variável de ambiente, no padrão do teste de integração do D365):
   a ida e volta set → describe → get contra o emulador, pelo `KeyVaultSecretStore`
-- [ ] 6.9 Migrar o adapter D365, no mesmo comportamento e com os testes ajustados à porta falsa:
+- [x] 6.9 Migrar o adapter D365, no mesmo comportamento e com os testes ajustados à porta falsa:
   - o `D365InboundSettings` e o `ClientCredentialsD365TokenProvider` passam a usar o parser e o
     `ISecretStore.GetAsync`;
   - o `SecretReference` interno do D365 sai
-- [ ] 6.10 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 6.10 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 7. O segredo pela tela: gravação e leitura do perfil (D3, D5, D7)
 
-- [ ] 7.1 Testes primeiro (Application.Tests) do `ConnectorProfileService.SaveAsync`, com cofre, store e observador
+- [x] 7.1 Testes primeiro (Application.Tests) do `ConnectorProfileService.SaveAsync`, com cofre, store e observador
   falsos e um logger que captura:
   - `"sandbox": {"clientSecret": "s3cr3t"}` grava `s3cr3t` no cofre com o nome derivado, e o perfil gravado tem
     só `clientSecretRef`, sem campo de escrita;
@@ -185,28 +173,28 @@ dele.
     cofre;
   - a gravação recusada na validação não avisa;
   - nenhum log nem mensagem contém `s3cr3t`
-- [ ] 7.2 Testes primeiro (Application.Tests) da leitura do perfil:
+- [x] 7.2 Testes primeiro (Application.Tests) da leitura do perfil:
   - as settings voltam sem os `*Ref`;
   - o mapa `secrets` traz `configured: true` e a data da versão atual;
   - a referência sem valor no cofre dá `configured: false`;
   - a resposta nunca contém o valor, nem parte dele, nem a referência
-- [ ] 7.3 Implementar em `Application/Connectors` o `IConnectorProfileObserver` e o `ConnectorProfileService`, com a
+- [x] 7.3 Implementar em `Application/Connectors` o `IConnectorProfileObserver` e o `ConnectorProfileService`, com a
   gravação e a leitura. Registrar no Host
-- [ ] 7.4 Host:
+- [x] 7.4 Host:
   - o `PUT /connector` pelo `SaveAsync`, com 400 `{ message }` para a lista não vazia;
   - o `GET /connector` pela leitura mascarada;
   - o `ToString` do `ConnectorProfileRequest` sem as settings, com um teste;
   - nenhum log de corpo de requisição ligado
-- [ ] 7.5 Dashboard:
+- [x] 7.5 Dashboard:
   - no `adapterSchemas.ts`, os campos "de referência" viram campos de escrita (`secret: true`), de todos os
     adapters;
   - a tela de conectores mostra cada um como campo de senha, sem preenchimento: "configurado em <data>" ou
     "não configurado", pelo mapa `secrets`;
   - o valor só é enviado quando digitado, e nunca é lido de volta;
   - a mensagem do 400 aparece ao salvar
-- [ ] 7.6 Teste (Infrastructure.Tests): os perfis do `EnsureDevConnectorProfilesAsync`, em SQLite, não têm campo de
+- [x] 7.6 Teste (Infrastructure.Tests): os perfis do `EnsureDevConnectorProfilesAsync`, em SQLite, não têm campo de
   escrita, e toda referência está no prefixo do tenant do perfil
-- [ ] 7.7 `dotnet build` com 0 warnings, `dotnet test` verde e o build do dashboard
+- [x] 7.7 `dotnet build` com 0 warnings, `dotnet test` verde e o build do dashboard
 
 ## 8. Credencial e URLs pela seção do ambiente (D2)
 
@@ -223,11 +211,11 @@ dele.
   - a regra `https`/loopback;
   - a recusa do valor cru persistido e da referência fora do prefixo (D5)
 - [ ] 8.3 `AvalaraOptions` sem `ClientId`, `ClientSecret` e `BaseUrl`. Tirar o `ResolveBaseAddress` e o
-  fallback do `BaseOf`. Os clientes HTTP ficam sem `BaseAddress`, com URIs absolutas. Se o portão mostrou
-  outro caminho, o `DocumentsPath` recebe o valor do portão
+  fallback do `BaseOf`. Os clientes HTTP ficam sem `BaseAddress`, com URIs absolutas. O `DocumentsPath` continua
+  opção do adapter, e o valor real é conferido no teste manual (15.3)
 - [ ] 8.4 `appsettings.json` sem `Avalara:BaseUrl`, e o `Program.cs` sem o `options.BaseUrl`
 - [ ] 8.5 Seed de dev:
-  - as seções com `clientId` e as referências no formato `fh-{tenant}-…`, sem `clientTokenRef`;
+  - as seções com `clientId` e as referências no formato `fh-{tenant}--…`, sem `clientTokenRef`;
   - o sandbox do tenant-a apontando para o mock, com `clientId: "mock-client"`;
   - nenhum valor de segredo, nem de mentira
 - [ ] 8.6 Dashboard (`adapterSchemas.ts`): o Avalara com `baseUrl`, `tokenUrl`, `clientId` e `clientSecret` (campo
@@ -247,7 +235,7 @@ dele.
   - sem `expires_in`, o token não entra no cache;
   - `Invalidate`;
   - `IsFresh` verdadeiro só na busca;
-  - se o portão mostrou Basic, o pedido de token vai por Basic
+  - o pedido de token vai com `client_secret` no corpo do formulário, a premissa assumida (D13)
 - [ ] 9.2 Testes primeiro das falhas do endpoint de token:
   - 400 e 401 viram `DispatchRejectedException` com tenant, ambiente e código do erro;
   - 5xx e 429 viram exceção transitória;
@@ -337,7 +325,7 @@ dele.
 ## 12. Mock com autenticação e ponta a ponta em memória (D11)
 
 - [ ] 12.1 Mock:
-  - `POST /oauth/token`, na forma confirmada no portão;
+  - `POST /oauth/token`, na forma assumida (D13): `client_credentials`, com o segredo no corpo;
   - `/admin/token/{aceitar|recusar}`;
   - `/documents*` exigindo o `Bearer` emitido pelo mock, com 401 sem ele;
   - `/admin/*` e a inspeção continuam abertos
@@ -389,14 +377,16 @@ dele.
 - [ ] 14.4 `docs/RUNNING.md`:
   - o emulador do cofre no `docker compose up`, em memória, e por que a persistência fica desligada;
   - o Client Secret digitado na tela, até contra o mock, e de novo a cada reinício do emulador;
-  - o SQL para regravar as `OutboundSettings` do tenant-a em banco existente, com as referências `fh-{tenant}-…`;
-  - o roteiro do sandbox depois da implementação (D13): o handshake pelo hub, a correção pela tela, as 5
-    notas, a conferência do zip;
+  - o SQL para regravar as `OutboundSettings` do tenant-a em banco existente, com as referências `fh-{tenant}--…`;
+  - o roteiro do sandbox depois da implementação (D13): a verificação da premissa pelo hub, a correção pela
+    tela, as 5 notas, a conferência do zip;
   - o roteiro da sonda;
   - a credencial do sandbox distribuída fora do repositório e do chat;
   - o aviso de esperar o poll fechar antes de trocar de ambiente
 - [ ] 14.5 `docs/STATUS.md`:
-  - a parte 2 em andamento;
+  - a parte 2 em andamento, sem portão antes do código;
+  - corrigir as menções ao portão no `STATUS.md` (o "Próximo passo" da sessão da parte 1) e na linha reservada do
+    0027 no índice de ADRs, que dizem que a parte 2 começa pelo portão;
   - o `clientTokenRef` retirado;
   - no checklist do primeiro cliente, o item de provisionamento do cofre: papel sob medida, condição ABAC `fh-`,
     cofre dedicado. A prova é em staging: a identidade do host grava e lê `fh-…` e recebe `ForbiddenByRbac` em
@@ -410,11 +400,16 @@ dele.
 - [ ] 15.2 Conferir o caminho do segredo:
   - a tela mostra "configurado em <data>", e o `GET /connector` não traz o valor, nem parte dele, nem a
     referência;
-  - a linha do perfil no SQL tem só o `clientSecretRef` `fh-tenant-a-…`;
+  - a linha do perfil no SQL tem só o `clientSecretRef` `fh-tenant-a--…`;
   - um `PUT` feito à mão com `clientSecretRef` no corpo dá 400;
   - reiniciar o emulador faz a tela mostrar "não configurado", e o envio falha apontando para a tela
-- [ ] 15.3 `probe token --tenant tenant-a`: o hub reproduz o que o portão mostrou. Uma divergência é defeito do
-  código, e não da premissa
+- [ ] 15.3 Verificação da premissa de autenticação (design D13, passo 1):
+  - `probe token --tenant tenant-a`, e preencher a tabela "Resultado da verificação da premissa" no Context do
+    design, sem credencial e sem token;
+  - no primeiro envio, conferir que o caminho `documents` existe (qualquer status diferente de 404);
+  - aplicar a regra do D13: um ajuste de forma (Basic, margem, `DocumentsPath`) entra com teste. Um fluxo
+    estruturalmente outro para o teste manual e leva a `/opsx:update`, com o retrabalho nos grupos de
+    autenticação
 - [ ] 15.4 Correção pela tela:
   - com o segredo errado de propósito, uma nota recusa com o motivo;
   - salvar o perfil com o certo e reprocessar faz o token ser pedido na hora, sem esperar o intervalo
@@ -452,7 +447,7 @@ dele.
   Se nenhuma recusa real ocorreu, registrar como não exercitado
 - [ ] 18.4 Escrever `docs/avalara-sandbox-primeiro-envio.md`:
   - ambiente, sem credencial;
-  - o resultado do portão;
+  - o resultado da verificação da premissa (15.3);
   - uma linha por nota;
   - cada motivo classificado pela regra do D13 (nosso: contrato; nosso: configuração; característica do dado;
     indeterminado);

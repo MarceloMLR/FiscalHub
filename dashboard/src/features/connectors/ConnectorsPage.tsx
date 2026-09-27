@@ -16,36 +16,98 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useConnector } from './useConnector';
 import { INBOUND_ADAPTERS, OUTBOUND_ADAPTERS, ENVIRONMENTS, type AdapterField } from './adapterSchemas';
+import type { SecretStatus } from '../../types';
 
-type Values = Record<string, string>;
+// Settings como vieram do servidor (sem segredos e sem referências). Os campos que a tela não mostra
+// (establishments, companies, poll…) ficam aqui e voltam intactos ao salvar.
+type Json = Record<string, unknown>;
+// Segredos digitados nesta edição, por caminho (`outbound.sandbox.clientSecret`). Nunca vêm do servidor.
+type Typed = Record<string, string>;
 
-function parseObj(json: string): Record<string, unknown> {
+function parseObj(json: string): Json {
   try {
-    return JSON.parse(json || '{}') as Record<string, unknown>;
+    const value = JSON.parse(json || '{}') as unknown;
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};
   } catch {
     return {};
   }
 }
 
-function pick(schema: AdapterField[], values: Values): Values {
-  return Object.fromEntries(schema.map((f) => [f.key, values[f.key] ?? '']));
+function asObj(value: unknown): Json {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};
 }
 
-// Renderiza os campos de um adapter num grid, lendo/escrevendo num objeto de valores.
-function Fields({ schema, values, onChange }: { schema: AdapterField[]; values: Values; onChange: (v: Values) => void }) {
+function getPath(obj: Json, path: string): string {
+  const value = path.split('.').reduce<unknown>((cur, k) => asObj(cur)[k], obj);
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+}
+
+function setPath(obj: Json, path: string, value: string): Json {
+  const [head, ...rest] = path.split('.');
+  if (rest.length === 0) {
+    return { ...obj, [head]: value };
+  }
+  return { ...obj, [head]: setPath(asObj(obj[head]), rest.join('.'), value) };
+}
+
+// Aplica os segredos digitados: só o que foi digitado vai; o resto o servidor mantém como estava.
+function withTyped(schema: AdapterField[], values: Json, prefix: string, typed: Typed): Json {
+  return schema
+    .filter((f) => f.secret && typed[prefix + f.key])
+    .reduce((acc, f) => setPath(acc, f.key, typed[prefix + f.key]), values);
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function secretHelp(status: SecretStatus | undefined): string {
+  if (!status?.configured) {
+    return 'não configurado';
+  }
+  return status.updatedOn ? `configurado em ${formatDate(status.updatedOn)}` : 'configurado';
+}
+
+interface FieldsProps {
+  schema: AdapterField[];
+  values: Json;
+  onChange: (v: Json) => void;
+  prefix: string; // caminho do segredo no mapa `secrets` (ex.: 'outbound.sandbox.')
+  secrets: Record<string, SecretStatus>;
+  typed: Typed;
+  onType: (t: Typed) => void;
+}
+
+// Renderiza os campos de um adapter num grid. Segredo é campo de senha, sem preenchimento: mostra se
+// está configurado e quando, e só manda um valor novo quando digitado.
+function Fields({ schema, values, onChange, prefix, secrets, typed, onType }: FieldsProps) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-      {schema.map((f) => (
-        <TextField
-          key={f.key}
-          label={f.label}
-          size="small"
-          value={values[f.key] ?? ''}
-          onChange={(e) => onChange({ ...values, [f.key]: e.target.value })}
-          placeholder={f.placeholder}
-          sx={{ gridColumn: f.key === 'baseUrl' || f.key === 'url' ? '1 / -1' : undefined }}
-        />
-      ))}
+      {schema.map((f) =>
+        f.secret ? (
+          <TextField
+            key={f.key}
+            label={f.label}
+            size="small"
+            type="password"
+            autoComplete="new-password"
+            value={typed[prefix + f.key] ?? ''}
+            onChange={(e) => onType({ ...typed, [prefix + f.key]: e.target.value })}
+            placeholder={secrets[prefix + f.key]?.configured ? 'digite para trocar' : 'digite o valor'}
+            helperText={secretHelp(secrets[prefix + f.key])}
+          />
+        ) : (
+          <TextField
+            key={f.key}
+            label={f.label}
+            size="small"
+            value={getPath(values, f.key)}
+            onChange={(e) => onChange(setPath(values, f.key, e.target.value))}
+            placeholder={f.placeholder}
+            sx={{ gridColumn: f.key === 'baseUrl' || f.key === 'url' ? '1 / -1' : undefined }}
+          />
+        ),
+      )}
     </Box>
   );
 }
@@ -59,9 +121,18 @@ export function ConnectorsPage() {
   const [realtime, setRealtime] = useState(false);
   const [inboundAdapter, setInboundAdapter] = useState('Dynamics365');
   const [outboundAdapter, setOutboundAdapter] = useState('Avalara');
-  const [inboundValues, setInboundValues] = useState<Values>({});
-  const [sandboxValues, setSandboxValues] = useState<Values>({});
-  const [productionValues, setProductionValues] = useState<Values>({});
+  const [inboundValues, setInboundValues] = useState<Json>({});
+  const [outboundRest, setOutboundRest] = useState<Json>({});
+  const [sandboxValues, setSandboxValues] = useState<Json>({});
+  const [productionValues, setProductionValues] = useState<Json>({});
+  const [typed, setTyped] = useState<Typed>({});
+
+  const loadOutbound = (json: string) => {
+    const { sandbox, production, ...rest } = parseObj(json);
+    setOutboundRest(rest);
+    setSandboxValues(asObj(sandbox));
+    setProductionValues(asObj(production));
+  };
 
   useEffect(() => {
     if (!data) {
@@ -71,11 +142,25 @@ export function ConnectorsPage() {
     setRealtime(data.realtime);
     setInboundAdapter(data.inboundAdapter in INBOUND_ADAPTERS ? data.inboundAdapter : 'Dynamics365');
     setOutboundAdapter(data.outboundAdapter in OUTBOUND_ADAPTERS ? data.outboundAdapter : 'Avalara');
-    setInboundValues(parseObj(data.inboundSettings) as Values);
-    const out = parseObj(data.outboundSettings);
-    setSandboxValues((out.sandbox as Values) ?? {});
-    setProductionValues((out.production as Values) ?? {});
+    setInboundValues(parseObj(data.inboundSettings));
+    loadOutbound(data.outboundSettings);
+    setTyped({});
   }, [data]);
+
+  // Trocar de adapter começa de settings vazias: as do adapter anterior são de outro schema. Voltar ao
+  // adapter gravado recupera as settings gravadas.
+  const dropTyped = (kind: string) =>
+    setTyped((t) => Object.fromEntries(Object.entries(t).filter(([k]) => !k.startsWith(kind))));
+  const changeInbound = (name: string) => {
+    setInboundAdapter(name);
+    setInboundValues(name === data?.inboundAdapter ? parseObj(data.inboundSettings) : {});
+    dropTyped('inbound.');
+  };
+  const changeOutbound = (name: string) => {
+    setOutboundAdapter(name);
+    loadOutbound(name === data?.outboundAdapter ? data.outboundSettings : '{}');
+    dropTyped('outbound.');
+  };
 
   const save = useMutation({
     mutationFn: () => {
@@ -85,15 +170,17 @@ export function ConnectorsPage() {
         environment,
         realtime,
         inboundAdapter,
-        inboundSettings: JSON.stringify(pick(inSchema, inboundValues)),
+        inboundSettings: JSON.stringify(withTyped(inSchema, inboundValues, 'inbound.', typed)),
         outboundAdapter,
         outboundSettings: JSON.stringify({
-          sandbox: pick(outSchema, sandboxValues),
-          production: pick(outSchema, productionValues),
+          ...outboundRest,
+          sandbox: withTyped(outSchema, sandboxValues, 'outbound.sandbox.', typed),
+          production: withTyped(outSchema, productionValues, 'outbound.production.', typed),
         }),
       });
     },
     onSuccess: () => {
+      setTyped({}); // o valor digitado não fica na tela depois de gravado
       qc.invalidateQueries({ queryKey: ['connector'] });
       qc.invalidateQueries({ queryKey: ['info'] });
     },
@@ -123,8 +210,9 @@ export function ConnectorsPage() {
           Perfil de conector
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-          Como este tenant integra. Escolha os adapters e preencha os campos de cada um. Segredos entram
-          como <strong>referência</strong> (<code>kv:...</code>), nunca o valor — resolvidos no Key Vault.
+          Como este tenant integra. Escolha os adapters e preencha os campos de cada um. Segredos são
+          digitados aqui e vão direto para o <strong>cofre</strong>: a tela nunca os mostra de volta, só se
+          estão configurados e quando.
         </Typography>
 
         <TextField
@@ -155,7 +243,7 @@ export function ConnectorsPage() {
                 label="ERP"
                 size="small"
                 value={inboundAdapter}
-                onChange={(e) => setInboundAdapter(e.target.value)}
+                onChange={(e) => changeInbound(e.target.value)}
                 sx={{ minWidth: 220 }}
               >
                 {Object.keys(INBOUND_ADAPTERS).map((name) => (
@@ -169,7 +257,15 @@ export function ConnectorsPage() {
                 label="Integração em tempo real"
               />
             </Box>
-            <Fields schema={INBOUND_ADAPTERS[inboundAdapter] ?? []} values={inboundValues} onChange={setInboundValues} />
+            <Fields
+              schema={INBOUND_ADAPTERS[inboundAdapter] ?? []}
+              values={inboundValues}
+              onChange={setInboundValues}
+              prefix="inbound."
+              secrets={data.secrets ?? {}}
+              typed={typed}
+              onType={setTyped}
+            />
           </Box>
         )}
 
@@ -180,7 +276,7 @@ export function ConnectorsPage() {
               label="Plataforma"
               size="small"
               value={outboundAdapter}
-              onChange={(e) => setOutboundAdapter(e.target.value)}
+              onChange={(e) => changeOutbound(e.target.value)}
               sx={{ minWidth: 220 }}
             >
               {Object.keys(OUTBOUND_ADAPTERS).map((name) => (
@@ -193,12 +289,28 @@ export function ConnectorsPage() {
             <Typography variant="subtitle2" color="text.secondary">
               Sandbox
             </Typography>
-            <Fields schema={outSchema} values={sandboxValues} onChange={setSandboxValues} />
+            <Fields
+              schema={outSchema}
+              values={sandboxValues}
+              onChange={setSandboxValues}
+              prefix="outbound.sandbox."
+              secrets={data.secrets ?? {}}
+              typed={typed}
+              onType={setTyped}
+            />
 
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
               Produção
             </Typography>
-            <Fields schema={outSchema} values={productionValues} onChange={setProductionValues} />
+            <Fields
+              schema={outSchema}
+              values={productionValues}
+              onChange={setProductionValues}
+              prefix="outbound.production."
+              secrets={data.secrets ?? {}}
+              typed={typed}
+              onType={setTyped}
+            />
           </Box>
         )}
 
@@ -216,7 +328,7 @@ export function ConnectorsPage() {
 
         {save.isError && (
           <Alert severity="error" sx={{ mt: 2 }}>
-            Falha ao salvar: {(save.error as Error)?.message}.
+            Falha ao salvar: {(save.error as Error)?.message}
           </Alert>
         )}
         {save.isSuccess && (

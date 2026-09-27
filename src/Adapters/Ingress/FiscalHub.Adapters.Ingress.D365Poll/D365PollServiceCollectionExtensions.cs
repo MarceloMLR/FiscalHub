@@ -2,7 +2,6 @@ using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -16,8 +15,8 @@ public static class D365PollServiceCollectionExtensions
 
     /// <summary>
     /// Registra o <c>IDocumentChangeFeed</c> do D365 (scoped: lê o perfil do tenant pelo
-    /// <c>IConnectorProfileStore</c>) com token por client credentials. Requer <c>IConfiguration</c> (resolve
-    /// o <c>kv:</c>) e um <c>IConnectorProfileStore</c> registrados. Em desenvolvimento, chame
+    /// <c>IConnectorProfileStore</c>) com token por client credentials. Requer o <c>ISecretStore</c> (resolve
+    /// o <c>kv:</c> no cofre de conectores, ADR-0027) e um <c>IConnectorProfileStore</c> registrados. Em desenvolvimento, chame
     /// <see cref="UseD365AzureCliToken"/> para usar a sessão do Azure CLI.
     /// </summary>
     public static IServiceCollection AddD365ChangeFeed(this IServiceCollection services, Action<D365ChangeFeedOptions>? configure = null)
@@ -49,7 +48,7 @@ public static class D365PollServiceCollectionExtensions
     /// <summary>
     /// Registra o <c>IInboundSource&lt;GoodsInvoice&gt;</c> do D365 (origem <c>Dynamics365</c>, scoped: lê o perfil do
     /// tenant) ao lado dos demais sources — a esteira escolhe pela origem da referência (ADR-0025). O cache de
-    /// cadastros é singleton, para sobreviver entre mensagens. Requer <c>IConfiguration</c> e <c>IConnectorProfileStore</c>;
+    /// cadastros é singleton, para sobreviver entre mensagens. Requer o <c>ISecretStore</c> e o <c>IConnectorProfileStore</c>;
     /// usa o <c>IProcessingTrace</c> registrado (sem ele, trace desligado).
     /// </summary>
     public static IServiceCollection AddD365GoodsInvoiceSource(this IServiceCollection services, Action<D365AssemblyOptions>? configure = null)
@@ -92,6 +91,6 @@ public static class D365PollServiceCollectionExtensions
         services.AddHttpClient(HttpClientName);
 
         // Singleton de propósito: as credenciais (e o cache de token delas) precisam sobreviver entre passadas.
-        services.TryAddSingleton<ID365TokenProvider>(sp => new ClientCredentialsD365TokenProvider(sp.GetRequiredService<IConfiguration>()));
+        services.TryAddSingleton<ID365TokenProvider>(sp => new ClientCredentialsD365TokenProvider(sp.GetRequiredService<ISecretStore>()));
     }
 }

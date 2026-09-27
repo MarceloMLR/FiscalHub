@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Azure.Security.KeyVault.Secrets;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FiscalHub.Application.Admin;
@@ -17,6 +18,7 @@ using FiscalHub.Domain.Envelope;
 using FiscalHub.Infrastructure.Admin;
 using FiscalHub.Infrastructure.Auth;
 using FiscalHub.Infrastructure.Persistence;
+using FiscalHub.Infrastructure.Secrets;
 using FiscalHub.Infrastructure.Support;
 using FiscalHub.Infrastructure.Tracing;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +63,20 @@ public static class InfrastructureServiceCollectionExtensions
             sp.GetRequiredService<BlobServiceClient>(),
             containerName,
             sp.GetRequiredService<TimeProvider>())));
+        return services;
+    }
+
+    /// <summary>
+    /// Registra o cofre dos segredos de conector (ADR-0027): o Key Vault em produção, o emulador em dev, pelo mesmo
+    /// adapter. O cliente é montado aqui, na subida, de propósito: uma configuração inválida — sem URI, ou a de dev
+    /// fora do loopback — recusa o host logo, e não na primeira nota.
+    /// </summary>
+    public static IServiceCollection AddKeyVaultSecretStore(this IServiceCollection services, KeyVaultSecretStoreSettings settings)
+    {
+        SecretClient client = KeyVaultClientFactory.Create(settings);
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ISecretStore>(sp => new KeyVaultSecretStore(
+            client, sp.GetRequiredService<TimeProvider>(), TimeSpan.FromSeconds(settings.ValueCacheSeconds)));
         return services;
     }
 
@@ -129,7 +145,9 @@ public static class InfrastructureServiceCollectionExtensions
     /// <summary>
     /// Semeia perfis de conector de dev (uma vez): tenant-a via Dynamics 365 com tempo real, tenant-b
     /// via iScala sem tempo real — os dois enviando pra Avalara com credenciais próprias por ambiente.
-    /// Segredos entram como referência (kv:...), nunca o valor cru — em produção resolvidos no Key Vault.
+    /// Segredos entram só como referência no prefixo do próprio tenant (<c>kv:fh-{tenant}--…</c>), o nome que a tela
+    /// deriva ao gravar (ADR-0027). Nenhum valor, nem de mentira: o cofre de dev começa vazio, e o valor é digitado na
+    /// tela de conectores.
     /// </summary>
     public static async Task EnsureDevConnectorProfilesAsync(this IServiceProvider services, CancellationToken ct = default)
     {
@@ -150,15 +168,15 @@ public static class InfrastructureServiceCollectionExtensions
                 InboundAdapter = "Dynamics365",
                 // Feed de mudanças do D365 (ADR-0024). Poll desligado: liga no perfil para o teste manual (docs/RUNNING.md).
                 // tenantId/clientId do Entra entram quando a app registration existir; em dev o token vem do Azure CLI.
-                InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":500,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:d365-a-secret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300}}""",
+                InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":500,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300}}""",
                 OutboundAdapter = "Avalara",
                 // establishments: CNPJ do estabelecimento próprio → códigos na plataforma (ADR-0026) — nunca vêm do ERP.
                 // Sandbox: a Contoso do D365 (brmf) e o tenant-a dos XMLs de exemplo, os dois apontando para a empresa do
                 // JSON real do ambiente Avalara de teste. Production sem tradução: ali o envio é rejeitado com motivo claro.
-                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-a-sandbox-secret","clientTokenRef":"kv:avalara-a-sandbox-token","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-a-prod-secret","clientTokenRef":"kv:avalara-a-prod-token","establishments":{}}}""",
+                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}""",
                 // Chamados: mock local pra demo (funciona sem conta). Troque p/ "Freshdesk" + domain/apiKey na tela de Configurações.
                 SupportAdapter = "Local",
-                SupportSettings = """{"domain":"suaempresa.freshdesk.com","apiKeyRef":"kv:freshdesk-a-key","requesterEmail":"suporte@acme.com","priority":2}""",
+                SupportSettings = """{"domain":"suaempresa.freshdesk.com","apiKeyRef":"kv:fh-tenant-a--support--apikey","requesterEmail":"suporte@acme.com","priority":2}""",
             },
             new ConnectorProfileRow
             {
@@ -166,9 +184,9 @@ public static class InfrastructureServiceCollectionExtensions
                 Environment = "Sandbox",
                 Realtime = false,   // iScala deste cliente não faz evento — só agendado/manual
                 InboundAdapter = "iScala",
-                InboundSettings = """{"host":"iscala-b.local","company":"B01","userRef":"kv:iscala-b-user","passwordRef":"kv:iscala-b-pass"}""",
+                InboundSettings = """{"host":"iscala-b.local","company":"B01","user":"integracao","passwordRef":"kv:fh-tenant-b--inbound--password"}""",
                 OutboundAdapter = "Avalara",
-                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-b-sandbox-secret","clientTokenRef":"kv:avalara-b-sandbox-token","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-b-prod-secret","clientTokenRef":"kv:avalara-b-prod-token","establishments":{}}}""",
+                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-b--outbound--sandbox--clientsecret","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-b--outbound--production--clientsecret","establishments":{}}}""",
             });
 
         await db.SaveChangesAsync(ct);

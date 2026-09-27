@@ -103,7 +103,14 @@ export interface TenantInfo {
   active: boolean;
 }
 
-// Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores.
+// Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores. A leitura vem sem os
+// segredos e sem as referências: `secrets` diz, por caminho (`outbound.sandbox.clientSecret`), se o
+// segredo está no cofre e quando foi gravado (ADR-0027).
+export interface SecretStatus {
+  configured: boolean;
+  updatedOn: string | null;
+}
+
 export interface ConnectorProfile {
   tenantId: string;
   environment: string;
@@ -112,6 +119,9 @@ export interface ConnectorProfile {
   inboundSettings: string;
   outboundAdapter: string;
   outboundSettings: string;
+  supportAdapter: string | null;
+  supportSettings: string;
+  secrets: Record<string, SecretStatus>;
 }
 
 export interface ConnectorProfileRequest {

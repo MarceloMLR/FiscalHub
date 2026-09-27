@@ -27,6 +27,7 @@ using FiscalHub.Domain.Envelope;
 using FiscalHub.Domain.Goods;
 using FiscalHub.Host;
 using FiscalHub.Infrastructure;
+using FiscalHub.Infrastructure.Secrets;
 using FiscalHub.Application.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -72,6 +73,11 @@ builder.Services.AddSingleton(new BlobServiceClient(cfg.GetConnectionString("Blo
 builder.Services.AddBlobProcessingTrace("traces");
 builder.Services.AddXmlGoodsInvoiceSource();
 builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
+// Cofre dos segredos de conector (ADR-0027): Key Vault em produção, o emulador em memória no dev (appsettings.Development).
+// Sem a seção, o host não sobe — nunca segue sem cofre.
+builder.Services.AddKeyVaultSecretStore(cfg.GetSection("SecretStore").Get<KeyVaultSecretStoreSettings>() ?? new KeyVaultSecretStoreSettings());
+// Perfil de conector pela tela: o segredo vai para o cofre, o perfil guarda só a referência, e a leitura nunca o devolve.
+builder.Services.AddScoped<ConnectorProfileService>();
 builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddScoped<DocumentTraceQuery>();   // fotos de um documento, só para o tenant de quem está logado (ADR-0028)
@@ -479,26 +485,22 @@ app.MapGet("/info", async (IConnectorProfileStore profiles, ITenantContext tenan
     });
 });
 
-// Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita.
-app.MapGet("/connector", async (IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
-{
-    TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
-    return profile is null ? Results.NotFound() : Results.Ok(profile);
-}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+// Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita. O segredo entra pela tela
+// como campo de escrita e vai para o cofre; a leitura diz só "configurado" e a data (ADR-0027).
+app.MapGet("/connector", async (ConnectorProfileService connector, CancellationToken ct) =>
+    await connector.GetAsync(ct) is { } view ? Results.Ok(view) : Results.NotFound())
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
-app.MapPut("/connector", async (ConnectorProfileRequest req, IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
+app.MapPut("/connector", async (ConnectorProfileRequest req, ConnectorProfileService connector, CancellationToken ct) =>
 {
-    await profiles.UpsertAsync(new TenantConnectorProfile
+    // O tenant é sempre o do usuário (ADR-0028); ninguém edita o perfil de outro tenant.
+    ConnectorProfileSaveResult result = await connector.SaveAsync(req, ct);
+    return result.Status switch
     {
-        TenantId = tenant.TenantId,   // sempre o do usuário; ninguém edita o perfil de outro tenant
-        Environment = req.Environment,
-        Realtime = req.Realtime,
-        InboundAdapter = req.InboundAdapter,
-        InboundSettings = req.InboundSettings ?? "{}",
-        OutboundAdapter = req.OutboundAdapter,
-        OutboundSettings = req.OutboundSettings ?? "{}",
-    }, ct);
-    return Results.NoContent();
+        ConnectorProfileSaveStatus.Saved => Results.NoContent(),
+        ConnectorProfileSaveStatus.Invalid => Results.BadRequest(new { message = result.Message }),
+        _ => Results.Json(new { message = result.Message }, statusCode: StatusCodes.Status502BadGateway),
+    };
 }).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
 // ---- Administração de usuários (escopada ao tenant do Admin logado) ----
@@ -609,15 +611,6 @@ public sealed record UpdateTenantRequest(string Name, string? Cnpj);
 
 /// <summary>Corpo do POST /support/tickets/estimate — só as notas, pra estimar o tamanho dos logs.</summary>
 public sealed record EstimateTicketRequest(IReadOnlyList<string>? NaturalKeys);
-
-/// <summary>Corpo do PUT /connector. O tenant vem do usuário logado, não do corpo.</summary>
-public sealed record ConnectorProfileRequest(
-    string Environment,
-    bool Realtime,
-    string InboundAdapter,
-    string? InboundSettings,
-    string OutboundAdapter,
-    string? OutboundSettings);
 
 /// <summary>Corpo do POST /ingest. O tenant vem do usuário logado, não do corpo (ADR-0028).</summary>
 public sealed record IngestRequest(string NaturalKey, string Locator);

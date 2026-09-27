@@ -59,20 +59,25 @@ Aqui fica o estado que molda o desenho.
 - o caminho de envio (`documents`), o de status (`documents/{id}/status`), o campo `id` do aceite e os valores
   `carregado`/`erro` vieram do mock.
 
-**A premissa do client credentials sustenta a parte Avalara do desenho** (D2, D6, D7, D11, D12). Por isso ela
-é verificada **antes de qualquer código dessa parte**, e não depois das tarefas de implementação. O portão do
-D13 é um curl contra o sandbox que confirma o fluxo, o formato da resposta de token e o `expires_in`, e confere
-o caminho de envio. É o grupo 5 das tarefas.
+**Premissa de autenticação assumida (decisão de 2026-09-27).** A parte Avalara do desenho (D2, D6, D7, D11, D12)
+assume três coisas:
 
-- **O que vem antes dele:** o limite de tenant (grupos 1 a 4), que não depende da premissa e é mergeado
-  sozinho (D19).
-- **Se não bater:** `/opsx:update` antes de qualquer código da parte Avalara.
-- **Se bater:** o resultado entra abaixo, sem credencial e sem token, e a parte Avalara começa.
+- a autenticação é `client_credentials`, com o `client_secret` no corpo do formulário (`client_secret_post`);
+- a resposta de token traz `access_token` e `expires_in`, este numérico e em segundos;
+- o caminho de envio é `documents`.
+
+A premissa **não é verificada antes do código**. Ela é confirmada no teste manual contra o sandbox, no fim da
+fatia (tarefa 15.3), junto com o resto do ponta a ponta. Havia um portão antes do código, que foi retirado por
+decisão explícita.
+
+- **Se estiver errada:** o retrabalho fica nos grupos de autenticação, passando por `/opsx:update`. São eles o 8
+  (credencial e URLs), o 9 (provider de token), o 10 (dispatcher) e o endpoint de token do mock, no 12.
+- **O que não depende dela:** o cofre (6), a tela (7), a quarta foto (11) e a parte 1, que já está na `main`.
 
 O que divergir na leitura da resposta do envio não é corrigido aqui (Non-goals). Esta fatia garante duas
 coisas: a divergência fica visível e não vira reenvio.
 
-**Resultado do portão** (preenchido na tarefa 5.3):
+**Resultado da verificação da premissa** (preenchido na tarefa 15.3):
 
 | Item | Esperado pelo desenho | Observado |
 |---|---|---|
@@ -81,7 +86,7 @@ coisas: a divergência fica visível e não vira reenvio.
 | Campos da resposta de token | `access_token`, `token_type`, `expires_in` | pendente |
 | `expires_in` | número, em segundos, maior que a margem de 5 min | pendente |
 | Escopo ou audiência exigidos | nenhum | pendente |
-| `POST <baseUrl>documents` sem token | 401 ou 403 (o caminho existe) | pendente |
+| Primeiro envio ao caminho `documents` | qualquer status diferente de 404 (o caminho existe) | pendente |
 | Host do sandbox e do endpoint de token | — | pendente |
 
 ## Goals / Non-Goals
@@ -105,8 +110,8 @@ coisas: a divergência fica visível e não vira reenvio.
 
 **Non-Goals** (além dos do proposal):
 
-- **Configurar o fluxo de token por tenant** (Basic ou post, escopo, audiência). Entra com evidência do
-  handshake (D13), no provider, para todos.
+- **Configurar o fluxo de token por tenant** (Basic ou post, escopo, audiência). Entra com evidência do teste
+  manual (D13, tarefa 15.3), no provider, para todos.
 - **Circuit breaker genérico.** A recusa lembrada do D7 é específica da credencial recusada e existe para
   não bloquear a conta. Não é retentativa nem esquema novo de falha.
 
@@ -146,7 +151,7 @@ mesma resolução.
     "baseUrl": "https://<sandbox da plataforma>/",
     "tokenUrl": "https://<endpoint de token>/",
     "clientId": "<identificador do cliente>",
-    "clientSecretRef": "kv:fh-tenant-a-outbound-sandbox-clientsecret",
+    "clientSecretRef": "kv:fh-tenant-a--outbound--sandbox--clientsecret",
     "establishments": { "44278225000180": { "codigoEmpresa": "…", "codigoContribuinte": "…" } }
   }
 }
@@ -229,8 +234,20 @@ cifrado.
   aceita o `SecretClient` com `DisableChallengeResourceVerification`. A imagem é fixada por versão, e nunca
   `:latest`. Import, export e persistência ficam **proibidos**: o `docker-compose.yml` não os liga, e o
   RUNNING.md diz por quê.
-- **Plano B: o james-gould, com `Persist=false`.** Entra se o portão 5.5 mostrar que o Lowkey não faz a ida e
+- **Plano B: o james-gould, com `Persist=false`.** Entra se a prova do emulador (tarefa 5.5) mostrar que o Lowkey não faz a ida e
   volta de que precisamos.
+- **Conferido na tarefa 5.5 (2026-09-27).** O Lowkey fez a ida e volta, e o plano B não foi preciso.
+  - **Imagem:** `nagyesta/lowkey-vault:7.3.112` (digest `sha256:2636ad677e0e…`), subida sem volume, sem import e sem
+    export.
+  - **Portas:** `8443` é a API do Key Vault (HTTPS). `8080` é a de metadados, com o `/ping` e o endpoint simulado de
+    identidade gerenciada (`/metadata/identity/oauth2/token?resource=…`), que emite o token do emulador. A credencial
+    `Emulator` pode tirar o token dali, sem valor fixo.
+  - **API:** `api-version=7.4`. O set e o get responderam 200. A lista de versões trouxe a versão sem o valor e com
+    `attributes.updated`, e é o que o `DescribeAsync` usa. Um segredo inexistente deu 404.
+  - **Memória:** depois de `docker restart`, o segredo deu 404, e nada ficou em disco.
+  - **Certificado:** a impressão SHA-1 é `56BED2BF3C0766AF85BDFCCACC99F67094EE2030`. É o certificado padrão do Lowkey,
+    o mesmo em toda instalação e público. Por isso ele é fixado só em loopback, e nunca instalado como confiável no
+    sistema.
 
 **O que muda entre dev e produção.** São três valores de configuração do cofre e uma opção do cliente derivada
 da URI. Nenhum código muda:
@@ -400,15 +417,20 @@ Application. O `PUT /connector` só chama o caso de uso e traduz o resultado em 
    mudou (D7).
 
 **A referência é do servidor.** O nome é
-`fh-{tenant}-{inbound|outbound|support}-{caminho}-{campo}`, em minúsculas e só com o que o cofre aceita, com até 127
-caracteres. Um exemplo é `fh-tenant-a-outbound-sandbox-clientsecret`.
+`fh-{tenant}--{inbound|outbound|support}--{caminho}--{campo}`, em minúsculas e só com o que o cofre aceita, com até
+127 caracteres. Um exemplo é `fh-tenant-a--outbound--sandbox--clientsecret`.
+
+- **Por que o separador é duplo:** os ids de tenant têm hífen. Com hífen simples, o prefixo seria ambíguo: um tenant
+  `tenant` teria o prefixo `fh-tenant-`, que também é prefixo de `fh-tenant-a-…`, e a checagem de dono aceitaria o
+  segredo do tenant-a. Com `--` entre os segmentos, e nenhum segmento podendo conter `--` (nem o id do tenant, nem
+  uma chave do JSON), o prefixo `fh-{tenant}--` é exato. A condição ABAC `fh-` do provisionamento não muda.
 
 - **Por que o cliente não manda a referência:** se mandasse, um Admin do tenant-b poderia gravar
-  `clientSecretRef: kv:fh-tenant-a-…`. O hub despacharia as notas do tenant-b com a credencial da Avalara do
+  `clientSecretRef: kv:fh-tenant-a--…`. O hub despacharia as notas do tenant-b com a credencial da Avalara do
   tenant-a, o que é injeção pela credencial, no espírito do D18.
 - **O que isso também dá:** a operação pode provisionar um segredo direto no cofre, pelo nome previsível, sem
   passar pela tela.
-- **Na leitura:** o adapter recusa uma referência fora de `fh-{tenant do perfil}-`, antes de ler o cofre. Isso
+- **Na leitura:** o adapter recusa uma referência fora de `fh-{tenant do perfil}--`, antes de ler o cofre. Isso
   cobre o SQL direto e o seed.
 
 **Leitura do perfil (`GET /connector`).**
@@ -679,8 +701,7 @@ experimento no caminho de produção, ou correção de payload, que é a próxim
 
 **Por que não um script com `curl`.** O script teria de ler o segredo e escrever o próprio OAuth, e a
 redação seria outra, diferente da do adapter. A evidência gravada seria redigida por uma regra que o teste
-não cobre. O curl do portão (D13) não contradiz isto: ele só confirma a premissa antes do código e não grava
-nenhuma resposta de documento. O que ele registra é a tabela do Context, escrita à mão e sem token.
+não cobre.
 
 **O que é.** Um console .NET em `tools/`, como o `MockComplianceApi`. Referencia o adapter Avalara
 (`InternalsVisibleTo`) e a Infrastructure, e reusa:
@@ -693,7 +714,8 @@ nenhuma resposta de documento. O que ele registra é a tabela do Context, escrit
 
 **Comandos:**
 
-- `token --tenant tenant-a`: é o handshake. Diz se obteve o token e o `expires_in`, e nunca imprime o token.
+- `token --tenant tenant-a`: é a verificação da premissa de autenticação (D13). Diz se obteve o token, os campos da
+  resposta e o `expires_in`, e nunca imprime o token.
 - `send --tenant tenant-a --payload <avalara.json> [--omit campo] [--set campo=valor] --ref-suffix <s> --label <l> [--poll]`:
   - parte do payload de destino baixado no zip do hub;
   - aplica a variante no nível de topo;
@@ -719,65 +741,30 @@ alheio ao nosso mapeamento:
 
 Corrigir o payload a partir dessas rejeições é a próxima fatia.
 
-**Portão, antes de qualquer código da parte Avalara** (grupo 5). É um curl contra o sandbox, fora do nosso código, para
-confirmar a premissa em que o desenho se apoia. O segredo entra pelo prompt: não vai para o histórico do
-shell, para a linha de comando do processo nem para arquivo. O token nunca é impresso.
-
-```powershell
-$tokenUrl = '<endpoint de token do sandbox>'
-$clientId = '<clientId do sandbox>'
-$secret   = [Net.NetworkCredential]::new('', (Read-Host -AsSecureString 'client_secret')).Password
-
-# 1. Pedido de token com o segredo no corpo (client_secret_post), pelo stdin. O "-d @-" também tira a quebra
-#    de linha que o pipe acrescenta.
-$form = "grant_type=client_credentials&client_id=$([uri]::EscapeDataString($clientId))&client_secret=$([uri]::EscapeDataString($secret))"
-$out  = @($form | curl.exe -s -X POST $tokenUrl -H 'Content-Type: application/x-www-form-urlencoded' -d '@-' -w "`n%{http_code} %{content_type}")
-Remove-Variable form
-
-# 2. Só o que não é segredo: o status, os campos, o tipo e a validade.
-$meta = $out[-1]; $body = ($out[0..($out.Count - 2)] -join "`n") -replace [regex]::Escape($secret), '[redigido]'
-"HTTP e content-type: $meta"
-try {
-  $j = $body | ConvertFrom-Json
-  "campos: " + ($j.PSObject.Properties.Name -join ', ')
-  "token_type: $($j.token_type) | expires_in: $($j.expires_in) (" + $(if ($null -ne $j.expires_in) { $j.expires_in.GetType().Name } else { 'ausente' }) + ")"
-  if ($j.scope) { "scope: $($j.scope)" }
-  if ($j.error) { "error: $($j.error) | error_description: $($j.error_description)" }
-  if ($j.access_token) { "access_token: presente, $($j.access_token.Length) caracteres" }
-} catch { "corpo não é JSON, $($body.Length) caracteres: " + ($body -replace '(?i)(access_token=)[^&\s]+', '$1[redigido]').Substring(0, [Math]::Min(200, $body.Length)) }
-
-# 3. Só se o passo 1 der invalid_client: a mesma credencial por Basic (client_secret_basic). O cabeçalho vai
-#    pela config do curl lida do stdin (-K -), fora da linha de comando.
-# $basic = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("$([uri]::EscapeDataString($clientId)):$([uri]::EscapeDataString($secret))"))
-# $out = @("header = `"Authorization: Basic $basic`"`ndata = `"grant_type=client_credentials`"" | curl.exe -s -X POST $tokenUrl -K - -w "`n%{http_code} %{content_type}")
-# (repetir o passo 2)
-
-Remove-Variable secret, out, body, j, basic -ErrorAction SilentlyContinue
-
-# 4. O caminho de envio existe? Sem token: 401 ou 403 = existe e exige autenticação; 404 = o caminho é outro.
-curl.exe -s -o NUL -w "%{http_code}`n" -X POST '<baseUrl>documents' -H 'Content-Type: application/json' -d '{}'
-```
-
-O resultado vai para a tabela "Resultado do portão", no Context, sem credencial e sem token.
-
-- **Bate:** client credentials, por post ou Basic, com `access_token` e `expires_in` numérico em segundos.
-  - Com post, segue como está.
-  - Com Basic, o provider manda Basic para todos. É um ajuste de forma, registrado no D6 e testado no
-    grupo 9.
-  - Com `expires_in` menor que a margem, a margem é revista no D6.
-  - Com 404 no caminho de envio, o `DocumentsPath` certo, pela documentação, entra como opção do adapter.
-- **Não bate** (outro fluxo, escopo ou audiência obrigatórios, token por empresa, mTLS, resposta sem
-  `access_token` ou `expires_in` reconhecível): `/opsx:update` antes de qualquer código.
+**Premissa de autenticação: assumida, e confirmada no roteiro abaixo** (Context). Não há portão antes do código.
+O passo 1 do roteiro é onde a premissa se confirma, e a regra do que fazer se ela não bater está nele.
 
 **Roteiro depois da implementação** (o RUNNING.md ganha a seção):
 
-1. **Pelo hub, o mesmo handshake.** Na tela de conectores, preencher a seção `sandbox` do tenant-a: `baseUrl`,
+1. **A verificação da premissa.** Na tela de conectores, preencher a seção `sandbox` do tenant-a: `baseUrl`,
    `tokenUrl` se houver, `clientId` e o Client Secret, digitado no campo de escrita. Depois:
    - conferir que a tela mostra "configurado em <data>", e que o `GET /connector` não traz o valor;
-   - rodar `probe token`.
+   - rodar `probe token`, e preencher a tabela "Resultado da verificação da premissa" do Context, sem credencial
+     e sem token;
+   - no primeiro envio (passo 3, ou um `probe send`), conferir que o caminho `documents` existe: qualquer status
+     diferente de 404.
 
-   Isso confirma que o código reproduz o que o portão mostrou. Uma divergência aqui é defeito do código, e não
-   da premissa.
+   Pela tabela, há dois desfechos:
+
+   - **Bate:** client credentials, por post ou Basic, com `access_token` e `expires_in` numérico em segundos.
+     - Com post, segue como está.
+     - Com Basic, o provider manda Basic para todos. É um ajuste de forma no provider (grupo 9), com teste.
+     - Com `expires_in` menor que a margem, a margem é revista no D6.
+     - Com 404 no caminho de envio, o `DocumentsPath` certo, pela documentação do sandbox, entra como opção do
+       adapter (`Avalara:DocumentsPath`), sem código.
+   - **Não bate** (outro fluxo, escopo ou audiência obrigatórios, token por empresa, mTLS, resposta sem
+     `access_token` ou `expires_in` reconhecível): o teste manual para, e a change volta a `/opsx:update`. O
+     retrabalho fica nos grupos de autenticação (Context).
 2. **A correção pela tela.** Com um segredo errado de propósito:
    - a primeira nota recusa com o motivo;
    - salvar o segredo certo na tela faz a nota seguinte, reprocessada na hora, pedir token de novo, sem
@@ -1081,8 +1068,9 @@ forma, porque em dev o problema também é problema.
 ### D19. Sequência: o limite de tenant primeiro, e sozinho
 
 **A regra.** O trabalho do limite de tenant (D10 na parte do acesso às fotos, e D18) vem nos primeiros grupos das
-tarefas (1 a 4). Ele é commitado e mergeado na `main` sozinho, no fim do grupo 4, antes do portão. A parte Avalara
-começa pelo portão (grupo 5).
+tarefas (1 a 4). Ele é commitado e mergeado na `main` sozinho, no fim do grupo 4, e isso já foi feito no #58. A
+parte Avalara vem depois, do grupo 5 em diante, sem portão: a premissa de autenticação é confirmada no teste
+manual (Context, D13).
 
 **Por quê.** As correções de tenant são de segurança e valem independente da Avalara:
 
@@ -1091,9 +1079,9 @@ começa pelo portão (grupo 5).
 - a leitura alheia pelo locator;
 - a interferência no `deactivate`.
 
-Na ordem anterior, elas vinham depois do portão, que é uma premissa sobre a autenticação de um terceiro. Se o
-portão não batesse e a change voltasse para `/opsx:update`, as correções ficariam presas atrás de algo que não
-tem nada a ver com elas. É um acoplamento que não deveria existir.
+A parte 2 se apoia numa premissa sobre a autenticação de um terceiro. Se ela não batesse e a change voltasse
+para `/opsx:update`, as correções de tenant ficariam presas atrás de algo que não tem nada a ver com elas. É um
+acoplamento que não deveria existir.
 
 **O que é independente, conferido.** Nenhum item dos grupos 1 a 4 usa código da parte 2:
 
@@ -1111,16 +1099,19 @@ tem nada a ver com elas. É um acoplamento que não deveria existir.
 **A spec e a change.** A change continua uma só. A parte 1 entra na `main` com a pasta da change, que segue
 ativa, e a spec `tenant-boundary` só vai para `openspec/specs` no arquivamento.
 
-- **Se o portão bater:** segue tudo junto normalmente, e nada muda.
 - **Se a parte 2 travar por muito tempo:** o delta `tenant-boundary` pode ser levado para uma change própria e
-  arquivado sozinho. É uma decisão para esse momento, e não agora.
+  arquivado sozinho. Isso acontece, por exemplo, se a premissa de autenticação não bater no teste manual. É uma
+  decisão para esse momento, e não agora.
 
 ## Risks / Trade-offs
 
-- **[O fluxo real de autenticação pode não ser o client credentials por formulário]** → O portão (D13, grupo 5)
-  roda antes de qualquer código da parte Avalara. Um ajuste de forma cabe no provider, com teste. Um fluxo
-  estruturalmente outro leva a `/opsx:update` antes desse código. A parte 1, do limite de tenant, já está
-  mergeada e não volta (D19). Assim, a fatia não entrega um provider que só funciona contra o mock.
+- **[O fluxo real de autenticação pode não ser o client credentials por formulário]** A premissa é assumida, e só
+  se confirma no teste manual, no fim da fatia (Context, D13, tarefa 15.3). O código de autenticação é todo
+  escrito e testado contra o mock antes dessa confirmação. → Um ajuste de forma (Basic, margem, `DocumentsPath`)
+  cabe no provider ou na configuração, com teste. Um fluxo estruturalmente outro leva a `/opsx:update`, e o
+  retrabalho fica nos grupos de autenticação: o 8, o 9, o 10 e o endpoint de token do mock, no 12. O cofre, a
+  tela, a quarta foto e a parte 1, já mergeada, não dependem da premissa. É um risco aceito de propósito, em
+  troca de não bloquear o código num passo manual.
 - **[Caminhos e respostas vieram do mock]** O caminho de envio e o de status, o `id` e os valores
   `carregado`/`erro` podem não bater. → A quarta foto mostra a resposta. O aceite sem identificador não
   reenvia (D7). O status não reconhecido fica `Submitted` e vira `Unconfirmed` no limite, com a última
@@ -1160,7 +1151,7 @@ ativa, e a spec `tenant-boundary` só vai para `openspec/specs` no arquivamento.
 - **[A condição ABAC do Key Vault é preview]** → Pode mudar, ou não ser aceita no tenant do cliente. O cofre
   dedicado dá o mesmo escopo efetivo sem ela, e a verificação em staging mostra qual dos dois vale.
 - **[A parte 1 mergeada com a change ainda ativa]** A spec `tenant-boundary` só vai para `openspec/specs` quando a
-  change for arquivada. → Se a parte 2 travar por muito tempo no portão, o delta `tenant-boundary` pode ser
+  change for arquivada. → Se a parte 2 travar por muito tempo, o delta `tenant-boundary` pode ser
   levado para uma change própria e arquivado sozinho (D19). Até lá, a spec vive na pasta da change, que está na
   `main`.
 - **[Rotação direto no cofre, fora da tela]** O cache curto do valor lido atrasa a rotação até 5 minutos. → A

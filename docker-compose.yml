@@ -42,6 +42,16 @@ services:
     volumes:
       - ./docker/servicebus/Config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
 
+  # Emulador da API do Key Vault: o cofre dos segredos de conector no dev (ADR-0027). O host fala com ele pelo mesmo
+  # adapter e o mesmo SecretClient de produção. Versão fixada (conferida na tarefa 5.5 da change connect-avalara-sandbox).
+  # SEM VOLUME, SEM IMPORT E SEM EXPORT, de propósito: a persistência do emulador grava os segredos em claro no disco.
+  # O preço é que reiniciar o container apaga os segredos — a tela de conectores mostra "não configurado" e o envio
+  # falha apontando para ela; é só digitar de novo na tela.
+  keyvault:
+    image: nagyesta/lowkey-vault:7.3.112
+    ports:
+      - "8443:8443"   # API do Key Vault (HTTPS, certificado padrão do emulador, fixado em appsettings.Development.json)
+
 volumes:
   azurite-data:
   sql-data:

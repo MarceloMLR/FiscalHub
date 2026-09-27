@@ -68,12 +68,22 @@ public class D365PollRegistrationTests
             => throw new NotSupportedException();
     }
 
+    private sealed class EmptySecretStore : ISecretStore
+    {
+        public Task<string?> GetAsync(string name, CancellationToken ct = default) => Task.FromResult<string?>(null);
+
+        public Task SetAsync(string name, string value, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task<SecretDescription?> DescribeAsync(string name, CancellationToken ct = default) => Task.FromResult<SecretDescription?>(null);
+    }
+
     private static ServiceProvider Build(Action<IServiceCollection> register)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddScoped<IConnectorProfileStore, D365ChangeFeedTests.FakeProfiles>();
+        services.AddSingleton<ISecretStore, EmptySecretStore>();   // o client credentials resolve o segredo no cofre (ADR-0027)
         register(services);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }

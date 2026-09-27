@@ -11,6 +11,9 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
+    <!-- Cofre dos segredos de conector (ADR-0027): o mesmo SecretClient em dev (emulador) e em produção (Key Vault). -->
+    <PackageReference Include="Azure.Security.KeyVault.Secrets" Version="4.11.1" />
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
   </ItemGroup>
 
   <ItemGroup>
