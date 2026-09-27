@@ -459,6 +459,34 @@ dotnet run --project tools/AvalaraSandboxProbe -- get --tenant tenant-a --id <id
   evidência precisa mostrar.
 - Contra o mock, a sonda funciona igual: é o jeito de ensaiar o roteiro sem o sandbox.
 
+## 10. Limpar a base de demonstração
+
+O seed de dev tem duas partes:
+
+- **usuários, tenants e perfis de conector:** semeados sempre, porque sem eles não há login nem credencial;
+- **a demonstração** (notas com fotos, execuções e agendamentos, para a paginação e os KPIs): só com
+  `Seed:DemoData = true`. O `appsettings.Development.json` a deixa em `false`.
+
+Cada parte só semeia a tabela vazia. Com a demonstração ligada, limpar a base e subir o host trazia tudo de volta, e
+parecia que a limpeza tinha falhado. Desligada, a base limpa continua limpa.
+
+Para apagar os dados de demonstração (e o que a esteira gravou) de uma base que já os tem:
+
+```powershell
+docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub `
+  -Q "DELETE FROM ProcessedDocuments; DELETE FROM IntegrationExecutions; DELETE FROM ScheduledIntegrations;"
+```
+
+**`ConnectorProfiles`, `Users` e `Tenants` NÃO entram nessa limpeza.** Apagar `ConnectorProfiles` perde a configuração dos
+conectores (as URLs, os `establishments`, o `poll` e as referências dos segredos gravados na tela); apagar `Users` ou
+`Tenants` tira o login. O seed os recria na próxima subida, mas com os valores de fábrica, e os segredos do cofre
+deixam de ter quem os referencie.
+
+- **As fotos de demonstração** no Blob (container `traces`) ficam. Sem a linha no SQL, elas não aparecem no dashboard.
+- **Os XMLs de exemplo** (`nfe/tenant-a/…`) continuam sendo enviados ao Blob na subida: são a entrada do `/ingest`, e não
+  dado de demonstração.
+- **Para ter a demonstração de volta,** com as três tabelas vazias, suba o host uma vez com `$env:Seed__DemoData = "true"`.
+
 ## Notas
 
 - **Idempotência:** repetir o `POST /ingest` com o mesmo `naturalKey` não duplica nem reenvia

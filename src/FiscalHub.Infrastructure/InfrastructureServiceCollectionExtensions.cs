@@ -96,6 +96,23 @@ public static class InfrastructureServiceCollectionExtensions
     /// semeados) e um viewer no tenant-b (não vê nada — demonstra o isolamento por tenant). Senha
     /// com hash; em produção isso viria de um cadastro real, não de seed.
     /// </summary>
+    /// <summary>
+    /// O seed de dev, na ordem: usuários, tenants e perfis de conector, sempre; a demonstração (notas com fotos, execuções
+    /// e agendamentos) só com <see cref="DevSeedOptions.DemoData"/>. Cada parte só semeia a tabela vazia.
+    /// </summary>
+    public static async Task SeedDevDataAsync(this IServiceProvider services, DevSeedOptions options, CancellationToken ct = default)
+    {
+        await services.EnsureDevUsersAsync(ct);
+        await services.EnsureDevTenantsAsync(ct);
+        await services.EnsureDevConnectorProfilesAsync(ct);
+
+        if (options.DemoData)
+        {
+            await services.EnsureDevDocumentsAsync(ct);   // notas de exemplo p/ paginação, KPIs do dia e reprocessar
+            await services.EnsureDevSchedulesAndExecutionsAsync(ct);   // agendamentos + execuções p/ paginação em Integrações
+        }
+    }
+
     public static async Task EnsureDevUsersAsync(this IServiceProvider services, CancellationToken ct = default)
     {
         await using AsyncServiceScope scope = services.CreateAsyncScope();

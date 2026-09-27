@@ -172,11 +172,9 @@ app.UseAuthorization();
 // Dev local: cria o schema no SQL, o container no Blob, sobe um XML de exemplo e semeia os usuários.
 await app.Services.MigrateProcessingSchemaAsync();
 await LocalSeed.RunAsync(app.Services);
-await app.Services.EnsureDevUsersAsync();
-await app.Services.EnsureDevTenantsAsync();
-await app.Services.EnsureDevConnectorProfilesAsync();
-await app.Services.EnsureDevDocumentsAsync();   // notas de exemplo p/ paginação, KPIs do dia e reprocessar
-await app.Services.EnsureDevSchedulesAndExecutionsAsync();   // agendamentos + execuções p/ paginação em Integrações
+// Usuários, tenants e perfis sempre; a demonstração (notas, execuções, agendamentos) só com Seed:DemoData, que o
+// Development desliga: limpar a base e subir o host não a traz de volta (docs/RUNNING.md §10).
+await app.Services.SeedDevDataAsync(DevSeedOptions.From(cfg));
 
 app.MapGet("/", () =>
     $"FiscalHub host. POST /ingest com {{ naturalKey, locator }}, no tenant do login. XML de exemplo semeado em '{LocalSeed.Locator}'.")
