@@ -1,0 +1,11 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentTaxTransBRs(FiscalDocumentTaxTransRecId,FiscalDocumentLineRecId,FiscalDocumentMiscChargeRecId,TaxTransRecId,FiscalTaxType,TaxationCode,TaxBaseAmount,TaxBaseAmountExempt,TaxBaseAmountOther,TaxValue,TaxAmount,RetainedTax)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2Mjkn\"","FiscalDocumentTaxTransRecId":35637156629,"FiscalDocumentLineRecId":35637156591,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488258,"FiscalTaxType":"COFINS","TaxationCode":"01","TaxBaseAmount":5000,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":7.6,"TaxAmount":380,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MzAn\"","FiscalDocumentTaxTransRecId":35637156630,"FiscalDocumentLineRecId":35637156591,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488259,"FiscalTaxType":"ICMS","TaxationCode":"00","TaxBaseAmount":5000,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":18,"TaxAmount":900,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MzEn\"","FiscalDocumentTaxTransRecId":35637156631,"FiscalDocumentLineRecId":35637156591,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488260,"FiscalTaxType":"PIS","TaxationCode":"01","TaxBaseAmount":5000,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":1.65,"TaxAmount":82.5,"RetainedTax":"No"
+    }
+  ]
+}

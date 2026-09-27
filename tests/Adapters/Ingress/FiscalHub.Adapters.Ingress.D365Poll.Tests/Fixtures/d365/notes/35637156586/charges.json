@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentMiscChargeBRs(FiscalDocumentMiscChargeRecId,FiscalDocumentLineRecId,ChargeNum,MiscChargeType,Amount,Txt)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2MzcxNDk4Mjgn\"","FiscalDocumentMiscChargeRecId":35637149828,"FiscalDocumentLineRecId":35637156593,"ChargeNum":1,"MiscChargeType":"Others","Amount":416.25,"Txt":""
+    }
+  ]
+}

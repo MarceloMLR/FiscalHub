@@ -1,0 +1,27 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentTaxTransBRs(FiscalDocumentTaxTransRecId,FiscalDocumentLineRecId,FiscalDocumentMiscChargeRecId,TaxTransRecId,FiscalTaxType,TaxationCode,TaxBaseAmount,TaxBaseAmountExempt,TaxBaseAmountOther,TaxValue,TaxAmount,RetainedTax)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTAn\"","FiscalDocumentTaxTransRecId":35637156610,"FiscalDocumentLineRecId":35637156586,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488239,"FiscalTaxType":"COFINS","TaxationCode":"01","TaxBaseAmount":3500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":7.6,"TaxAmount":266,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTEn\"","FiscalDocumentTaxTransRecId":35637156611,"FiscalDocumentLineRecId":35637156586,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488240,"FiscalTaxType":"ICMS","TaxationCode":"00","TaxBaseAmount":3500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":12,"TaxAmount":420,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTIn\"","FiscalDocumentTaxTransRecId":35637156612,"FiscalDocumentLineRecId":35637156586,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488241,"FiscalTaxType":"IPI","TaxationCode":"51","TaxBaseAmount":3500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":15,"TaxAmount":525,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTMn\"","FiscalDocumentTaxTransRecId":35637156613,"FiscalDocumentLineRecId":35637156586,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488242,"FiscalTaxType":"PIS","TaxationCode":"01","TaxBaseAmount":3500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":1.65,"TaxAmount":57.75,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTQn\"","FiscalDocumentTaxTransRecId":35637156614,"FiscalDocumentLineRecId":35637156587,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488243,"FiscalTaxType":"COFINS","TaxationCode":"01","TaxBaseAmount":2250,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":7.6,"TaxAmount":171,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTUn\"","FiscalDocumentTaxTransRecId":35637156615,"FiscalDocumentLineRecId":35637156587,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488244,"FiscalTaxType":"ICMS","TaxationCode":"00","TaxBaseAmount":2250,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":4,"TaxAmount":90,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTYn\"","FiscalDocumentTaxTransRecId":35637156616,"FiscalDocumentLineRecId":35637156587,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488245,"FiscalTaxType":"PIS","TaxationCode":"01","TaxBaseAmount":2250,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":1.65,"TaxAmount":37.13,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTcn\"","FiscalDocumentTaxTransRecId":35637156617,"FiscalDocumentLineRecId":35637156588,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488246,"FiscalTaxType":"COFINS","TaxationCode":"01","TaxBaseAmount":5500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":7.6,"TaxAmount":418,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTgn\"","FiscalDocumentTaxTransRecId":35637156618,"FiscalDocumentLineRecId":35637156588,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488247,"FiscalTaxType":"ICMS","TaxationCode":"00","TaxBaseAmount":5500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":12,"TaxAmount":660,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MTkn\"","FiscalDocumentTaxTransRecId":35637156619,"FiscalDocumentLineRecId":35637156588,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488248,"FiscalTaxType":"IPI","TaxationCode":"51","TaxBaseAmount":5500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":15,"TaxAmount":825,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2MjAn\"","FiscalDocumentTaxTransRecId":35637156620,"FiscalDocumentLineRecId":35637156588,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488249,"FiscalTaxType":"PIS","TaxationCode":"01","TaxBaseAmount":5500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":1.65,"TaxAmount":90.75,"RetainedTax":"No"
+    }
+  ]
+}

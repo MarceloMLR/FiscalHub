@@ -1,0 +1,15 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentTaxTransBRs(FiscalDocumentTaxTransRecId,FiscalDocumentLineRecId,FiscalDocumentMiscChargeRecId,TaxTransRecId,FiscalTaxType,TaxationCode,TaxBaseAmount,TaxBaseAmountExempt,TaxBaseAmountOther,TaxValue,TaxAmount,RetainedTax)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2Mzcn\"","FiscalDocumentTaxTransRecId":35637156637,"FiscalDocumentLineRecId":35637156593,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488266,"FiscalTaxType":"COFINS","TaxationCode":"56","TaxBaseAmount":4500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":7.6,"TaxAmount":342,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2Mzgn\"","FiscalDocumentTaxTransRecId":35637156638,"FiscalDocumentLineRecId":35637156593,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488267,"FiscalTaxType":"ICMS","TaxationCode":"00","TaxBaseAmount":8711.89,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":18,"TaxAmount":1568.14,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2Mzkn\"","FiscalDocumentTaxTransRecId":35637156639,"FiscalDocumentLineRecId":35637156593,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488268,"FiscalTaxType":"ImportTax","TaxationCode":"","TaxBaseAmount":0,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":4500,"TaxValue":30,"TaxAmount":0,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2NDAn\"","FiscalDocumentTaxTransRecId":35637156640,"FiscalDocumentLineRecId":35637156593,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488269,"FiscalTaxType":"IPI","TaxationCode":"01","TaxBaseAmount":5850,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":15,"TaxAmount":877.5,"RetainedTax":"No"
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY2NDEn\"","FiscalDocumentTaxTransRecId":35637156641,"FiscalDocumentLineRecId":35637156593,"FiscalDocumentMiscChargeRecId":0,"TaxTransRecId":35637488270,"FiscalTaxType":"PIS","TaxationCode":"56","TaxBaseAmount":4500,"TaxBaseAmountExempt":0,"TaxBaseAmountOther":0,"TaxValue":1.65,"TaxAmount":74.25,"RetainedTax":"No"
+    }
+  ]
+}

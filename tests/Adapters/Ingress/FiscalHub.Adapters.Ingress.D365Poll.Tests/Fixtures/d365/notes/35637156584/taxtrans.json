@@ -1,0 +1,11 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSTaxTransBRs(TaxTransRecId,Voucher,TaxType,TaxBaseAmount,TaxValue,TaxAmount)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNTgn\"","TaxTransRecId":35637488258,"Voucher":"BRMF12-30000001","TaxType":"COFINS","TaxBaseAmount":-5000,"TaxValue":7.6,"TaxAmount":-380
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNTkn\"","TaxTransRecId":35637488259,"Voucher":"BRMF12-30000001","TaxType":"ICMS","TaxBaseAmount":-5000,"TaxValue":18,"TaxAmount":-900
+    },{
+      "@odata.etag":"W/\"JzAsMzU2Mzc0ODgyNjAn\"","TaxTransRecId":35637488260,"Voucher":"BRMF12-30000001","TaxType":"PIS","TaxBaseAmount":-5000,"TaxValue":1.65,"TaxAmount":-82.5
+    }
+  ]
+}

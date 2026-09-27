@@ -584,6 +584,37 @@ cache.
       `GrossWeight`, `NetWeight`, `BenefitCode`, `ExceptionCode` e `DIAddition` **não** foram
       verificados — as notas testadas não os exercitam.
 
+**Medido na gravação das fixtures da montagem (2026-09-26, `tools/d365-fixtures`):**
+
+- [x] **Contábil sem par fiscal.** O casamento 547/547 partia da fiscal. No sentido inverso, as linhas
+      da `FSTaxTransBRs` dos 83 vouchers fiscais são 547, e **zero** ficam sem linha na fiscal. O
+      casamento é 1:1 nos dois sentidos.
+- [x] **Nota cancelada mantém as linhas?** Sim. As 2 canceladas da base (`BRMF12-30000000`,
+      `BRMF06-110000030`) são **modelo `01`** e têm 1 linha cada. Não há nota `55` cancelada.
+- [x] **Data de emissão.** O `FiscalDocumentDateTime` vem com o valor vazio `1900-01-01T00:00:00Z` em
+      todas as notas, menos nas `SE` de 2026. O `FiscalDocumentDate` vem sempre preenchido, serializado
+      às 12:00 UTC (`2016-03-01T12:00:00Z`).
+- [x] **Valores do `MiscChargeType`.** Só `Others` nos 14 encargos.
+- [x] **Onde estão os casos da montagem:**
+  - as 12 retenções estão em notas `01` e `SE`, nenhuma em `55`. Três IRRF retidos das `SE` de 2026 têm
+    valor zero;
+  - os 8 `ImportTax` estão em notas `01`, menos um, na nota `55` de importação `BRMF06-110000031`;
+  - o `ImportTax` zerado na fiscal mantém a alíquota (30) e zera só a base e o valor.
+- [x] **Resolução do `SysModifiedDateTime`.** Segundo, sem fração, nos 83 cabeçalhos.
+- [x] **Os 26 zerados na fiscal com valor na contábil, por tipo e CST:**
+
+  | Tipo | CST | Quantos |
+  |---|---|---|
+  | `ImportTax` | vazio | 8 |
+  | IPI | 05 | 6 |
+  | PIS/COFINS | 98 | 6 |
+  | PIS/COFINS | 99 | 2 |
+  | ICMS | 90 | 3 |
+  | ICMSDiff | 90 | 1 |
+
+  Todos de entrada ou com CST de "outras operações", suspensão ou não tributada. A montagem só completa
+  o `ImportTax`; os demais seguem zerados, como a fiscal os apresenta.
+
 ### Em aberto
 
 - [ ] `TaxTrans.SourceDocumentLine` está populado? Se sim, é o join preferido — não-polimórfico
@@ -591,9 +622,10 @@ cache.
       validada (14 encargos, 14 de 14 chegam ao documento), mas zero dos 547 impostos aponta para
       encargo, então o caminho imposto → encargo nunca passou dado
 - [ ] Uma nota com encargo cujo `MarkupTrans` esteja preenchido — nos 14 da base está nulo
-- [ ] **Os 26 impostos zerados na tabela fiscal e com valor na contábil** (`ImportTax`, IPI CST 05).
+- [ ] **Os 26 impostos zerados na tabela fiscal e com valor na contábil** (distribuição acima).
       Levantei a hipótese de que reapareciam como encargo e testei: nenhum dos 14 encargos casa com
-      um IPI da mesma nota. Continua sem explicação
+      um IPI da mesma nota. O padrão por CST (98/99, 90, 05) sugere que a fiscal zera o que a nota não
+      tributa, mas isso continua sem confirmação fiscal
 - [ ] **CST do IPI**: confirmar com o fiscal que `51`/`55` (saída) é o correto e que `01`/`05` da
       `FSTaxTransBR` seria rejeitado na SEFAZ (9.3)
 - [ ] `SysModifiedDateTime` também na `FSFiscalDocumentLineBR`? Só importa se a linha puder mudar

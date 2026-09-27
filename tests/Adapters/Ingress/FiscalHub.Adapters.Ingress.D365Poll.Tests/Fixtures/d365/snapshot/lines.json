@@ -1,0 +1,305 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount)","value":[
+    {
+      "@odata.etag":"W/\"JzAsNTYzNzE0NDU3Nic=\"","FiscalDocumentLineRecId":5637144576,"FiscalDocumentRecId":5637144576,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":400,"UnitPrice":10,"LineAmount":4000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NDU3Nyc=\"","FiscalDocumentLineRecId":5637144577,"FiscalDocumentRecId":5637144576,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":400,"UnitPrice":12,"LineAmount":4800
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NDU3OCc=\"","FiscalDocumentLineRecId":5637144578,"FiscalDocumentRecId":5637144577,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":180,"UnitPrice":5,"LineAmount":900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NDU3OSc=\"","FiscalDocumentLineRecId":5637144579,"FiscalDocumentRecId":5637144578,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":50,"UnitPrice":585,"LineAmount":29250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMyNic=\"","FiscalDocumentLineRecId":5637145326,"FiscalDocumentRecId":5637145326,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":30,"UnitPrice":278.45,"LineAmount":8353.5
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMyNyc=\"","FiscalDocumentLineRecId":5637145327,"FiscalDocumentRecId":5637145326,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":30,"UnitPrice":269.29,"LineAmount":8078.7
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMyOCc=\"","FiscalDocumentLineRecId":5637145328,"FiscalDocumentRecId":5637145327,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":30,"UnitPrice":278.45,"LineAmount":8353.5
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMyOSc=\"","FiscalDocumentLineRecId":5637145329,"FiscalDocumentRecId":5637145327,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":30,"UnitPrice":269.29,"LineAmount":8078.7
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMzMCc=\"","FiscalDocumentLineRecId":5637145330,"FiscalDocumentRecId":5637145328,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.152","Quantity":20,"UnitPrice":850.91,"LineAmount":17018.2
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMzMSc=\"","FiscalDocumentLineRecId":5637145331,"FiscalDocumentRecId":5637145329,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":20,"UnitPrice":850.91,"LineAmount":17018.2
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA3Nic=\"","FiscalDocumentLineRecId":5637146076,"FiscalDocumentRecId":5637146076,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":6,"UnitPrice":350,"LineAmount":2100
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA3Nyc=\"","FiscalDocumentLineRecId":5637146077,"FiscalDocumentRecId":5637146076,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":6,"UnitPrice":550,"LineAmount":3300
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA3OCc=\"","FiscalDocumentLineRecId":5637146078,"FiscalDocumentRecId":5637146076,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":15,"UnitPrice":750,"LineAmount":11250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA3OSc=\"","FiscalDocumentLineRecId":5637146079,"FiscalDocumentRecId":5637146077,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":4,"UnitPrice":350,"LineAmount":1400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA4MCc=\"","FiscalDocumentLineRecId":5637146080,"FiscalDocumentRecId":5637146077,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":4,"UnitPrice":550,"LineAmount":2200
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA4MSc=\"","FiscalDocumentLineRecId":5637146081,"FiscalDocumentRecId":5637146077,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":15,"UnitPrice":750,"LineAmount":11250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA4Mic=\"","FiscalDocumentLineRecId":5637146082,"FiscalDocumentRecId":5637146078,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":10,"UnitPrice":350,"LineAmount":3500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA4Myc=\"","FiscalDocumentLineRecId":5637146083,"FiscalDocumentRecId":5637146078,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":10,"UnitPrice":550,"LineAmount":5500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA4NCc=\"","FiscalDocumentLineRecId":5637146084,"FiscalDocumentRecId":5637146078,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":8,"UnitPrice":750,"LineAmount":6000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjgyNic=\"","FiscalDocumentLineRecId":5637146826,"FiscalDocumentRecId":5637146826,"LineNum":1,"ItemId":"BRMF910","Description":"Servi\u00e7o de manuten\u00e7\u00e3o predial","FiscalClassification":"","CFOP":"","Quantity":10,"UnitPrice":150,"LineAmount":1500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NzU3Nic=\"","FiscalDocumentLineRecId":5637147576,"FiscalDocumentRecId":5637147576,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":200,"UnitPrice":10,"LineAmount":2000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NzU3Nyc=\"","FiscalDocumentLineRecId":5637147577,"FiscalDocumentRecId":5637147576,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":200,"UnitPrice":12,"LineAmount":2400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NzU3OCc=\"","FiscalDocumentLineRecId":5637147578,"FiscalDocumentRecId":5637147577,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":180,"UnitPrice":5,"LineAmount":900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NzU3OSc=\"","FiscalDocumentLineRecId":5637147579,"FiscalDocumentRecId":5637147578,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":50,"UnitPrice":585,"LineAmount":29250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0ODMyNic=\"","FiscalDocumentLineRecId":5637148326,"FiscalDocumentRecId":5637148326,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":30,"UnitPrice":301.56,"LineAmount":9046.8
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0ODMyNyc=\"","FiscalDocumentLineRecId":5637148327,"FiscalDocumentRecId":5637148326,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":30,"UnitPrice":286.56,"LineAmount":8596.8
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0ODMyOCc=\"","FiscalDocumentLineRecId":5637148328,"FiscalDocumentRecId":5637148327,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":30,"UnitPrice":301.56,"LineAmount":9046.8
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0ODMyOSc=\"","FiscalDocumentLineRecId":5637148329,"FiscalDocumentRecId":5637148327,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":30,"UnitPrice":286.56,"LineAmount":8596.8
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0ODMzMCc=\"","FiscalDocumentLineRecId":5637148330,"FiscalDocumentRecId":5637148328,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.152","Quantity":20,"UnitPrice":909,"LineAmount":18180
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0ODMzMSc=\"","FiscalDocumentLineRecId":5637148331,"FiscalDocumentRecId":5637148329,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":20,"UnitPrice":909,"LineAmount":18180
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA3Nic=\"","FiscalDocumentLineRecId":5637149076,"FiscalDocumentRecId":5637149076,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":20,"UnitPrice":350,"LineAmount":7000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA3Nyc=\"","FiscalDocumentLineRecId":5637149077,"FiscalDocumentRecId":5637149076,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":18,"UnitPrice":550,"LineAmount":9900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA3OCc=\"","FiscalDocumentLineRecId":5637149078,"FiscalDocumentRecId":5637149076,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":15,"UnitPrice":750,"LineAmount":11250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA3OSc=\"","FiscalDocumentLineRecId":5637149079,"FiscalDocumentRecId":5637149077,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":18,"UnitPrice":350,"LineAmount":6300
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA4MCc=\"","FiscalDocumentLineRecId":5637149080,"FiscalDocumentRecId":5637149077,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":15,"UnitPrice":550,"LineAmount":8250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA4MSc=\"","FiscalDocumentLineRecId":5637149081,"FiscalDocumentRecId":5637149077,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":8,"UnitPrice":750,"LineAmount":6000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA4Mic=\"","FiscalDocumentLineRecId":5637149082,"FiscalDocumentRecId":5637149078,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":18,"UnitPrice":350,"LineAmount":6300
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA4Myc=\"","FiscalDocumentLineRecId":5637149083,"FiscalDocumentRecId":5637149078,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":26,"UnitPrice":550,"LineAmount":14300
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA4NCc=\"","FiscalDocumentLineRecId":5637149084,"FiscalDocumentRecId":5637149078,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":18,"UnitPrice":750,"LineAmount":13500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTgyNic=\"","FiscalDocumentLineRecId":5637149826,"FiscalDocumentRecId":5637149826,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":10,"UnitPrice":350,"LineAmount":3500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MDU3Nic=\"","FiscalDocumentLineRecId":5637150576,"FiscalDocumentRecId":5637150576,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":110,"UnitPrice":10,"LineAmount":1100
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MDU3Nyc=\"","FiscalDocumentLineRecId":5637150577,"FiscalDocumentRecId":5637150576,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":100,"UnitPrice":12,"LineAmount":1200
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MDU3OCc=\"","FiscalDocumentLineRecId":5637150578,"FiscalDocumentRecId":5637150577,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":120,"UnitPrice":5,"LineAmount":600
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MDU3OSc=\"","FiscalDocumentLineRecId":5637150579,"FiscalDocumentRecId":5637150578,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":30,"UnitPrice":585,"LineAmount":17550
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMyNic=\"","FiscalDocumentLineRecId":5637151326,"FiscalDocumentRecId":5637151326,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":20,"UnitPrice":350,"LineAmount":7000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMyNyc=\"","FiscalDocumentLineRecId":5637151327,"FiscalDocumentRecId":5637151326,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":18,"UnitPrice":550,"LineAmount":9900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMyOCc=\"","FiscalDocumentLineRecId":5637151328,"FiscalDocumentRecId":5637151326,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":15,"UnitPrice":750,"LineAmount":11250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMyOSc=\"","FiscalDocumentLineRecId":5637151329,"FiscalDocumentRecId":5637151327,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":17,"UnitPrice":350,"LineAmount":5950
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMzMCc=\"","FiscalDocumentLineRecId":5637151330,"FiscalDocumentRecId":5637151327,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":4,"UnitPrice":550,"LineAmount":2200
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMzMSc=\"","FiscalDocumentLineRecId":5637151331,"FiscalDocumentRecId":5637151327,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":8,"UnitPrice":750,"LineAmount":6000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMzMic=\"","FiscalDocumentLineRecId":5637151332,"FiscalDocumentRecId":5637151328,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":14,"UnitPrice":350,"LineAmount":4900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMzMyc=\"","FiscalDocumentLineRecId":5637151333,"FiscalDocumentRecId":5637151328,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":10,"UnitPrice":550,"LineAmount":5500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMzNCc=\"","FiscalDocumentLineRecId":5637151334,"FiscalDocumentRecId":5637151328,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":14,"UnitPrice":750,"LineAmount":10500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MTMzNSc=\"","FiscalDocumentLineRecId":5637151335,"FiscalDocumentRecId":5637151329,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":85,"UnitPrice":350,"LineAmount":29750
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjA3Nic=\"","FiscalDocumentLineRecId":5637152076,"FiscalDocumentRecId":5637152076,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":100,"UnitPrice":10,"LineAmount":1000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjA3Nyc=\"","FiscalDocumentLineRecId":5637152077,"FiscalDocumentRecId":5637152076,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":90,"UnitPrice":12,"LineAmount":1080
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjA3OCc=\"","FiscalDocumentLineRecId":5637152078,"FiscalDocumentRecId":5637152077,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":110,"UnitPrice":5,"LineAmount":550
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjA3OSc=\"","FiscalDocumentLineRecId":5637152079,"FiscalDocumentRecId":5637152078,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":50,"UnitPrice":585,"LineAmount":29250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjA4MCc=\"","FiscalDocumentLineRecId":5637152080,"FiscalDocumentRecId":5637152079,"LineNum":1,"ItemId":"BRMF910","Description":"Servi\u00e7o de manuten\u00e7\u00e3o predial","FiscalClassification":"","CFOP":"","Quantity":120,"UnitPrice":150,"LineAmount":18000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgyNic=\"","FiscalDocumentLineRecId":5637152826,"FiscalDocumentRecId":5637152826,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":350,"UnitPrice":10,"LineAmount":3500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgyNyc=\"","FiscalDocumentLineRecId":5637152827,"FiscalDocumentRecId":5637152826,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":350,"UnitPrice":12,"LineAmount":4200
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgyOCc=\"","FiscalDocumentLineRecId":5637152828,"FiscalDocumentRecId":5637152827,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":150,"UnitPrice":5,"LineAmount":750
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgyOSc=\"","FiscalDocumentLineRecId":5637152829,"FiscalDocumentRecId":5637152828,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":100,"UnitPrice":585,"LineAmount":58500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzMCc=\"","FiscalDocumentLineRecId":5637152830,"FiscalDocumentRecId":5637152829,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":20,"UnitPrice":240.55,"LineAmount":4811
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzMSc=\"","FiscalDocumentLineRecId":5637152831,"FiscalDocumentRecId":5637152829,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":20,"UnitPrice":234.56,"LineAmount":4691.2
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzMic=\"","FiscalDocumentLineRecId":5637152832,"FiscalDocumentRecId":5637152830,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":20,"UnitPrice":240.55,"LineAmount":4811
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzMyc=\"","FiscalDocumentLineRecId":5637152833,"FiscalDocumentRecId":5637152830,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":20,"UnitPrice":234.56,"LineAmount":4691.2
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzNCc=\"","FiscalDocumentLineRecId":5637152834,"FiscalDocumentRecId":5637152831,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.152","Quantity":20,"UnitPrice":698.51,"LineAmount":13970.2
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzNSc=\"","FiscalDocumentLineRecId":5637152835,"FiscalDocumentRecId":5637152832,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":20,"UnitPrice":698.51,"LineAmount":13970.2
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzNic=\"","FiscalDocumentLineRecId":5637152836,"FiscalDocumentRecId":5637152833,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":22,"UnitPrice":350,"LineAmount":7700
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzNyc=\"","FiscalDocumentLineRecId":5637152837,"FiscalDocumentRecId":5637152833,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":17,"UnitPrice":550,"LineAmount":9350
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzOCc=\"","FiscalDocumentLineRecId":5637152838,"FiscalDocumentRecId":5637152833,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":9,"UnitPrice":750,"LineAmount":6750
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MjgzOSc=\"","FiscalDocumentLineRecId":5637152839,"FiscalDocumentRecId":5637152834,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":15,"UnitPrice":350,"LineAmount":5250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1Mjg0MCc=\"","FiscalDocumentLineRecId":5637152840,"FiscalDocumentRecId":5637152834,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":19,"UnitPrice":550,"LineAmount":10450
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1Mjg0MSc=\"","FiscalDocumentLineRecId":5637152841,"FiscalDocumentRecId":5637152834,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":12,"UnitPrice":750,"LineAmount":9000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1Mjg0Mic=\"","FiscalDocumentLineRecId":5637152842,"FiscalDocumentRecId":5637152835,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":24,"UnitPrice":350,"LineAmount":8400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1Mjg0Myc=\"","FiscalDocumentLineRecId":5637152843,"FiscalDocumentRecId":5637152835,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":18,"UnitPrice":550,"LineAmount":9900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1Mjg0NCc=\"","FiscalDocumentLineRecId":5637152844,"FiscalDocumentRecId":5637152835,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":14,"UnitPrice":750,"LineAmount":10500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU3Nic=\"","FiscalDocumentLineRecId":5637153576,"FiscalDocumentRecId":5637153576,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":15,"UnitPrice":350,"LineAmount":5250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU3Nyc=\"","FiscalDocumentLineRecId":5637153577,"FiscalDocumentRecId":5637153576,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":28,"UnitPrice":550,"LineAmount":15400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU3OCc=\"","FiscalDocumentLineRecId":5637153578,"FiscalDocumentRecId":5637153576,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":40,"UnitPrice":750,"LineAmount":30000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU3OSc=\"","FiscalDocumentLineRecId":5637153579,"FiscalDocumentRecId":5637153577,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":14,"UnitPrice":350,"LineAmount":4900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4MCc=\"","FiscalDocumentLineRecId":5637153580,"FiscalDocumentRecId":5637153577,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":19,"UnitPrice":550,"LineAmount":10450
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4MSc=\"","FiscalDocumentLineRecId":5637153581,"FiscalDocumentRecId":5637153577,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":32,"UnitPrice":750,"LineAmount":24000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4Mic=\"","FiscalDocumentLineRecId":5637153582,"FiscalDocumentRecId":5637153578,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":10,"UnitPrice":350,"LineAmount":3500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4Myc=\"","FiscalDocumentLineRecId":5637153583,"FiscalDocumentRecId":5637153578,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":10,"UnitPrice":550,"LineAmount":5500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4NCc=\"","FiscalDocumentLineRecId":5637153584,"FiscalDocumentRecId":5637153578,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":5,"UnitPrice":750,"LineAmount":3750
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4NSc=\"","FiscalDocumentLineRecId":5637153585,"FiscalDocumentRecId":5637153579,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":450,"UnitPrice":10,"LineAmount":4500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4Nic=\"","FiscalDocumentLineRecId":5637153586,"FiscalDocumentRecId":5637153579,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":450,"UnitPrice":12,"LineAmount":5400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4Nyc=\"","FiscalDocumentLineRecId":5637153587,"FiscalDocumentRecId":5637153580,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":250,"UnitPrice":5,"LineAmount":1250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1MzU4OCc=\"","FiscalDocumentLineRecId":5637153588,"FiscalDocumentRecId":5637153581,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":100,"UnitPrice":585,"LineAmount":58500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMyNic=\"","FiscalDocumentLineRecId":5637154326,"FiscalDocumentRecId":5637154326,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":12,"UnitPrice":350,"LineAmount":4200
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMyNyc=\"","FiscalDocumentLineRecId":5637154327,"FiscalDocumentRecId":5637154326,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":21,"UnitPrice":550,"LineAmount":11550
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMyOCc=\"","FiscalDocumentLineRecId":5637154328,"FiscalDocumentRecId":5637154326,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":15,"UnitPrice":750,"LineAmount":11250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMyOSc=\"","FiscalDocumentLineRecId":5637154329,"FiscalDocumentRecId":5637154327,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":14,"UnitPrice":350,"LineAmount":4900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzMCc=\"","FiscalDocumentLineRecId":5637154330,"FiscalDocumentRecId":5637154327,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":19,"UnitPrice":550,"LineAmount":10450
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzMSc=\"","FiscalDocumentLineRecId":5637154331,"FiscalDocumentRecId":5637154327,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":32,"UnitPrice":750,"LineAmount":24000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzMic=\"","FiscalDocumentLineRecId":5637154332,"FiscalDocumentRecId":5637154328,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":110,"UnitPrice":350,"LineAmount":38500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzMyc=\"","FiscalDocumentLineRecId":5637154333,"FiscalDocumentRecId":5637154329,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":450,"UnitPrice":10,"LineAmount":4500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzNCc=\"","FiscalDocumentLineRecId":5637154334,"FiscalDocumentRecId":5637154329,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":450,"UnitPrice":12,"LineAmount":5400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzNSc=\"","FiscalDocumentLineRecId":5637154335,"FiscalDocumentRecId":5637154330,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":250,"UnitPrice":5,"LineAmount":1250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzNic=\"","FiscalDocumentLineRecId":5637154336,"FiscalDocumentRecId":5637154331,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":480,"UnitPrice":10,"LineAmount":4800
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzNyc=\"","FiscalDocumentLineRecId":5637154337,"FiscalDocumentRecId":5637154331,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":450,"UnitPrice":12,"LineAmount":5400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzOCc=\"","FiscalDocumentLineRecId":5637154338,"FiscalDocumentRecId":5637154332,"LineNum":1,"ItemId":"BRMF070","Description":"Corpo caixa ac\u00fastica","FiscalClassification":"8518.22.00","CFOP":"1.101","Quantity":360,"UnitPrice":5,"LineAmount":1800
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDMzOSc=\"","FiscalDocumentLineRecId":5637154339,"FiscalDocumentRecId":5637154333,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":12,"UnitPrice":350,"LineAmount":4200
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDM0MCc=\"","FiscalDocumentLineRecId":5637154340,"FiscalDocumentRecId":5637154333,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":21,"UnitPrice":550,"LineAmount":11550
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDM0MSc=\"","FiscalDocumentLineRecId":5637154341,"FiscalDocumentRecId":5637154333,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":15,"UnitPrice":750,"LineAmount":11250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDM0Mic=\"","FiscalDocumentLineRecId":5637154342,"FiscalDocumentRecId":5637154334,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":14,"UnitPrice":350,"LineAmount":4900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDM0Myc=\"","FiscalDocumentLineRecId":5637154343,"FiscalDocumentRecId":5637154334,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":8,"UnitPrice":550,"LineAmount":4400
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NDM0NCc=\"","FiscalDocumentLineRecId":5637154344,"FiscalDocumentRecId":5637154334,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":11,"UnitPrice":750,"LineAmount":8250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA3Nic=\"","FiscalDocumentLineRecId":5637155076,"FiscalDocumentRecId":5637155076,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":60,"UnitPrice":231.8,"LineAmount":13908
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA3Nyc=\"","FiscalDocumentLineRecId":5637155077,"FiscalDocumentRecId":5637155076,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":50,"UnitPrice":222.65,"LineAmount":11132.5
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA3OCc=\"","FiscalDocumentLineRecId":5637155078,"FiscalDocumentRecId":5637155077,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":60,"UnitPrice":231.8,"LineAmount":13908
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA3OSc=\"","FiscalDocumentLineRecId":5637155079,"FiscalDocumentRecId":5637155077,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":50,"UnitPrice":222.65,"LineAmount":11132.5
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4MCc=\"","FiscalDocumentLineRecId":5637155080,"FiscalDocumentRecId":5637155078,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.152","Quantity":55,"UnitPrice":699.48,"LineAmount":38471.4
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4MSc=\"","FiscalDocumentLineRecId":5637155081,"FiscalDocumentRecId":5637155079,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":55,"UnitPrice":699.48,"LineAmount":38471.4
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4Mic=\"","FiscalDocumentLineRecId":5637155082,"FiscalDocumentRecId":5637155080,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":14,"UnitPrice":350,"LineAmount":4900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4Myc=\"","FiscalDocumentLineRecId":5637155083,"FiscalDocumentRecId":5637155080,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":18,"UnitPrice":550,"LineAmount":9900
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4NCc=\"","FiscalDocumentLineRecId":5637155084,"FiscalDocumentRecId":5637155080,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.102","Quantity":12,"UnitPrice":750,"LineAmount":9000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4NSc=\"","FiscalDocumentLineRecId":5637155085,"FiscalDocumentRecId":5637155081,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":12,"UnitPrice":350,"LineAmount":4200
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4Nic=\"","FiscalDocumentLineRecId":5637155086,"FiscalDocumentRecId":5637155081,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":7,"UnitPrice":550,"LineAmount":3850
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4Nyc=\"","FiscalDocumentLineRecId":5637155087,"FiscalDocumentRecId":5637155081,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":8,"UnitPrice":750,"LineAmount":6000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4OCc=\"","FiscalDocumentLineRecId":5637155088,"FiscalDocumentRecId":5637155082,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":18,"UnitPrice":350,"LineAmount":6300
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA4OSc=\"","FiscalDocumentLineRecId":5637155089,"FiscalDocumentRecId":5637155082,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":16,"UnitPrice":550,"LineAmount":8800
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA5MCc=\"","FiscalDocumentLineRecId":5637155090,"FiscalDocumentRecId":5637155082,"LineNum":3,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":10,"UnitPrice":750,"LineAmount":7500
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTA5MSc=\"","FiscalDocumentLineRecId":5637155091,"FiscalDocumentRecId":5637155083,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":115,"UnitPrice":350,"LineAmount":40250
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgyNic=\"","FiscalDocumentLineRecId":5637155826,"FiscalDocumentRecId":5637155826,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":375,"UnitPrice":10,"LineAmount":3750
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgyNyc=\"","FiscalDocumentLineRecId":5637155827,"FiscalDocumentRecId":5637155826,"LineNum":2,"ItemId":"BRMF060","Description":"Alto-falante 10\" 200W","FiscalClassification":"8518.22.00","CFOP":"2.101","Quantity":275,"UnitPrice":12,"LineAmount":3300
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgyOCc=\"","FiscalDocumentLineRecId":5637155828,"FiscalDocumentRecId":5637155827,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":25,"UnitPrice":243.56,"LineAmount":6089
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgyOSc=\"","FiscalDocumentLineRecId":5637155829,"FiscalDocumentRecId":5637155827,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.151","Quantity":15,"UnitPrice":228.61,"LineAmount":3429.15
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgzMCc=\"","FiscalDocumentLineRecId":5637155830,"FiscalDocumentRecId":5637155828,"LineNum":1,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":25,"UnitPrice":243.56,"LineAmount":6089
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgzMSc=\"","FiscalDocumentLineRecId":5637155831,"FiscalDocumentRecId":5637155828,"LineNum":2,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"2.152","Quantity":15,"UnitPrice":228.61,"LineAmount":3429.15
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgzMic=\"","FiscalDocumentLineRecId":5637155832,"FiscalDocumentRecId":5637155829,"LineNum":1,"ItemId":"BRMF910","Description":"Servi\u00e7o de manuten\u00e7\u00e3o predial","FiscalClassification":"","CFOP":"","Quantity":100,"UnitPrice":150,"LineAmount":15000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgzMyc=\"","FiscalDocumentLineRecId":5637155833,"FiscalDocumentRecId":5637155830,"LineNum":1,"ItemId":"BRMF910","Description":"Servi\u00e7o de manuten\u00e7\u00e3o predial","FiscalClassification":"","CFOP":"","Quantity":100,"UnitPrice":150,"LineAmount":15000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgzNCc=\"","FiscalDocumentLineRecId":5637155834,"FiscalDocumentRecId":5637155831,"LineNum":1,"ItemId":"BRMF040","Description":"test","FiscalClassification":"","CFOP":"","Quantity":1200,"UnitPrice":100,"LineAmount":120000
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE1NjU4Mic=\"","FiscalDocumentLineRecId":5637156582,"FiscalDocumentRecId":5637156579,"LineNum":1,"ItemId":"BRMF810","Description":"Material de limpeza","FiscalClassification":"0000.00.00","CFOP":"1.556","Quantity":1,"UnitPrice":1000,"LineAmount":1000
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODMn\"","FiscalDocumentLineRecId":35637156583,"FiscalDocumentRecId":35637156580,"LineNum":1,"ItemId":"BRMF050","Description":"Alto-falante 8\" 100W","FiscalClassification":"8518.22.00","CFOP":"2.102","Quantity":5,"UnitPrice":10,"LineAmount":50
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODQn\"","FiscalDocumentLineRecId":35637156584,"FiscalDocumentRecId":35637156581,"LineNum":1,"ItemId":"BRMF710","Description":"Ativo - parafusadeiras e rosqueiras","FiscalClassification":"8467.29.92","CFOP":"1.556","Quantity":100,"UnitPrice":5,"LineAmount":500
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODUn\"","FiscalDocumentLineRecId":35637156585,"FiscalDocumentRecId":35637156581,"LineNum":2,"ItemId":"BRMF810","Description":"Material de limpeza","FiscalClassification":"0000.00.00","CFOP":"1.556","Quantity":100,"UnitPrice":12,"LineAmount":1200
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODYn\"","FiscalDocumentLineRecId":35637156586,"FiscalDocumentRecId":35637156582,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":10,"UnitPrice":350,"LineAmount":3500
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODcn\"","FiscalDocumentLineRecId":35637156587,"FiscalDocumentRecId":35637156582,"LineNum":2,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":3,"UnitPrice":750,"LineAmount":2250
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODgn\"","FiscalDocumentLineRecId":35637156588,"FiscalDocumentRecId":35637156582,"LineNum":3,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":10,"UnitPrice":550,"LineAmount":5500
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODkn\"","FiscalDocumentLineRecId":35637156589,"FiscalDocumentRecId":35637156583,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":16,"UnitPrice":350,"LineAmount":5600
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTAn\"","FiscalDocumentLineRecId":35637156590,"FiscalDocumentRecId":35637156583,"LineNum":2,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"5.101","Quantity":15,"UnitPrice":550,"LineAmount":8250
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTEn\"","FiscalDocumentLineRecId":35637156591,"FiscalDocumentRecId":35637156584,"LineNum":1,"ItemId":"BRMF710","Description":"Venda de ativo","FiscalClassification":"8467.29.92","CFOP":"5.551","Quantity":1,"UnitPrice":5000,"LineAmount":5000
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTIn\"","FiscalDocumentLineRecId":35637156592,"FiscalDocumentRecId":35637156585,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":10,"UnitPrice":585,"LineAmount":5850
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTMn\"","FiscalDocumentLineRecId":35637156593,"FiscalDocumentRecId":35637156586,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":10,"UnitPrice":585,"LineAmount":5850
+    },{
+      "@odata.etag":"W/\"JzEsNjg3MTk0Nzc2MTgn\"","FiscalDocumentLineRecId":68719477618,"FiscalDocumentRecId":68719477216,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":1,"UnitPrice":300,"LineAmount":300
+    },{
+      "@odata.etag":"W/\"JzEsNjg3MTk0NzgzNjgn\"","FiscalDocumentLineRecId":68719478368,"FiscalDocumentRecId":68719477966,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":1,"UnitPrice":300,"LineAmount":300
+    },{
+      "@odata.etag":"W/\"JzEsNjg3MTk0NzkxMTgn\"","FiscalDocumentLineRecId":68719479118,"FiscalDocumentRecId":68719478716,"LineNum":1,"ItemId":"BRMF040","Description":"Servi\u00e7o de instala\u00e7\u00e3o","FiscalClassification":"","CFOP":"","Quantity":1,"UnitPrice":300,"LineAmount":300
+    }
+  ]
+}

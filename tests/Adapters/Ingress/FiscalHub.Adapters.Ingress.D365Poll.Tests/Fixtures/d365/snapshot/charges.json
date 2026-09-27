@@ -1,0 +1,33 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentMiscChargeBRs(FiscalDocumentMiscChargeRecId,FiscalDocumentLineRecId,ChargeNum,MiscChargeType,Amount,Txt,FiscalDocumentRecId)","value":[
+    {
+      "@odata.etag":"W/\"JzAsNTYzNzE0NDU3Nic=\"","FiscalDocumentMiscChargeRecId":5637144576,"FiscalDocumentLineRecId":5637144579,"ChargeNum":1,"MiscChargeType":"Others","Amount":3046.01,"Txt":"","FiscalDocumentRecId":5637144578
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMyNic=\"","FiscalDocumentMiscChargeRecId":5637145326,"FiscalDocumentLineRecId":5637145326,"ChargeNum":1,"MiscChargeType":"Others","Amount":1253.03,"Txt":"","FiscalDocumentRecId":5637145326
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMyNyc=\"","FiscalDocumentMiscChargeRecId":5637145327,"FiscalDocumentLineRecId":5637145327,"ChargeNum":1,"MiscChargeType":"Others","Amount":1211.81,"Txt":"","FiscalDocumentRecId":5637145326
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NTMyOCc=\"","FiscalDocumentMiscChargeRecId":5637145328,"FiscalDocumentLineRecId":5637145330,"ChargeNum":1,"MiscChargeType":"Others","Amount":2552.73,"Txt":"","FiscalDocumentRecId":5637145328
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjA3Nic=\"","FiscalDocumentMiscChargeRecId":5637146076,"FiscalDocumentLineRecId":5637147579,"ChargeNum":1,"MiscChargeType":"Others","Amount":3046.01,"Txt":"","FiscalDocumentRecId":5637147578
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjgyNic=\"","FiscalDocumentMiscChargeRecId":5637146826,"FiscalDocumentLineRecId":5637148326,"ChargeNum":1,"MiscChargeType":"Others","Amount":1357.02,"Txt":"","FiscalDocumentRecId":5637148326
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjgyNyc=\"","FiscalDocumentMiscChargeRecId":5637146827,"FiscalDocumentLineRecId":5637148327,"ChargeNum":1,"MiscChargeType":"Others","Amount":1289.52,"Txt":"","FiscalDocumentRecId":5637148326
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NjgyOCc=\"","FiscalDocumentMiscChargeRecId":5637146828,"FiscalDocumentLineRecId":5637148330,"ChargeNum":1,"MiscChargeType":"Others","Amount":2727,"Txt":"","FiscalDocumentRecId":5637148328
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0NzU3Nic=\"","FiscalDocumentMiscChargeRecId":5637147576,"FiscalDocumentLineRecId":5637150579,"ChargeNum":1,"MiscChargeType":"Others","Amount":1827.61,"Txt":"","FiscalDocumentRecId":5637150578
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0ODMyNic=\"","FiscalDocumentMiscChargeRecId":5637148326,"FiscalDocumentLineRecId":5637152079,"ChargeNum":1,"MiscChargeType":"Others","Amount":3046.01,"Txt":"","FiscalDocumentRecId":5637152078
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTA3Nic=\"","FiscalDocumentMiscChargeRecId":5637149076,"FiscalDocumentLineRecId":5637152829,"ChargeNum":1,"MiscChargeType":"Others","Amount":6092.03,"Txt":"","FiscalDocumentRecId":5637152828
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzE0OTgyNic=\"","FiscalDocumentMiscChargeRecId":5637149826,"FiscalDocumentLineRecId":5637153588,"ChargeNum":1,"MiscChargeType":"Others","Amount":6092.03,"Txt":"","FiscalDocumentRecId":5637153581
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNDk4Mjcn\"","FiscalDocumentMiscChargeRecId":35637149827,"FiscalDocumentLineRecId":35637156592,"ChargeNum":1,"MiscChargeType":"Others","Amount":416.25,"Txt":"","FiscalDocumentRecId":35637156585
+    },{
+      "@odata.etag":"W/\"JzAsMzU2MzcxNDk4Mjgn\"","FiscalDocumentMiscChargeRecId":35637149828,"FiscalDocumentLineRecId":35637156593,"ChargeNum":1,"MiscChargeType":"Others","Amount":416.25,"Txt":"","FiscalDocumentRecId":35637156586
+    }
+  ]
+}

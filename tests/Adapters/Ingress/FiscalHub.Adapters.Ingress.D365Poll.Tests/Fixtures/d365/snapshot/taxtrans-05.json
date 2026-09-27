@@ -1,0 +1,35 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSTaxTransBRs(TaxTransRecId,Voucher,TaxType,TaxBaseAmount,TaxValue,TaxAmount)","value":[
+    {
+      "@odata.etag":"W/\"JzAsNTYzNzQ1MTUxMCc=\"","TaxTransRecId":5637451510,"Voucher":"BRMF28-14018","TaxType":"COFINS","TaxBaseAmount":0,"TaxValue":7.6,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1MTUxMSc=\"","TaxTransRecId":5637451511,"Voucher":"BRMF28-14018","TaxType":"ICMS","TaxBaseAmount":38471.4,"TaxValue":7,"TaxAmount":2693
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1MTUxMic=\"","TaxTransRecId":5637451512,"Voucher":"BRMF28-14018","TaxType":"PIS","TaxBaseAmount":0,"TaxValue":1.65,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMxOSc=\"","TaxTransRecId":5637455319,"Voucher":"BRMF28-14020","TaxType":"COFINS","TaxBaseAmount":0,"TaxValue":7.6,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyMCc=\"","TaxTransRecId":5637455320,"Voucher":"BRMF28-14020","TaxType":"ICMS","TaxBaseAmount":-6089,"TaxValue":7,"TaxAmount":-426.23
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyMSc=\"","TaxTransRecId":5637455321,"Voucher":"BRMF28-14020","TaxType":"PIS","TaxBaseAmount":0,"TaxValue":1.65,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyMic=\"","TaxTransRecId":5637455322,"Voucher":"BRMF28-14020","TaxType":"COFINS","TaxBaseAmount":0,"TaxValue":7.6,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyMyc=\"","TaxTransRecId":5637455323,"Voucher":"BRMF28-14020","TaxType":"ICMS","TaxBaseAmount":-3429.15,"TaxValue":7,"TaxAmount":-240.04
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyNCc=\"","TaxTransRecId":5637455324,"Voucher":"BRMF28-14020","TaxType":"PIS","TaxBaseAmount":0,"TaxValue":1.65,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyNSc=\"","TaxTransRecId":5637455325,"Voucher":"BRMF28-14021","TaxType":"COFINS","TaxBaseAmount":0,"TaxValue":7.6,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyNic=\"","TaxTransRecId":5637455326,"Voucher":"BRMF28-14021","TaxType":"ICMS","TaxBaseAmount":6089,"TaxValue":7,"TaxAmount":426.23
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyNyc=\"","TaxTransRecId":5637455327,"Voucher":"BRMF28-14021","TaxType":"PIS","TaxBaseAmount":0,"TaxValue":1.65,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyOCc=\"","TaxTransRecId":5637455328,"Voucher":"BRMF28-14021","TaxType":"COFINS","TaxBaseAmount":0,"TaxValue":7.6,"TaxAmount":0
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMyOSc=\"","TaxTransRecId":5637455329,"Voucher":"BRMF28-14021","TaxType":"ICMS","TaxBaseAmount":3429.15,"TaxValue":7,"TaxAmount":240.04
+    },{
+      "@odata.etag":"W/\"JzAsNTYzNzQ1NTMzMCc=\"","TaxTransRecId":5637455330,"Voucher":"BRMF28-14021","TaxType":"PIS","TaxBaseAmount":0,"TaxValue":1.65,"TaxAmount":0
+    }
+  ]
+}
