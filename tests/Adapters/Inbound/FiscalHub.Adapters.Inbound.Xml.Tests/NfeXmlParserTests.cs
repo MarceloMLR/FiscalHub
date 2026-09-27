@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using FiscalHub.Adapters.Inbound.Xml;
 using FiscalHub.Domain.Goods;
 
@@ -29,7 +30,7 @@ public class NfeXmlParserTests
         Assert.Equal("12345678", item.Ncm);
 
         // bloco da reforma (Grupo UB)
-        var reform = item.ReformTaxes!;   // o XML da NF-e com Reforma sempre traz o grupo (o parser exige)
+        var reform = item.ReformTaxes!;   // esta fixture traz o grupo; sem ele, o item sai com o grupo ausente
         Assert.Equal("000", reform.Cst);
         Assert.Equal("000001", reform.ClassTrib);
         Assert.Equal(100.00m, reform.TaxBase);
@@ -46,5 +47,39 @@ public class NfeXmlParserTests
         string xml = LoadFixture("nfe-sem-cfop.xml");
 
         Assert.Throws<NfeParseException>(() => parser.Parse(xml));
+    }
+
+    [Fact]
+    public void Nfe_without_the_reform_group_is_read_with_the_group_absent()
+    {
+        // Nota anterior à Reforma: o grupo não é julgado na leitura; fica ausente, e não zerado (ADR-0026).
+        string xml = WithoutElement(LoadFixture("nfe-com-reforma.xml"), "IBSCBS");
+
+        GoodsInvoice invoice = new NfeXmlParser().Parse(xml);
+
+        GoodsInvoiceItem item = Assert.Single(invoice.Items);
+        Assert.Null(item.ReformTaxes);
+        Assert.Equal("5102", item.Cfop);
+    }
+
+    [Fact]
+    public void Reform_group_without_its_inner_group_is_still_a_read_failure()
+    {
+        // IBSCBS presente e incompleto é estrutura quebrada do documento de origem, não conteúdo fiscal.
+        string xml = WithoutElement(LoadFixture("nfe-com-reforma.xml"), "gIBSCBS");
+
+        NfeParseException ex = Assert.Throws<NfeParseException>(() => new NfeXmlParser().Parse(xml));
+        Assert.Contains("gIBSCBS", ex.Message);
+    }
+
+    private static string WithoutElement(string xml, string localName)
+    {
+        XDocument doc = XDocument.Parse(xml);
+        foreach (XElement el in doc.Descendants().Where(e => e.Name.LocalName == localName).ToList())
+        {
+            el.Remove();
+        }
+
+        return doc.ToString(SaveOptions.DisableFormatting);
     }
 }

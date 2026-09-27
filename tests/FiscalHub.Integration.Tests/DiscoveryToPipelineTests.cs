@@ -28,7 +28,7 @@ public class DiscoveryToPipelineTests
     private const string XmlAccessKey = "35260612345678000190550010000001231000000123";
 
     [Fact]
-    public async Task Discovered_goods_invoice_reaches_the_pipeline_assembled_and_is_rejected_for_the_missing_reform_group()
+    public async Task Discovered_goods_invoice_reaches_the_dispatcher_assembled_even_without_the_reform_group()
     {
         var h = new Harness();
         h.ServeOutgoingNote(withReferenceData: true);
@@ -41,10 +41,11 @@ public class DiscoveryToPipelineTests
         Assert.Equal(3, items.GetArrayLength());
         Assert.Equal(4, items[0].GetProperty("taxes").GetArrayLength());
 
-        // Desfecho real da base: nota de 2016, sem IBS/CBS → rejeitada na validação, nada enviado.
-        Assert.Equal("Rejected", h.Store.Rows[OutgoingKey].Status);
-        Assert.Contains("Item 1: tributos da Reforma (IBS/CBS) ausentes.", h.Store.Rows[OutgoingKey].Reason);
-        Assert.Empty(h.Dispatcher.Submitted);
+        // Nota de 2016, sem IBS/CBS: o hub não julga conteúdo fiscal (ADR-0026) — ela segue para o envio, e a
+        // plataforma responde.
+        Assert.Equal("Submitted", h.Store.Rows[OutgoingKey].Status);
+        GoodsInvoice sent = Assert.Single(h.Dispatcher.Submitted);
+        Assert.All(sent.Items, item => Assert.Null(item.ReformTaxes));
     }
 
     [Fact]
@@ -69,10 +70,11 @@ public class DiscoveryToPipelineTests
         await h.DeliverAsync(D365Reference(origin: "Dynamics365"));      // pela documents-discovered, do feed
 
         Assert.Equal(["nfe/nfe-exemplo.xml"], h.Blob.Locators);         // o XML só foi ao Blob
-        Assert.Equal(XmlAccessKey, h.Dispatcher.Submitted.Single().AccessKey);   // e, válido, foi enviado
+        Assert.Equal(2, h.Dispatcher.Submitted.Count);                   // os dois seguem para o envio (ADR-0026)
+        Assert.Contains(h.Dispatcher.Submitted, d => d.AccessKey == XmlAccessKey);
         Assert.Equal(8, h.Http.Requests.Count);                          // o D365 só foi ao F&O
         Assert.All(h.Http.Requests, r => Assert.StartsWith("https://fiscosysdev.operations.dynamics.com/data/", r.RequestUri!.ToString()));
-        Assert.Equal("Rejected", h.Store.Rows[OutgoingKey].Status);
+        Assert.Equal("Submitted", h.Store.Rows[OutgoingKey].Status);
     }
 
     [Fact]
@@ -85,7 +87,7 @@ public class DiscoveryToPipelineTests
 
         Assert.NotEmpty(h.Http.Requests);
         Assert.Empty(h.Blob.Locators);
-        Assert.Equal("Rejected", h.Store.Rows[OutgoingKey].Status);
+        Assert.Equal("Submitted", h.Store.Rows[OutgoingKey].Status);
     }
 
     [Fact]
@@ -98,8 +100,11 @@ public class DiscoveryToPipelineTests
         await h.DeliverAsync(D365Reference(origin: "Dynamics365"));
         await h.DeliverAsync(D365Reference(origin: "Dynamics365"));
 
-        Assert.Equal(2, h.Store.Hashes[OutgoingKey].Count);
-        Assert.Equal(h.Store.Hashes[OutgoingKey][0], h.Store.Hashes[OutgoingKey][1]);
+        // A segunda montagem buscou de novo e deu a mesma impressão: a idempotência por conteúdo a descartou antes
+        // de gravar e de reenviar (ADR-0016).
+        Assert.Equal(8, h.Http.Requests.Count(r => r.RequestUri!.AbsolutePath.StartsWith("/data/FSFiscalDocument", StringComparison.Ordinal)));
+        Assert.Single(h.Store.Hashes[OutgoingKey]);
+        Assert.Single(h.Dispatcher.Submitted);
     }
 
     // ---------- apoio ----------
