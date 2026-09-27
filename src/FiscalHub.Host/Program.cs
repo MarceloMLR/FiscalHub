@@ -78,7 +78,8 @@ builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddKeyVaultSecretStore(cfg.GetSection("SecretStore").Get<KeyVaultSecretStoreSettings>() ?? new KeyVaultSecretStoreSettings());
 // Perfil de conector pela tela: o segredo vai para o cofre, o perfil guarda só a referência, e a leitura nunca o devolve.
 builder.Services.AddScoped<ConnectorProfileService>();
-builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg["Avalara:BaseUrl"]!);
+// Autenticado por padrão: URL e credencial vêm da seção do ambiente ativo do tenant, e o segredo, do cofre (ADR-0027).
+builder.Services.AddAvalaraComplianceDispatcher();
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddScoped<DocumentTraceQuery>();   // fotos de um documento, só para o tenant de quem está logado (ADR-0028)
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();

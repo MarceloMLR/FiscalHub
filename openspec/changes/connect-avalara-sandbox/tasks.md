@@ -198,7 +198,7 @@ Manual e sem código.
 
 ## 8. Credencial e URLs pela seção do ambiente (D2)
 
-- [ ] 8.1 Testes primeiro (`AvalaraOutboundSettingsTests`):
+- [x] 8.1 Testes primeiro (`AvalaraOutboundSettingsTests`):
   - a credencial e as URLs da seção ativa;
   - `tokenUrl` ausente = `baseUrl` + `TokenPath`;
   - faltam `baseUrl`, `clientId` ou o Client Secret: rejeição nomeando o campo e apontando para a tela;
@@ -206,26 +206,26 @@ Manual e sem código.
   - campo de escrita com valor na seção persistida é recusado, e o motivo não traz o valor;
   - referência malformada ou fora do prefixo do tenant é recusada sem ler o cofre;
   - `clientTokenRef` é ignorado
-- [ ] 8.2 Estender o `AvalaraOutboundSettings`:
+- [x] 8.2 Estender o `AvalaraOutboundSettings`:
   - credencial, `BaseUri` obrigatória e endpoint de token;
   - a regra `https`/loopback;
   - a recusa do valor cru persistido e da referência fora do prefixo (D5)
-- [ ] 8.3 `AvalaraOptions` sem `ClientId`, `ClientSecret` e `BaseUrl`. Tirar o `ResolveBaseAddress` e o
+- [x] 8.3 `AvalaraOptions` sem `ClientId`, `ClientSecret` e `BaseUrl`. Tirar o `ResolveBaseAddress` e o
   fallback do `BaseOf`. Os clientes HTTP ficam sem `BaseAddress`, com URIs absolutas. O `DocumentsPath` continua
   opção do adapter, e o valor real é conferido no teste manual (15.3)
-- [ ] 8.4 `appsettings.json` sem `Avalara:BaseUrl`, e o `Program.cs` sem o `options.BaseUrl`
-- [ ] 8.5 Seed de dev:
+- [x] 8.4 `appsettings.json` sem `Avalara:BaseUrl`, e o `Program.cs` sem o `options.BaseUrl`
+- [x] 8.5 Seed de dev:
   - as seções com `clientId` e as referências no formato `fh-{tenant}--…`, sem `clientTokenRef`;
   - o sandbox do tenant-a apontando para o mock, com `clientId: "mock-client"`;
   - nenhum valor de segredo, nem de mentira
-- [ ] 8.6 Dashboard (`adapterSchemas.ts`): o Avalara com `baseUrl`, `tokenUrl`, `clientId` e `clientSecret` (campo
+- [x] 8.6 Dashboard (`adapterSchemas.ts`): o Avalara com `baseUrl`, `tokenUrl`, `clientId` e `clientSecret` (campo
   de escrita), sem `clientTokenRef`
-- [ ] 8.7 Ajustar os testes do dispatcher e o ponta a ponta ao perfil com credencial. `dotnet build` com
+- [x] 8.7 Ajustar os testes do dispatcher e o ponta a ponta ao perfil com credencial. `dotnet build` com
   0 warnings e `dotnet test` verde
 
 ## 9. Provider de token por credencial (D1, D6, D7)
 
-- [ ] 9.1 Testes primeiro (`AvalaraTokenProviderTests`, adaptados):
+- [x] 9.1 Testes primeiro (`AvalaraTokenProviderTests`, adaptados):
   - reuso;
   - renovação dentro da margem;
   - concorrência com uma única busca;
@@ -236,7 +236,7 @@ Manual e sem código.
   - `Invalidate`;
   - `IsFresh` verdadeiro só na busca;
   - o pedido de token vai com `client_secret` no corpo do formulário, a premissa assumida (D13)
-- [ ] 9.2 Testes primeiro das falhas do endpoint de token:
+- [x] 9.2 Testes primeiro das falhas do endpoint de token:
   - 400 e 401 viram `DispatchRejectedException` com tenant, ambiente e código do erro;
   - 5xx e 429 viram exceção transitória;
   - 2xx sem token vira rejeição;
@@ -244,34 +244,34 @@ Manual e sem código.
   - uma credencial nova não herda a recusa;
   - o intervalo vence e a recusa se desfaz;
   - o segredo ausente, o vazio e o que o cofre não tem dão rejeição que aponta para a tela, e zero pedidos
-- [ ] 9.3 Testes primeiro do `Forget(tenantId)`:
+- [x] 9.3 Testes primeiro do `Forget(tenantId)`:
   - depois de uma recusa, o `Forget("tenant-a")` faz a chamada seguinte pedir token na hora, dentro do
     intervalo e com a mesma credencial;
   - os tokens do tenant-a em cache também são esquecidos;
   - a recusa e os tokens do tenant-b continuam
-- [ ] 9.4 Refazer o `IAvalaraTokenProvider` e o `AvalaraTokenProvider`:
+- [x] 9.4 Refazer o `IAvalaraTokenProvider` e o `AvalaraTokenProvider`:
   - a assinatura por `AvalaraOutboundSettings`;
   - `AvalaraAccessToken` (`Value`, `IsFresh`, chave);
   - a chave com a impressão SHA-256 do segredo;
   - `CredentialRefusalHold` em `AvalaraOptions`;
   - `Forget`;
   - o no-op devolvendo "sem token" explícito
-- [ ] 9.5 Observador do adapter: um `IConnectorProfileObserver` que chama `Forget(tenantId)`, registrado em
+- [x] 9.5 Observador do adapter: um `IConnectorProfileObserver` que chama `Forget(tenantId)`, registrado em
   `AddAvalaraComplianceDispatcher`. Um teste de DI prova que o `ConnectorProfileService` composto com o
   adapter chega ao `Forget`
-- [ ] 9.6 Testes: o `ToString` do `AvalaraAccessToken` e da credencial resolvida não contém o valor
-- [ ] 9.7 DI:
+- [x] 9.6 Testes: o `ToString` do `AvalaraAccessToken` e da credencial resolvida não contém o valor
+- [x] 9.7 DI:
   - o provider real passa a ser o padrão em `AddAvalaraComplianceDispatcher`;
   - `UseAvalaraWithoutAuthentication()` troca pelo no-op e loga um aviso;
   - o `AddAvalaraTokenProvider()` sai;
   - `RedactLoggedHeaders(_ => true)` nos dois clientes.
 
   Com um teste de DI para o padrão e para o pedido explícito
-- [ ] 9.8 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 9.8 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 10. Dispatcher: autenticação e desfecho (D7, delta de `compliance-dispatch-outcome`)
 
-- [ ] 10.1 Testes primeiro (`AvalaraComplianceDispatcherTests`):
+- [x] 10.1 Testes primeiro (`AvalaraComplianceDispatcherTests`):
   - o `Authorization` de cada envio é o do tenant;
   - o segredo ausente não faz nenhuma requisição;
   - o 403 vira rejeição de configuração com o motivo da plataforma, com um único POST;
@@ -280,11 +280,11 @@ Manual e sem código.
   - o 401 na consulta invalida;
   - o 2xx sem identificador (corpo vazio, não JSON, JSON sem `id`) vira rejeição "pode ter sido aceito", com
     um único POST
-- [ ] 10.2 Implementar no `AvalaraComplianceDispatcher`:
+- [x] 10.2 Implementar no `AvalaraComplianceDispatcher`:
   - o token com `IsFresh`;
   - a classificação do D7;
   - o corpo lido uma vez como texto
-- [ ] 10.3 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 10.3 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 11. Quarta foto, redação e a aba Resposta (D8, D9, D10)
 

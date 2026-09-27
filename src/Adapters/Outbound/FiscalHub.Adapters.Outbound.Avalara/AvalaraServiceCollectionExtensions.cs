@@ -1,8 +1,10 @@
+using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FiscalHub.Adapters.Outbound.Avalara;
@@ -13,56 +15,65 @@ public static class AvalaraServiceCollectionExtensions
     private const string TokenClientName = "avalara-token";
 
     /// <summary>
-    /// Registra o <c>IComplianceDispatcher&lt;GoodsInvoice&gt;</c> da Avalara como typed client
-    /// (<c>IHttpClientFactory</c>), com a URL base vinda de <see cref="AvalaraOptions"/>. Por padrão
-    /// não autentica; chame <see cref="AddAvalaraTokenProvider"/> para usar o token real.
+    /// Registra o <c>IComplianceDispatcher&lt;GoodsInvoice&gt;</c> da Avalara como typed client (<c>IHttpClientFactory</c>),
+    /// autenticado por padrão: o token vem da credencial do tenant no ambiente ativo, com o segredo lido do
+    /// <see cref="ISecretStore"/> (ADR-0027). Os clientes HTTP não têm URL base — toda URI é absoluta, da seção do tenant.
+    /// Salvar o perfil do tenant esquece a recusa lembrada e os tokens dele (<see cref="IConnectorProfileObserver"/>).
     /// </summary>
     public static IServiceCollection AddAvalaraComplianceDispatcher(
         this IServiceCollection services,
-        Action<AvalaraOptions> configure)
+        Action<AvalaraOptions>? configure = null)
     {
-        services.Configure(configure);
-        services.TryAddSingleton<IAvalaraTokenProvider, NoOpAvalaraTokenProvider>();
+        OptionsBuilder<AvalaraOptions> options = services.AddOptions<AvalaraOptions>();
+        if (configure is not null)
+        {
+            options.Configure(configure);
+        }
+
+        services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IProcessingTrace, NoOpProcessingTrace>();
 
-        services.AddHttpClient<IComplianceDispatcher<GoodsInvoice>, AvalaraComplianceDispatcher>(
-            (sp, client) => client.BaseAddress = ResolveBaseAddress(sp));
+        // Nenhum valor de cabeçalho no log do IHttpClientFactory, em nenhum nível: o Bearer e o que a plataforma devolver.
+        services.AddHttpClient(TokenClientName).RedactLoggedHeaders(_ => true);
+
+        // Singleton de propósito: o cache de token e a recusa lembrada precisam viver o processo.
+        services.TryAddSingleton<IAvalaraTokenProvider>(sp => new AvalaraTokenProvider(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(TokenClientName),
+            sp.GetRequiredService<ISecretStore>(),
+            sp.GetRequiredService<IOptions<AvalaraOptions>>(),
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ILogger<AvalaraTokenProvider>>()));
+        services.AddSingleton<IConnectorProfileObserver, AvalaraProfileObserver>();
+
+        services.AddHttpClient<IComplianceDispatcher<GoodsInvoice>, AvalaraComplianceDispatcher>().RedactLoggedHeaders(_ => true);
 
         return services;
     }
 
     /// <summary>
-    /// Substitui o gancho no-op pelo provedor de token real (OAuth client credentials), com cache
-    /// por tenant e renovação com margem. Sem esta chamada o dispatcher segue sem autenticação —
-    /// o que é conveniente contra o mock local, que não exige token.
+    /// Troca o token real por "sem token": as requisições saem sem autorização, e nenhuma credencial é lida. Só por pedido
+    /// explícito, para um teste contra um destino que não autentica — o host da aplicação nunca chama. Loga um aviso ao
+    /// compor.
     /// </summary>
-    public static IServiceCollection AddAvalaraTokenProvider(this IServiceCollection services)
+    public static IServiceCollection UseAvalaraWithoutAuthentication(this IServiceCollection services)
     {
-        services.TryAddSingleton(TimeProvider.System);
-
-        services.AddHttpClient(TokenClientName, (sp, client) => client.BaseAddress = ResolveBaseAddress(sp));
-
-        // Singleton de propósito: o cache de token precisa sobreviver entre as chamadas — um
-        // provider por processo. Se fosse transitório (padrão dos typed clients), cada resolução
-        // criaria um cache novo e o token seria buscado toda vez.
-        services.Replace(ServiceDescriptor.Singleton<IAvalaraTokenProvider>(sp => new AvalaraTokenProvider(
-            sp.GetRequiredService<IHttpClientFactory>().CreateClient(TokenClientName),
-            sp.GetRequiredService<IOptions<AvalaraOptions>>(),
-            sp.GetRequiredService<TimeProvider>())));
+        services.Replace(ServiceDescriptor.Singleton<IAvalaraTokenProvider>(sp =>
+        {
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(AvalaraServiceCollectionExtensions).FullName!).LogWarning(
+                "Adapter Avalara composto SEM autenticação (UseAvalaraWithoutAuthentication): os envios e as consultas saem sem token.");
+            return new NoOpAvalaraTokenProvider();
+        }));
 
         return services;
     }
+}
 
-    private static Uri ResolveBaseAddress(IServiceProvider sp)
+/// <summary>Salvar o perfil do tenant esquece a recusa lembrada e os tokens dele, na hora (ADR-0027).</summary>
+internal sealed class AvalaraProfileObserver(IAvalaraTokenProvider tokens) : IConnectorProfileObserver
+{
+    public Task ProfileSavedAsync(string tenantId, CancellationToken ct = default)
     {
-        AvalaraOptions options = sp.GetRequiredService<IOptions<AvalaraOptions>>().Value;
-
-        if (!Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out Uri? baseAddress))
-        {
-            throw new InvalidOperationException(
-                $"AvalaraOptions.BaseUrl ausente ou inválida: '{options.BaseUrl}'. Configure uma URL absoluta.");
-        }
-
-        return baseAddress;
+        tokens.Forget(tenantId);
+        return Task.CompletedTask;
     }
 }

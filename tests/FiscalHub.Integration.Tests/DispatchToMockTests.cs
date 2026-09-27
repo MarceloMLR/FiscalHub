@@ -138,7 +138,8 @@ public class DispatchToMockTests
             var services = new ServiceCollection();
             services.AddSingleton<IConnectorProfileStore>(profiles);
             services.AddSingleton<IProcessingTrace>(trace);
-            services.AddAvalaraComplianceDispatcher(o => o.BaseUrl = "http://localhost/");
+            // Provisório até o mock autenticar (grupo 12 da change connect-avalara-sandbox): sem token, por pedido explícito.
+            services.AddAvalaraComplianceDispatcher().UseAvalaraWithoutAuthentication();
             services.ConfigureHttpClientDefaults(b => b.ConfigurePrimaryHttpMessageHandler(() => _toMock));
             _services = services.BuildServiceProvider();
             var dispatcher = _services.GetRequiredService<IComplianceDispatcher<GoodsInvoice>>();
@@ -254,8 +255,8 @@ public class DispatchToMockTests
                 InboundAdapter = "Dynamics365",
                 InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]}""",
                 OutboundAdapter = "Avalara",
-                // Sem baseUrl: vale a das options (o mock em memória). A Contoso traduzida para a empresa do JSON real.
-                OutboundSettings = """{"sandbox":{"establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}}}""",
+                // O mock em memória em loopback, com a credencial do tenant. A Contoso traduzida para a empresa do JSON real.
+                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}}}""",
             });
 
         public Task UpsertAsync(TenantConnectorProfile profile, CancellationToken ct = default) => Task.CompletedTask;
