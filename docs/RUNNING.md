@@ -7,14 +7,16 @@ serviço da nuvem (Azure "sem Azure").
 |-------|-------|
 | Blob Storage | Azurite (container) |
 | Azure SQL | SQL Server (container) |
-| Avalara (compliance) | mock em `tools/MockComplianceApi` (o sandbox real é a próxima fatia) |
+| Service Bus | emulador do Service Bus (container) |
+| Key Vault (segredos de conector) | emulador da API do Key Vault, Lowkey Vault (container, **só em memória**) |
+| Avalara (compliance) | mock em `tools/MockComplianceApi`, que exige token como a plataforma; o sandbox real na seção 8 |
 
 ## Pré-requisitos
 
 - SDK do **.NET 10**
 - **Docker Desktop** rodando
 
-## 1. Subir a infra (Blob + SQL)
+## 1. Subir a infra (Blob, SQL, fila e cofre)
 
 Na raiz do repositório:
 
@@ -22,8 +24,14 @@ Na raiz do repositório:
 docker compose up -d
 ```
 
-Sobe dois containers: `azurite` (Blob nas portas 10000/10001) e `sql` (SQL Server na 1433).
-Conferir: `docker compose ps` (ambos `running`).
+Sobe `azurite` (Blob nas portas 10000/10001), `sql` (SQL Server na 1433), `servicebus` (AMQP na 5672) e `keyvault`
+(a API do Key Vault na 8443). Conferir: `docker compose ps` (todos `running`).
+
+**O cofre de dev é em memória, de propósito** (ADR-0027). O `keyvault` é o emulador da mesma API do Key Vault, e o host
+fala com ele pelo mesmo adapter de produção; o `appsettings.Development.json` só troca o endereço, a credencial e o
+certificado do emulador. Ele sobe **sem volume, sem import e sem export**, porque a persistência do emulador grava os
+segredos em claro no disco. O preço: `docker compose restart keyvault` (ou `down`) apaga os segredos. A tela de
+conectores passa a mostrar "não configurado", o envio falha apontando para ela, e é só digitar de novo.
 
 ## 2. Rodar o mock de compliance
 
@@ -45,6 +53,21 @@ No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob
 tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
 que está no ar.
 
+### O Client Secret, pela tela
+
+Todo envio leva o token da credencial do tenant, no ambiente ativo (ADR-0027). Não há modo "sem autenticação" no host.
+A credencial vem das `OutboundSettings` (`baseUrl`, `tokenUrl` opcional, `clientId`), e o **segredo é digitado na
+tela**, até contra o mock:
+
+1. Abra o dashboard, entre como `admin@fiscalhub.local` e vá em **Configurações → Conectores → Saída (compliance)**.
+2. Na seção **Sandbox**, digite qualquer valor no **Client Secret** (o mock aceita qualquer um não vazio) e salve.
+3. O campo volta vazio, com "configurado em <data>". O valor foi para o cofre, e o perfil guarda só a referência
+   `kv:fh-tenant-a--outbound--sandbox--clientsecret`. O `GET /connector` nunca devolve o valor.
+
+Sem isso, o envio é rejeitado com "Configuração do conector: o Client Secret do ambiente 'sandbox' do tenant 'tenant-a'
+não está configurado … Configure em Configurações → Conectores → Avalara → Sandbox → Client Secret." Depois de reiniciar
+o emulador, digite de novo.
+
 ### Tradução dos estabelecimentos (banco já existente)
 
 Todo envio precisa de `codigoEmpresa` e `codigoContribuinte`. Eles **não vêm do ERP**: vêm da tabela
@@ -60,10 +83,11 @@ O seed de um banco novo já traz, no `sandbox` do tenant-a:
 Os dois apontam para `20247332000182`, a empresa do JSON real do ambiente Avalara de teste.
 
 **Num banco criado antes desta mudança,** o seed não roda de novo. Aplique à mão, pelo mesmo padrão de SQL por
-arquivo das `InboundSettings` (seção 6):
+arquivo das `InboundSettings` (seção 6). As referências seguem o nome que o servidor deriva (`fh-{tenant}--…`, ADR-0027),
+e o `clientTokenRef` não existe mais. O SQL grava só a referência: o valor continua sendo digitado na tela.
 
 ```powershell
-$out = '{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-a-sandbox-secret","clientTokenRef":"kv:avalara-a-sandbox-token","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-a-prod-secret","clientTokenRef":"kv:avalara-a-prod-token","establishments":{}}}'
+$out = '{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}'
 "UPDATE ConnectorProfiles SET OutboundSettings = N'$out' WHERE TenantId = 'tenant-a';" | Set-Content -Encoding ascii set-outbound.sql
 docker cp set-outbound.sql fiscalhub-sql-1:/tmp/set-outbound.sql
 docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/set-outbound.sql
@@ -145,7 +169,7 @@ primeira passada então descobre os 83 cabeçalhos do `fiscosysdev` (empresa `br
 em 2015:
 
 ```powershell
-$settings = '{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":20,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:d365-a-secret"},"poll":{"enabled":true,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}'
+$settings = '{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":20,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":true,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}'
 "UPDATE ConnectorProfiles SET InboundSettings = N'$settings' WHERE TenantId = 'tenant-a';" | Set-Content -Encoding ascii enable-poll.sql
 docker cp enable-poll.sql fiscalhub-sql-1:/tmp/enable-poll.sql
 docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/enable-poll.sql
@@ -153,8 +177,9 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
 
 O SQL vai por arquivo porque o PowerShell 5.1 quebra as aspas do JSON quando ele é passado direto no `-Q`.
 
-Dá para usar o `PUT /connector` no lugar do SQL, mas ele regrava o perfil inteiro e não carrega o
-`SupportAdapter`: a configuração de chamados do tenant se perde.
+Dá para usar o `PUT /connector` no lugar do SQL. As settings enviadas substituem as gravadas, com duas exceções: o
+segredo ausente mantém a referência que já estava, e os chamados ausentes do corpo ficam como estavam. Um `*Ref` no
+corpo é recusado com 400, porque a referência é do servidor.
 
 **2. Rodar o host** (seção 3). Em até 15 segundos aparece no log:
 
@@ -237,8 +262,8 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
   - os blocos `imposto` por item;
   - nenhum array `impostos`, porque nenhuma nota da base tem IBS/CBS.
 
-> **O mock aceita tudo.** "5 enviadas" contra o mock prova o caminho e o contrato montado, e não a aceitação da
-> Avalara. O envio ao sandbox real (credenciais, token por tenant, `BaseUrl`) é a próxima fatia. Até lá, os
+> **O mock aceita todo conteúdo.** Ele exige o token que ele mesmo emitiu, mas "5 enviadas" contra o mock prova o
+> caminho, a autenticação e o contrato montado, e não a aceitação da Avalara. O envio ao sandbox real é a seção 8. Os
 > caminhos que a demonstração não prova estão no checklist do primeiro cliente, em `docs/STATUS.md`.
 
 **Roteiro de rejeição.** Com o mock no ar, force o resultado dos próximos documentos antes da passada.
@@ -285,12 +310,103 @@ continua impedindo o reenvio.
 definidas, o filtro `Integration` também monta as 5 notas 55 da `brmf`, duas vezes cada, e confere a
 impressão.
 
+**Recusa da credencial, ao vivo.** O mock também simula a recusa do endpoint de token:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/token/recusar   # 401 invalid_client
+Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/token/aceitar
+```
+
+Com a recusa, a nota é rejeitada com "Configuração do conector: a plataforma recusou a credencial do tenant 'tenant-a'
+no ambiente 'sandbox' (HTTP 401: invalid_client — …)", e nenhum documento é enviado. A recusa fica lembrada por 5
+minutos, para não martelar o login: as notas seguintes falham com o mesmo motivo sem pedir token. **Salvar o perfil na
+tela** (mesmo sem mudar nada) esquece a recusa na hora, e a próxima nota pede token de novo.
+
+**A resposta da plataforma** é a quarta foto (ADR-0027): `avalara.response.submit.json` e
+`avalara.response.status.json`, ao lado das outras três, no `/trace`, no zip e na aba **Resposta** do detalhe do
+documento. É um envelope com o status, a URL sem query, alguns cabeçalhos e o corpo, já redigido: sem token, sem
+segredo e sem `Bearer` com valor. O campo `redactions` conta o que foi redigido.
+
+## 8. Sandbox da plataforma (ADR-0027)
+
+**Expectativa honesta.** O primeiro envio real provavelmente volta rejeitado, e é isso que se quer medir. As 5 notas são
+da Contoso de demonstração, de 2016, sem IBS/CBS. Corrigir o payload a partir das respostas é a próxima fatia.
+
+**A credencial do sandbox** é distribuída fora do repositório e fora do chat, pelo canal de segredos da equipe. Ela é
+digitada só na tela. Nunca vai para arquivo do repositório, terminal compartilhado, print ou mensagem.
+
+**1. Configurar pela tela.** Em **Configurações → Conectores → Saída**, na seção **Sandbox** do tenant-a: a URL base do
+sandbox, a URL do token (se a documentação do sandbox der uma diferente de URL base + `oauth/token`), o Client ID e o
+Client Secret. Confira:
+
+- a tela mostra "configurado em <data>", e o `GET /connector` não traz o valor, nem parte dele, nem a referência;
+- a linha do perfil no SQL tem só o `clientSecretRef` `kv:fh-tenant-a--outbound--sandbox--clientsecret`;
+- um `PUT /connector` feito à mão com `clientSecretRef` no corpo dá 400.
+
+O `establishments` do sandbox (seção 3) continua valendo: a tela só mexe nos campos que mostra.
+
+**2. Verificar a premissa de autenticação.** O hub assume OAuth `client_credentials`, com o segredo no corpo do
+formulário (ADR-0027 §3). Antes das notas, rode a sonda (seção 9):
+
+```powershell
+dotnet run --project tools/AvalaraSandboxProbe -- token --tenant tenant-a
+```
+
+Ela diz se obteve o token, os campos da resposta e o `expires_in`, e nunca imprime o token. No primeiro envio, confira
+que o caminho de envio existe (qualquer status diferente de 404). Um ajuste de forma entra por configuração ou com teste:
+o caminho certo vai em `Avalara:DocumentsPath` (ou `Avalara:TokenPath`) no `appsettings`, sem código. Um fluxo
+estruturalmente outro (escopo ou audiência obrigatórios, token por empresa, mTLS) para o teste.
+
+**3. Corrigir pela tela.** Com um Client Secret errado de propósito, a primeira nota é rejeitada com o motivo da
+plataforma. Salve o certo na tela e reprocesse: o token é pedido na hora, sem esperar os 5 minutos da recusa lembrada.
+
+**4. As 5 NF-e 55,** como na seção 7, com o sandbox no lugar do mock. Confira no dashboard o desfecho e o motivo de cada
+uma, e a aba Resposta.
+
+**5. Conferir o zip** de cada nota: `source.json`, `domain.json`, `avalara.json`, `avalara.response.submit.json` e
+`avalara.response.status.json`. Anote toda foto com `redactions > 0`: é sinal de que a plataforma ecoou algo sensível.
+Confira também que o log do host não tem token, segredo nem valor de cabeçalho.
+
+> **Espere o poll fechar antes de trocar de ambiente.** A consulta de status usa a seção do ambiente **ativo**. Um
+> documento enviado ao sandbox e ainda em consulta, depois da troca para Production, seria consultado no endereço e
+> com a credencial de produção.
+
+## 9. Sonda do sandbox (`tools/AvalaraSandboxProbe`)
+
+É a ferramenta do teste manual e do experimento do campo omitido, e não a esteira (ADR-0027 §9). Usa a configuração do
+Host (o banco de dev, o cofre e a seção `Avalara`), o perfil do tenant e o segredo gravado pela tela. Só **lê**: nunca
+grava no cofre nem no banco. Tudo o que grava em `tools/AvalaraSandboxProbe/out/` sai redigido, e a pasta está no
+`.gitignore`.
+
+```powershell
+# o token: se obteve, os campos e o expires_in (o token nunca é impresso)
+dotnet run --project tools/AvalaraSandboxProbe -- token --tenant tenant-a
+
+# uma variante do payload de destino (o avalara.json do zip), com a referência marcada
+dotnet run --project tools/AvalaraSandboxProbe -- send --tenant tenant-a --payload .\avalara.json --label exp-a `
+  --omit finalidadeNotaFiscal --ref-suffix exp-a --poll
+dotnet run --project tools/AvalaraSandboxProbe -- send --tenant tenant-a --payload .\avalara.json --label exp-b `
+  --set finalidadeNotaFiscal=1 --ref-suffix exp-b --poll
+
+# a leitura de volta, se a plataforma a oferecer
+dotnet run --project tools/AvalaraSandboxProbe -- get --tenant tenant-a --id <id> --label exp-a
+```
+
+- `--omit` e `--set` mexem só no topo do payload, e podem repetir. O valor do `--set` é JSON quando dá (`1`, `true`,
+  `null`), e texto nos outros casos.
+- `--ref-suffix` acrescenta `#<sufixo>` ao `codigoReferenciaIntegracao`, para as variantes não colidirem entre si.
+- Cada comando grava o envelope redigido: `out/token.json`, `out/<label>.payload.json`, `out/<label>.submit.json`,
+  `out/<label>.status.json` e `out/<label>.readback.json`. Só o que for curado para evidência sai de lá.
+- Contra o mock, a sonda funciona igual: é o jeito de ensaiar o roteiro sem o sandbox.
+
 ## Notas
 
 - **Idempotência:** repetir o `POST /ingest` com o mesmo `naturalKey` não duplica nem reenvia
   (a esteira vê que já foi enviado). Use um `naturalKey` novo para processar de novo.
 - As connection strings em `appsettings.json` são **de dev local** (mesma senha do `docker-compose`).
   Em produção, os segredos vêm de Key Vault.
+- **Os segredos de conector** nunca estão em arquivo: o valor vai da tela para o cofre (em dev, o emulador em memória),
+  e o banco guarda só a referência. Reiniciar o `keyvault` apaga os valores; a tela mostra "não configurado".
 
 ## Derrubar
 

@@ -360,21 +360,21 @@ Manual e sem código.
 
 ## 14. Documentação da parte Avalara antes do teste manual (D3, D13, D16)
 
-- [ ] 14.1 Escrever `docs/adr/0027-credencial-por-tenant-e-resposta-da-plataforma.md`, pelo template:
+- [x] 14.1 Escrever `docs/adr/0027-credencial-por-tenant-e-resposta-da-plataforma.md`, pelo template:
   - as decisões do D16, com o requisito de provisionamento do cofre do D3: o papel sob medida com só
     `getSecret`, `setSecret` e `readMetadata`, a condição ABAC `fh-`, o cofre dedicado e a verificação em staging;
   - o cabeçalho "Revisa: ADR-0026 §2; ADR-0006; ADR-0019"
-- [ ] 14.2 ADR-0026, no formato que o 0025 recebeu do 0026:
+- [x] 14.2 ADR-0026, no formato que o 0025 recebeu do 0026:
   - a linha "Revisado por: ADR-0027 (§2)" no cabeçalho;
   - a nota `> **Revisado pelo ADR-0027 (data).**` no §2, logo depois de "**Falha transitória.** Continua como
     exceção…", dizendo que essa frase cobria o 401 e o 403 sem nomeá-los, o que mudou, por quê, e apontando
     o CNV D10 (design arquivado) como a decisão explícita revertida;
   - o índice: "Aceito — §2 revisado pelo 0027"
-- [ ] 14.3 ADR-0006 e ADR-0019:
+- [x] 14.3 ADR-0006 e ADR-0019:
   - a linha "Revisado por" no cabeçalho;
   - a nota em citação no ponto exato (tabela do 0027 no D16);
   - no índice, "Aceito — revisado pelo 0027", e a linha do 0027
-- [ ] 14.4 `docs/RUNNING.md`:
+- [x] 14.4 `docs/RUNNING.md`:
   - o emulador do cofre no `docker compose up`, em memória, e por que a persistência fica desligada;
   - o Client Secret digitado na tela, até contra o mock, e de novo a cada reinício do emulador;
   - o SQL para regravar as `OutboundSettings` do tenant-a em banco existente, com as referências `fh-{tenant}--…`;
@@ -383,7 +383,7 @@ Manual e sem código.
   - o roteiro da sonda;
   - a credencial do sandbox distribuída fora do repositório e do chat;
   - o aviso de esperar o poll fechar antes de trocar de ambiente
-- [ ] 14.5 `docs/STATUS.md`:
+- [x] 14.5 `docs/STATUS.md`:
   - a parte 2 em andamento, sem portão antes do código;
   - corrigir as menções ao portão no `STATUS.md` (o "Próximo passo" da sessão da parte 1) e na linha reservada do
     0027 no índice de ADRs, que dizem que a parte 2 começa pelo portão;

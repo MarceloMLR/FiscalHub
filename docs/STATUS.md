@@ -73,7 +73,8 @@ As fontes estão entre parênteses:
 - **ADR-0025:** montagem do D365;
 - **CNV:** change `connector-not-validator`, cujo design tem o detalhe;
 - **d365/04:** d365/04 §11;
-- **ADR-0028:** limite de tenant (parte 1 da change `connect-avalara-sandbox`).
+- **ADR-0028:** limite de tenant (parte 1 da change `connect-avalara-sandbox`);
+- **ADR-0027:** credencial por tenant, segredo no cofre e a quarta foto (parte 2 da mesma change).
 
 ### Captura (feed de mudanças do D365)
 
@@ -174,7 +175,8 @@ As fontes estão entre parênteses:
 
 ### Contrato e plataforma (Avalara)
 
-Os itens desta seção são provados na fatia do sandbox real, a próxima.
+Os itens desta seção são provados no teste manual contra o sandbox (parte 2 da change `connect-avalara-sandbox`,
+tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
 
 - [ ] **Campo omitido virando 0 na Avalara.** (CNV)
   - **Falta:** `finalidadeNotaFiscal`, `operacao`, `tipoPagamento` e outros códigos vão omitidos. Se a API
@@ -218,6 +220,26 @@ Os itens desta seção são provados na fatia do sandbox real, a próxima.
   - **Falta:** diferencial de alíquota, IS, encargo e retenções que não são de ISS vão como omissão.
   - **Prova:** tabela de códigos e lugares com a Avalara.
   - **Sintoma:** escrituração incompleta na plataforma. É visível como "Enviado sem", mas incompleta.
+
+### Credencial e cofre
+
+- [ ] **Provisionamento do cofre de conectores.** (ADR-0027 §6)
+  - **Falta:** a identidade do host grava no cofre, e a política do ambiente do cliente precisa limitar essa escrita
+    aos segredos de conector. Três partes: um papel sob medida, só com `getSecret`, `setSecret` e `readMetadata`
+    (nada de apagar, expurgar, backup ou restore); a condição ABAC `fh-` na atribuição (o `setSecret` pelo atributo da
+    requisição, o `getSecret` e o `readMetadata` pelo do recurso); e um cofre dedicado aos segredos de conector, sem
+    a chave do JWT, o SQL ou o Service Bus.
+  - **Prova:** em staging, antes do primeiro cliente, a identidade do host grava e lê um `fh-…` e recebe
+    `ForbiddenByRbac` ao gravar ou ler outro nome (por exemplo, `jwt-signing-key`). Conferir junto que o
+    `DescribeAsync` (as versões de um nome conhecido) passa com a condição.
+  - **Sintoma:** um host comprometido sobrescreve segredos que não são de conector; ou, com a condição errada, a tela
+    de conectores falha ao gravar com `ForbiddenByRbac`.
+- [ ] **Recusa lembrada e token com mais de uma instância.** (ADR-0027 §7)
+  - **Falta:** o cache de token e a recusa lembrada são por processo. Salvar o perfil esquece só na instância que
+    atendeu o `PUT`.
+  - **Prova:** com duas réplicas, recusar a credencial, corrigir pela tela e contar os pedidos de token por réplica.
+  - **Sintoma:** até 5 minutos de "credencial recusada" nas outras réplicas depois da correção. É visível e se
+    desfaz sozinho.
 
 ### Limite de tenant
 
@@ -274,7 +296,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
 
 **Funcionalidades que ainda não existem** (entram por fatia, e não por prova):
 
-- ligação com o sandbox real da Avalara;
+- a correção do payload a partir das respostas reais do sandbox (a fatia depois da D18);
 - despacho de cancelamento;
 - nota de serviço;
 - entidade de `CClassTribTable_BR`;
@@ -439,10 +461,51 @@ Junto: o drop não tem mais tenant padrão, e os campos `TenantId` mortos saíra
 agendamentos. Os XMLs do seed e o catálogo da descoberta passaram a `nfe/tenant-a/…`, e o RUNNING §4 mudou junto.
 
 **Por que antes da Avalara.** São correções de segurança que valem independente da plataforma. A change foi
-ordenada para esta parte ser mergeada sozinha (design D19), antes do portão contra o sandbox.
+ordenada para esta parte ser mergeada sozinha (design D19), antes da parte da Avalara.
 
-**Próximo passo:** a parte 2 da change, que começa pelo portão (grupo 5 das tarefas): o curl contra o sandbox e a
-prova do emulador do cofre, antes de qualquer código da Avalara. O ADR-0027 está reservado para ela.
+**Próximo passo:** a parte 2 da change. *(Corrigido depois, na mesma data: o portão contra o sandbox, previsto como
+grupo 5, saiu da change. A parte 2 começa pela prova do emulador do cofre, e a forma de autenticação da plataforma é
+assumida e confirmada só no teste manual. Ver a sessão seguinte.)*
 
 **Pendências registradas no checklist:** o drop e a fila abertos a cliente, o diretório de empresas por tenant e a
 pergunta sobre o `/ingest` em produção.
+
+---
+
+## Sessão 2026-09-27 — Credencial por tenant e a quarta foto (parte 2 da change `connect-avalara-sandbox`, em andamento)
+
+**Sem portão antes do código.** A change foi revisada no mesmo dia: o `curl` contra o sandbox (as tarefas 5.1 a 5.4) e a
+regra que bloqueava a parte 2 até ele fechar saíram. Fica assumido OAuth `client_credentials`, com o segredo no corpo do
+pedido, e a premissa é confirmada só no teste manual (tarefa 15.3). Se estiver errada, o retrabalho fica no provider de
+token e no mock (ADR-0027 §3). A prova do emulador do cofre (5.5) ficou, e fechou.
+
+**Entregue (grupos 5.5 a 14, na branch `feat/connect-avalara-sandbox-parte-2`, ainda não mergeada):**
+
+- **Autenticação real por padrão.** Cada envio e cada consulta levam o token da credencial do tenant no ambiente
+  ativo. O "sem autenticação" só existe por pedido explícito, e o host não pede.
+- **Credencial e URLs pela seção do ambiente,** sem fallback global e com `https` (http só em loopback). O
+  `AvalaraOptions` ficou só com a forma da API, e o `Avalara:BaseUrl` saiu do `appsettings`.
+- **O segredo pela tela.** O `PUT /connector` recebe o Client Secret como campo de escrita, grava no cofre e persiste
+  só `kv:fh-{tenant}--…`. O `GET` devolve as settings sem referência e "configurado em <data>". Em dev, o cofre é o
+  Lowkey Vault em memória, pelo mesmo adapter de produção.
+- **Falhas de autenticação com motivo:** a recusa da credencial, o 403 e o 401 com token recém-emitido viram rejeição
+  com o motivo da plataforma; a recusa fica lembrada por 5 minutos, e salvar o perfil a esquece na hora. O 2xx sem
+  identificador não é reenviado.
+- **A quarta foto:** a resposta do envio e da consulta, redigida, no `/trace`, no zip e na aba Resposta do dashboard.
+- **O mock exige token,** e o ponta a ponta usa o provider real.
+- **A sonda do sandbox** (`tools/AvalaraSandboxProbe`): `token`, `send` com variantes e `get`, com a saída redigida.
+- **O `clientTokenRef` saiu** do seed e da tela: nenhum fluxo o lia. O leitor o ignora, se ele ainda estiver no banco.
+- **Achados corrigidos no caminho:** o `PUT /connector` apagava a configuração de chamados (agora ela fica, quando o
+  corpo não a traz), e a tela de conectores reenviava só os campos que mostra, apagando `establishments`, `companies`
+  e `poll` (agora ela preserva o resto).
+
+**Conferido no ambiente local** (ADR-0027, fim): o segredo pela API da tela, o banco só com a referência, o envio
+autenticado ao mock com a foto da resposta no `/trace`, e a sonda contra o mock, com `out/` redigido e fora do Git.
+
+**Banco de dev existente:** as referências antigas (`kv:avalara-a-…`, `kv:d365-a-secret`) são recusadas pelo adapter
+como fora do prefixo do tenant. Basta digitar o Client Secret na tela, ou regravar as settings (RUNNING §3).
+
+**Próximo passo:** o teste manual contra o sandbox (tarefas 15 a 18), com a credencial real digitada na tela por quem
+roda o teste. A credencial é distribuída fora do repositório e do chat. Depois dele: o relatório
+`docs/avalara-sandbox-primeiro-envio.md`, as respostas reais como fixtures, e o checklist de "Contrato e plataforma"
+fechado ou reescrito com a evidência.
