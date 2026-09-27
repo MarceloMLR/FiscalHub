@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin)","value":[
     {
-      "@odata.etag":"W/\"JzAsNTYzNzE1NTgzNCc=\"","FiscalDocumentLineRecId":5637155834,"FiscalDocumentRecId":5637155831,"LineNum":1,"ItemId":"BRMF040","Description":"test","FiscalClassification":"","CFOP":"","Quantity":1200,"UnitPrice":100,"LineAmount":120000
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgzNCc=\"","FiscalDocumentLineRecId":5637155834,"FiscalDocumentRecId":5637155831,"LineNum":1,"ItemId":"BRMF040","Description":"test","FiscalClassification":"","CFOP":"","Quantity":1200,"UnitPrice":100,"LineAmount":120000,"Unit":"hr","AccountingAmount":120000,"Origin":"National"
     }
   ]
 }

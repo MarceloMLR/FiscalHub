@@ -14,4 +14,7 @@ public sealed record Party
 
     /// <summary>Código IBGE do município.</summary>
     public string? MunicipalityCode { get; init; }
+
+    /// <summary>Endereço, quando a origem o traz.</summary>
+    public Address? Address { get; init; }
 }

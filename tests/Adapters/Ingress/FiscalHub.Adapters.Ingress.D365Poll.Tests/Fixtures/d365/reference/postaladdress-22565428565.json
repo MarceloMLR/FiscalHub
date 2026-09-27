@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId,Street,StreetNumber,DistrictName,ZipCode)","value":[
     {
-      "@odata.etag":"W/\"JzAsMjI1NjU0Mjg1NjUn\"","PostalAddressRecId":22565428565,"CityRecId":22565694955
+      "@odata.etag":"W/\"JzAsMjI1NjU0Mjg1NjUn\"","PostalAddressRecId":22565428565,"CityRecId":22565694955,"Street":"Av. das Na\u00e7\u00f5es Unidas","StreetNumber":"12901","DistrictName":"Brooklin","ZipCode":"04795100"
     }
   ]
 }

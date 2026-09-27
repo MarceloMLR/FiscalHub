@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId,Street,StreetNumber,DistrictName,ZipCode)","value":[
     {
-      "@odata.etag":"W/\"JzAsMjI1NjU0MjYzMDMn\"","PostalAddressRecId":22565426303,"CityRecId":0
+      "@odata.etag":"W/\"JzAsMjI1NjU0MjYzMDMn\"","PostalAddressRecId":22565426303,"CityRecId":0,"Street":"567 Apple Road","StreetNumber":"","DistrictName":"","ZipCode":"89706"
     }
   ]
 }

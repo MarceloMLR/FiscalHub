@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin)","value":[
     {
-      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTIn\"","FiscalDocumentLineRecId":35637156592,"FiscalDocumentRecId":35637156585,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":10,"UnitPrice":585,"LineAmount":5850
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTIn\"","FiscalDocumentLineRecId":35637156592,"FiscalDocumentRecId":35637156585,"LineNum":1,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"3.102","Quantity":10,"UnitPrice":585,"LineAmount":5850,"Unit":"pcs","AccountingAmount":8711.89,"Origin":"DirectImport"
     }
   ]
 }

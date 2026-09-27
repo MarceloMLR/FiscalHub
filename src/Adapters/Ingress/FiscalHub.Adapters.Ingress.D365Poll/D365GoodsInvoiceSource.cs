@@ -18,13 +18,14 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 /// </summary>
 internal sealed class D365GoodsInvoiceSource : IInboundSource<GoodsInvoice>
 {
-    // $select do design D5: o que a montagem lê, mais as chaves — e o limite do que entra no hash.
-    public const string HeaderSelect = "FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount";
-    public const string LineSelect = "FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount";
+    // $select do design D5 (add-d365-document-assembly), ampliado pelo D12 (connector-not-validator): o que a montagem
+    // lê, mais as chaves — e o limite do que entra no hash. Mudou? Suba D365Canonicalizer.Version.
+    public const string HeaderSelect = "FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount,TotalGoodsAmount,AccountingDate";
+    public const string LineSelect = "FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin";
     public const string TaxSelect = "FiscalDocumentTaxTransRecId,FiscalDocumentLineRecId,FiscalDocumentMiscChargeRecId,TaxTransRecId,FiscalTaxType,TaxationCode,TaxBaseAmount,TaxBaseAmountExempt,TaxBaseAmountOther,TaxValue,TaxAmount,RetainedTax";
     public const string ChargeSelect = "FiscalDocumentMiscChargeRecId,FiscalDocumentLineRecId,ChargeNum,MiscChargeType,Amount,Txt";
     public const string TaxTransSelect = "TaxTransRecId,Voucher,TaxType,TaxBaseAmount,TaxValue,TaxAmount";
-    private const string PostalAddressSelect = "PostalAddressRecId,CityRecId";
+    public const string PostalAddressSelect = "PostalAddressRecId,CityRecId,Street,StreetNumber,DistrictName,ZipCode";
     private const string CitySelect = "AddressCityRecId,IBGECode";
 
     private readonly D365ODataClient _client;
@@ -88,13 +89,13 @@ internal sealed class D365GoodsInvoiceSource : IInboundSource<GoodsInvoice>
         string canonical = D365Canonicalizer.Canonicalize(rows);
         await _trace.SaveSourceAsync(reference.TenantId, reference.NaturalKey, canonical, "json", ct);
 
-        var municipalities = new D365PartyMunicipalities(
-            await MunicipalityAsync(settings, connection, reference.TenantId, header, "FiscalEstablishmentPostalAddress", ct),
-            await MunicipalityAsync(settings, connection, reference.TenantId, header, "ThirdPartyPostalAddress", ct));
+        var referenceData = new D365PartyReferenceData(
+            await PlaceAsync(settings, connection, reference.TenantId, header, "FiscalEstablishmentPostalAddress", ct),
+            await PlaceAsync(settings, connection, reference.TenantId, header, "ThirdPartyPostalAddress", ct));
 
         return new FetchResult<GoodsInvoice>
         {
-            Document = D365GoodsInvoiceAssembler.Assemble(rows, municipalities),
+            Document = D365GoodsInvoiceAssembler.Assemble(rows, referenceData),
             ContentHash = ContentFingerprint.Of(canonical),
         };
     }
@@ -139,29 +140,32 @@ internal sealed class D365GoodsInvoiceSource : IInboundSource<GoodsInvoice>
         return header;
     }
 
-    /// <summary>Endereço (RecId do cabeçalho) → cidade → código IBGE, pelo cache do tenant. FK vazia ou não encontrado → ausente.</summary>
-    private async Task<string?> MunicipalityAsync(
+    /// <summary>
+    /// Endereço (RecId do cabeçalho) → logradouro, número, bairro e CEP, e → cidade → código IBGE, pelo cache do tenant.
+    /// FK vazia ou não encontrado → endereço e município ausentes.
+    /// </summary>
+    private async Task<D365PartyPlace> PlaceAsync(
         D365InboundSettings settings, D365Connection connection, string tenantId, JsonElement header, string addressField, CancellationToken ct)
     {
         long addressRecId = header.TryGetProperty(addressField, out JsonElement a) && a.ValueKind == JsonValueKind.Number ? a.GetInt64() : 0;
         JsonElement? address = await _cache.GetAsync(tenantId, "FSPostalAddressBRs", addressRecId,
             token => FirstAsync(settings, connection, "FSPostalAddressBRs", PostalAddressSelect, $"PostalAddressRecId eq {addressRecId}", token), ct);
-        if (address is null)
+        if (address is not { } row)
         {
             if (addressRecId != 0)
             {
-                _logger.LogWarning("Endereço {Address} ({Field}) não encontrado no F&O; o município da parte fica ausente.", addressRecId, addressField);
+                _logger.LogWarning("Endereço {Address} ({Field}) não encontrado no F&O; o endereço e o município da parte ficam ausentes.", addressRecId, addressField);
             }
 
-            return null;
+            return D365PartyPlace.None;
         }
 
-        long cityRecId = address.Value.TryGetProperty("CityRecId", out JsonElement c) && c.ValueKind == JsonValueKind.Number ? c.GetInt64() : 0;
+        long cityRecId = row.TryGetProperty("CityRecId", out JsonElement c) && c.ValueKind == JsonValueKind.Number ? c.GetInt64() : 0;
         JsonElement? city = await _cache.GetAsync(tenantId, "FSAddressCityBRs", cityRecId,
             token => FirstAsync(settings, connection, "FSAddressCityBRs", CitySelect, $"AddressCityRecId eq {cityRecId}", token), ct);
 
         string? ibge = city is { } found && found.TryGetProperty("IBGECode", out JsonElement code) ? code.GetString() : null;
-        return string.IsNullOrEmpty(ibge) ? null : ibge;
+        return new D365PartyPlace(string.IsNullOrEmpty(ibge) ? null : ibge, D365PartyPlace.AddressOf(row));
     }
 
     private async Task<JsonElement?> FirstAsync(

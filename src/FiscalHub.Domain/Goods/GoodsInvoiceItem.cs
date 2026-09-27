@@ -29,6 +29,18 @@ public sealed record GoodsInvoiceItem
     /// <summary>Valor total do item.</summary>
     public required decimal TotalAmount { get; init; }
 
+    /// <summary>Unidade comercial do item (uCom), quando a origem a traz.</summary>
+    public string? Unit { get; init; }
+
+    /// <summary>Valor contábil do item (livros fiscais), quando a origem o traz.</summary>
+    public decimal? AccountingAmount { get; init; }
+
+    /// <summary>
+    /// Origem da mercadoria: o dígito de 0 a 8 da tabela de origem do leiaute (a Tabela A do CST do ICMS). <c>null</c>
+    /// quando a origem não o traz ou traz valor sem tradução — nunca <c>0</c> por padrão.
+    /// </summary>
+    public string? Origin { get; init; }
+
     /// <summary>
     /// Tributos da Reforma (IBS/CBS/IS) do item. <c>null</c> = a nota não traz o grupo (ex.: nota anterior à
     /// Reforma) — ausente, e não zerado; a validação de integração rejeita.

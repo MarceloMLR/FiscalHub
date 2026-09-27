@@ -5,8 +5,30 @@ using FiscalHub.Domain.Goods.Reform;
 
 namespace FiscalHub.Adapters.Ingress.D365Poll;
 
-/// <summary>Código IBGE do município de cada parte, já resolvido pelo cache de cadastros (endereço → cidade).</summary>
-internal sealed record D365PartyMunicipalities(string? Establishment, string? ThirdParty);
+/// <summary>Município (código IBGE) e endereço de uma parte, já resolvidos pelo cache de cadastros.</summary>
+internal sealed record D365PartyPlace(string? MunicipalityCode, Address? Address)
+{
+    public static readonly D365PartyPlace None = new(null, null);
+
+    /// <summary>Endereço da linha de <c>FSPostalAddressBRs</c>; campo vazio fica nulo, e sem nenhum campo não há endereço.</summary>
+    public static Address? AddressOf(JsonElement row)
+    {
+        var address = new Address
+        {
+            Street = Text(row, "Street"),
+            Number = Text(row, "StreetNumber"),
+            District = Text(row, "DistrictName"),
+            PostalCode = Text(row, "ZipCode"),
+        };
+        return address is { Street: null, Number: null, District: null, PostalCode: null } ? null : address;
+
+        static string? Text(JsonElement row, string name)
+            => row.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.String && v.GetString() is { Length: > 0 } s ? s : null;
+    }
+}
+
+/// <summary>Cadastros das duas partes do cabeçalho: o estabelecimento e o terceiro.</summary>
+internal sealed record D365PartyReferenceData(D365PartyPlace Establishment, D365PartyPlace ThirdParty);
 
 /// <summary>
 /// Monta a <see cref="GoodsInvoice"/> a partir das respostas do D365 — função pura, sem rede (ADR-0025, design D7 a
@@ -51,6 +73,14 @@ internal static class D365GoodsInvoiceAssembler
         ["Others"] = ChargeKind.Other,
     };
 
+    // Origem da mercadoria → dígito da tabela de origem do leiaute (a Tabela A do CST do ICMS). Só os nomes que a base
+    // mostrou (d365/04 §3.3); outro nome deixa a origem ausente, e nunca 0 — cada valor novo entra com evidência.
+    private static readonly Dictionary<string, string> Origins = new(StringComparer.Ordinal)
+    {
+        ["National"] = "0",
+        ["DirectImport"] = "1",
+    };
+
     /// <summary>A nota tem imposto elegível ao complemento? Se sim, o source busca a contábil do voucher (uma chamada a mais).</summary>
     public static bool NeedsAccounting(IReadOnlyList<JsonElement> taxes) => taxes.Any(IsComplementEligible);
 
@@ -61,7 +91,7 @@ internal static class D365GoodsInvoiceAssembler
     public static IReadOnlySet<long> ComplementBridges(IReadOnlyList<JsonElement> taxes)
         => taxes.Where(IsComplementEligible).Select(t => Long(t, "TaxTransRecId")).ToHashSet();
 
-    public static GoodsInvoice Assemble(D365DocumentRows rows, D365PartyMunicipalities municipalities)
+    public static GoodsInvoice Assemble(D365DocumentRows rows, D365PartyReferenceData referenceData)
     {
         JsonElement header = rows.Header;
         string voucher = Str(header, "Voucher");
@@ -98,7 +128,7 @@ internal static class D365GoodsInvoiceAssembler
             Place(tax, lines, charges, rows.Accounting, voucher);
         }
 
-        (Party establishment, Party thirdParty) = Parties(header, municipalities);
+        (Party establishment, Party thirdParty) = Parties(header, referenceData);
         bool ownIssued = Str(header, "FiscalDocumentIssuer") switch
         {
             "OwnEstablishment" => true,
@@ -113,10 +143,13 @@ internal static class D365GoodsInvoiceAssembler
             Series = Str(header, "FiscalDocumentSeries"),
             Number = Str(header, "FiscalDocumentNumber"),
             IssueDate = IssueDate(header),
+            EntryExitDate = OptionalDate(header, "AccountingDate"),
+            Issuance = ownIssued ? Issuance.Own : Issuance.ThirdParty,
             Issuer = ownIssued ? establishment : thirdParty,
             Recipient = ownIssued ? thirdParty : establishment,
             Items = [.. lines.Values.OrderBy(l => Dec(l.Row, "LineNum")).Select(l => Item(l, voucher))],
             TotalAmount = Dec(header, "TotalAmount"),
+            GoodsAmount = Dec(header, "TotalGoodsAmount"),
         };
     }
 
@@ -255,6 +288,9 @@ internal static class D365GoodsInvoiceAssembler
             Quantity = Dec(row, "Quantity"),
             UnitAmount = Dec(row, "UnitPrice"),
             TotalAmount = Dec(row, "LineAmount"),
+            Unit = NullIfEmpty(Str(row, "Unit")),
+            AccountingAmount = Dec(row, "AccountingAmount"),
+            Origin = OriginOf(Str(row, "Origin")),
             ReformTaxes = ReformGroup(line, (int)lineNum, voucher),
             Taxes = line.Taxes,
             Withholdings = line.Withholdings,
@@ -301,15 +337,16 @@ internal static class D365GoodsInvoiceAssembler
         static TaxShare Share(JsonElement t) => new() { Rate = Dec(t, "TaxValue"), Amount = Dec(t, "TaxAmount") };
     }
 
-    private static (Party Establishment, Party ThirdParty) Parties(JsonElement header, D365PartyMunicipalities municipalities)
-        => (Party(header, "FiscalEstablishment", municipalities.Establishment), Party(header, "ThirdParty", municipalities.ThirdParty));
+    private static (Party Establishment, Party ThirdParty) Parties(JsonElement header, D365PartyReferenceData referenceData)
+        => (Party(header, "FiscalEstablishment", referenceData.Establishment), Party(header, "ThirdParty", referenceData.ThirdParty));
 
-    private static Party Party(JsonElement header, string prefix, string? municipality) => new()
+    private static Party Party(JsonElement header, string prefix, D365PartyPlace place) => new()
     {
         TaxId = Digits(Str(header, $"{prefix}CNPJCPF")),
         Name = Str(header, $"{prefix}Name"),
         StateRegistration = NullIfEmpty(Str(header, $"{prefix}IE")),
-        MunicipalityCode = municipality,
+        MunicipalityCode = place.MunicipalityCode,
+        Address = place.Address,
     };
 
     /// <summary>O F&amp;O devolve 1900-01-01 como data vazia; aí vale o <c>FiscalDocumentDate</c>, como veio (12:00 UTC).</summary>
@@ -317,6 +354,17 @@ internal static class D365GoodsInvoiceAssembler
     {
         DateTimeOffset dateTime = Date(header, "FiscalDocumentDateTime");
         return dateTime.Year > 1900 ? dateTime : Date(header, "FiscalDocumentDate");
+    }
+
+    /// <summary>Nome de enum com tradução (d365/04 §3.3), ou já o dígito de 0 a 8; qualquer outro valor → ausente.</summary>
+    private static string? OriginOf(string value)
+        => Origins.TryGetValue(value, out string? digit) ? digit : value is [>= '0' and <= '8'] ? value : null;
+
+    /// <summary>Data que pode vir vazia (1900-01-01 no F&amp;O): vazia fica ausente.</summary>
+    private static DateTimeOffset? OptionalDate(JsonElement header, string name)
+    {
+        DateTimeOffset date = Date(header, name);
+        return date.Year > 1900 ? date : null;
     }
 
     private static bool IsComplementEligible(JsonElement tax)

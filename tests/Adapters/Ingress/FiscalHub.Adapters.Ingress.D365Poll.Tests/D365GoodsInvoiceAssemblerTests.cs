@@ -12,8 +12,8 @@ namespace FiscalHub.Adapters.Ingress.D365Poll.Tests;
 /// </summary>
 public class D365GoodsInvoiceAssemblerTests
 {
-    private static readonly D365PartyMunicipalities SaoPauloAndRio = new("3550308", "3304557");
-    private static readonly D365PartyMunicipalities NoMunicipality = new(null, null);
+    private static readonly D365PartyReferenceData SaoPauloAndRio = new(new D365PartyPlace("3550308", null), new D365PartyPlace("3304557", null));
+    private static readonly D365PartyReferenceData NoReferenceData = new(D365PartyPlace.None, D365PartyPlace.None);
 
     // ---------- montagem completa (gravada) ----------
 
@@ -28,6 +28,9 @@ public class D365GoodsInvoiceAssemblerTests
         Assert.Equal("000001", invoice.Number);
         Assert.Equal(new DateTimeOffset(2016, 3, 1, 12, 0, 0, TimeSpan.Zero), invoice.IssueDate);   // FiscalDocumentDate; o DateTime vem 1900
         Assert.Equal(12600m, invoice.TotalAmount);
+        Assert.Equal(11250m, invoice.GoodsAmount);                                                    // TotalGoodsAmount
+        Assert.Equal(new DateTimeOffset(2016, 3, 1, 12, 0, 0, TimeSpan.Zero), invoice.EntryExitDate); // AccountingDate
+        Assert.Equal(Issuance.Own, invoice.Issuance);                                                 // FiscalDocumentIssuer = OwnEstablishment
 
         // Saída própria: o estabelecimento emite, o terceiro recebe. CNPJ só com dígitos.
         Assert.Equal(new Party { TaxId = "44278225000180", Name = "Contoso Entertainment System Brazil", StateRegistration = "652128379113", MunicipalityCode = "3550308" }, invoice.Issuer);
@@ -43,6 +46,10 @@ public class D365GoodsInvoiceAssemblerTests
         Assert.Equal(10m, first.Quantity);
         Assert.Equal(350m, first.UnitAmount);
         Assert.Equal(3500m, first.TotalAmount);
+        Assert.Equal("pcs", first.Unit);
+        Assert.Equal(4025m, first.AccountingAmount);
+        Assert.Equal("0", first.Origin);                  // National → 0 (tabela de origem do leiaute)
+        Assert.Equal("1", invoice.Items[1].Origin);       // DirectImport → 1: a caixa importada
         Assert.Null(first.ReformTaxes);        // nota de 2016: grupo ausente, não zerado
         Assert.Empty(first.Withholdings);
         Assert.Empty(first.Charges);
@@ -68,7 +75,7 @@ public class D365GoodsInvoiceAssemblerTests
     {
         D365DocumentRows rows = Note(recId);
 
-        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(rows, NoMunicipality);
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(rows, NoReferenceData);
 
         Assert.Equal(rows.Lines.Count, invoice.Items.Count);
         int placed = invoice.Items.Sum(i => i.Taxes.Count + i.Withholdings.Count + i.Charges.Sum(c => c.Taxes.Count + c.Withholdings.Count));
@@ -86,6 +93,47 @@ public class D365GoodsInvoiceAssemblerTests
         Assert.Equal("3304557", invoice.Issuer.MunicipalityCode);   // o município do terceiro vai com o terceiro
         Assert.Equal("44278225000180", invoice.Recipient.TaxId);
         Assert.Equal("3550308", invoice.Recipient.MunicipalityCode);
+        Assert.Equal(Issuance.ThirdParty, invoice.Issuance);
+    }
+
+    [Fact]
+    public void Party_addresses_come_with_their_reference_data()
+    {
+        var establishment = new Address { Street = "Av. das Nações Unidas", Number = "12901", District = "Brooklin", PostalCode = "04795100" };
+        var thirdParty = new Address { Street = "Estrada do Galeão", Number = "135", District = "Ilha do Governador", PostalCode = "21931385" };
+
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(
+            Note(OutgoingNote), new D365PartyReferenceData(new D365PartyPlace("3550308", establishment), new D365PartyPlace("3304557", thirdParty)));
+
+        Assert.Equal(establishment, invoice.Issuer.Address);     // saída própria: o estabelecimento emite
+        Assert.Equal(thirdParty, invoice.Recipient.Address);
+    }
+
+    [Fact]
+    public void Empty_accounting_date_leaves_the_entry_exit_date_absent()
+    {
+        // Derivada: AccountingDate trocado pelo valor vazio do F&O.
+        D365DocumentRows rows = Note(OutgoingNote);
+        JsonObject header = Editable(rows.Header);
+        header["AccountingDate"] = "1900-01-01T12:00:00Z";
+
+        Assert.Null(D365GoodsInvoiceAssembler.Assemble(rows with { Header = ToElement(header) }, NoReferenceData).EntryExitDate);
+    }
+
+    [Fact]
+    public void Empty_unit_and_origin_without_translation_stay_absent()
+    {
+        // Derivada: Unit esvaziada e Origin com um nome que a base não mostrou (sem tradução com evidência → ausente,
+        // nunca 0).
+        D365DocumentRows rows = Note(OutgoingNote);
+        JsonObject line = Editable(rows.Lines[0]);
+        line["Unit"] = "";
+        line["Origin"] = "ForeignWithoutNationalSimilar";
+
+        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(rows with { Lines = [ToElement(line), .. rows.Lines.Skip(1)] }, NoReferenceData).Items[0];
+
+        Assert.Null(item.Unit);
+        Assert.Null(item.Origin);
     }
 
     [Fact]
@@ -96,7 +144,7 @@ public class D365GoodsInvoiceAssemblerTests
         JsonObject line = Editable(rows.Lines[0]);
         line["LineNum"] = 1.5m;
 
-        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Lines = [ToElement(line), .. rows.Lines.Skip(1)] }, NoMunicipality));
+        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Lines = [ToElement(line), .. rows.Lines.Skip(1)] }, NoReferenceData));
 
         Assert.Contains("LineNum", ex.Message);
     }
@@ -106,7 +154,7 @@ public class D365GoodsInvoiceAssemblerTests
     {
         D365DocumentRows rows = Note(OutgoingNote) with { Lines = [], Taxes = [], Accounting = [] };
 
-        Assert.Empty(D365GoodsInvoiceAssembler.Assemble(rows, NoMunicipality).Items);   // a validação rejeita depois
+        Assert.Empty(D365GoodsInvoiceAssembler.Assemble(rows, NoReferenceData).Items);   // a validação rejeita depois
     }
 
     // ---------- distribuição dos impostos ----------
@@ -122,7 +170,7 @@ public class D365GoodsInvoiceAssemblerTests
         tax["FiscalDocumentMiscChargeRecId"] = 35637149828L;
         D365DocumentRows derived = rows with { Taxes = [.. rows.Taxes.Where(t => t.GetProperty("FiscalTaxType").GetString() != "ICMS"), ToElement(tax)] };
 
-        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(derived, NoMunicipality).Items.Single();
+        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(derived, NoReferenceData).Items.Single();
 
         ItemCharge charge = item.Charges.Single();
         Assert.Equal(1, charge.Number);
@@ -137,7 +185,7 @@ public class D365GoodsInvoiceAssemblerTests
     {
         // Gravada: nota 01 5637146826 do snapshot, com um IRRF retido (as retenções da base estão em notas 01/SE;
         // a distribuição não depende do modelo).
-        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(FromSnapshot(5637146826), NoMunicipality);
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(FromSnapshot(5637146826), NoReferenceData);
 
         TaxLine irrf = invoice.Items.SelectMany(i => i.Withholdings).Single();
         Assert.Equal(TaxKind.Irrf, irrf.Kind);
@@ -156,7 +204,7 @@ public class D365GoodsInvoiceAssemblerTests
 
         foreach (JsonElement header in headers)
         {
-            GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(FromSnapshot(header.GetProperty("FiscalDocumentRecId").GetInt64()), NoMunicipality);
+            GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(FromSnapshot(header.GetProperty("FiscalDocumentRecId").GetInt64()), NoReferenceData);
             IEnumerable<TaxLine> itemAndChargeTaxes = invoice.Items.SelectMany(i => i.Taxes.Concat(i.Charges.SelectMany(c => c.Taxes)));
             taxes += itemAndChargeTaxes.Count();
             withholdings += invoice.Items.Sum(i => i.Withholdings.Count + i.Charges.Sum(c => c.Withholdings.Count));
@@ -181,7 +229,7 @@ public class D365GoodsInvoiceAssemblerTests
         tax["FiscalDocumentLineRecId"] = lineKey;
         tax["FiscalDocumentMiscChargeRecId"] = chargeKey;
 
-        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Taxes = [ToElement(tax), .. rows.Taxes.Skip(1)] }, NoMunicipality));
+        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Taxes = [ToElement(tax), .. rows.Taxes.Skip(1)] }, NoReferenceData));
 
         Assert.Contains("35637156610", ex.Message);
         Assert.Contains(why, ex.Message);
@@ -195,7 +243,7 @@ public class D365GoodsInvoiceAssemblerTests
         JsonObject tax = Editable(rows.Taxes[0]);
         tax["FiscalTaxType"] = "Blank";
 
-        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Taxes = [ToElement(tax), .. rows.Taxes.Skip(1)] }, NoMunicipality));
+        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Taxes = [ToElement(tax), .. rows.Taxes.Skip(1)] }, NoReferenceData));
 
         Assert.Contains("Blank", ex.Message);
     }
@@ -208,7 +256,7 @@ public class D365GoodsInvoiceAssemblerTests
         JsonElement accounting = rows.Accounting.Single(a => a.GetProperty("TaxTransRecId").GetInt64() == 35637488241);
         Assert.Equal(-525m, accounting.GetProperty("TaxAmount").GetDecimal());
 
-        TaxLine ipi = D365GoodsInvoiceAssembler.Assemble(rows, NoMunicipality).Items[0].Taxes.Single(t => t.Kind == TaxKind.Ipi);
+        TaxLine ipi = D365GoodsInvoiceAssembler.Assemble(rows, NoReferenceData).Items[0].Taxes.Single(t => t.Kind == TaxKind.Ipi);
 
         Assert.Equal("51", ipi.Cst);
         Assert.Equal(525m, ipi.Amount);
@@ -219,7 +267,7 @@ public class D365GoodsInvoiceAssemblerTests
     [Fact]
     public void Recorded_charge_lands_on_its_line()
     {
-        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(Note(ImportNote), NoMunicipality).Items.Single();
+        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(Note(ImportNote), NoReferenceData).Items.Single();
 
         ItemCharge charge = item.Charges.Single();
         Assert.Equal(1, charge.Number);
@@ -238,8 +286,8 @@ public class D365GoodsInvoiceAssemblerTests
         JsonObject unknown = Editable(rows.Charges[0]);
         unknown["MiscChargeType"] = "Freight";
 
-        var orphanEx = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Charges = [ToElement(orphan)] }, NoMunicipality));
-        var unknownEx = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Charges = [ToElement(unknown)] }, NoMunicipality));
+        var orphanEx = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Charges = [ToElement(orphan)] }, NoReferenceData));
+        var unknownEx = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(rows with { Charges = [ToElement(unknown)] }, NoReferenceData));
 
         Assert.Contains("35637149828", orphanEx.Message);
         Assert.Contains("Freight", unknownEx.Message);
@@ -250,7 +298,7 @@ public class D365GoodsInvoiceAssemblerTests
     [Fact]
     public void Complete_reform_group_is_assembled_without_class_trib()
     {
-        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m), Reform("IBSCity", 0.05m, 1.75m)), NoMunicipality).Items[0];
+        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m), Reform("IBSCity", 0.05m, 1.75m)), NoReferenceData).Items[0];
 
         Assert.NotNull(item.ReformTaxes);
         Assert.Equal("000", item.ReformTaxes.Cst);
@@ -267,7 +315,7 @@ public class D365GoodsInvoiceAssemblerTests
     [Fact]
     public void Partial_reform_group_fails()
     {
-        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(WithReform(Reform("CBS", 0.9m, 31.5m)), NoMunicipality));
+        var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(WithReform(Reform("CBS", 0.9m, 31.5m)), NoReferenceData));
 
         Assert.Contains("CBS", ex.Message);
     }
@@ -276,16 +324,16 @@ public class D365GoodsInvoiceAssemblerTests
     public void Reform_group_with_divergent_cst_or_base_fails()
     {
         Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(
-            WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m, cst: "200"), Reform("IBSCity", 0.05m, 1.75m)), NoMunicipality));
+            WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m, cst: "200"), Reform("IBSCity", 0.05m, 1.75m)), NoReferenceData));
         Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(
-            WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m, taxBase: 3000m), Reform("IBSCity", 0.05m, 1.75m)), NoMunicipality));
+            WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m, taxBase: 3000m), Reform("IBSCity", 0.05m, 1.75m)), NoReferenceData));
     }
 
     [Fact]
     public void Retained_reform_tax_fails()
     {
         Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(
-            WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m, retained: true), Reform("IBSCity", 0.05m, 1.75m)), NoMunicipality));
+            WithReform(Reform("CBS", 0.9m, 31.5m), Reform("IBSState", 0.1m, 3.5m, retained: true), Reform("IBSCity", 0.05m, 1.75m)), NoReferenceData));
     }
 
     // ---------- complemento contábil ----------
@@ -297,7 +345,7 @@ public class D365GoodsInvoiceAssemblerTests
         D365DocumentRows rows = Note(ImportNote);
         Assert.True(D365GoodsInvoiceAssembler.NeedsAccounting(rows.Taxes));
 
-        TaxLine importTax = D365GoodsInvoiceAssembler.Assemble(rows, NoMunicipality).Items.Single().Taxes.Single(t => t.Kind == TaxKind.ImportTax);
+        TaxLine importTax = D365GoodsInvoiceAssembler.Assemble(rows, NoReferenceData).Items.Single().Taxes.Single(t => t.Kind == TaxKind.ImportTax);
 
         Assert.Equal(new TaxLine { Kind = TaxKind.ImportTax, Cst = null, TaxBase = 4500m, Rate = 30m, Amount = 1350m, OtherBase = 4500m }, importTax);
     }
@@ -309,7 +357,7 @@ public class D365GoodsInvoiceAssemblerTests
         D365DocumentRows rows = Note(ThirdPartyIncomingNote);
         Assert.False(D365GoodsInvoiceAssembler.NeedsAccounting(rows.Taxes));
 
-        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(rows with { Accounting = [] }, NoMunicipality).Items.Single();
+        GoodsInvoiceItem item = D365GoodsInvoiceAssembler.Assemble(rows with { Accounting = [] }, NoReferenceData).Items.Single();
 
         Assert.All(item.Taxes, t => Assert.Equal(0m, t.Amount));
         Assert.Equal(4, item.Taxes.Count);
@@ -323,7 +371,7 @@ public class D365GoodsInvoiceAssemblerTests
             t.GetProperty("FiscalTaxType").GetString() == "IPI" && t.GetProperty("TaxationCode").GetString() == "05" && t.GetProperty("TaxAmount").GetDecimal() == 0);
         long doc = zeroedIpi.GetProperty("FiscalDocumentRecId").GetInt64();
 
-        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(FromSnapshot(doc), NoMunicipality);
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(FromSnapshot(doc), NoReferenceData);
 
         TaxLine ipi = invoice.Items.SelectMany(i => i.Taxes).First(t => t.Kind == TaxKind.Ipi && t.Cst == "05");
         Assert.Equal(0m, ipi.Amount);
@@ -343,7 +391,7 @@ public class D365GoodsInvoiceAssemblerTests
         D365DocumentRows rows = Note(ImportNote);
 
         var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(
-            rows with { Accounting = [.. rows.Accounting.Where(a => a.GetProperty("TaxTransRecId").GetInt64() != 35637488268)] }, NoMunicipality));
+            rows with { Accounting = [.. rows.Accounting.Where(a => a.GetProperty("TaxTransRecId").GetInt64() != 35637488268)] }, NoReferenceData));
 
         Assert.Contains("BRMF06-110000031", ex.Message);
         Assert.Contains("35637488268", ex.Message);
@@ -360,7 +408,7 @@ public class D365GoodsInvoiceAssemblerTests
         accounting[field] = field == "TaxType" ? value : decimal.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
 
         var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(
-            rows with { Accounting = [.. rows.Accounting.Where(a => a.GetProperty("TaxTransRecId").GetInt64() != 35637488268), ToElement(accounting)] }, NoMunicipality));
+            rows with { Accounting = [.. rows.Accounting.Where(a => a.GetProperty("TaxTransRecId").GetInt64() != 35637488268), ToElement(accounting)] }, NoReferenceData));
 
         Assert.Contains("BRMF06-110000031", ex.Message);
         Assert.Contains("35637156639", ex.Message);   // o imposto fiscal
@@ -377,7 +425,7 @@ public class D365GoodsInvoiceAssemblerTests
         tax["TaxBaseAmount"] = 4000m;
 
         var ex = Assert.Throws<D365AssemblyException>(() => D365GoodsInvoiceAssembler.Assemble(
-            rows with { Taxes = [.. rows.Taxes.Where(t => t.GetProperty("FiscalTaxType").GetString() != "ImportTax"), ToElement(tax)] }, NoMunicipality));
+            rows with { Taxes = [.. rows.Taxes.Where(t => t.GetProperty("FiscalTaxType").GetString() != "ImportTax"), ToElement(tax)] }, NoReferenceData));
 
         Assert.Contains("TaxBaseAmount", ex.Message);
         Assert.Contains("4000", ex.Message);
