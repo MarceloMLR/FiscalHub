@@ -157,9 +157,10 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
 
     private async Task<AvalaraAccessToken> FetchAsync(AvalaraResolvedCredential credential, CacheKey key, CancellationToken ct)
     {
-        // client_credentials com corpo JSON (application/json), e não formulário: conferido na coleção do Postman do cliente
-        // (2026-09-27, design D13). A leitura da resposta (access_token, expires_in) e a da recusa (error,
-        // error_description) continuam supostas até a sonda rodar contra o sandbox (tarefa 15.3).
+        // client_credentials com corpo JSON (application/json), e não formulário, como na coleção do Postman do cliente.
+        // Verificado contra o sandbox em 2026-09-27 (design D13), junto com a leitura da resposta (access_token, token_type
+        // bearer, expires_in em segundos). A leitura da recusa (error, error_description) continua suposta: só a resposta de
+        // sucesso foi vista.
         using var request = new HttpRequestMessage(HttpMethod.Post, credential.TokenEndpoint)
         {
             Content = JsonContent.Create(new TokenRequestBody(credential.ClientId, credential.Secret)),
@@ -172,7 +173,7 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
         if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized)
         {
             string reason = $"Configuração do conector: a plataforma recusou a credencial do tenant '{credential.TenantId}' no ambiente "
-                + $"'{credential.Environment}' ({RefusalDetail((int)response.StatusCode, SensitiveText.Redact(body, [credential.Secret]).Text)}). "
+                + $"'{credential.Environment}' ({RefusalDetail((int)response.StatusCode, TokenExchangeRedaction.For(body, [credential.Secret]).Redact(body).Text)}). "
                 + "Confira o Client ID e o Client Secret na tela de conectores.";
             _refusals[key] = new Refusal(reason, _clock.GetUtcNow() + _options.CredentialRefusalHold);
             throw new DispatchRejectedException(reason);
@@ -205,8 +206,8 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
         return new AvalaraAccessToken(credential.TenantId, credential.Environment, value, isFresh: true, key);
     }
 
-    // O código e a descrição do erro do OAuth ("invalid_client — …"), do corpo já redigido: a descrição pode ecoar o
-    // segredo. O corpo em si nunca entra.
+    // O código e a descrição do erro do OAuth ("invalid_client — …"), do corpo já redigido pela regra da troca de token:
+    // a descrição pode ecoar o segredo, a sessão ou o login. O corpo em si nunca entra.
     private static string RefusalDetail(int status, string body)
     {
         string? error = null, description = null;

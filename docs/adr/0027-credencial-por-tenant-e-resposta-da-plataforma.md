@@ -11,9 +11,9 @@
 - **Change OpenSpec:** `openspec/changes/connect-avalara-sandbox` (parte 2, grupos 5 a 18), capacidades
   `connector-secret-references`, `avalara-tenant-authentication`, `platform-response-trace` e o delta de
   `compliance-dispatch-outcome`.
-- **Premissa parcialmente verificada:** o pedido de token é `client_credentials` com corpo JSON, verificado contra a
-  coleção do Postman do cliente (ver §3). O restante do contrato de token segue não verificado até a sonda rodar contra
-  o sandbox (tarefa 15.3). O resultado entra no fim deste documento.
+- **Autenticação verificada contra o sandbox (2026-09-27):** `client_credentials` com corpo JSON; a resposta traz
+  `access_token`, `token_type` `bearer` e `expires_in` de cerca de 86400 s (ver §3). **Segue sem verificar:** o caminho
+  de envio e o de consulta de status (tarefa 15.3, no primeiro envio pelo hub).
 
 ## Contexto
 
@@ -70,14 +70,16 @@ empresa. A consulta de status usa a mesma seção.
   chutar a regra da plataforma.
 - **O pedido de token:** OAuth `client_credentials`, com corpo JSON (`application/json`): `grant_type` fixo em
   `client_credentials`, `client_id`, `client_secret` e `disableTokenRefresh: true`.
-  - **Verificado contra a coleção do Postman do cliente** (2026-09-27), e não contra o sandbox. A premissa inicial era o
-    corpo em formulário. O ajuste coube no provider e no mock, como previsto.
-  - **O `disableTokenRefresh` vem só da coleção,** e não de documentação da plataforma. Vai porque é o que o cliente
-    manda; o efeito dele não foi verificado, e ele não deve ser tratado como contrato até haver documentação ou
-    evidência.
-  - **O restante do contrato de token segue não verificado** até a sonda rodar contra o sandbox: os nomes da resposta
-    (`access_token`, `expires_in`), os da recusa (`error`, `error_description`) e o caminho do endpoint (`TokenPath`).
-    Se divergirem, o retrabalho fica no provider e no mock, e o resto desta decisão não muda.
+  - **A forma veio da coleção do Postman do cliente, e foi verificada contra o sandbox em 2026-09-27.** A premissa
+    inicial era o corpo em formulário. O ajuste coube no provider e no mock, como previsto.
+  - **A resposta, verificada no mesmo dia:** `access_token`, `token_type` `bearer` e `expires_in` de cerca de 86400 s,
+    bem acima da margem de renovação: o token entra no cache e vale um dia. Ela traz também `refresh_token`,
+    `sessionId`, `userId`, `subId`, `appId` e um `login` com o nome da empresa. O provider não usa nenhum deles, e a
+    redação da troca de token os cobre (§8).
+  - **O `disableTokenRefresh` vem só da coleção,** e não de documentação da plataforma. O sandbox o aceitou; o efeito
+    dele não foi verificado, e ele não deve ser tratado como contrato até haver documentação ou evidência.
+  - **Segue sem verificar:** o caminho de envio e o de consulta de status, no primeiro envio pelo hub. A forma da recusa
+    do endpoint de token (`error`, `error_description`) também não foi vista, porque só houve resposta de sucesso.
 
 ### 4. O segredo pela tela, e a referência do servidor
 
@@ -192,6 +194,11 @@ A guarda `fh-` do adapter não substitui a política. Ela serve para um defeito 
   valor (o token em uso; no endpoint de token, o segredo), por padrão (`Bearer <valor>`) e, no JSON, por nome
   (`authorization`, `access_token`, `token`, `refresh_token`, `id_token`, `client_secret`, `secret`, `password`, `senha`,
   `api_key`). O custo aceito é esconder um campo legítimo chamado `token`; o marcador fica visível e a contagem sobe.
+- **A troca de token tem regra própria,** o `TokenExchangeRedaction`, onde ela é gravada ou ecoada: o motivo da recusa
+  da credencial e o `out/token.json` da sonda, que existe para ser colado em PR (o trace nunca a fotografa). As
+  credenciais da resposta, inclusive o `refresh_token`, são redigidas por nome e por valor; os identificadores da sessão
+  e da conta (`sessionId`, `userId`, `subId`, `appId`) e o `login`, que traz o nome da empresa, viram `[mascarado]`, por
+  nome e por valor, no corpo e nos cabeçalhos. O `token_type` e o `expires_in` ficam, porque são a evidência.
 - **Logs HTTP:** os dois clientes (envio e token) usam `RedactLoggedHeaders(_ => true)`, sem depender do padrão do
   framework.
 - **Melhor esforço, e a assimetria.** A foto da resposta é a primeira gravação depois da requisição. Se a falha nela
@@ -273,5 +280,7 @@ fica em `out/`, redigida e fora do Git.
 
 ## Validação no sandbox
 
-Pendente: a verificação da premissa (tarefa 15.3), as 5 NF-e 55 (16) e o experimento do campo omitido (17). O resultado
-entra aqui.
+- **2026-09-27, o token:** o pedido `client_credentials` com corpo JSON respondeu 200, com `access_token`, `token_type`
+  `bearer` e `expires_in` de cerca de 86400 s.
+- **Pendente:** o caminho de envio e o de consulta de status (o resto da tarefa 15.3), as 5 NF-e 55 (16) e o experimento
+  do campo omitido (17).

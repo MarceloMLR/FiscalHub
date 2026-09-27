@@ -200,7 +200,8 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     {
         try
         {
-            string envelope = PlatformResponseEnvelope.Build(exchange, request, response, body, redactions, [token.Value], _clock.GetUtcNow());
+            string envelope = PlatformResponseEnvelope.Build(
+                exchange, request, response, body, redactions, value => SensitiveText.Redact(value, [token.Value]), _clock.GetUtcNow());
             await _trace.SaveResponseAsync(context.TenantId, context.NaturalKey, Destination, exchange, envelope, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

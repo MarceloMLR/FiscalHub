@@ -59,9 +59,22 @@ app.MapPost("/oauth/token", async (HttpRequest request) =>
         return Results.Json(new { error = "invalid_client", error_description = "credencial recusada pelo mock" }, statusCode: StatusCodes.Status401Unauthorized);
     }
 
+    // A forma da resposta real do sandbox (2026-09-27), com valores de mentira: o ensaio da sonda contra o mock passa pela
+    // mesma redação (as credenciais [redigido], a sessão, a conta e o login [mascarado]).
     string token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(24));
     tokens[token] = 0;
-    return Results.Ok(new { access_token = token, token_type = "Bearer", expires_in = 3600 });
+    return Results.Ok(new
+    {
+        access_token = token,
+        token_type = "bearer",
+        expires_in = 86400,
+        refresh_token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)),
+        sessionId = Guid.NewGuid().ToString(),
+        userId = 900001,
+        subId = "mock-sub-0001",
+        appId = "mock-app-0001",
+        login = "integracao@empresa-do-mock",
+    });
 });
 
 // Toggle (dev): aceitar | recusar a credencial nos próximos pedidos de token.

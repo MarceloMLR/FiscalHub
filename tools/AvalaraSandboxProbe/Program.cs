@@ -111,9 +111,11 @@ async Task<int> TokenAsync()
 
     if (tokenExchange.Last is { } exchange)
     {
-        string?[] known = [secret, token?.Value];
-        (string body, int redactions) = SensitiveText.Redact(exchange.Body, known);
-        Save("token.json", PlatformResponseEnvelope.Build("token", exchange.Request, exchange.Response, body, redactions, known, DateTimeOffset.UtcNow));
+        // A regra da troca de token: credenciais [redigido], e a sessão, a conta e o login [mascarado] — o token.json é
+        // evidência para colar em PR.
+        TokenExchangeRedaction redaction = TokenExchangeRedaction.For(exchange.Body, [secret, token?.Value]);
+        (string body, int redactions) = redaction.Redact(exchange.Body);
+        Save("token.json", PlatformResponseEnvelope.Build("token", exchange.Request, exchange.Response, body, redactions, redaction.Redact, DateTimeOffset.UtcNow));
         Console.WriteLine($"HTTP {(int)exchange.Response.StatusCode}; campos da resposta: {string.Join(", ", FieldNames(exchange.Body))}");
         if (ExpiresIn(exchange.Body) is { } expiresIn)
         {
@@ -169,7 +171,7 @@ async Task<int> SendAsync()
 
     using HttpResponseMessage response = await http.SendAsync(request);
     (string body, int redactions) = SensitiveText.Redact(await response.Content.ReadAsStringAsync(), [token.Value]);
-    Save($"{label}.submit.json", PlatformResponseEnvelope.Build("submit", request, response, body, redactions, [token.Value], DateTimeOffset.UtcNow));
+    Save($"{label}.submit.json", PlatformResponseEnvelope.Build("submit", request, response, body, redactions, RedactWith(token), DateTimeOffset.UtcNow));
 
     int status = (int)response.StatusCode;
     string? id = AvalaraComplianceDispatcher.SubmittedId(body);
@@ -203,7 +205,7 @@ async Task PollAsync(string label, string id, AvalaraAccessToken token)
         string? native = null;
         if (body.Length > 0)
         {
-            Save($"{label}.status.json", PlatformResponseEnvelope.Build("status", request, response, body, redactions, [token.Value], DateTimeOffset.UtcNow));
+            Save($"{label}.status.json", PlatformResponseEnvelope.Build("status", request, response, body, redactions, RedactWith(token), DateTimeOffset.UtcNow));
             native = Field(body, "status");
         }
 
@@ -226,7 +228,7 @@ async Task<int> GetAsync()
     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
     using HttpResponseMessage response = await http.SendAsync(request);
     (string body, int redactions) = SensitiveText.Redact(await response.Content.ReadAsStringAsync(), [token.Value]);
-    Save($"{label}.readback.json", PlatformResponseEnvelope.Build("readback", request, response, body, redactions, [token.Value], DateTimeOffset.UtcNow));
+    Save($"{label}.readback.json", PlatformResponseEnvelope.Build("readback", request, response, body, redactions, RedactWith(token), DateTimeOffset.UtcNow));
 
     Console.WriteLine($"leitura de volta: HTTP {(int)response.StatusCode}");
     return response.IsSuccessStatusCode ? 0 : 1;
@@ -238,6 +240,9 @@ void Save(string file, string content)
     File.WriteAllText(path, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     Console.WriteLine($"gravado (redigido): {Path.GetRelativePath(root, path)}");
 }
+
+// A regra do envio: o token em uso, e o Bearer e os nomes sensíveis.
+static Func<string, (string Text, int Redactions)> RedactWith(AvalaraAccessToken token) => value => SensitiveText.Redact(value, [token.Value]);
 
 static int Fail(string message, int code)
 {

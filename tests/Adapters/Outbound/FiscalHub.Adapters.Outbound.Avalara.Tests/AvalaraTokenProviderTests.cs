@@ -247,6 +247,26 @@ public class AvalaraTokenProviderTests
         Assert.DoesNotContain("grant_type", reason);   // nem o corpo do pedido de token
     }
 
+    [Fact]
+    public async Task Refusal_that_echoes_the_session_and_the_login_masks_them_in_the_reason()
+    {
+        var h = new Harness
+        {
+            Endpoint =
+            {
+                Status = HttpStatusCode.Unauthorized,
+                Body = """{"error":"invalid_client","error_description":"login integracao@contoso-comercio-ltda sem acesso na sessao 5b1f3c2a-8d4e-4f6a-9b7c-1a2b3c4d5e6f","login":"integracao@contoso-comercio-ltda","sessionId":"5b1f3c2a-8d4e-4f6a-9b7c-1a2b3c4d5e6f"}""",
+            },
+        };
+
+        string reason = (await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-a")))).Reason;
+
+        Assert.DoesNotContain("contoso-comercio", reason);
+        Assert.DoesNotContain("5b1f3c2a", reason);
+        Assert.Contains("[mascarado]", reason);
+        Assert.Contains("invalid_client", reason);
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.InternalServerError)]
     [InlineData(HttpStatusCode.ServiceUnavailable)]

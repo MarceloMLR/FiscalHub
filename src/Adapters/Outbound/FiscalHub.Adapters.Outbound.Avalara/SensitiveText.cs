@@ -103,7 +103,10 @@ internal static partial class SensitiveText
         return count;
     }
 
-    private static int Occurrences(string text, string value)
+    /// <summary>Se o nome (já normalizado) designa uma credencial ou um token.</summary>
+    internal static bool IsSensitiveName(string normalizedName) => SensitiveNames.Contains(normalizedName);
+
+    internal static int Occurrences(string text, string value)
     {
         int count = 0;
         for (int i = text.IndexOf(value, StringComparison.Ordinal); i >= 0; i = text.IndexOf(value, i + value.Length, StringComparison.Ordinal))
@@ -114,7 +117,7 @@ internal static partial class SensitiveText
         return count;
     }
 
-    private static string Normalize(string name) => new([.. name.ToLowerInvariant().Where(c => c is not ('_' or '-'))]);
+    internal static string Normalize(string name) => new([.. name.ToLowerInvariant().Where(c => c is not ('_' or '-'))]);
 
     // "Bearer" + espaço + um valor que não é o marcador; o valor para em espaço, aspas, vírgula ou ponto e vírgula.
     [GeneratedRegex(@"(?<scheme>\bbearer\s+)(?!\[redigido\])[^\s""',;]+", RegexOptions.IgnoreCase)]

@@ -82,18 +82,18 @@ coisas: a divergência fica visível e não vira reenvio.
 
 | Item | Esperado pelo desenho | Observado |
 |---|---|---|
-| Método de autenticação do cliente | `client_secret` no corpo do formulário (post) | **O fluxo bateu, o formato não.** `client_credentials` com corpo JSON (`application/json`): `grant_type` fixo em `client_credentials`, `client_id`, `client_secret` e `disableTokenRefresh: true`. Verificado contra a coleção do Postman do cliente (2026-09-27), e não contra o sandbox. O `disableTokenRefresh` vem só da coleção, sem documentação. Pela regra do passo 1 abaixo, é ajuste de forma: o provider (grupo 9) e o mock (grupo 12) passaram a JSON, com teste. |
-| HTTP do pedido de token | 200 | pendente |
-| Campos da resposta de token | `access_token`, `token_type`, `expires_in` | pendente |
-| `expires_in` | número, em segundos, maior que a margem de 5 min | pendente |
-| Escopo ou audiência exigidos | nenhum | pendente |
-| Primeiro envio ao caminho `documents` | qualquer status diferente de 404 (o caminho existe) | pendente |
-| Host do sandbox e do endpoint de token | — | pendente |
+| Método de autenticação do cliente | `client_secret` no corpo do formulário (post) | **O fluxo bateu, o formato não.** `client_credentials` com corpo JSON (`application/json`): `grant_type` fixo em `client_credentials`, `client_id`, `client_secret` e `disableTokenRefresh: true`. Tirado da coleção do Postman do cliente e **verificado contra o sandbox em 2026-09-27**. O `disableTokenRefresh` vem só da coleção, sem documentação: o sandbox o aceitou, e o efeito dele não foi verificado. Pela regra do passo 1 abaixo, é ajuste de forma: o provider (grupo 9) e o mock (grupo 12) passaram a JSON, com teste. |
+| HTTP do pedido de token | 200 | 200, verificado contra o sandbox em 2026-09-27 |
+| Campos da resposta de token | `access_token`, `token_type`, `expires_in` | Os três, verificados contra o sandbox em 2026-09-27, com `token_type` `bearer`. A resposta traz também `refresh_token`, `sessionId`, `userId`, `subId`, `appId` e `login` (com o nome da empresa). O provider não lê nenhum deles; a redação da troca de token os cobre (D9). |
+| `expires_in` | número, em segundos, maior que a margem de 5 min | cerca de 86400 s (24 h), verificado contra o sandbox em 2026-09-27: bem acima da margem, e o token entra no cache |
+| Escopo ou audiência exigidos | nenhum | não registrado na verificação |
+| Primeiro envio ao caminho `documents` | qualquer status diferente de 404 (o caminho existe) | **não verificado** |
+| Consulta ao caminho `documents/{id}/status` | a resposta de status | **não verificado** |
+| Host do sandbox e do endpoint de token | — | não registrado aqui |
 
-O resto do contrato de token segue **não verificado** até a sonda rodar contra o sandbox: os nomes da resposta
-(`access_token`, `token_type`, `expires_in`), os da recusa (`error`, `error_description`) e o caminho do endpoint
-(`TokenPath`). O provider continua lendo esses nomes como supostos, de propósito: a sonda imprime os nomes reais na
-primeira execução.
+**O que segue sem verificar:** o caminho de envio e o de consulta de status, no primeiro envio pelo hub (passo 3). A
+forma da recusa do endpoint de token (`error`, `error_description`) também não foi vista, porque só a resposta de
+sucesso foi observada: o `RefusalDetail` continua lendo esses nomes como supostos.
 
 ## Goals / Non-Goals
 
@@ -624,6 +624,11 @@ antes da foto, do motivo (`PlatformMessage`) e de qualquer log. Faz três passad
 
 1. **Por valor:** toda ocorrência do token em uso vira `[redigido]`. No endpoint de token, o segredo e o
    token também.
+   - **Na troca de token** (o motivo da recusa e o `out/token.json` da sonda; o trace nunca a fotografa), a regra é
+     o `TokenExchangeRedaction`. As credenciais da resposta (`access_token`, `refresh_token`…) entram na redação por
+     valor, e os identificadores da sessão e da conta (`sessionId`, `userId`, `subId`, `appId` e o `login`, com o nome
+     da empresa) viram `[mascarado]`, por nome e por valor. Um valor curto só é mascarado pelo nome, para não apagar
+     dígitos de outro campo.
 2. **Por padrão:** `Bearer <valor>` vira `Bearer [redigido]`, em qualquer texto.
 3. **Por nome, quando é JSON:** o valor das propriedades de nome sensível vira `[redigido]`, em qualquer
    nível. Os nomes são `authorization`, `access_token`, `token`, `refresh_token`, `id_token`,

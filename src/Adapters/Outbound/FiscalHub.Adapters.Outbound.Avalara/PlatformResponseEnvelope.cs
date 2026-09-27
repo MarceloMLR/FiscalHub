@@ -25,21 +25,21 @@ internal static class PlatformResponseEnvelope
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// <param name="redactedBody">O corpo, já passado pelo <see cref="SensitiveText"/>.</param>
+    /// <param name="redactedBody">O corpo, já redigido pela mesma regra de <paramref name="redactHeader"/>.</param>
     /// <param name="redactions">Quanto a redação do corpo contou.</param>
-    /// <param name="knownValues">Os valores que também saem dos cabeçalhos (o token em uso).</param>
+    /// <param name="redactHeader">A regra aplicada a cada valor de cabeçalho: a do envio (o token em uso) ou a da troca de
+    /// token (<see cref="TokenExchangeRedaction"/>).</param>
     public static string Build(
         string exchange, HttpRequestMessage request, HttpResponseMessage response, string redactedBody, int redactions,
-        IEnumerable<string?> knownValues, DateTimeOffset receivedAt)
+        Func<string, (string Text, int Redactions)> redactHeader, DateTimeOffset receivedAt)
     {
-        string?[] known = [.. knownValues];
         var headers = new JsonObject();
         foreach (string name in Headers)
         {
             if (response.Headers.TryGetValues(name, out IEnumerable<string>? values)
                 || response.Content.Headers.TryGetValues(name, out values))
             {
-                (string value, int count) = SensitiveText.Redact(string.Join(", ", values), known);
+                (string value, int count) = redactHeader(string.Join(", ", values));
                 headers[name] = value;
                 redactions += count;
             }
