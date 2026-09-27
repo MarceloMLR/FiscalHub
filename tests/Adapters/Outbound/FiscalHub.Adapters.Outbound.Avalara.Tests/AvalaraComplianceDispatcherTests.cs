@@ -46,7 +46,10 @@ public class AvalaraComplianceDispatcherTests
             Realtime = true,
             InboundAdapter = "Dynamics365",
             OutboundAdapter = "Avalara",
-            OutboundSettings = """{"sandbox":{"baseUrl":"http://avalara-a/"},"production":{"baseUrl":"http://avalara-a-prod/"}}""",
+            OutboundSettings = """
+                {"sandbox":{"baseUrl":"http://avalara-a/","establishments":{"12345678000190":{"codigoEmpresa":"E","codigoContribuinte":"C"}}},
+                 "production":{"baseUrl":"http://avalara-a-prod/"}}
+                """,
         });
         var dispatcher = Build(handler, profiles: profiles);
 
@@ -74,7 +77,20 @@ public class AvalaraComplianceDispatcherTests
     }
 
     [Fact]
-    public async Task CheckStatus_error_sets_platform_agnostic_message_without_native_status()
+    public async Task CheckStatus_error_carries_the_platform_reason()
+    {
+        // O motivo da plataforma atravessa como texto; o status segue normalizado (ADR-0003, refinado pelo ADR-0026).
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1","status":"erro","mensagens":["CFOP 1556 incompatível com a operação"]}""");
+        var dispatcher = Build(handler);
+
+        IntegrationResult result = await dispatcher.CheckStatusAsync("ext-guid-1", Context());
+
+        Assert.Equal(IntegrationStatus.IntegrationError, result.Status);
+        Assert.Equal("Plataforma de compliance rejeitou: CFOP 1556 incompatível com a operação", result.Message);
+    }
+
+    [Fact]
+    public async Task CheckStatus_error_without_message_says_the_platform_gave_no_reason_without_leaking_the_native_status()
     {
         var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1","status":"erro"}""");
         var dispatcher = Build(handler);
@@ -82,8 +98,43 @@ public class AvalaraComplianceDispatcherTests
         IntegrationResult result = await dispatcher.CheckStatusAsync("ext-guid-1", Context());
 
         Assert.Equal(IntegrationStatus.IntegrationError, result.Status);
-        Assert.NotNull(result.Message);
-        Assert.DoesNotContain("erro", result.Message); // não vaza o status nativo
+        Assert.Equal("Plataforma de compliance rejeitou sem informar a causa.", result.Message);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)]
+    public async Task Submit_content_refusal_is_a_rejection_with_the_platform_reason_after_a_single_request(HttpStatusCode status)
+    {
+        var handler = new StubHttpMessageHandler("""{"mensagens":["codigoEmpresa não cadastrado"]}""", status);
+        var dispatcher = Build(handler);
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
+
+        Assert.Equal("Plataforma de compliance recusou: codigoEmpresa não cadastrado", ex.Reason);
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task Submit_refusal_with_empty_body_cites_the_http_status()
+    {
+        var handler = new StubHttpMessageHandler("", HttpStatusCode.UnprocessableEntity);
+        var dispatcher = Build(handler);
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
+
+        Assert.Contains("HTTP 422", ex.Reason);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    public async Task Submit_other_failures_still_propagate_for_the_native_retry(HttpStatusCode status)
+    {
+        var handler = new StubHttpMessageHandler("""{"mensagens":["indisponível"]}""", status);
+        var dispatcher = Build(handler);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
     }
 
     [Fact]
@@ -187,6 +238,96 @@ public class AvalaraComplianceDispatcherTests
         await Assert.ThrowsAsync<HttpRequestException>(() => dispatcher.CheckStatusAsync("ext-guid-1", Context()));
     }
 
+    // ---------- contrato novo: códigos da configuração, recusa do conector, omissões (ADR-0026) ----------
+
+    [Fact]
+    public async Task Company_codes_come_from_the_outbound_settings_and_not_from_the_erp()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
+        GoodsInvoice invoice = SampleInvoice() with
+        {
+            Issuance = Issuance.Own,
+            Issuer = new Party { TaxId = "44278225000180", Name = "Contoso Entertainment System Brazil" },
+        };
+        var dispatcher = Build(handler, profiles: Profile("""{"sandbox":{"establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}}}"""));
+
+        await dispatcher.SubmitAsync(invoice, Context());
+
+        using var body = System.Text.Json.JsonDocument.Parse(handler.LastRequestBody!);
+        Assert.Equal("20247332000182", body.RootElement.GetProperty("codigoEmpresa").GetString());
+        Assert.Equal("20247332000182", body.RootElement.GetProperty("codigoContribuinte").GetString());
+        Assert.Equal("98765432000110", body.RootElement.GetProperty("parceiro").GetProperty("cnpj").GetString());
+    }
+
+    [Fact]
+    public async Task Tenant_without_the_codes_is_rejected_before_any_request()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
+        var dispatcher = Build(handler, profiles: Profile("""{"sandbox":{"baseUrl":"http://avalara-a/"}}"""));
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
+
+        Assert.StartsWith("Configuração do conector:", ex.Reason);
+        Assert.Contains("establishments", ex.Reason);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task Data_the_contract_cannot_represent_is_rejected_before_any_request()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
+        GoodsInvoice invoice = SampleInvoice() with { Items = [SampleInvoice().Items[0] with { Cfop = "" }] };
+        var dispatcher = Build(handler);
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(invoice, Context()));
+
+        Assert.StartsWith("Contrato do destino:", ex.Reason);
+        Assert.Contains("CFOP", ex.Reason);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
+    public async Task Receipt_carries_the_omissions()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
+        var dispatcher = Build(handler);
+
+        IntegrationReceipt receipt = await dispatcher.SubmitAsync(WithCharge(SampleInvoice()), Context());
+
+        Assert.Equal(["item 1: encargo Other de 416,25 não enviado (o contrato mínimo não tem campo de encargo)"], receipt.Omissions);
+    }
+
+    [Fact]
+    public async Task Platform_refusal_keeps_the_omissions_after_its_reason_and_the_payload_was_traced_before_the_post()
+    {
+        var handler = new StubHttpMessageHandler("""{"mensagens":["codigoEmpresa não cadastrado"]}""", HttpStatusCode.BadRequest);
+        var trace = new RecordingTrace();
+        var dispatcher = Build(handler, trace: trace);
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(WithCharge(SampleInvoice()), Context()));
+
+        Assert.Equal(
+            "Plataforma de compliance recusou: codigoEmpresa não cadastrado | Enviado sem: item 1: encargo Other de 416,25 não enviado (o contrato mínimo não tem campo de encargo)",
+            ex.Reason);
+        Assert.NotNull(trace.Outbound);   // a foto do destino já estava salva quando a plataforma recusou
+    }
+
+    private static GoodsInvoice WithCharge(GoodsInvoice invoice)
+        => invoice with { Items = [invoice.Items[0] with { Charges = [new ItemCharge { Number = 1, Kind = ChargeKind.Other, Amount = 416.25m }] }] };
+
+    // Perfil padrão: o emitente da nota de exemplo (12345678000190) é o estabelecimento próprio; sem baseUrl, vale a
+    // das options.
+    private static FakeProfileStore Profile(string outboundSettings = """{"sandbox":{"establishments":{"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}}}""")
+        => new(new TenantConnectorProfile
+        {
+            TenantId = "tenant-a",
+            Environment = "Sandbox",
+            Realtime = true,
+            InboundAdapter = "Xml",
+            OutboundAdapter = "Avalara",
+            OutboundSettings = outboundSettings,
+        });
+
     private static AvalaraComplianceDispatcher Build(
         StubHttpMessageHandler handler,
         IAvalaraTokenProvider? token = null,
@@ -197,7 +338,7 @@ public class AvalaraComplianceDispatcherTests
         var options = Options.Create(new AvalaraOptions { BaseUrl = "http://localhost/", Destination = "avalara" });
         return new AvalaraComplianceDispatcher(
             http, options, token ?? new NoOpAvalaraTokenProvider(), trace ?? new NoOpProcessingTrace(),
-            profiles ?? new FakeProfileStore(null));   // sem perfil → cai na BaseUrl das options
+            profiles ?? Profile());
     }
 
     private sealed class FakeProfileStore(TenantConnectorProfile? profile) : IConnectorProfileStore

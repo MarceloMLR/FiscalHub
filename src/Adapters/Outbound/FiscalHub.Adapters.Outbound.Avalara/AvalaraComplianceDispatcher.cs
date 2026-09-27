@@ -17,7 +17,7 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// </summary>
 internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsInvoice>
 {
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);   // leitura das respostas
 
     private readonly HttpClient _http;
     private readonly AvalaraOptions _options;
@@ -45,33 +45,57 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     /// <inheritdoc/>
     public async Task<IntegrationReceipt> SubmitAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
     {
-        AvalaraDocument payload = GoodsInvoiceToAvalara.Map(document);
+        // 1–2. Configuração do tenant: qual parte é a nossa, o parceiro e os códigos da plataforma (design D4, D5). Falta
+        //      algo → DispatchRejectedException antes de qualquer requisição (ADR-0026).
+        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, await _profiles.GetAsync(context.TenantId, ct));
+        (Party own, Party partner) = settings.PartiesOf(document);
+        AvalaraCompanyCodes codes = settings.CodesFor(own.TaxId);
 
-        // Foto do destino (ADR-0006): o payload no formato Avalara, antes do envio. A foto do
-        // domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
-        await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, JsonOpts), ct);
+        // 3. Mapeamento: o que o contrato não consegue representar recusa o envio de uma vez, com a lista completa.
+        AvalaraMapping mapping = GoodsInvoiceToAvalara.Map(document, new AvalaraHeaderData(codes, partner, context.NaturalKey));
+        if (mapping.Document is not { } payload)
+        {
+            throw new DispatchRejectedException($"Contrato do destino: {string.Join("; ", mapping.Problems)}");
+        }
 
-        Uri baseUri = await ResolveBaseAsync(context.TenantId, ct);
+        // 4. Foto do destino (ADR-0006): o payload no formato Avalara, antes do envio. A foto do
+        //    domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
+        await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, AvalaraJson.Options), ct);
+
+        // 5. POST.
+        Uri baseUri = BaseOf(settings);
         using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(baseUri, _options.DocumentsPath))
         {
-            Content = JsonContent.Create(payload, options: JsonOpts),
+            Content = JsonContent.Create(payload, options: AvalaraJson.Options),
         };
         await ApplyAuthAsync(request, context.TenantId, ct);
 
         using HttpResponseMessage response = await _http.SendAsync(request, ct);
+
+        // Recusa de conteúdo: permanente — registrada com o motivo da plataforma, sem retentativa (ADR-0026). O
+        // resto (5xx, 429, 401/403, 404) segue como exceção, para o retry nativo e a dead-letter (ADR-0004).
+        if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity)
+        {
+            string refusal = await response.Content.ReadAsStringAsync(ct);
+            string omitted = mapping.Omissions.Count == 0 ? string.Empty : $" | Enviado sem: {string.Join("; ", mapping.Omissions)}";
+            throw new DispatchRejectedException(
+                $"Plataforma de compliance recusou: {PlatformMessage.Extract(refusal, (int)response.StatusCode)}{omitted}");
+        }
+
         response.EnsureSuccessStatusCode();
 
+        // 6. Recibo, com o que o destino não levou.
         AvalaraSubmitResponse body = await ReadJsonAsync<AvalaraSubmitResponse>(response, ct);
         string externalId = body.Id
             ?? throw new InvalidOperationException("Resposta de envio da plataforma sem identificador externo.");
 
-        return new IntegrationReceipt { ExternalId = externalId, Status = IntegrationStatus.Submitted };
+        return new IntegrationReceipt { ExternalId = externalId, Status = IntegrationStatus.Submitted, Omissions = mapping.Omissions };
     }
 
     /// <inheritdoc/>
     public async Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
     {
-        Uri baseUri = await ResolveBaseAsync(context.TenantId, ct);
+        Uri baseUri = BaseOf(AvalaraOutboundSettings.Read(context.TenantId, await _profiles.GetAsync(context.TenantId, ct)));
         var statusUri = new Uri(baseUri, $"{_options.DocumentsPath}/{Uri.EscapeDataString(externalId)}/status");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, statusUri);
@@ -89,12 +113,15 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
 
         response.EnsureSuccessStatusCode();
 
-        AvalaraStatusResponse body = await ReadJsonAsync<AvalaraStatusResponse>(response, ct);
-        IntegrationStatus status = Translate(body.Status);
+        using JsonDocument body = await ReadJsonDocumentAsync(response, ct);
+        IntegrationStatus status = Translate(StringProperty(body.RootElement, "status"));
 
-        // Mensagem agnóstica de plataforma: nunca vaza o status nativo para fora do adapter.
+        // O status nativo nunca sai do adapter; o que atravessa é o texto da plataforma (ADR-0003, refinado pelo
+        // ADR-0026). Sem mensagem reconhecida, diz isso — e não devolve o corpo, que traz o status nativo.
         string? message = status == IntegrationStatus.IntegrationError
-            ? "Integração rejeitada pela plataforma de compliance."
+            ? PlatformMessage.FindMessages(body.RootElement) is { } reason
+                ? $"Plataforma de compliance rejeitou: {reason}"
+                : "Plataforma de compliance rejeitou sem informar a causa."
             : null;
 
         return new IntegrationResult { Status = status, Message = message };
@@ -110,42 +137,10 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     };
 
     // Resolução por tenant (ADR-0019): a URL base vem do perfil do tenant (ambiente ativo). Sem
-    // perfil ou settings, cai na config do adapter. Em produção o secret/token seguem o mesmo padrão,
-    // resolvidos no Key Vault pelas referências das settings.
-    private async Task<Uri> ResolveBaseAsync(string tenantId, CancellationToken ct)
-    {
-        TenantConnectorProfile? profile = await _profiles.GetAsync(tenantId, ct);
-        string? fromProfile = ExtractBaseUrl(profile);
-        string effective = string.IsNullOrWhiteSpace(fromProfile) ? _options.BaseUrl : fromProfile!;
-        return new Uri(effective, UriKind.Absolute);
-    }
-
-    // Lê a baseUrl do ambiente ativo nas OutboundSettings (schema deste adapter). Settings ausentes
-    // ou malformadas → null (cai no fallback). Segredos ficam por referência, resolvidos fora daqui.
-    private static string? ExtractBaseUrl(TenantConnectorProfile? profile)
-    {
-        if (profile is null || string.IsNullOrWhiteSpace(profile.OutboundSettings))
-        {
-            return null;
-        }
-
-        try
-        {
-            using JsonDocument doc = JsonDocument.Parse(profile.OutboundSettings);
-            string envKey = profile.Environment.ToLowerInvariant();   // "sandbox" / "production"
-            if (doc.RootElement.TryGetProperty(envKey, out JsonElement env)
-                && env.TryGetProperty("baseUrl", out JsonElement url))
-            {
-                return url.GetString();
-            }
-        }
-        catch (JsonException)
-        {
-            // Settings malformadas não podem derrubar o envio — usa o fallback.
-        }
-
-        return null;
-    }
+    // perfil ou settings, cai na config do adapter — a consulta de status não depende dos códigos da empresa.
+    // Em produção o secret/token seguem o mesmo padrão, resolvidos no Key Vault pelas referências das settings.
+    private Uri BaseOf(AvalaraOutboundSettings settings)
+        => new(string.IsNullOrWhiteSpace(settings.BaseUrl) ? _options.BaseUrl : settings.BaseUrl, UriKind.Absolute);
 
     // Gancho de token: aplica Bearer por-requisição (thread-safe; não mexe no HttpClient compartilhado).
     // Stub no-op devolve cadeia vazia → sem header.
@@ -174,15 +169,35 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         }
     }
 
-    // Respostas nativas da plataforma — internal: o formato externo fica preso no adapter.
+    // A consulta de status é lida como JSON cru: além do status, o motivo da recusa vem em formato ainda não gravado.
+    private static async Task<JsonDocument> ReadJsonDocumentAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        string raw = await response.Content.ReadAsStringAsync(ct);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            throw new InvalidOperationException("Resposta da plataforma de compliance vazia.");
+        }
+
+        try
+        {
+            return JsonDocument.Parse(raw);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("Resposta da plataforma de compliance não é um JSON válido.", ex);
+        }
+    }
+
+    // Leitura sem distinguir maiúscula, como a desserialização Web que o adapter usava.
+    private static string? StringProperty(JsonElement root, string name)
+        => root.ValueKind == JsonValueKind.Object
+            && root.EnumerateObject().FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) is { Value.ValueKind: JsonValueKind.String } property
+                ? property.Value.GetString()
+                : null;
+
+    // Resposta nativa do envio — internal: o formato externo fica preso no adapter.
     private sealed record AvalaraSubmitResponse
     {
         public string? Id { get; init; }
-    }
-
-    private sealed record AvalaraStatusResponse
-    {
-        public string? Id { get; init; }
-        public string? Status { get; init; }
     }
 }
