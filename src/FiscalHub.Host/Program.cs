@@ -80,6 +80,9 @@ builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInv
 // o mesmo tenant recebe XML pelo drop e D365 pelo feed (ADR-0025).
 builder.Services.AddScoped(typeof(IInboundSourceResolver<>), typeof(InboundSourceResolver<>));
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
+// Os consumidores de fila entram pelo roteador: NF-e 55 vai à esteira; NFS-e/CT-e e o fora-do-escopo
+// constatado na montagem viram o desfecho "ignorado" (ADR-0025).
+builder.Services.AddScoped<IDocumentRouter, DocumentRouter>();
 
 // Gatilho por fila (Etapa 2): /ingest enfileira; o consumidor do Service Bus chama a esteira,
 // com retry e dead-letter nativos do transporte.

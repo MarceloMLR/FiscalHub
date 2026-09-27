@@ -2,20 +2,20 @@ using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Domain.Envelope;
-using FiscalHub.Domain.Goods;
 
 namespace FiscalHub.Adapters.Messaging.ServiceBus;
 
 /// <summary>
 /// Lógica do consumidor, separada da casca do Service Bus para ser testável: desserializa a
-/// referência da mensagem, monta o contexto e chama a esteira. Uma falha aqui propaga — o Service
+/// referência da mensagem, monta o contexto e chama o roteador, que leva à esteira do tipo ou grava o
+/// desfecho "ignorado" (ADR-0025). Uma falha aqui propaga — o Service
 /// Bus reconta a entrega e, no limite, manda pra dead-letter (ADR-0004/0008).
 /// </summary>
 internal sealed class QueuedDocumentProcessor
 {
-    private readonly IDocumentPipeline<GoodsInvoice> _pipeline;
+    private readonly IDocumentRouter _router;
 
-    public QueuedDocumentProcessor(IDocumentPipeline<GoodsInvoice> pipeline) => _pipeline = pipeline;
+    public QueuedDocumentProcessor(IDocumentRouter router) => _router = router;
 
     public async Task HandleAsync(BinaryData body, string? correlationId, CancellationToken ct = default)
     {
@@ -30,6 +30,6 @@ internal sealed class QueuedDocumentProcessor
             Operation = DocumentStatus.Issued,
         };
 
-        await _pipeline.ProcessAsync(reference, context, ct);
+        await _router.RouteAsync(reference, context, ct);
     }
 }

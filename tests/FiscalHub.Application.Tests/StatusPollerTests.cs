@@ -141,6 +141,9 @@ public class StatusPollerTests
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Task.CompletedTask;
 
+        public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
+
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
             => Task.CompletedTask;
 

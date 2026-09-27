@@ -35,6 +35,9 @@ internal sealed class SqlProcessingStore : IProcessingStore
     public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         => UpsertAsync(reference, IntegrationStatus.DeadLettered, externalId: null, reason, ct);
 
+    public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+        => UpsertAsync(reference, IntegrationStatus.Ignored, externalId: null, reason, ct);   // o upsert preserva o ExternalId
+
     public async Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
     {
         ProcessedDocument? row = await _db.ProcessedDocuments.FirstOrDefaultAsync(

@@ -34,6 +34,12 @@ public interface IProcessingStore
     Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default);
 
     /// <summary>
+    /// Registra que o documento ficou fora do escopo da esteira (<see cref="IntegrationStatus.Ignored"/>), com o
+    /// motivo. Sobre um registro existente, troca o estado e preserva o identificador externo já gravado.
+    /// </summary>
+    Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default);
+
+    /// <summary>
     /// Registra empresa/filial/data (agrupamento) e a impressão do cru (idempotência por conteúdo),
     /// na primeira passada da esteira. Numa reintegração por correção, atualiza o hash gravado.
     /// </summary>
