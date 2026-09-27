@@ -2,6 +2,8 @@
 
 - **Status:** Aceito
 - **Data:** 2026-07-23
+- **Revisado por:** [ADR-0028](0028-limite-de-tenant.md). Não há tenant padrão no drop, e o tenant tirado do caminho só é
+  confiável enquanto só processos nossos escrevem no drop.
 
 ## Contexto
 
@@ -17,6 +19,12 @@ eventos**, então não dá pra reproduzir o Event Grid na máquina.
   `IDocumentQueue`. Como o Azurite não emite eventos, a varredura é por **polling** (intervalo curto).
 - O gatilho é **agnóstico de formato**: não abre o XML; deriva `tenant` e `chave` do nome do arquivo
   (`{tenant}/{chave}.xml`). A lógica de nome fica num `DropBlobNaming` testável.
+
+  > **Revisado pelo ADR-0028 (2026-09-27).** Não existe mais tenant padrão. Um arquivo fora de `{tenant}/{chave}.xml`,
+  > na raiz ou com mais segmentos, fica no drop e não é ingerido; antes, a raiz caía no `tenant-a`. O tenant tirado do
+  > caminho só é confiável enquanto só processos nossos escrevem no drop. Antes de abrir o drop a um cliente, a
+  > credencial de escrita precisa ficar presa ao tenant (container por tenant, ou SAS de diretório), e o tenant tem
+  > de vir dessa ligação, e não do caminho que o cliente escolhe.
 - O arquivo é **movido** (drop → container durável) antes de enfileirar, então o locator na mensagem
   aponta pra um lugar estável e a zona de drop esvazia (sem reprocesso do mesmo arquivo).
 - No cloud, troca-se `BlobDropWatcher` por um gatilho de **Event Grid** (uma function). O resto —

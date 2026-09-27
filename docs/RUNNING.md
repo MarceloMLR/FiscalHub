@@ -41,8 +41,9 @@ Em **outro** terminal:
 dotnet run --project src/FiscalHub.Host --urls http://localhost:5200
 ```
 
-No startup o host cria o schema no SQL e sobe um XML de NF-e de exemplo no Blob
-(`nfe/nfe-exemplo.xml`). A rota `GET http://localhost:5200/` mostra que está no ar.
+No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob, no espaço de entrada do
+tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
+que está no ar.
 
 ### Tradução dos estabelecimentos (banco já existente)
 
@@ -70,12 +71,24 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
 
 ## 4. Disparar a esteira
 
+O `/ingest` exige login, e a nota entra no tenant de quem está logado. O corpo não leva tenant (ADR-0028):
+
 ```powershell
-$body = '{"tenantId":"tenant-a","naturalKey":"nfe-001","locator":"nfe/nfe-exemplo.xml"}'
-Invoke-RestMethod -Method Post -Uri http://localhost:5200/ingest -Body $body -ContentType application/json
+$login = Invoke-RestMethod -Method Post -Uri http://localhost:5200/auth/login -ContentType application/json `
+  -Body '{"email":"admin@fiscalhub.local","password":"Fiscal@123"}'
+$auth = @{ Authorization = "Bearer $($login.token)" }
+
+$body = '{"naturalKey":"nfe-001","locator":"nfe/tenant-a/nfe-exemplo.xml"}'
+Invoke-RestMethod -Method Post -Uri http://localhost:5200/ingest -Headers $auth -Body $body -ContentType application/json
 ```
 
 Isso faz o hub: ler o XML do Blob → validar → mapear e despachar pro mock → gravar o status no SQL.
+
+O locator tem de estar no espaço de entrada do tenant do login, `nfe/{tenant}/<arquivo>`. Fora dele, o `/ingest`
+responde 400 com a regra. O armazenamento de fotos (`traces/…`) nunca é origem, nem no próprio tenant.
+
+Pelo drop, o arquivo precisa estar em `drop/{tenant}/{chave}.xml`. Um arquivo na raiz do drop não é ingerido: fica
+lá, e o host avisa no log uma vez.
 
 O XML também depende da tradução dos estabelecimentos. O XML não diz qual parte é a do tenant, e quem diz é a
 tabela: o emitente `12345678000190` está nela, então é o estabelecimento próprio, e o destinatário é o parceiro.

@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-09-26
+**Última atualização:** 2026-09-27
 
 ## Ferramentas da sessão
 
@@ -72,7 +72,8 @@ As fontes estão entre parênteses:
 
 - **ADR-0025:** montagem do D365;
 - **CNV:** change `connector-not-validator`, cujo design tem o detalhe;
-- **d365/04:** d365/04 §11.
+- **d365/04:** d365/04 §11;
+- **ADR-0028:** limite de tenant (parte 1 da change `connect-avalara-sandbox`).
 
 ### Captura (feed de mudanças do D365)
 
@@ -217,6 +218,35 @@ Os itens desta seção são provados na fatia do sandbox real, a próxima.
   - **Falta:** diferencial de alíquota, IS, encargo e retenções que não são de ISS vão como omissão.
   - **Prova:** tabela de códigos e lugares com a Avalara.
   - **Sintoma:** escrituração incompleta na plataforma. É visível como "Enviado sem", mas incompleta.
+
+### Limite de tenant
+
+Hoje, todo endpoint age sobre o tenant de quem está logado. Os itens abaixo são pré-condições para abrir uma
+entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa abertura.
+
+- [ ] **Drop aberto a cliente.** (ADR-0028 §7)
+  - **Falta:** o watcher tira o tenant do caminho do arquivo, que é escolhido por quem escreve. Hoje só o `/drop`
+    de dev escreve, com o tenant do login.
+  - **Prova:** antes de dar escrita no drop a um cliente, a credencial de escrita presa ao tenant (container por
+    tenant, ou SAS de diretório com namespace hierárquico), e o tenant tirado dessa ligação.
+  - **Sintoma (injeção):** um cliente grava em `drop/{outro tenant}/…`, e a esteira monta, despacha e registra a nota
+    no outro tenant.
+- [ ] **Fila aberta a cliente (SAS send-only).** (ADR-0028 §7, d365/03)
+  - **Falta:** os consumidores confiam no tenant e no locator do corpo da mensagem. Hoje só processos nossos
+    publicam.
+  - **Prova:** antes de emitir a primeira SAS, fila ou tópico por cliente, com o tenant tirado da entidade, e não
+    do corpo.
+  - **Sintoma (injeção):** um cliente publica uma referência com o tenant de outro. A regra do locator, na busca,
+    segura a leitura de XML alheio, mas não a injeção.
+- [ ] **Diretório de empresas por tenant.** (ADR-0028)
+  - **Falta:** a porta `ICompanyDirectory` não recebe tenant, e o adapter JSON de dev devolve a mesma lista a todos.
+  - **Prova:** o adapter real (ERP ou Avalara) escopado pelo tenant do login, e a porta ganha o tenant.
+  - **Sintoma (vazamento):** o dropdown da integração manual mostra empresas de outro cliente.
+- [ ] **O `/ingest` deve existir em produção?** (ADR-0028)
+  - **Falta:** decisão de escopo. O gatilho real é o drop, o feed e o Event Grid, e o `/ingest` é conveniência
+    manual. A correção do locator vale de qualquer forma.
+  - **Prova:** decidir antes do deploy do primeiro cliente. Se não existir, mapear a rota só em `Development`.
+  - **Sintoma:** uma porta de ingestão manual aberta em produção sem uso previsto.
 
 ### Operação
 
@@ -389,3 +419,30 @@ nota de importação como omissão visível, e 9 NFS-e ignoradas.
 
 A entidade de `CClassTribTable_BR` deixou de ser pré-requisito da demonstração (ADR-0026 §7). Os caminhos que a
 demonstração não prova estão no checklist do primeiro cliente, acima.
+
+---
+
+## Sessão 2026-09-27 — Limite de tenant (parte 1 da change `connect-avalara-sandbox`)
+
+**Entregue.** Toda requisição autenticada age sobre o tenant de quem está logado, e nunca sobre um tenant vindo da
+requisição (ADR-0028). A varredura dos endpoints achou quatro furos, todos fechados:
+
+- **Vazamento:** o `/trace` e o download comparam o tenant da rota com o do usuário. Outro tenant dá o mesmo 404 de
+  documento inexistente, e o Blob dele nem é lido.
+- **Injeção:** o `/ingest` usa o tenant do login, e o corpo não leva tenant. O `/drop` de dev grava no prefixo do
+  tenant do login.
+- **Leitura alheia pela esteira:** o locator de XML tem de estar em `nfe/{tenant}/…`, sem `..`. O `traces` nunca é
+  origem, nem no próprio tenant. A regra mora no source, e vale na ingestão manual e na busca.
+- **Interferência:** o `deactivate` de agendamento filtra pelo tenant.
+
+Junto: o drop não tem mais tenant padrão, e os campos `TenantId` mortos saíram dos corpos da integração manual e dos
+agendamentos. Os XMLs do seed e o catálogo da descoberta passaram a `nfe/tenant-a/…`, e o RUNNING §4 mudou junto.
+
+**Por que antes da Avalara.** São correções de segurança que valem independente da plataforma. A change foi
+ordenada para esta parte ser mergeada sozinha (design D19), antes do portão contra o sandbox.
+
+**Próximo passo:** a parte 2 da change, que começa pelo portão (grupo 5 das tarefas): o curl contra o sandbox e a
+prova do emulador do cofre, antes de qualquer código da Avalara. O ADR-0027 está reservado para ela.
+
+**Pendências registradas no checklist:** o drop e a fila abertos a cliente, o diretório de empresas por tenant e a
+pergunta sobre o `/ingest` em produção.
