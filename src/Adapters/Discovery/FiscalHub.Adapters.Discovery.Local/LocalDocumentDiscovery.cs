@@ -13,6 +13,9 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
 {
     public string Origin => "Local";
 
+    // Origem do DOCUMENTO, não da descoberta: o catálogo aponta XML no Blob, que o adapter de XML busca (ADR-0025).
+    private const string DocumentOrigin = "Xml";
+
     // Catálogo de dev: espelha LocalSeed. Chave de acesso da NF-e = NaturalKey (idempotência real);
     // Locator aponta pro Blob de seed, de onde a esteira faz o fetch.
     private static readonly SeededDocument[] Catalog =
@@ -53,6 +56,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
                 Type = DocumentType.GoodsInvoice55,
                 NaturalKey = d.AccessKey,
                 Locator = d.Locator,
+                Origin = DocumentOrigin,
             })
             .ToList();
 
@@ -70,6 +74,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
                 Type = DocumentType.GoodsInvoice55,
                 NaturalKey = d.AccessKey,
                 Locator = d.Locator,
+                Origin = DocumentOrigin,
             };
         return Task.FromResult(reference);
     }

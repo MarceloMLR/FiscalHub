@@ -63,6 +63,28 @@ public class LocalDocumentDiscoveryTests
     }
 
     [Fact]
+    public async Task Discovered_references_carry_the_xml_origin()
+    {
+        var discovery = new LocalDocumentDiscovery();
+
+        IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(Junho());
+
+        // A origem é a do documento (XML no Blob), não a da descoberta ("Local") — ADR-0025.
+        Assert.All(found, r => Assert.Equal("Xml", r.Origin));
+    }
+
+    [Fact]
+    public async Task Reference_found_by_key_carries_the_xml_origin()
+    {
+        var discovery = new LocalDocumentDiscovery();
+
+        DocumentReference? reference = await discovery.FindByKeyAsync("tenant-a", "35260612345678000190550010000001231000000123");
+
+        Assert.NotNull(reference);
+        Assert.Equal("Xml", reference.Origin);
+    }
+
+    [Fact]
     public async Task Empty_for_unknown_tenant()
     {
         var discovery = new LocalDocumentDiscovery();

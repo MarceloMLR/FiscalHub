@@ -1,7 +1,6 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using FiscalHub.Application.Inbound;
-using FiscalHub.Domain.Envelope;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -71,13 +70,7 @@ internal sealed class BlobDropWatcher : BackgroundService
             BlobDownloadResult content = await source.DownloadContentAsync(ct);
             await inbox.GetBlobClient(inboxName).UploadAsync(content.Content.ToStream(), overwrite: true, ct);
 
-            var reference = new DocumentReference
-            {
-                TenantId = tenant,
-                Type = DocumentType.GoodsInvoice55,
-                NaturalKey = key,
-                Locator = $"{_options.InboxContainer}/{inboxName}",
-            };
+            DocumentReference reference = DropReference.For(tenant, key, $"{_options.InboxContainer}/{inboxName}");
 
             await _queue.EnqueueAsync(reference, ct);
             await source.DeleteIfExistsAsync(cancellationToken: ct);

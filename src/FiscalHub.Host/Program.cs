@@ -76,6 +76,9 @@ builder.Services.AddAvalaraComplianceDispatcher(options => options.BaseUrl = cfg
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
 builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInvoiceMetadataExtractor>();
+// A esteira escolhe o source por documento, pela origem da referência (fallback: perfil do tenant) —
+// o mesmo tenant recebe XML pelo drop e D365 pelo feed (ADR-0025).
+builder.Services.AddScoped(typeof(IInboundSourceResolver<>), typeof(InboundSourceResolver<>));
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
 
 // Gatilho por fila (Etapa 2): /ingest enfileira; o consumidor do Service Bus chama a esteira,
@@ -222,6 +225,7 @@ app.MapPost("/ingest", async (IngestRequest req, IDocumentQueue queue, Cancellat
         Type = DocumentType.GoodsInvoice55,
         NaturalKey = req.NaturalKey,
         Locator = req.Locator,
+        Origin = "Xml",   // o locator é de um XML no Blob — vale mesmo para tenant cujo feed é outro ERP (ADR-0025)
     };
 
     await queue.EnqueueAsync(reference, ct);

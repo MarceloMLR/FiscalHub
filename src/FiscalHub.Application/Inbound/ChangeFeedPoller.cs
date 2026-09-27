@@ -152,9 +152,10 @@ public sealed class ChangeFeedPoller
         await foreach (ChangeFeedPage page in _feed.PullAsync(tenant, watermark - settings.Overlap, ct).WithCancellation(ct))
         {
             // Enfileira a página inteira ANTES de avançar a marca: uma falha aqui repete a página, nunca a pula.
+            // A origem é a do feed (ADR-0025): é por ela que a esteira escolhe o adapter que busca o documento.
             foreach (DocumentReference reference in page.References)
             {
-                await _queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Event }, ct);
+                await _queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Event, Origin = _feed.Origin }, ct);
                 pass.ReferencesEnqueued++;
             }
 

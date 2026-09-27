@@ -449,6 +449,20 @@ public class ChangeFeedPollerTests
         Assert.Equal(IngestionTrigger.Event, h.Queue.Items.Single().Trigger);
     }
 
+    [Fact]
+    public async Task References_are_enqueued_with_the_feed_origin()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(12, 0));
+        h.Feed.Read("tenant-a", Page(At(12, 1), "A"));   // o feed falso não preenche a origem
+
+        await h.RunAsync();
+
+        DocumentReference enqueued = h.Queue.Items.Single();
+        Assert.Equal(Origin, enqueued.Origin);
+        Assert.Equal(IngestionTrigger.Event, enqueued.Trigger);
+    }
+
     // ---------- isolamento e registro ----------
 
     [Fact]
