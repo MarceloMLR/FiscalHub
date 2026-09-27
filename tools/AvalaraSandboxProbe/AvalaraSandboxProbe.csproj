@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sonda do sandbox da plataforma de compliance (ADR-0027, design D12). NÃO é parte do produto: é a ferramenta do
+    teste manual e do experimento do campo omitido. Reusa o adapter Avalara (settings, provider de token, redação e o
+    envelope da foto) e a Infrastructure (o perfil no banco de dev e o cofre), com a configuração do Host.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Adapters\Outbound\FiscalHub.Adapters.Outbound.Avalara\FiscalHub.Adapters.Outbound.Avalara.csproj" />
+    <ProjectReference Include="..\..\src\FiscalHub.Infrastructure\FiscalHub.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
+  </ItemGroup>
+
+</Project>

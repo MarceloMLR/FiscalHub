@@ -49,3 +49,6 @@ avalara-integration-flow.mermaid
 *.bak_*
 *.orig
 *.rej
+
+# saída da sonda do sandbox: respostas reais, só o que for curado sai daqui (ADR-0027)
+tools/AvalaraSandboxProbe/out/

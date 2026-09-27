@@ -342,21 +342,21 @@ Manual e sem código.
 
 ## 13. Sonda do sandbox (D12)
 
-- [ ] 13.1 Criar `tools/AvalaraSandboxProbe`:
+- [x] 13.1 Criar `tools/AvalaraSandboxProbe`:
   - um console que referencia o adapter Avalara (`InternalsVisibleTo`) e a Infrastructure;
   - lê o perfil do banco de dev e o segredo pelo `KeyVaultSecretStore`, com a configuração de cofre do Host
     (em dev, o emulador). Só lê: nunca grava no cofre;
   - entra na solução
-- [ ] 13.2 Comandos:
+- [x] 13.2 Comandos:
   - `token`: diz se obteve e o `expires_in`, e nunca imprime o token;
   - `send`, com `--omit`, `--set`, `--ref-suffix`, `--label` e `--poll`;
   - `get`: leitura de volta.
 
   Todos gravam em `out/` o envelope redigido
-- [ ] 13.3 Pôr `tools/AvalaraSandboxProbe/out/` no `.gitignore`
-- [ ] 13.4 Rodar a sonda contra o mock (`token`, `send` com `--omit` e com `--set`, `get`) e conferir que os
+- [x] 13.3 Pôr `tools/AvalaraSandboxProbe/out/` no `.gitignore`
+- [x] 13.4 Rodar a sonda contra o mock (`token`, `send` com `--omit` e com `--set`, `get`) e conferir que os
   arquivos de `out/` saem redigidos e não entram no `git status`
-- [ ] 13.5 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 13.5 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 14. Documentação da parte Avalara antes do teste manual (D3, D13, D16)
 

@@ -1,9 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Tracing;
@@ -22,16 +20,6 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// </summary>
 internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsInvoice>
 {
-    // A lista fechada de cabeçalhos de resposta que entram na foto. Cresce com evidência, se o sandbox usar outro
-    // identificador de correlação. Cabeçalho de requisição nunca entra.
-    private static readonly string[] PhotographedHeaders = ["Content-Type", "Date", "X-Correlation-Id", "X-Request-Id", "Request-Id", "traceparent"];
-
-    private static readonly JsonSerializerOptions EnvelopeOptions = new()
-    {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
-
     private readonly HttpClient _http;
     private readonly AvalaraOptions _options;
     private readonly IAvalaraTokenProvider _tokenProvider;
@@ -212,61 +200,14 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     {
         try
         {
-            var headers = new JsonObject();
-            foreach (string name in PhotographedHeaders)
-            {
-                if (response.Headers.TryGetValues(name, out IEnumerable<string>? values)
-                    || response.Content.Headers.TryGetValues(name, out values))
-                {
-                    (string value, int count) = SensitiveText.Redact(string.Join(", ", values), [token.Value]);
-                    headers[name] = value;
-                    redactions += count;
-                }
-            }
-
-            var envelope = new JsonObject
-            {
-                ["exchange"] = exchange,
-                ["request"] = new JsonObject
-                {
-                    ["method"] = request.Method.Method,
-                    ["url"] = request.RequestUri!.GetLeftPart(UriPartial.Path),   // sem query string
-                },
-                ["response"] = new JsonObject
-                {
-                    ["status"] = (int)response.StatusCode,
-                    ["receivedAt"] = _clock.GetUtcNow().ToString("O"),
-                    ["headers"] = headers,
-                    ["body"] = BodyNode(body),
-                },
-                ["redactions"] = redactions,
-            };
-
-            await _trace.SaveResponseAsync(context.TenantId, context.NaturalKey, Destination, exchange, envelope.ToJsonString(EnvelopeOptions), ct);
+            string envelope = PlatformResponseEnvelope.Build(exchange, request, response, body, redactions, [token.Value], _clock.GetUtcNow());
+            await _trace.SaveResponseAsync(context.TenantId, context.NaturalKey, Destination, exchange, envelope, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(
                 "A foto da resposta ({Exchange}) do documento {NaturalKey} do tenant {Tenant} não foi gravada ({Error}); o desfecho segue.",
                 exchange, context.NaturalKey, context.TenantId, ex.GetType().Name);
-        }
-    }
-
-    // O corpo entra como JSON quando é JSON, e como texto nos outros casos.
-    private static JsonNode? BodyNode(string body)
-    {
-        if (body.Length == 0)
-        {
-            return null;
-        }
-
-        try
-        {
-            return JsonNode.Parse(body);
-        }
-        catch (JsonException)
-        {
-            return JsonValue.Create(body);
         }
     }
 
@@ -279,7 +220,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     }
 
     // O identificador do envio: o "id" texto não vazio de um objeto JSON. Qualquer outra coisa é "sem identificador".
-    private static string? SubmittedId(string body)
+    internal static string? SubmittedId(string body)
     {
         try
         {
