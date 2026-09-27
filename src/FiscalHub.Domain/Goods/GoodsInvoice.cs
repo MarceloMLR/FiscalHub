@@ -21,6 +21,15 @@ public sealed record GoodsInvoice
     /// <summary>Data e hora de emissão.</summary>
     public required DateTimeOffset IssueDate { get; init; }
 
+    /// <summary>Data de entrada ou saída, quando a origem a traz.</summary>
+    public DateTimeOffset? EntryExitDate { get; init; }
+
+    /// <summary>
+    /// Emissão própria ou de terceiros, quando a origem diz. <c>null</c> = a origem não diz (ex.: XML), e quem precisar
+    /// saber qual parte é o estabelecimento próprio decide por outro meio.
+    /// </summary>
+    public Issuance? Issuance { get; init; }
+
     /// <summary>Emitente da nota.</summary>
     public required Party Issuer { get; init; }
 
@@ -35,4 +44,7 @@ public sealed record GoodsInvoice
 
     /// <summary>Valor total da nota.</summary>
     public required decimal TotalAmount { get; init; }
+
+    /// <summary>Valor total das mercadorias (vProd), quando a origem o traz.</summary>
+    public decimal? GoodsAmount { get; init; }
 }

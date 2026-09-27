@@ -132,7 +132,8 @@ Outros índices úteis: `AccessKeyIdx` (chave de acesso), `FiscalDocumentIssuerS
 | `Status` | estado (2.6) |
 | `FiscalDocumentIssuer` | `OwnEstablishment` / terceiro |
 | `FiscalDocumentDate` | data de emissão |
-| `AccountingDate` | data contábil (= data de entrada) |
+| `TotalGoodsAmount` | valor das mercadorias. **Lido** desde a change `connector-not-validator`: `totais.valorMercadorias` |
+| `AccountingDate` | data contábil (= data de entrada). **Lido** desde a change `connector-not-validator`: vira `dataEntradaSaida` e, pelo mês, `periodoEscrituracao` no payload da Avalara. Na saída, confirmar com o fiscal |
 | `ModifiedDateTime` | ✅ **existe** — habilita o poll por janela (seção 8) |
 | `FiscalEstablishment` | estabelecimento fiscal |
 
@@ -232,10 +233,11 @@ no build.
 | `CFOP` | `CFOP`, origem de crédito (1º char), natureza de receita |
 | `ServiceCode` | `COD_SERV_MUNIC` |
 | `Quantity` | `QTD` |
-| `Unit` | `UNID` — relação `Unit → UnitOfMeasure.Symbol` |
+| `Unit` | `UNID` — relação `Unit → UnitOfMeasure.Symbol`. **Lido**: `unidadeMedida.codigo` (a descrição do `FSUnitOfMeasureBR` depende do idioma, não vai) |
 | `UnitPrice` | `VALOR_UNIDADE` / `VL_UNID` (10 casas) |
 | `LineAmount` | `VL_ITEM` (2 casas) |
-| `AccountingAmount` | `VL_CONTABIL_ITEM` |
+| `Origin` | origem da mercadoria. **Lido**: a Tabela A do CST do ICMS (`situacaoTributariaICMSTabA`), pela tradução do §3.3 |
+| `AccountingAmount` | `VL_CONTABIL_ITEM`. **Lido**: `valorContabil` |
 | `LineDiscount` | `VL_DESCONTO` |
 | `FinancialLedgerDimension` | FK → `DimensionAttributeValueCombination.RecId` |
 | `FinancialLedgerDimensionDisplayValue` | `COD_CTA` = `Split('|')[0]` |
@@ -268,6 +270,18 @@ campos que hoje saem vazios no payload passam a ter valor real.
 
 > **Verificar no table browser** se esses campos vêm populados no ambiente — alguns podem depender de
 > configuração.
+
+**Origem da mercadoria (`Origin`) → Tabela A do CST do ICMS** (change `connector-not-validator`, D12). A OData
+entrega o nome do enum. A tradução para o dígito de 0 a 8 da tabela de origem do leiaute só tem as linhas que
+a base mostrou, gravadas em 2026-09-26 nas 5 NF-e 55 da `brmf`:
+
+| `Origin` no F&O | Dígito | Tabela de origem do leiaute |
+|---|---|---|
+| `National` | `0` | Nacional, exceto as indicadas nos códigos 3, 4, 5 e 8 |
+| `DirectImport` | `1` | Estrangeira, importação direta, exceto a indicada no código 6 |
+
+Qualquer outro nome deixa a origem **ausente** no domínio, e nunca `0`. Cada valor novo entra com evidência
+gravada. O risco está no checklist do primeiro cliente (`docs/STATUS.md`).
 
 ### 3.4 Relações da linha
 
@@ -617,6 +631,10 @@ cache.
 
 ### Em aberto
 
+> Os itens desta lista que são risco para o primeiro cliente, os caminhos que a base não exercita, estão
+> consolidados no **checklist do primeiro cliente** em [`docs/STATUS.md`](../docs/STATUS.md), com como se
+> prova e qual o sintoma. Um caso novo entra lá; aqui ficam as investigações de metadado.
+
 - [ ] `TaxTrans.SourceDocumentLine` está populado? Se sim, é o join preferido — não-polimórfico
 - [ ] Uma nota **com encargo que tenha imposto em cima**. A `FSFiscalDocumentMiscChargeBR` está
       validada (14 encargos, 14 de 14 chegam ao documento), mas zero dos 547 impostos aponta para
@@ -634,5 +652,21 @@ cache.
 - [ ] `TaxWithholdTable` tem `TaxWithholdType_BR` para substituir o `Contains()`?
 - [ ] **Imposto Seletivo**: onde aparece? Não está em `TaxType_BR` nesta versão
 - [ ] `CClassTrib` também existe no item (`InventTable`)?
-- [ ] `CClassTribTable_BR` — campos necessários para resolver o código a partir do RecId
+- [ ] `CClassTribTable_BR` — campos necessários para resolver o código a partir do RecId. Deixou de ser
+      pré-requisito da demonstração (ADR-0026 §7)
 - [ ] CT-e (modelo 57) entra no escopo agora?
+
+**Pendências de tradução para o payload da Avalara** (change `connector-not-validator`, design D3). Cada item
+tem fonte provável no F&O, mas não tem tradução com evidência. Enquanto isso, o campo **não vai** no payload:
+
+- [ ] **Valores do enum `Purpose`** (cabeçalho), para `finalidadeNotaFiscal`. O `1` do exemplo real bate com o
+      `finNFe` "normal", mas é um exemplo só.
+- [ ] **Valores do enum `PaymentMethod`** (cabeçalho), para `tipoPagamento`.
+- [ ] **`ItemType` da linha ou `InventProductType` do item**, para `tipoItem`. Os exemplos batem com o TIPO_ITEM
+      do SPED; falta saber qual campo corresponde e com que valores.
+- [ ] **Formato do `CreditSourceCode`** (linha), para `origemCredito`. O legado derivava do 1º dígito do CFOP, o
+      que seria regra fiscal nossa.
+- [ ] **`FiscalDocumentAccountNum`** (cabeçalho) como fonte de `parceiro.codigo`, para a fatia de enriquecimento
+      do parceiro.
+- [ ] **Idioma do `FSUnitOfMeasureBR`** para a descrição da unidade: a entidade tem `LanguageId`.
+- [ ] **`AccountingDate` na nota de saída:** é mesmo a data de saída? Na entrada, é a data de entrada.

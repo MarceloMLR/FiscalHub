@@ -4,6 +4,8 @@
 - **Data:** 2026-09-26
 - **Revisa:** ADR-0024. Muda o Locator (§ mapeamento) e liga a fila de descoberta, que não tinha
   consumidor. Adota a alternativa "filtrar os repetidos da sobreposição", que o ADR-0024 tinha rejeitado.
+- **Revisado por:** ADR-0026. No §6, o item sem o grupo IBS/CBS deixa de ser rejeitado. No §7, a versão do canônico
+  passa a ter regra para base grande.
 - **Change OpenSpec:** `openspec/changes/add-d365-document-assembly`
 - **Validado no ambiente:** 2026-09-26, contra o `fiscosysdev` (`docs/RUNNING.md` §7).
   - **Teste de integração** `D365GoodsInvoiceSourceIntegrationTests`: as 5 NF-e 55 da `brmf` montadas duas vezes
@@ -115,6 +117,12 @@ O `cClassTrib` não está na entidade fiscal. Na contábil, ele é um RecId de `
 entidade que o resolva. Ele fica vazio, e a nota com IBS/CBS é rejeitada por "cClassTrib ausente" até
 existir essa entidade.
 
+> **Revisado pelo ADR-0026 (2026-09-27).** A rejeição deste parágrafo foi invertida. O item sem o grupo, e o
+> grupo sem classificação, seguem para o envio: o conteúdo fiscal é julgado pela plataforma de compliance, e o
+> hub mostra a resposta dela. O validador fica só com "a nota não possui itens". O grupo continua ausente, e não
+> zerado, e a classificação vazia simplesmente não vai no payload. A entidade de `CClassTribTable_BR` deixa de
+> ser pré-requisito da demonstração.
+
 ### 7. Hash de conteúdo canônico
 
 O D365 não tem um "cru" único, e sim N respostas JSON. A impressão (ADR-0016) é o SHA-256 de um JSON
@@ -130,6 +138,11 @@ canônico:
 Cadastros não entram: mudança de cadastro não altera a nota emitida. O canônico é também a foto da
 fonte (ADR-0006), salva antes do mapeamento. Mudar o `$select` ou o formato muda a impressão, e por isso
 a versão sobe junto.
+
+> **Regra de versão (ADR-0026 §6).** A versão 2 (change `connector-not-validator`) ampliou o `$select` do
+> cabeçalho e da linha. Mudar a versão reintegra, uma vez, cada nota já integrada que for relida. Em base
+> grande, rebobinar ou fazer backfill logo depois vira uma enxurrada. Por isso, mudança de versão com tenant em
+> produção exige antes o hash de transição.
 
 ### 8. Cadastros em cache por tenant
 
@@ -197,7 +210,7 @@ filtro de tráfego.
 
 - **Nenhuma nota do D365 chega à Avalara nesta fatia.** As notas 55 da base são de 2016, sem IBS/CBS, e
   o `cClassTrib` não é resolvível. O desfecho esperado no fiscosysdev é: 5 rejeitadas, 9 `SE` ignoradas,
-  0 enviadas.
+  0 enviadas. *Revisado pelo ADR-0026: as 5 NF-e 55 passam a ser enviadas, e a plataforma decide.*
 - **Nota confirmada e depois cancelada passa a `Ignored`.** O `ExternalId` é preservado, mas o
   cancelamento não é despachado.
 - **Dead-letter com motivo genérico** (`MaxDeliveryCountExceeded`). A causa fica no log e na foto da
@@ -207,7 +220,7 @@ filtro de tráfego.
 **Pendências (próximas fatias)**
 
 - Nota de serviço, com domínio de serviço: CCM, município de prestação, ISS e item da lista.
-- Entidade de `CClassTribTable_BR` no pacote D365.
+- Entidade de `CClassTribTable_BR` no pacote D365. Deixou de ser pré-requisito da demonstração (ADR-0026 §7).
 - Despacho de cancelamento, com os status configuráveis do ADR-0023.
 - Impostos, retenções e encargos no parser do XML.
 - Persistir o registro de publicações, se reinício ou troca de réplica pesarem.

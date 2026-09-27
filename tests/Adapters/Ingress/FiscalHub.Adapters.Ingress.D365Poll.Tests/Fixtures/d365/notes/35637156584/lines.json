@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin)","value":[
     {
-      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTEn\"","FiscalDocumentLineRecId":35637156591,"FiscalDocumentRecId":35637156584,"LineNum":1,"ItemId":"BRMF710","Description":"Venda de ativo","FiscalClassification":"8467.29.92","CFOP":"5.551","Quantity":1,"UnitPrice":5000,"LineAmount":5000
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1OTEn\"","FiscalDocumentLineRecId":35637156591,"FiscalDocumentRecId":35637156584,"LineNum":1,"ItemId":"BRMF710","Description":"Venda de ativo","FiscalClassification":"8467.29.92","CFOP":"5.551","Quantity":1,"UnitPrice":5000,"LineAmount":5000,"Unit":"pcs","AccountingAmount":5000,"Origin":"National"
     }
   ]
 }

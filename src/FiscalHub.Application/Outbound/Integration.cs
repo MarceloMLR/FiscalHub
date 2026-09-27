@@ -8,6 +8,13 @@ public sealed record IntegrationReceipt
 
     /// <summary>Estado logo após o envio.</summary>
     public required IntegrationStatus Status { get; init; }
+
+    /// <summary>
+    /// O que o documento tinha e o contrato do destino não levou, com o porquê (ex.: "item 1: encargo Other de
+    /// 416,25 não enviado (…)"). Vazia quando nada ficou de fora. O registro guarda como observação visível
+    /// (ADR-0026).
+    /// </summary>
+    public IReadOnlyList<string> Omissions { get; init; } = [];
 }
 
 /// <summary>Resultado de uma consulta de status.</summary>

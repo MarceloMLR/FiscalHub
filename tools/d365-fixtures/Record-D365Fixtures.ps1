@@ -31,13 +31,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# $select do design D5 — precisa bater com o D365GoodsInvoiceSource.
-$HeaderSelect = 'FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount'
-$LineSelect = 'FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount'
+# $select do design D5 (add-d365-document-assembly), ampliado pelo D12 (connector-not-validator) — precisa bater
+# com o D365GoodsInvoiceSource.
+$HeaderSelect = 'FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount,TotalGoodsAmount,AccountingDate'
+$LineSelect = 'FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin'
 $TaxSelect = 'FiscalDocumentTaxTransRecId,FiscalDocumentLineRecId,FiscalDocumentMiscChargeRecId,TaxTransRecId,FiscalTaxType,TaxationCode,TaxBaseAmount,TaxBaseAmountExempt,TaxBaseAmountOther,TaxValue,TaxAmount,RetainedTax'
 $ChargeSelect = 'FiscalDocumentMiscChargeRecId,FiscalDocumentLineRecId,ChargeNum,MiscChargeType,Amount,Txt'
 $TaxTransSelect = 'TaxTransRecId,Voucher,TaxType,TaxBaseAmount,TaxValue,TaxAmount'
-$PostalAddressSelect = 'PostalAddressRecId,CityRecId'
+$PostalAddressSelect = 'PostalAddressRecId,CityRecId,Street,StreetNumber,DistrictName,ZipCode'
 $CitySelect = 'AddressCityRecId,IBGECode'
 
 $base = $EnvironmentUrl.TrimEnd('/')

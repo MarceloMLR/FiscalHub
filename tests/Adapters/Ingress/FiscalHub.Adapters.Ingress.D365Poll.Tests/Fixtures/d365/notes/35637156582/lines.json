@@ -1,11 +1,11 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin)","value":[
     {
-      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODYn\"","FiscalDocumentLineRecId":35637156586,"FiscalDocumentRecId":35637156582,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":10,"UnitPrice":350,"LineAmount":3500
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODYn\"","FiscalDocumentLineRecId":35637156586,"FiscalDocumentRecId":35637156582,"LineNum":1,"ItemId":"BRMF010","Description":"Caixa ac\u00fastica padr\u00e3o 100W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":10,"UnitPrice":350,"LineAmount":3500,"Unit":"pcs","AccountingAmount":4025,"Origin":"National"
     },{
-      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODcn\"","FiscalDocumentLineRecId":35637156587,"FiscalDocumentRecId":35637156582,"LineNum":2,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":3,"UnitPrice":750,"LineAmount":2250
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODcn\"","FiscalDocumentLineRecId":35637156587,"FiscalDocumentRecId":35637156582,"LineNum":2,"ItemId":"BRMF030","Description":"Caixa ac\u00fastica importada 500W","FiscalClassification":"8518.22.00","CFOP":"6.102","Quantity":3,"UnitPrice":750,"LineAmount":2250,"Unit":"pcs","AccountingAmount":2250,"Origin":"DirectImport"
     },{
-      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODgn\"","FiscalDocumentLineRecId":35637156588,"FiscalDocumentRecId":35637156582,"LineNum":3,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":10,"UnitPrice":550,"LineAmount":5500
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODgn\"","FiscalDocumentLineRecId":35637156588,"FiscalDocumentRecId":35637156582,"LineNum":3,"ItemId":"BRMF020","Description":"Caixa ac\u00fastica padr\u00e3o 200W","FiscalClassification":"8518.22.00","CFOP":"6.101","Quantity":10,"UnitPrice":550,"LineAmount":5500,"Unit":"pcs","AccountingAmount":6325,"Origin":"National"
     }
   ]
 }

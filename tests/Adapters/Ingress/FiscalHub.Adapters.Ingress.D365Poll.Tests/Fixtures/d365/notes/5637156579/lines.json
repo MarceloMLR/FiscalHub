@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentLineBRs(FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin)","value":[
     {
-      "@odata.etag":"W/\"JzAsNTYzNzE1NjU4Mic=\"","FiscalDocumentLineRecId":5637156582,"FiscalDocumentRecId":5637156579,"LineNum":1,"ItemId":"BRMF810","Description":"Material de limpeza","FiscalClassification":"0000.00.00","CFOP":"1.556","Quantity":1,"UnitPrice":1000,"LineAmount":1000
+      "@odata.etag":"W/\"JzAsNTYzNzE1NjU4Mic=\"","FiscalDocumentLineRecId":5637156582,"FiscalDocumentRecId":5637156579,"LineNum":1,"ItemId":"BRMF810","Description":"Material de limpeza","FiscalClassification":"0000.00.00","CFOP":"1.556","Quantity":1,"UnitPrice":1000,"LineAmount":1000,"Unit":"pcs","AccountingAmount":0,"Origin":"National"
     }
   ]
 }

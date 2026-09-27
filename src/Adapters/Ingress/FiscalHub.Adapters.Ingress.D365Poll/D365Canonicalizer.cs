@@ -13,7 +13,9 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 /// </summary>
 internal static class D365Canonicalizer
 {
-    public const int Version = 1;
+    // v2 (connector-not-validator, D12): $select do cabeçalho e da linha ampliados. Em produção, mudança de versão exige
+    // o hash de transição (design D17, ADR-0026) antes de rebobinar ou fazer backfill.
+    public const int Version = 2;
 
     private static readonly JsonWriterOptions WriterOptions = new()
     {

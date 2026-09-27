@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import ReplayIcon from '@mui/icons-material/Replay';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
@@ -50,9 +51,12 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
         )}
       </div>
 
-      {doc.reason && !reprocess.isSuccess && (
+      {/* Motivo de falha é erro; em documento que não falhou (enviado com omissões, ignorado) é aviso — ADR-0026. */}
+      {doc.reason && !reprocess.isSuccess && (isFailure(doc.status) ? (
         <Banner tone="error" icon={<ErrorOutlineIcon sx={{ fontSize: 16, color: 'var(--error-text)' }} />}>{doc.reason}</Banner>
-      )}
+      ) : (
+        <Banner tone="warn" icon={<WarningAmberOutlinedIcon sx={{ fontSize: 16, color: 'var(--warn-text)' }} />}>{doc.reason}</Banner>
+      ))}
       {reprocess.isSuccess && (
         <Banner tone="ok" icon={<CheckCircleOutlineIcon sx={{ fontSize: 16, color: 'var(--ok-text)' }} />}>
           Nota reenviada à origem para reprocessar. O status atualiza em instantes.
@@ -137,10 +141,14 @@ function Empty() {
   return <div style={{ padding: '16px 0', color: 'var(--muted)', fontSize: 13 }}>Sem este arquivo.</div>;
 }
 
-function Banner({ tone, icon, children }: { tone: 'ok' | 'error'; icon: ReactNode; children: ReactNode }) {
-  const t = tone === 'ok'
-    ? { bg: 'var(--ok-bg)', border: 'var(--ok-border)', fg: 'var(--ok-text)' }
-    : { bg: 'var(--error-bg)', border: 'var(--error-border)', fg: 'var(--error-text)' };
+const BANNER_TONES = {
+  ok: { bg: 'var(--ok-bg)', border: 'var(--ok-border)', fg: 'var(--ok-text)' },
+  warn: { bg: 'var(--warn-bg)', border: 'var(--warn-border)', fg: 'var(--warn-text)' },
+  error: { bg: 'var(--error-bg)', border: 'var(--error-border)', fg: 'var(--error-text)' },
+};
+
+function Banner({ tone, icon, children }: { tone: keyof typeof BANNER_TONES; icon: ReactNode; children: ReactNode }) {
+  const t = BANNER_TONES[tone];
   return (
     <div style={{ border: `1px solid ${t.border}`, background: t.bg, borderRadius: 8, padding: '10px 12px', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
       <span style={{ flexShrink: 0, marginTop: 1, display: 'grid', placeItems: 'center' }}>{icon}</span>

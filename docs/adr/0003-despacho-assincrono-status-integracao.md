@@ -38,3 +38,12 @@ de integração**.
 - Plataformas síncronas implementam a fase 2 como trivial; webhooks chegam por um callback.
 - O store de rastreio guarda o status de integração e o id externo por documento.
 - Adicionar um destino novo é implementar a porta e o mapeamento de status — sem tocar na UI.
+
+## Revisão
+
+- **ADR-0026 (2026-09-27): a mensagem da rejeição.** O status continua normalizado, e o status nativo da plataforma
+  (o "erro" da Avalara) não sai do adapter. O que passa a atravessar é a **mensagem humana** da plataforma, com o
+  motivo da recusa, em vez de uma frase agnóstica fixa. A frase antiga escondia justamente o que o usuário precisa
+  ver no dashboard.
+- **Recusa síncrona no envio (HTTP 400 ou 422).** Também é registrada como rejeição, com o motivo da plataforma e
+  sem retentativa.

@@ -26,8 +26,12 @@ internal sealed class SqlProcessingStore : IProcessingStore
                  && (d.Status == IntegrationStatus.Submitted || d.Status == IntegrationStatus.Confirmed),
             ct);
 
+    // O que o destino não levou fica visível como observação do envio (ADR-0026); sem omissão, o Reason fica vazio.
     public Task RecordSubmissionAsync(DocumentReference reference, IntegrationReceipt receipt, CancellationToken ct = default)
-        => UpsertAsync(reference, receipt.Status, receipt.ExternalId, reason: null, ct);
+        => UpsertAsync(
+            reference, receipt.Status, receipt.ExternalId,
+            reason: receipt.Omissions.Count == 0 ? null : "Enviado sem: " + string.Join("; ", receipt.Omissions),
+            ct);
 
     public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         => UpsertAsync(reference, IntegrationStatus.IntegrationError, externalId: null, reason, ct);
@@ -108,8 +112,11 @@ internal sealed class SqlProcessingStore : IProcessingStore
             return;
         }
 
+        // Enquanto enviado, o Reason só pode ser a observação do envio (as omissões). Confirmação ou "ainda
+        // processando" a preservam; um motivo novo (recusa, sem retorno) vem primeiro e ela fica depois dele.
+        string? submissionNote = row.Status == IntegrationStatus.Submitted ? row.Reason : null;
         row.Status = status;
-        row.Reason = reason;
+        row.Reason = reason is null ? submissionNote : submissionNote is null ? reason : $"{reason} | {submissionNote}";
         row.Attempts = attempts;
         row.UpdatedAt = _clock.GetUtcNow();
         await _db.SaveChangesAsync(ct);

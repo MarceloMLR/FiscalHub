@@ -86,6 +86,35 @@ public class DocumentPipelineTests
     }
 
     [Fact]
+    public async Task Rejection_discovered_at_dispatch_is_recorded_with_its_reason_and_not_retried()
+    {
+        // A plataforma recusou, ou o conector não conseguiu montar a requisição: desfecho registrado, sem exceção
+        // (retentativa não conserta conteúdo nem configuração) — mesmo caminho da rejeição na validação.
+        var dispatcher = new FakeDispatcher { Rejection = new DispatchRejectedException("Plataforma de compliance recusou: codigoEmpresa não cadastrado") };
+        var store = new FakeStore();
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(new FakeSource()), new FakeValidator(), dispatcher, store, new RecordingTrace(), new FakeExtractor());
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(1, dispatcher.SubmitCount);
+        Assert.Equal(0, store.RecordCount);
+        Assert.Equal(["Plataforma de compliance recusou: codigoEmpresa não cadastrado"], store.Rejections);
+    }
+
+    [Fact]
+    public async Task Transient_dispatch_failure_still_propagates_for_the_native_retry()
+    {
+        var dispatcher = new FakeDispatcher { Rejection = new HttpRequestException("503") };
+        var store = new FakeStore();
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(new FakeSource()), new FakeValidator(), dispatcher, store, new RecordingTrace(), new FakeExtractor());
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => pipeline.ProcessAsync(Reference(), Context()));
+
+        Assert.Empty(store.Rejections);
+        Assert.Equal(0, store.RecordCount);
+    }
+
+    [Fact]
     public async Task Document_is_fetched_from_the_source_resolved_for_its_reference()
     {
         var xml = new FakeSource();
@@ -182,10 +211,14 @@ public class DocumentPipelineTests
     {
         public string Destination => "fake";
         public int SubmitCount { get; private set; }
+        public Exception? Rejection { get; init; }
 
         public Task<IntegrationReceipt> SubmitAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
         {
             SubmitCount++;
+            if (Rejection is not null)
+                throw Rejection;
+
             return Task.FromResult(new IntegrationReceipt
             {
                 ExternalId = "guid-123",
@@ -201,7 +234,8 @@ public class DocumentPipelineTests
     {
         public bool AlreadyProcessed { get; init; }
         public int RecordCount { get; private set; }
-        public int RejectionCount { get; private set; }
+        public int RejectionCount => Rejections.Count;
+        public List<string> Rejections { get; } = [];
         public IntegrationReceipt? Recorded { get; private set; }
 
         public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default)
@@ -216,7 +250,7 @@ public class DocumentPipelineTests
 
         public Task RecordRejectionAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         {
-            RejectionCount++;
+            Rejections.Add(reason);
             return Task.CompletedTask;
         }
 

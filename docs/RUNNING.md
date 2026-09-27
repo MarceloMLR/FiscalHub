@@ -7,7 +7,7 @@ serviço da nuvem (Azure "sem Azure").
 |-------|-------|
 | Blob Storage | Azurite (container) |
 | Azure SQL | SQL Server (container) |
-| Avalara (compliance) | mock em `tools/MockComplianceApi` |
+| Avalara (compliance) | mock em `tools/MockComplianceApi` (o sandbox real é a próxima fatia) |
 
 ## Pré-requisitos
 
@@ -44,6 +44,30 @@ dotnet run --project src/FiscalHub.Host --urls http://localhost:5200
 No startup o host cria o schema no SQL e sobe um XML de NF-e de exemplo no Blob
 (`nfe/nfe-exemplo.xml`). A rota `GET http://localhost:5200/` mostra que está no ar.
 
+### Tradução dos estabelecimentos (banco já existente)
+
+Todo envio precisa de `codigoEmpresa` e `codigoContribuinte`. Eles **não vêm do ERP**: vêm da tabela
+`establishments` das `OutboundSettings` do perfil do tenant, por ambiente, com o CNPJ do estabelecimento próprio
+como chave (ADR-0026). Sem ela, o envio é rejeitado com um motivo que diz exatamente o que falta ("Configuração do
+conector: …").
+
+O seed de um banco novo já traz, no `sandbox` do tenant-a:
+
+- `44278225000180`, a Contoso do D365 (`brmf`);
+- `12345678000190`, o tenant-a dos XMLs de exemplo.
+
+Os dois apontam para `20247332000182`, a empresa do JSON real do ambiente Avalara de teste.
+
+**Num banco criado antes desta mudança,** o seed não roda de novo. Aplique à mão, pelo mesmo padrão de SQL por
+arquivo das `InboundSettings` (seção 6):
+
+```powershell
+$out = '{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-a-sandbox-secret","clientTokenRef":"kv:avalara-a-sandbox-token","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-a-prod-secret","clientTokenRef":"kv:avalara-a-prod-token","establishments":{}}}'
+"UPDATE ConnectorProfiles SET OutboundSettings = N'$out' WHERE TenantId = 'tenant-a';" | Set-Content -Encoding ascii set-outbound.sql
+docker cp set-outbound.sql fiscalhub-sql-1:/tmp/set-outbound.sql
+docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/set-outbound.sql
+```
+
 ## 4. Disparar a esteira
 
 ```powershell
@@ -52,6 +76,9 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5200/ingest -Body $body -Co
 ```
 
 Isso faz o hub: ler o XML do Blob → validar → mapear e despachar pro mock → gravar o status no SQL.
+
+O XML também depende da tradução dos estabelecimentos. O XML não diz qual parte é a do tenant, e quem diz é a
+tabela: o emitente `12345678000190` está nela, então é o estabelecimento próprio, e o destinatário é o parceiro.
 
 ## 5. Ver o resultado
 
@@ -68,7 +95,14 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
 Invoke-RestMethod -Uri http://localhost:5100/documents/<GUID> | ConvertTo-Json -Depth 10
 ```
 
-Aí você vê o payload no formato da Avalara — inclusive o IBS/CBS da reforma no array `impostos[]`.
+Aí você vê o payload no formato da Avalara, que segue os JSONs reais de integração:
+
+- os códigos da empresa, vindos da configuração;
+- o parceiro;
+- os tributos clássicos no bloco `imposto` de cada item;
+- o IBS/CBS da Reforma no array `impostos[]`, em `CBS`, `IBS ESTADUAL` e `IBS MUNICIPAL`.
+
+Campo que o documento não tem não aparece.
 
 **O status pelo GUID:**
 
@@ -165,23 +199,63 @@ O consumidor da `documents-discovered` entrega cada referência ao roteador (ADR
 - **NFS-e e CT-e:** saem como **"ignorado: tipo fora do escopo"**, gravado, sem nenhuma chamada ao F&O.
 
 **Roteiro.** O mesmo da seção 6: ligar o poll do tenant-a com `startFrom` em 2015 e rodar o host (e o mock).
-As 14 referências da primeira passada são consumidas na sequência, uma por vez.
+As 14 referências da primeira passada são consumidas na sequência, uma por vez. Antes, confira a tradução dos
+estabelecimentos (seção 3).
 
-**Desfecho esperado no fiscosysdev: 5 rejeitadas, 9 ignoradas, 0 enviadas.**
+**Desfecho esperado no fiscosysdev: 5 enviadas e confirmadas, 9 ignoradas.** O hub não julga conteúdo fiscal
+(ADR-0026). As notas de 2016, sem IBS/CBS e uma delas sem chave de acesso, seguem para a plataforma, e quem responde
+é ela.
 
 ```powershell
 docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub `
   -Q "SELECT NaturalKey, Type, Status, Reason FROM ProcessedDocuments WHERE TenantId = 'tenant-a' AND NaturalKey LIKE 'brmf|%' ORDER BY Status, NaturalKey;"
 ```
 
-- **5 NF-e 55 com `IntegrationError`** ("Rejeitado" no dashboard) e motivo "tributos da Reforma (IBS/CBS)
-  ausentes". As notas da base são de 2016, sem IBS/CBS, e o grupo sai ausente, não zerado. A
-  `BRMF06-110000027`, de entrada de terceiro, também tem a chave de acesso vazia. Uma nota com IBS/CBS
-  ainda seria rejeitada por "cClassTrib ausente", porque o código não é resolvível sem uma entidade nova no
-  pacote D365 (ADR-0025 §6).
+- **5 NF-e 55 com `Confirmed`**, depois do poll de status. Duas delas têm uma observação no motivo, que aparece
+  como **aviso** no dashboard, e não como falha:
+  - `BRMF06-110000027`: "Enviado sem: item 1: IcmsDiff não enviado (sem lugar no contrato)";
+  - `BRMF06-110000031`, a nota de importação: "Enviado sem" do encargo. O imposto de importação vai no bloco
+    `imposto.ii`.
 - **9 NFS-e com `Ignored`** ("Ignorado" no dashboard, fora do filtro de falhas) e motivo "ignorado: tipo
   fora do escopo (ServiceNfse)".
-- **Nada é enviado ao mock.**
+- **O payload** de cada nota pode ser conferido em `GET http://localhost:5100/documents/<ExternalId>`. Ele tem:
+  - os códigos da configuração;
+  - o parceiro (a contraparte);
+  - os blocos `imposto` por item;
+  - nenhum array `impostos`, porque nenhuma nota da base tem IBS/CBS.
+
+> **O mock aceita tudo.** "5 enviadas" contra o mock prova o caminho e o contrato montado, e não a aceitação da
+> Avalara. O envio ao sandbox real (credenciais, token por tenant, `BaseUrl`) é a próxima fatia. Até lá, os
+> caminhos que a demonstração não prova estão no checklist do primeiro cliente, em `docs/STATUS.md`.
+
+**Roteiro de rejeição.** Com o mock no ar, force o resultado dos próximos documentos antes da passada.
+
+Se as notas já passaram uma vez, a idempotência não as reenvia: nota confirmada com a mesma impressão não volta.
+Nesse caso, apague os registros delas e rebobine a marca (seção 6):
+
+```powershell
+docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub `
+  -Q "DELETE FROM ProcessedDocuments WHERE TenantId = 'tenant-a' AND NaturalKey LIKE 'brmf|%'; DELETE FROM ChangeFeedCursors WHERE TenantId = 'tenant-a';"
+```
+
+Uma nota **rejeitada** não bloqueia o reprocessamento, então dá para voltar ao normal e repetir só com a
+rebobinada.
+
+```powershell
+# recusa na consulta de status: as 5 viram IntegrationError com o motivo do mock no dashboard
+Invoke-RestMethod -Method Post -Uri "http://localhost:5100/admin/result/erro?motivo=CFOP%20incompativel%20com%20a%20operacao"
+# recusa no envio (HTTP 400): mesmo desfecho, na hora do envio e sem retentativa
+Invoke-RestMethod -Method Post -Uri "http://localhost:5100/admin/result/rejeitar?motivo=codigoEmpresa%20nao%20cadastrado"
+# volta ao normal
+Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/result/carregado
+```
+
+O motivo gravado diz quem recusou:
+
+- "Plataforma de compliance rejeitou: …", na consulta;
+- "Plataforma de compliance recusou: …", no envio.
+
+Se a nota tinha observação de omissão, ela vem depois do motivo, separada por ` | `.
 
 **Foto da fonte.** O JSON canônico que a montagem hasheia fica no Blob, em
 `traces/tenant-a/<período>/brmf|<voucher>/source.json`. A impressão gravada em `ProcessedDocuments.ContentHash`

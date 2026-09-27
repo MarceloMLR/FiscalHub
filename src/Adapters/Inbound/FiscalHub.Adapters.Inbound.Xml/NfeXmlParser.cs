@@ -74,9 +74,14 @@ public sealed class NfeXmlParser
         };
     }
 
-    private static ReformTaxes ParseReformTaxes(XElement imposto)
+    // Sem IBSCBS (nota anterior à Reforma), o grupo fica ausente: conteúdo fiscal não é julgado na leitura
+    // (ADR-0026). IBSCBS presente e incompleto continua falhando — é estrutura quebrada, não conteúdo.
+    private static ReformTaxes? ParseReformTaxes(XElement imposto)
     {
-        XElement ibsCbs = Required(imposto, "IBSCBS");
+        XElement? ibsCbs = imposto.Element(Nfe + "IBSCBS");
+        if (ibsCbs is null)
+            return null;
+
         XElement g = Required(ibsCbs, "gIBSCBS");
         XElement uf = Required(g, "gIBSUF");
         XElement mun = Required(g, "gIBSMun");

@@ -152,7 +152,10 @@ public static class InfrastructureServiceCollectionExtensions
                 // tenantId/clientId do Entra entram quando a app registration existir; em dev o token vem do Azure CLI.
                 InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":500,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:d365-a-secret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300}}""",
                 OutboundAdapter = "Avalara",
-                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-a-sandbox-secret","clientTokenRef":"kv:avalara-a-sandbox-token"},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-a-prod-secret","clientTokenRef":"kv:avalara-a-prod-token"}}""",
+                // establishments: CNPJ do estabelecimento próprio → códigos na plataforma (ADR-0026) — nunca vêm do ERP.
+                // Sandbox: a Contoso do D365 (brmf) e o tenant-a dos XMLs de exemplo, os dois apontando para a empresa do
+                // JSON real do ambiente Avalara de teste. Production sem tradução: ali o envio é rejeitado com motivo claro.
+                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-a-sandbox-secret","clientTokenRef":"kv:avalara-a-sandbox-token","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-a-prod-secret","clientTokenRef":"kv:avalara-a-prod-token","establishments":{}}}""",
                 // Chamados: mock local pra demo (funciona sem conta). Troque p/ "Freshdesk" + domain/apiKey na tela de Configurações.
                 SupportAdapter = "Local",
                 SupportSettings = """{"domain":"suaempresa.freshdesk.com","apiKeyRef":"kv:freshdesk-a-key","requesterEmail":"suporte@acme.com","priority":2}""",
@@ -165,7 +168,7 @@ public static class InfrastructureServiceCollectionExtensions
                 InboundAdapter = "iScala",
                 InboundSettings = """{"host":"iscala-b.local","company":"B01","userRef":"kv:iscala-b-user","passwordRef":"kv:iscala-b-pass"}""",
                 OutboundAdapter = "Avalara",
-                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-b-sandbox-secret","clientTokenRef":"kv:avalara-b-sandbox-token"},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-b-prod-secret","clientTokenRef":"kv:avalara-b-prod-token"}}""",
+                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientSecretRef":"kv:avalara-b-sandbox-secret","clientTokenRef":"kv:avalara-b-sandbox-token","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientSecretRef":"kv:avalara-b-prod-secret","clientTokenRef":"kv:avalara-b-prod-token","establishments":{}}}""",
             });
 
         await db.SaveChangesAsync(ct);

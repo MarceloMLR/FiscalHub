@@ -78,7 +78,16 @@ public class D365CanonicalizerTests
         string canonical = D365Canonicalizer.Canonicalize(Recorded());
 
         using JsonDocument doc = JsonDocument.Parse(canonical);
-        Assert.Equal(1, doc.RootElement.GetProperty("v").GetInt32());
+        // v2: o $select do cabeçalho e da linha cresceu (connector-not-validator, D12) — os campos novos entram na impressão.
+        Assert.Equal(2, doc.RootElement.GetProperty("v").GetInt32());
+        Assert.True(doc.RootElement.GetProperty("header").TryGetProperty("AccountingDate", out _));
+        Assert.True(doc.RootElement.GetProperty("header").TryGetProperty("TotalGoodsAmount", out _));
+        Assert.All(doc.RootElement.GetProperty("lines").EnumerateArray(), line =>
+        {
+            Assert.True(line.TryGetProperty("Unit", out _));
+            Assert.True(line.TryGetProperty("AccountingAmount", out _));
+            Assert.True(line.TryGetProperty("Origin", out _));
+        });
         Assert.Equal(["v", "header", "lines", "taxes", "charges", "accounting"], doc.RootElement.EnumerateObject().Select(p => p.Name));
         Assert.DoesNotContain("@odata", canonical);
         Assert.DoesNotContain("SysModifiedDateTime", canonical);

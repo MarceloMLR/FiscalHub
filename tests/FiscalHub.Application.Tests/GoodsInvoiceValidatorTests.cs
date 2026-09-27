@@ -4,7 +4,10 @@ using FiscalHub.Domain.Goods.Reform;
 
 namespace FiscalHub.Application.Tests;
 
-/// <summary>Especifica a validação de integração da NF-e de mercadoria (TDD).</summary>
+/// <summary>
+/// Especifica a validação de integração da NF-e de mercadoria (TDD). O hub julga só o que impede a requisição de
+/// existir; conteúdo fiscal e formato de conteúdo seguem para a plataforma, que responde (ADR-0026).
+/// </summary>
 public class GoodsInvoiceValidatorTests
 {
     private readonly GoodsInvoiceValidator _validator = new();
@@ -19,60 +22,54 @@ public class GoodsInvoiceValidatorTests
     }
 
     [Fact]
-    public void Item_with_empty_cfop_is_invalid()
-    {
-        GoodsInvoice invoice = SampleInvoice() with { Items = [SampleItem() with { Cfop = "" }] };
-
-        ValidationResult result = _validator.Validate(invoice);
-
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Problems, p => p.Contains("CFOP"));
-    }
-
-    [Fact]
-    public void Item_with_malformed_cfop_is_invalid()
-    {
-        // CFOP não numérico / fora de 4 dígitos não é mapeável para o destino.
-        GoodsInvoice invoice = SampleInvoice() with { Items = [SampleItem() with { Cfop = "12" }] };
-
-        ValidationResult result = _validator.Validate(invoice);
-
-        Assert.False(result.IsValid);
-    }
-
-    [Fact]
-    public void Invoice_without_items_is_invalid()
+    public void Invoice_without_items_is_rejected_with_its_reason()
     {
         GoodsInvoice invoice = SampleInvoice() with { Items = [] };
 
         ValidationResult result = _validator.Validate(invoice);
 
         Assert.False(result.IsValid);
+        Assert.Equal(["A nota não possui itens."], result.Problems);
     }
 
-    [Fact]
-    public void Item_without_the_reform_group_is_rejected_with_its_own_reason()
-    {
-        // Nota anterior à Reforma: o grupo não existe (ausente, não zerado) — ADR-0025 §6.
-        GoodsInvoice invoice = SampleInvoice() with { Items = [SampleItem() with { ReformTaxes = null }] };
-
-        ValidationResult result = _validator.Validate(invoice);
-
-        Assert.False(result.IsValid);
-        Assert.Contains("Item 1: tributos da Reforma (IBS/CBS) ausentes.", result.Problems);
-        Assert.DoesNotContain(result.Problems, p => p.Contains("CST") || p.Contains("cClassTrib"));
-    }
+    // Conteúdo fiscal e formato de conteúdo não são julgados aqui: cada caso abaixo segue para o envio.
 
     [Fact]
-    public void Item_with_the_reform_group_but_without_class_trib_is_still_rejected_for_it()
+    public void Item_without_the_reform_group_passes()
+        => AssertPasses(SampleInvoice() with { Items = [SampleItem() with { ReformTaxes = null }] });
+
+    [Fact]
+    public void Item_with_the_reform_group_but_without_class_trib_passes()
     {
         GoodsInvoiceItem item = SampleItem();
-        GoodsInvoice invoice = SampleInvoice() with { Items = [item with { ReformTaxes = item.ReformTaxes! with { ClassTrib = "" } }] };
+        AssertPasses(SampleInvoice() with { Items = [item with { ReformTaxes = item.ReformTaxes! with { ClassTrib = "", Cst = "" } }] });
+    }
 
+    [Fact]
+    public void Empty_access_key_passes()
+        => AssertPasses(SampleInvoice() with { AccessKey = "" });
+
+    [Fact]
+    public void Access_key_with_43_digits_passes()
+        => AssertPasses(SampleInvoice() with { AccessKey = "3526061234567800019055001000000123100000012" });
+
+    [Fact]
+    public void Item_without_ncm_passes()
+        => AssertPasses(SampleInvoice() with { Items = [SampleItem() with { Ncm = "" }] });
+
+    [Theory]
+    [InlineData("")]     // representabilidade como número é conferida pelo adapter de saída, que conhece o contrato
+    [InlineData("12")]
+    [InlineData("510")]
+    public void Cfop_format_is_not_judged_by_the_validator(string cfop)
+        => AssertPasses(SampleInvoice() with { Items = [SampleItem() with { Cfop = cfop }] });
+
+    private void AssertPasses(GoodsInvoice invoice)
+    {
         ValidationResult result = _validator.Validate(invoice);
 
-        Assert.False(result.IsValid);
-        Assert.Contains(result.Problems, p => p.Contains("cClassTrib ausente"));
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Problems);
     }
 
     private static GoodsInvoice SampleInvoice() => new()

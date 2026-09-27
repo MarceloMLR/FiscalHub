@@ -41,7 +41,9 @@ public class D365GoodsInvoiceSourceTests
         Assert.Equal("FiscalDocumentRecId eq 35637156582 or MiscChargeFiscalDocumentRecId eq 35637156582", Query(h.Http.Requests[2])["$filter"]);
         Assert.Equal("FiscalDocumentRecId eq 35637156582", Query(h.Http.Requests[3])["$filter"]);
         Assert.Equal(D365GoodsInvoiceSource.HeaderSelect, Query(h.Http.Requests[0])["$select"]);
+        Assert.Equal(D365GoodsInvoiceSource.LineSelect, Query(h.Http.Requests[1])["$select"]);
         Assert.Equal(D365GoodsInvoiceSource.TaxSelect, Query(h.Http.Requests[2])["$select"]);
+        Assert.Equal(D365GoodsInvoiceSource.PostalAddressSelect, Query(h.Http.Requests[4])["$select"]);
     }
 
     [Fact]
@@ -71,6 +73,8 @@ public class D365GoodsInvoiceSourceTests
         Assert.Equal(8, h.Http.Requests.Count);
         Assert.Equal(1350m, result.Document.Items.Single().Taxes.Single(t => t.Kind == TaxKind.ImportTax).Amount);
         Assert.Null(result.Document.Recipient.MunicipalityCode);   // endereço com CityRecId 0
+        // O endereço do fornecedor estrangeiro não tem número nem bairro: campo vazio fica ausente, não "".
+        Assert.Equal(new Address { Street = "567 Apple Road", PostalCode = "89706" }, result.Document.Recipient.Address);
     }
 
     [Fact]
@@ -167,7 +171,7 @@ public class D365GoodsInvoiceSourceTests
         Assert.Equal("json", h.Trace.SourceFormat);
         Assert.Equal("brmf|BRMF21-10000026", h.Trace.SourceKey);
         Assert.StartsWith("{", h.Trace.SourceContent);
-        Assert.Contains("\"v\": 1", h.Trace.SourceContent);
+        Assert.Contains("\"v\": 2", h.Trace.SourceContent);   // v2: $select ampliado (connector-not-validator, D12)
         Assert.Equal(ContentFingerprint.Of(h.Trace.SourceContent!), result.ContentHash);
     }
 
@@ -220,6 +224,8 @@ public class D365GoodsInvoiceSourceTests
 
         Assert.Equal("3550308", invoice.Issuer.MunicipalityCode);
         Assert.Equal("3304557", invoice.Recipient.MunicipalityCode);
+        Assert.Equal(new Address { Street = "Av. das Nações Unidas", Number = "12901", District = "Brooklin", PostalCode = "04795100" }, invoice.Issuer.Address);
+        Assert.Equal(new Address { Street = "Estrada do Galeão", Number = "135", District = "Ilha do Governador", PostalCode = "21931385" }, invoice.Recipient.Address);
     }
 
     // ---------- entrada inválida e throttling ----------

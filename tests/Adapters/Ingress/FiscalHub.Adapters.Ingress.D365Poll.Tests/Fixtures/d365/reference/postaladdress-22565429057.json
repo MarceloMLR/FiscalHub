@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId,Street,StreetNumber,DistrictName,ZipCode)","value":[
     {
-      "@odata.etag":"W/\"JzAsMjI1NjU0MjkwNTcn\"","PostalAddressRecId":22565429057,"CityRecId":22565694955
+      "@odata.etag":"W/\"JzAsMjI1NjU0MjkwNTcn\"","PostalAddressRecId":22565429057,"CityRecId":22565694955,"Street":"Rua Matias Aires","StreetNumber":"160","DistrictName":"Centro","ZipCode":"01309020"
     }
   ]
 }

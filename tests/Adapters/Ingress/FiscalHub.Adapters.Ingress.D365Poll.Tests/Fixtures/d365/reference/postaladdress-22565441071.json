@@ -1,7 +1,7 @@
 {
-  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId)","value":[
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSPostalAddressBRs(PostalAddressRecId,CityRecId,Street,StreetNumber,DistrictName,ZipCode)","value":[
     {
-      "@odata.etag":"W/\"JzAsMjI1NjU0NDEwNzEn\"","PostalAddressRecId":22565441071,"CityRecId":22565694958
+      "@odata.etag":"W/\"JzAsMjI1NjU0NDEwNzEn\"","PostalAddressRecId":22565441071,"CityRecId":22565694958,"Street":"Estrada do Gale\u00e3o","StreetNumber":"135","DistrictName":"Ilha do Governador","ZipCode":"21931385"
     }
   ]
 }
