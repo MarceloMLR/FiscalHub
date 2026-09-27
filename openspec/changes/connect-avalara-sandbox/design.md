@@ -59,6 +59,10 @@ Aqui fica o estado que molda o desenho.
 - o caminho de envio (`documents`), o de status (`documents/{id}/status`), o campo `id` do aceite e os valores
   `carregado`/`erro` vieram do mock.
 
+*(Resultado em 2026-09-27: a autenticação e o caminho de envio foram verificados contra o sandbox. O caminho de status,
+o `id` do aceite e os valores `carregado`/`erro` seguem sem verificar: nenhuma nota foi aceita. Ver a tabela abaixo e o
+resultado no D13.)*
+
 **Premissa de autenticação assumida (decisão de 2026-09-27).** A parte Avalara do desenho (D2, D6, D7, D11, D12)
 assume três coisas:
 
@@ -89,12 +93,14 @@ coisas: a divergência fica visível e não vira reenvio.
 | Escopo ou audiência exigidos | nenhum | nenhum: o fluxo não exige nem devolve escopo ou audiência. Verificado contra o sandbox em 2026-09-27 |
 | Host do sandbox e do endpoint de token | — | `api-gateway.sandbox.avalarabrasil.com.br`, com o token em `/oauth/token` (o `TokenPath` padrão). Verificado contra o sandbox em 2026-09-27 |
 | Recusa do endpoint de token | 400 ou 401, com o código do OAuth (`invalid_client`…) em `error` e o `error_description` | HTTP 400 com `{"error": "<texto livre>"}`, sem `error_description`. Verificado contra o sandbox em 2026-09-27. O `error` **não** é o código do OAuth: um `client_secret` errado volta como "client_id invalid". O `RefusalDetail` não muda: o caso só com `error` já cobre a resposta real |
-| Primeiro envio ao caminho de envio | qualquer status diferente de 404 (o caminho existe) | O caminho configurado é `taxcompliance/v2/fiscal/dfe` (`Avalara:DocumentsPath`), tirado da URL de envio do sandbox do cliente; o host fica na `baseUrl` do perfil. O envio **não foi verificado** |
-| Consulta ao caminho de status | a resposta de status | **não verificado**. O hub monta `{DocumentsPath}/{id}/status`, convenção que veio do mock |
+| Primeiro envio ao caminho de envio | qualquer status diferente de 404 (o caminho existe) | **O caminho existe e está correto.** `taxcompliance/v2/fiscal/dfe`, montado pela `baseUrl` do perfil mais o `Avalara:DocumentsPath` do appsettings. As 5 NF-e 55 foram enviadas, e a plataforma respondeu com recusa de validação. Verificado contra o sandbox em 2026-09-27 |
+| Tradução do estabelecimento | os códigos da empresa pelos `establishments` do perfil | Verificada contra o sandbox em 2026-09-27: o envio levou os códigos da tabela `establishments` do perfil, e a recusa não foi sobre eles |
+| Consulta ao caminho de status | a resposta de status | **não verificado.** Nenhuma nota foi aceita, e sem `id` não houve consulta. O hub monta `{DocumentsPath}/{id}/status`, convenção que veio do mock. Se o caminho não existir, o sintoma é o documentado: a nota fica em "enviado" até virar "sem retorno" (o 404 da consulta é pendente, e não rejeição) |
 
 **A mensagem de recusa nomeia o Client ID e o Client Secret, e não segue o texto da plataforma.** O `error` não aponta o campo certo: um `client_secret` errado volta como "client_id invalid". Uma mensagem que seguisse o texto da plataforma mandaria o administrador conferir o Client ID quando o errado é o segredo. Por isso a mensagem de recusa continua nomeando os dois campos ("Confira o Client ID e o Client Secret na tela de conectores"), e não deve ser "corrigida" pelo texto da plataforma.
 
-**O que segue sem verificar:** o caminho de envio e o de consulta de status, no primeiro envio pelo hub (passo 3).
+**O que segue sem verificar:** o caminho de consulta de status. Ele só é exercitado quando a plataforma aceitar uma
+nota, o que depende da correção do payload (a próxima fatia).
 
 ## Goals / Non-Goals
 
@@ -792,6 +798,17 @@ O passo 1 do roteiro é onde a premissa se confirma, e a regra do que fazer se e
    - o zip de cada uma traz as cinco fotos;
    - nenhuma foto tem `redactions > 0` sem explicação.
 5. **Registro:** as respostas, pelo zip, vão para o relatório e para as fixtures (D15).
+
+**Resultado do teste manual (2026-09-27).** O ponta a ponta rodou contra o sandbox real, e a expectativa honesta se
+confirmou: o primeiro envio real voltou recusado, por conteúdo, e não por autenticação nem por caminho.
+
+- **A descoberta:** as 14 referências do `fiscosysdev` foram descobertas pelo feed.
+- **O roteamento:** as 9 NFS-e viraram "ignorado", sem nenhuma chamada ao F&O.
+- **A montagem e o envio:** as 5 NF-e 55 foram montadas e enviadas, com a autenticação `client_credentials` de corpo
+  JSON, no caminho `taxcompliance/v2/fiscal/dfe` e com a tradução do estabelecimento pelos `establishments` do perfil.
+- **A resposta:** recusa de validação. A plataforma exigiu seis campos que a montagem não preenche: `operacao`, `tipoPagamento`, `parceiro.Codigo`, `itens[].Item.TipoItem`, `itens[].UnidadeMedida.Descricao` e `itens[].Item.UnidadeMedida.Descricao`. É a
+  entrada da próxima fatia (a correção do payload), registrada no `docs/STATUS.md`.
+- **O que não foi exercitado:** a consulta de status (nenhuma nota aceita, nenhum `id`).
 
 **Relatório** (`docs/avalara-sandbox-primeiro-envio.md`):
 

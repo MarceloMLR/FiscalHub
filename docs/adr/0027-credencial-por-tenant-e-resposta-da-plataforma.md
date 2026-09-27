@@ -14,7 +14,9 @@
 - **Autenticação verificada contra o sandbox (2026-09-27):** em `api-gateway.sandbox.avalarabrasil.com.br`, com o token
   em `/oauth/token`: `client_credentials` com corpo JSON, sem escopo nem audiência; a resposta traz `access_token`,
   `token_type` `bearer` e `expires_in` de cerca de 86400 s; a recusa é HTTP 400 com `{"error": "<texto livre>"}` (ver
-  §3). **Segue sem verificar:** o caminho de envio e o de consulta de status (tarefa 15.3, no primeiro envio pelo hub).
+  §3). **O envio, verificado no mesmo dia:** `taxcompliance/v2/fiscal/dfe`, montado pela `baseUrl` do perfil mais o
+  `Avalara:DocumentsPath`; a plataforma recusou por validação. **Segue sem verificar:** o caminho de consulta de status
+  (nenhuma nota aceita, nenhum `id`).
 
 ## Contexto
 
@@ -301,5 +303,10 @@ fica em `out/`, redigida e fora do Git.
   audiência.
 - **2026-09-27, a recusa:** HTTP 400 com `{"error": "<texto livre>"}`, sem `error_description`; um `client_secret` errado
   volta como "client_id invalid".
-- **Pendente:** o caminho de envio e o de consulta de status (o resto da tarefa 15.3), as 5 NF-e 55 (16) e o experimento
-  do campo omitido (17).
+- **2026-09-27, o ponta a ponta:** as 14 referências do `fiscosysdev` foram descobertas; as 9 NFS-e viraram "ignorado"
+  sem nenhuma chamada ao F&O; as 5 NF-e 55 foram montadas e enviadas em `taxcompliance/v2/fiscal/dfe` (a `baseUrl` do
+  perfil mais o `Avalara:DocumentsPath`), com os códigos da empresa traduzidos pelos `establishments` do perfil. A
+  plataforma respondeu com recusa de validação, exigindo seis campos que a montagem não preenche: `operacao`, `tipoPagamento`, `parceiro.Codigo`, `itens[].Item.TipoItem`, `itens[].UnidadeMedida.Descricao` e `itens[].Item.UnidadeMedida.Descricao`. A
+  correção do payload é a próxima fatia.
+- **Segue sem verificar:** o caminho de consulta de status. Sem nota aceita, não houve `id` nem consulta. Se o caminho
+  não existir, a nota fica em "enviado" até virar "sem retorno".

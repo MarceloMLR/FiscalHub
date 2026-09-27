@@ -184,6 +184,9 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
   - **Prova:** enviar ao sandbox e ler de volta o documento gravado na plataforma.
   - **Sintoma (silencioso):** nota aceita e escriturada com finalidade, operação ou pagamento errados. É o
     item mais perigoso da lista.
+  - **Evidência parcial (2026-09-27):** o sandbox recusou as 5 NF-e 55 exigindo `operacao` e `tipoPagamento`, entre
+    outros campos. Para esses dois, omitir falha alto. O `finalidadeNotaFiscal` não apareceu na recusa, e o item
+    continua aberto para ele: o experimento do campo omitido (tarefa 17 da change) não rodou.
 - [ ] **Blocos tirados do schema.** (CNV D6)
   - **Falta:** IPI, II, ICMS-ST, ISS retido, a `TabB` e as bases isenta e em "outras" vêm do schema, e não
     de JSON aceito.
@@ -270,6 +273,33 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Prova:** decidir antes do deploy do primeiro cliente. Se não existir, mapear a rota só em `Development`.
   - **Sintoma:** uma porta de ingestão manual aberta em produção sem uso previsto.
 
+### Lacunas conhecidas (registradas em 2026-09-27)
+
+- [ ] **O interruptor "Integração em tempo real" é decorativo.** (tela de conectores)
+  - **Falta:** o booleano `Realtime` do perfil só desenha o selo "Tempo real ligado" na barra lateral, e não controla
+    nada. Quem liga o coletor de verdade é o `poll.enabled` das `InboundSettings`, que não tem tela e só se muda por SQL.
+  - **Correção pretendida (próxima fatia):** renomear para "integração automática", e o interruptor passa a ligar e
+    desligar o worker do tenant, gravando no `poll.enabled`. O `Realtime` deixa de ser campo gravado, para não haver
+    dois lugares dizendo coisas diferentes. Mais adiante, ligar o interruptor abre as opções de configuração do coletor
+    (intervalo de busca e afins), hoje sem tela. Rebobinar o `startFrom` continua sendo operação por SQL, de propósito.
+  - **Sintoma:** o Admin liga o interruptor e nenhuma nota nova é descoberta; ou o desliga, e o coletor segue rodando.
+- [ ] **O seed de dev roda em qualquer ambiente.** (risco de primeiro cliente, e não dívida de estilo)
+  - **Falta:** o seed de usuários, tenants e perfis de conector não tem guarda de `IsDevelopment()`; o único gate é a
+    tabela vazia, e um banco de produção novo é justamente um banco vazio. O `LocalSeed` também sobe os XMLs de exemplo
+    no Blob, em qualquer ambiente. (A demonstração, desde 2026-09-27, é opt-in por `Seed:DemoData`.)
+  - **Prova:** subir o host fora de Development contra um banco vazio, e conferir que nenhum usuário, tenant, perfil ou
+    blob de exemplo é criado. Precisa de uma guarda antes do primeiro deploy de cliente.
+  - **Sintoma:** num banco de produção novo, subir o host cria `admin@fiscalhub.local` com a senha conhecida
+    `Fiscal@123`, mais cinco usuários, e perfis de conector apontando para localhost e para o `fiscosysdev`.
+- [ ] **O `CompanyCode` mostra o fornecedor numa nota de terceiro.** (metadados do documento)
+  - **Falta:** o `CompanyCode` sai dos 8 primeiros dígitos do CNPJ do emitente, e o `BranchCode`, dos 4 seguintes. Numa
+    nota emitida por terceiro, isso é o fornecedor, e não o estabelecimento próprio. A origem do D365 traz os dois campos
+    certos: `FiscalEstablishmentCNPJCPF` (o CNPJ completo do estabelecimento próprio, lido hoje só para montar a parte) e
+    `FiscalEstablishment` (o código do estabelecimento, que não é lido).
+  - **Correção pretendida:** o `CompanyCode` passa a ser o CNPJ completo do estabelecimento próprio. Encosta no banco,
+    nos filtros do dashboard, nos agendamentos e no contrato do `/ingest`.
+  - **Sintoma:** filtros, KPIs e agendamentos por empresa agrupam as notas de entrada pelo fornecedor.
+
 ### Operação
 
 - [ ] **Mudança de versão do canônico com base grande.** (CNV D17)
@@ -296,7 +326,8 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
 
 **Funcionalidades que ainda não existem** (entram por fatia, e não por prova):
 
-- a correção do payload a partir das respostas reais do sandbox (a fatia depois da D18);
+- a correção do payload a partir das respostas reais do sandbox (a fatia depois da D18; a entrada está na última
+  sessão, abaixo);
 - despacho de cancelamento;
 - nota de serviço;
 - entidade de `CClassTribTable_BR`;
@@ -472,14 +503,14 @@ pergunta sobre o `/ingest` em produção.
 
 ---
 
-## Sessão 2026-09-27 — Credencial por tenant e a quarta foto (parte 2 da change `connect-avalara-sandbox`, em andamento)
+## Sessão 2026-09-27 — Credencial por tenant e a quarta foto (parte 2 da change `connect-avalara-sandbox`, concluída)
 
 **Sem portão antes do código.** A change foi revisada no mesmo dia: o `curl` contra o sandbox (as tarefas 5.1 a 5.4) e a
 regra que bloqueava a parte 2 até ele fechar saíram. Fica assumido OAuth `client_credentials`, com o segredo no corpo do
 pedido, e a premissa é confirmada só no teste manual (tarefa 15.3). Se estiver errada, o retrabalho fica no provider de
 token e no mock (ADR-0027 §3). A prova do emulador do cofre (5.5) ficou, e fechou.
 
-**Entregue (grupos 5.5 a 14, na branch `feat/connect-avalara-sandbox-parte-2`, ainda não mergeada):**
+**Entregue (grupos 5.5 a 14, na branch `feat/connect-avalara-sandbox-parte-2`, com PR aberto):**
 
 - **Autenticação real por padrão.** Cada envio e cada consulta levam o token da credencial do tenant no ambiente
   ativo. O "sem autenticação" só existe por pedido explícito, e o host não pede.
@@ -505,7 +536,32 @@ autenticado ao mock com a foto da resposta no `/trace`, e a sonda contra o mock,
 **Banco de dev existente:** as referências antigas (`kv:avalara-a-…`, `kv:d365-a-secret`) são recusadas pelo adapter
 como fora do prefixo do tenant. Basta digitar o Client Secret na tela, ou regravar as settings (RUNNING §3).
 
-**Próximo passo:** o teste manual contra o sandbox (tarefas 15 a 18), com a credencial real digitada na tela por quem
-roda o teste. A credencial é distribuída fora do repositório e do chat. Depois dele: o relatório
-`docs/avalara-sandbox-primeiro-envio.md`, as respostas reais como fixtures, e o checklist de "Contrato e plataforma"
-fechado ou reescrito com a evidência.
+**O teste manual contra o sandbox (2026-09-27).** O ponta a ponta rodou contra o sandbox real:
+
+- as 14 referências do `fiscosysdev` foram descobertas;
+- as 9 NFS-e viraram "ignorado", sem nenhuma chamada ao F&O;
+- as 5 NF-e 55 foram montadas e enviadas à Avalara, que respondeu com recusa de validação.
+
+Verificado: a autenticação `client_credentials` com corpo JSON; o envio em `taxcompliance/v2/fiscal/dfe`, montado pela
+`baseUrl` do perfil mais o `Avalara:DocumentsPath` do appsettings; a tradução do estabelecimento pelos `establishments`
+do perfil; e o roteamento da NFS-e sem tocar no F&O. Isso fecha a tarefa 15.3. **Segue sem verificar:** o caminho de
+consulta de status. Nenhuma nota foi aceita, e sem `id` não houve consulta. Se ele não existir, a nota fica em "enviado"
+até virar "sem retorno".
+
+**Próxima fatia: a correção do payload.** Entrada, da recusa do sandbox — os seis campos que a Avalara exigiu e a
+montagem não preenche:
+
+- `operacao`;
+- `tipoPagamento`;
+- `parceiro.Codigo`;
+- `itens[].Item.TipoItem`;
+- `itens[].UnidadeMedida.Descricao`;
+- `itens[].Item.UnidadeMedida.Descricao`.
+
+Junto, das lacunas conhecidas do checklist: o interruptor de integração automática gravando no `poll.enabled`, e o
+`CompanyCode` pelo estabelecimento próprio. O seed de dev sem guarda de ambiente é risco de primeiro cliente, e precisa
+fechar antes do primeiro deploy.
+
+**Pendências da change** (ficaram abertas nas tarefas): as conferências 15.1, 15.2 e 15.4 e 16.2 a 16.4, o experimento
+do campo omitido (17) e a evidência (18: as respostas reais como fixtures, os testes de reprodução e o relatório
+`docs/avalara-sandbox-primeiro-envio.md`).

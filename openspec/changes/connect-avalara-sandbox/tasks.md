@@ -409,7 +409,7 @@ Manual e sem código.
   - a linha do perfil no SQL tem só o `clientSecretRef` `fh-tenant-a--…`;
   - um `PUT` feito à mão com `clientSecretRef` no corpo dá 400;
   - reiniciar o emulador faz a tela mostrar "não configurado", e o envio falha apontando para a tela
-- [ ] 15.3 Verificação da premissa de autenticação (design D13, passo 1):
+- [x] 15.3 Verificação da premissa de autenticação (design D13, passo 1):
   - `probe token --tenant tenant-a`, e preencher a tabela "Resultado da verificação da premissa" no Context do
     design, sem credencial e sem token;
   - no primeiro envio, conferir que o caminho `documents` existe (qualquer status diferente de 404);
@@ -422,7 +422,7 @@ Manual e sem código.
 
 ## 16. Teste manual: as 5 NF-e 55 contra o sandbox (D13, passos 3 a 5)
 
-- [ ] 16.1 Rodar a passada das 5 NF-e 55 pelo hub, como no §7 do RUNNING.md, contra o sandbox, sem mudar o
+- [x] 16.1 Rodar a passada das 5 NF-e 55 pelo hub, como no §7 do RUNNING.md, contra o sandbox, sem mudar o
   payload
 - [ ] 16.2 Conferir no dashboard o desfecho e o motivo de cada nota, e a aba "Resposta". Nenhuma nota pode
   ficar sem motivo legível quando rejeitada, e a aba Destino continua mostrando o payload
