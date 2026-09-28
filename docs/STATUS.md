@@ -284,7 +284,8 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
 
 ### Lacunas conhecidas (registradas em 2026-09-27)
 
-- [ ] **O interruptor "Integração em tempo real" é decorativo.** (tela de conectores)
+- [x] **O interruptor "Integração em tempo real" é decorativo.** (tela de conectores) — fechado em 2026-09-27, com teste,
+  prova manual pelo log e conferência visual do usuário
   - **Falta:** o booleano `Realtime` do perfil só desenha o selo "Tempo real ligado" na barra lateral, e não controla
     nada. Quem liga o coletor de verdade é o `poll.enabled` das `InboundSettings`, que não tem tela e só se muda por SQL.
   - **Correção pretendida (próxima fatia):** renomear para "integração automática", e o interruptor passa a ligar e
@@ -292,7 +293,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     dois lugares dizendo coisas diferentes. Mais adiante, ligar o interruptor abre as opções de configuração do coletor
     (intervalo de busca e afins), hoje sem tela. Rebobinar o `startFrom` continua sendo operação por SQL, de propósito.
   - **Sintoma:** o Admin liga o interruptor e nenhuma nota nova é descoberta; ou o desliga, e o coletor segue rodando.
-  - **Implementado (2026-09-27, change `automatic-integration-switch`, ADR-0029). A prova manual cobriu só o "ligar".**
+  - **Implementado (2026-09-27, change `automatic-integration-switch`, ADR-0029).**
     - **A tela:** o interruptor "Integração automática" grava o `poll.enabled`, só aparece para adapter que varre, e o
       selo da barra lateral vem do `/info`.
     - **O `Realtime`:** saiu do perfil e da tabela (migração `RemoveConnectorProfileRealtime`).
@@ -304,13 +305,16 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     - **Ligar: sustentado.** O perfil é gravado (linha 1439). O tick seguinte consulta o tenant (1502), ou seja, em até
       15 segundos. A passada dá 14 referências na fila, com 0 suprimidas (1830). As 5 NF-e 55 chegam ao sandbox da
       Avalara e são recusadas por validação, com HTTP 400 (1985 a 2425).
-    - **Desligar pela tela: não sustentado.** O desligado em silêncio aparece: 7 ticks sem consulta, sem aviso e sem
-      falha (1832 a 2601). Mas não há gravação do perfil pelo host nesse intervalo: o poll foi desligado fora da tela,
-      provavelmente pelo SQL do RUNNING §6.
-    - **Religar retomando da marca: não exercitado.** No religar (2647), o cursor tinha sido apagado.
-    - **O selo e a guarda do `GET /connector` (RUNNING §8):** não aparecem no log.
-
-    Fica aberto até desligar pela tela e religar com o cursor de pé.
+    - **Desligar pela tela: sustentado.** O perfil é gravado (linhas 14207 a 14222). O tick anterior ainda consulta o
+      tenant (14179), e o seguinte já não (14241). Dali até as 23:02, 24 ticks listam o tenant sem consultá-lo, sem
+      linha do feed, aviso ou falha. O banco confirma `enabled: false`, com o resto da seção preservado e o cursor de
+      pé. O primeiro desligado do log (1832 a 2601) veio de fora da tela, e não conta.
+    - **Religar retomando da marca: sustentado.** O perfil é gravado (linhas 15278 a 15293). O tick seguinte consulta o
+      tenant (15336) sem recriar o cursor, e a passada dá 0 referências e 0 suprimidas (15426). A leitura do
+      `startFrom` devolveu 14 nas duas vezes anteriores, então esta leu só a janela da marca. O banco confirma
+      `enabled: true` e a marca avançando de 22:55:24 para 23:12:58.
+    - **O selo (ausente, aparecendo e sumindo) e a guarda do `GET /connector` (RUNNING §8):** conferência visual do
+      usuário, sem linha de log.
   - **Próximo passo, fora desta change:** ligar o interruptor abre as opções do coletor (intervalo, sobreposição,
     `startFrom`). É por ali que um campo da seção `poll` quebrado por SQL passa a ser corrigível pela tela. Hoje ele não
     tranca a gravação, mas só se corrige por SQL.

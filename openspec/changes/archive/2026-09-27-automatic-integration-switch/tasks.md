@@ -174,41 +174,67 @@ linhas citadas são as do arquivo convertido para UTF-8.
   do tenant.
 - **O que marca a gravação do perfil:** o `UPDATE [ConnectorProfiles] SET [InboundSettings]`, que é o `PUT /connector`.
 - **O que marca o cursor que não existia:** o `INSERT INTO [ChangeFeedCursors]`.
-- **O que o log mostra do processo:** foi um só (uma única "Application started", linha 80), e não houve linha `fail:`.
+- **O que o log mostra do processo:** foi um só, o `dotnet run` de PID 87012 (uma única "Application started", linha
+  80), e não houve linha `fail:`. O arquivo foi relido até as 23:12 (linha 15450), e cada leitura continua a anterior.
 
-- [ ] 6.1 Preparar: `docker compose up -d` e `az login`. Rodar o SQL do RUNNING §6, passo 1, com `enabled: false` e
+- [x] 6.1 Preparar: `docker compose up -d` e `az login`. Rodar o SQL do RUNNING §6, passo 1, com `enabled: false` e
   `startFrom` em 2015. Subir o host e o dashboard e entrar como Admin do tenant-a. A barra lateral não mostra o selo
-  - **Parcial.** O log sustenta:
+  - **O log sustenta:**
     - a migração `RemoveConnectorProfileRealtime` aplicada (linha 35);
     - o coletor desligado e calado até a primeira gravação: 33 ticks sem leitura do cursor e sem linha do feed (linhas
       92 a 1413);
     - o D365 autenticando com a credencial do tenant (linha 1587).
-
-    O selo ausente é visual, e o log não o registra.
-- [ ] 6.2 Pela tela, sem tocar no banco, ligar e salvar:
+  - **O selo ausente:** conferência visual do usuário, sem linha de log.
+- [x] 6.2 Pela tela, sem tocar no banco, ligar e salvar:
   - em até 15 segundos o log registra a passada, com as 14 referências na fila de descoberta;
   - o selo "Integração automática ligada" aparece sem recarregar
-  - **Parcial. O "ligar" está sustentado, e falta só o selo, que é visual.**
+  - **O log sustenta o "ligar":**
     - **A gravação:** linha 1439.
     - **O tick seguinte lê o cursor:** linha 1502, ou seja, em até 15 segundos.
     - **O cursor nasce do `startFrom`:** linha 1569.
     - **A passada:** "1 tenant(s) consultado(s), 14 referência(s) na fila de descoberta, 0 suprimida(s)" (linha 1830).
     - **A esteira até a plataforma:** 5 envios ao sandbox da Avalara (`taxcompliance/v2/fiscal/dfe`, linhas 1985 a
       2425), todos recusados com HTTP 400.
-- [ ] 6.3 Antes e depois de salvar, conferir pelo `GET /connector` que `companies`, `pageSize`, a seção `poll` (fora o
+  - **O selo aparecendo sem recarregar:** conferência visual do usuário, sem linha de log.
+- [x] 6.3 Antes e depois de salvar, conferir pelo `GET /connector` que `companies`, `pageSize`, a seção `poll` (fora o
   `enabled`) e os `establishments` ficaram iguais (guarda do RUNNING §8)
-  - **Sem evidência.** O log não registra o corpo do `GET /connector`.
-- [ ] 6.4 Desligar pela tela e salvar:
+  - **Conferência visual do usuário, sem linha de log.** O log não registra o corpo do `GET /connector`.
+- [x] 6.4 Desligar pela tela e salvar:
   - em até 15 segundos o log do feed fica em silêncio para o tenant-a, sem passada, falha ou aviso de configuração;
   - o selo some
-  - **Não sustentado.** O log mostra o silêncio do desligado: 7 ticks, das linhas 1832 a 2601, em que o tenant é
-    listado e não consultado, sem passada, sem aviso e sem falha. Mas não há nenhuma gravação do perfil pelo host
-    entre as linhas 1439 e 2647. O poll foi desligado fora do host, provavelmente pelo SQL do passo 1, e não pela tela.
-    Falta desligar pela tela.
-- [ ] 6.5 Ligar pela tela e salvar: a passada volta, retomando da marca, sem reenfileirar o histórico
-  - **Não exercitado.** O religar (gravação na linha 2647) encontrou o cursor apagado: ele foi recriado na linha 2724, e a
-    passada partiu do `startFrom`, e não da marca. As passadas seguintes, da linha 3904 em diante, releem só a
-    sobreposição, com 0 referências. Isso é o passo 4 do RUNNING, e não a retomada depois de uma pausa.
+  - **O log sustenta o desligar**, no mesmo processo (o `dotnet run` de PID 87012):
+    - **A gravação:** leitura do perfil e `UPDATE` (linhas 14207 a 14222), com a tela recarregando em seguida (14229 e
+      14234).
+    - **Em até 15 segundos:** o tick anterior à gravação ainda consulta o tenant (linha 14179). O primeiro tick depois
+      dela já não consulta (14241).
+    - **O silêncio:** dali até o fim da leitura (linha 14624, às 23:02), 24 ticks listam o tenant sem consultá-lo, e não
+      há linha do feed, `warn:` nem `fail:`.
+  - **O banco, lido às 23:00 e às 23:02, confirma:** o `poll` gravado é
+    `{"enabled":false,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}`. Desligar manteve a
+    seção inteira, e o cursor ficou de pé, com a marca em 22:55:24.
+  - **O selo sumindo:** conferência visual do usuário, sem linha de log.
+  - **Sobre o primeiro desligado do log:** o trecho das linhas 1832 a 2601 veio de fora da tela, sem gravação do perfil
+    pelo host. Ele não conta para esta tarefa.
+- [x] 6.5 Ligar pela tela e salvar: a passada volta, retomando da marca, sem reenfileirar o histórico
+  - **O log sustenta o religar**, no mesmo processo:
+    - **A gravação:** as leituras do perfil e o `UPDATE`, nas linhas 15278 a 15293.
+    - **Em até 15 segundos:** o último tick antes dela ainda não consulta o tenant (linha 15268). O primeiro depois
+      dela já consulta (15336).
+    - **O cursor não é recriado:** não há `INSERT INTO [ChangeFeedCursors]` depois da gravação, e o `StartAsync` achou a
+      linha com a marca.
+    - **A passada:** "1 tenant(s) consultado(s), 0 referência(s) na fila de descoberta, 0 suprimida(s)" (linha 15426),
+      sem `warn:` nem `fail:`.
+  - **Por que isso é retomar da marca, e não do `startFrom`.** A URL da consulta ao F&O sai redigida no log
+    (`FSFiscalDocumentBRs?*`), e o `since` não aparece. Mas a leitura a partir do `startFrom` de 2015 devolveu as 14
+    referências nas duas vezes anteriores (linhas 1830 e 2944), e esta devolveu 0: o que ela leu foi só a janela da marca
+    menos a sobreposição, e o histórico não voltou para a fila.
+  - **O banco, lido às 23:13, confirma:**
+    - o `poll` gravado é `{"enabled":true,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}`,
+      com a seção preservada;
+    - a marca avançou de 22:55:24 para 23:12:58 (horário local), com 0 falhas.
+  - **As tentativas anteriores não serviram:**
+    - até as 23:07 (linha 14971), nenhum `PUT` do religar tinha chegado ao host;
+    - o religar da linha 2647 encontrou o cursor apagado, e partiu do `startFrom`.
 - [x] 6.6 Apagar o cursor (`DELETE FROM ChangeFeedCursors WHERE TenantId = 'tenant-a'`), com o host de pé: a passada
   seguinte redescobre as 14 referências, com zero suprimidas, sem reiniciar o processo
   - **Sustentado.**

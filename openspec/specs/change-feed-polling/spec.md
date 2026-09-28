@@ -14,7 +14,8 @@ poll de um tenant por vez.
 A cada passada, o sistema MUST considerar apenas os tenants cujo perfil de conector usa, como adapter
 de entrada, a origem do feed e que têm o poll ligado nas settings desse adapter. Poll desligado ou
 ausente MUST significar "não consultar". Um tenant sem perfil ou com outro adapter de entrada MUST ser
-ignorado.
+ignorado. O poll desligado de propósito (`poll.enabled = false`, com a seção presente) MUST ficar em
+silêncio: a passada não registra consulta, falha nem aviso para esse tenant.
 
 #### Scenario: Tenant com o adapter e o poll ligado é consultado
 - **WHEN** a passada roda e o tenant-a tem adapter de entrada `Dynamics365` com `poll.enabled = true`
@@ -23,6 +24,11 @@ ignorado.
 #### Scenario: Poll desligado não consulta
 - **WHEN** o tenant-a tem adapter de entrada `Dynamics365` e `poll.enabled` é `false` ou está ausente
 - **THEN** o sistema não consulta a origem desse tenant nem mexe na marca d'água dele
+
+#### Scenario: Desligado de propósito fica em silêncio
+- **WHEN** o tenant-a tem adapter de entrada `Dynamics365` e `poll = {"enabled": false}`
+- **THEN** o resumo da passada não conta o tenant-a como consultado
+- **AND** nenhuma falha e nenhum aviso de configuração são registrados para o tenant-a
 
 #### Scenario: Tenant de outro adapter é ignorado
 - **WHEN** o tenant-b tem adapter de entrada `iScala`
@@ -59,7 +65,8 @@ O sistema MUST persistir uma marca d'água por par (tenant, origem). Ela é o in
 que mudou na origem já foi enfileirado. Ela MUST sobreviver a restart do processo e MUST ser gravada em
 ticks UTC, de modo a comparar e ordenar igual em SQL Server e SQLite. Na primeira consulta de um par
 sem marca, o sistema MUST criá-la com o valor de `poll.startFrom` do perfil, se houver. Sem
-`startFrom`, a marca nasce no instante atual. A marca MUST nunca regredir.
+`startFrom`, a marca nasce no instante atual. A marca MUST nunca regredir. Desligar o poll MUST NOT
+mexer na marca: religado, o tenant retoma da marca preservada.
 
 #### Scenario: Marca sobrevive a restart
 - **WHEN** a marca do tenant-a está em 2026-09-25T12:00:00Z e o processo reinicia
@@ -76,6 +83,13 @@ sem marca, o sistema MUST criá-la com o valor de `poll.startFrom` do perfil, se
 #### Scenario: Marca não regride
 - **WHEN** a marca está em 12:00:00Z e uma página devolvida pela origem tem marca alta 11:58:00Z
 - **THEN** a marca continua em 12:00:00Z
+
+#### Scenario: Religado retoma da marca
+- **WHEN** a marca do tenant-a está em 12:00:00Z, o poll fica desligado por duas horas e é religado, e o
+  perfil define `poll.startFrom = 2015-01-01T00:00:00Z`
+- **THEN** a primeira consulta depois de religado parte de 12:00:00Z menos a sobreposição, e não do
+  `startFrom` nem do instante atual
+- **AND** o que mudou na origem enquanto o poll estava desligado é enfileirado
 
 ### Requirement: Sobreposição na janela de consulta
 
@@ -132,8 +146,12 @@ foi publicado.
   deixar de enfileirar uma alteração.
 - **Poda:** o registro esquece os pares cujo carimbo saiu da janela de consulta (carimbo ≤ marca −
   sobreposição).
-- **Rebobinamento:** quando a marca d'água do (tenant, origem) regride, o registro desse par MUST ser
-  descartado.
+- **Rebobinamento:** o registro do (tenant, origem) MUST ser descartado antes da leitura em dois casos:
+  - quando a marca d'água regride desde a última vista por esta réplica;
+  - quando, no início do poll, o par não tem cursor, ou tem cursor sem marca. É o caso do cursor
+    apagado para o `startFrom` valer de novo.
+
+  Nos dois casos, o descarte MUST valer com o processo de pé, sem reinício e sem passo manual.
 - **Avanço da marca:** uma referência suprimida já foi enfileirada numa passada anterior e conta como
   enfileirada para o avanço da marca.
 - **Resumo da passada:** a passada MUST informar quantas referências suprimiu.
@@ -166,6 +184,23 @@ reenvio ao destino continua sendo a idempotência por conteúdo da esteira (ADR-
 - **WHEN** a marca d'água do tenant-a é rebobinada para 2015-01-01T00:00:00Z
 - **THEN** todos os documentos da janela relida são enfileirados de novo, inclusive os já publicados
   antes do rebobinamento
+
+#### Scenario: Cursor apagado entre passadas
+- **WHEN** uma passada enfileirou o documento A com carimbo assentado, o cursor do tenant-a é apagado com o
+  processo de pé, e o perfil define `poll.startFrom = 2015-01-01T00:00:00Z`
+- **THEN** a passada seguinte cria a marca em 2015-01-01T00:00:00Z e enfileira A de novo
+- **AND** a passada não conta A como suprimido
+
+#### Scenario: Cursor apagado no meio de uma passada
+- **WHEN** a primeira passada do tenant-a parte do `startFrom`, enfileira a primeira página, e o cursor é
+  apagado antes de a marca avançar
+- **THEN** essa passada termina sem gravar a marca da página
+- **AND** a passada seguinte parte do `startFrom` e enfileira de novo as referências daquela página
+
+#### Scenario: Cursor sem marca
+- **WHEN** o registro tem pares publicados do tenant-a e o cursor dele existe sem marca, porque foi recriado
+  por uma falha registrada depois de apagado
+- **THEN** o registro do tenant-a é descartado, e a marca nasce do `startFrom`
 
 #### Scenario: Falha no meio da página
 - **WHEN** uma página tem 5 referências assentadas, as 3 primeiras são enfileiradas e a fila recusa a 4ª
