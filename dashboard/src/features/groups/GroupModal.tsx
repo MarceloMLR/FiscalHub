@@ -5,6 +5,7 @@ import { useGroupDocuments } from './useGroups';
 import { StatusChip } from '../documents/StatusChip';
 import { NoteDialog } from './NoteDialog';
 import { TicketModal } from '../support/TicketModal';
+import { formatCompany } from './companyCode';
 import type { DocumentGroup, DocumentSummary } from '../../types';
 
 const GRID = '34px minmax(120px,1.6fr) 80px minmax(130px,1.2fr) 90px minmax(150px,1.3fr)';
@@ -34,7 +35,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
   return (
     <>
       <Modal
-        title={<>Empresa {group.companyCode} · Filial {group.branchCode}</>}
+        title={<>Empresa {formatCompany(group.companyCode)} · Filial {group.branchCode}</>}
         subtitle={`${group.referenceDate} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
         onClose={onClose}
         maxWidth={780}

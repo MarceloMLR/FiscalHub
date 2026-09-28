@@ -178,7 +178,7 @@ export interface DocumentGroup {
   branchCode: string;
   referenceDate: string;
   type: string;
-  trigger: string; // modo da integração: RealTime | Manual | ScheduledDaily | ScheduledOnce
+  trigger: string; // modo da integração: Automatic | Manual | ScheduledDaily | ScheduledOnce
   total: number;
   finalizadas: number;
   emProcessamento: number;
