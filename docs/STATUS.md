@@ -637,6 +637,10 @@ Também para a próxima fatia, do teste manual:
 - **O host em dev não escreve arquivo de log.** A saída vai só para a console, e foi o que impediu a conferência dos logs
   (tarefa 16.4); vai impedir de novo. Resolve uma saída para arquivo no Development, ou a instrução no RUNNING de
   redirecionar a saída do `dotnet run`.
+  - **Contorno de 2026-09-27 (prova manual da `automatic-integration-switch`):** redirecionar a saída do `dotnet run`
+    com `Tee-Object`, por exemplo `dotnet run --project src/FiscalHub.Host 2>&1 | Tee-Object -FilePath host.log`.
+    Resolve na mão, mas a conferência de log já ficou sem exercitar duas vezes por falta de arquivo. O item continua
+    aberto.
 
 **Movido da change para a próxima fatia:**
 
