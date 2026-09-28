@@ -177,11 +177,12 @@ primeira passada então descobre os 83 cabeçalhos do `fiscosysdev` (empresa `br
   Em produção, o Azure CLI nunca entra.
 - Host rodando em Development. É o padrão do `dotnet run`, pelo `launchSettings.json`.
 
-**1. Ligar o poll do tenant-a** com página de 20, para exercitar 5 páginas por keyset, e marca inicial
-em 2015:
+**1. Preparar o poll do tenant-a**, ainda desligado, com página de 20, para exercitar 5 páginas por keyset, e marca
+inicial em 2015. O `pageSize` e o `startFrom` não têm tela, e por isso vão por SQL. O `enabled` vai `false`, porque quem
+liga é a tela, no passo 2:
 
 ```powershell
-$settings = '{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":20,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":true,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}'
+$settings = '{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":20,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}'
 "UPDATE ConnectorProfiles SET InboundSettings = N'$settings' WHERE TenantId = 'tenant-a';" | Set-Content -Encoding ascii enable-poll.sql
 docker cp enable-poll.sql fiscalhub-sql-1:/tmp/enable-poll.sql
 docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/enable-poll.sql
@@ -193,7 +194,13 @@ Dá para usar o `PUT /connector` no lugar do SQL. As settings enviadas substitue
 segredo ausente mantém a referência que já estava, e os chamados ausentes do corpo ficam como estavam. Um `*Ref` no
 corpo é recusado com 400, porque a referência é do servidor.
 
-**2. Rodar o host** (seção 3). Em até 15 segundos aparece no log:
+A gravação também recusa, com 400, um valor da seção `poll` que ela está escrevendo e que o coletor não leria, como um
+`enabled` em texto ou um `overlapSeconds` zero. A mensagem nomeia o campo. Um valor inválido que já estava gravado e
+volta igual passa, para não trancar a tela: ele continua aparecendo como falha do tenant no log e no cursor.
+
+**2. Rodar o host** (seção 3) **e ligar pela tela.** Em **Configurações → Conectores → Entrada (ERP)**, com o ERP
+`Dynamics365`, ligue **Integração automática** e salve. O interruptor grava o `poll.enabled` e só aparece para adapter
+que varre. Em até 15 segundos aparece no log:
 
 ```
 Feed de mudanças: 1 tenant(s) consultado(s), 14 referência(s) na fila de descoberta, 0 suprimida(s) por já publicadas.
@@ -205,6 +212,9 @@ modelo `01` (69), `SE` (9) e `55` (5), e o mapa padrão cobre `55`, `57` e `SE`.
 fora do mapa (ADR-0024). Para exercitar mais referências no teste, dá para incluir o `01` no
 `modelTypes` das settings.
 
+A barra lateral passa a mostrar **Integração automática ligada**. O selo vem do `/info`, que o deriva do mesmo
+`poll.enabled` que o coletor lê.
+
 **3. Conferir o cursor.** A marca deve estar perto de agora: é o relógio do F&O no fim da leitura.
 
 ```powershell
@@ -215,7 +225,10 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
 **4. Segunda passada.** Um minuto depois, a próxima passada lê só a janela de sobreposição (5 minutos
 antes da marca) e não reenfileira nada antigo.
 
-**Rebobinar**, para repetir o teste:
+**Rebobinar**, para repetir o teste. Apagar o cursor reprocessa com o processo de pé: a passada seguinte parte do
+`startFrom` e põe tudo de volta na fila de descoberta, com `0 suprimida(s)`. Quando o cursor não existe, ou existe sem
+marca, o poller esquece o registro de publicações do tenant antes da leitura (change `automatic-integration-switch`,
+design D5).
 
 ```powershell
 # apaga o cursor: o startFrom volta a valer na próxima passada
@@ -225,7 +238,13 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
 #   UPDATE ChangeFeedCursors SET WatermarkTicks = 635556672000000000 WHERE TenantId = 'tenant-a';
 ```
 
-**Desligar:** `poll.enabled = false` nas settings; vale na próxima passada.
+Se o `DELETE` cair no meio de uma passada, o log diz `lease do tenant tenant-a perdido no meio do poll`, e isso é
+esperado. O avanço da marca não acha a linha, e o aviso culpa o lease. Não conta falha, e a passada seguinte parte do
+`startFrom`.
+
+**Desligar:** pela tela, desligando **Integração automática** e salvando. Vale na próxima passada, em até 15 segundos:
+o log do feed fica em silêncio para o tenant, e o selo some. É pausa, e não reset: o cursor fica, e religar retoma da
+marca. Uma leitura que já estava em curso termina normalmente.
 
 > **TTL de 1 hora no emulador.** As mensagens das duas filas expiram em 1 hora (limite do emulador). Com o
 > host no ar, a `documents-discovered` é consumida na hora (seção 7).
@@ -389,7 +408,8 @@ foreach ($i in $itens) {
 }
 ```
 
-Os quatro têm de sair `ok`. **Se algum sumir ou mudar, o teste para aqui:** o problema é da tela de conectores (ou do
+Os quatro têm de sair `ok`. A única diferença admitida é no `inbound.poll`, e só no `enabled`, se o interruptor
+**Integração automática** foi mexido nesse mesmo salvar. **Se algum sumir ou mudar, o teste para aqui:** o problema é da tela de conectores (ou do
 `PUT /connector`), e não da Avalara. Não siga para a premissa de autenticação; restaure o perfil pelo arquivo de antes (ou
 pelo SQL da seção 3) e registre o achado.
 

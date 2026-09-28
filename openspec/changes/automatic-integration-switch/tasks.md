@@ -140,24 +140,24 @@ diante começa antes dela.
 
 ## 5. Documentação (D11)
 
-- [ ] 5.1 Escrever `docs/adr/0029-integracao-automatica-e-o-poll.md`, pelo template. O cabeçalho diz "Revisa:
+- [x] 5.1 Escrever `docs/adr/0029-integracao-automatica-e-o-poll.md`, pelo template. O cabeçalho diz "Revisa:
   ADR-0019". Acrescentar a linha no índice do `docs/adr/README.md` e a nota de revisão no ADR-0019, no ponto que lista
   o `realtime` entre os campos comuns
-- [ ] 5.2 `docs/RUNNING.md` §6:
+- [x] 5.2 `docs/RUNNING.md` §6:
   - **Passo 1:** o SQL continua para o que não tem tela (`pageSize` de 20, `startFrom` em 2015), e passa a gravar
     `enabled: false`. Ligar é pela tela, em Conectores.
   - **Desligar:** passa a ser pela tela.
   - **Rebobinar:** apagar o cursor reprocessa sem reiniciar. Anotar que, se o `DELETE` cair no meio de uma passada, o
     log diz "lease perdido", e isso é esperado.
   - **Menções antigas:** conferir o §8, passo 1, e qualquer menção a "tempo real" ou `realtime`
-- [ ] 5.3 `docs/STATUS.md`:
+- [x] 5.3 `docs/STATUS.md`:
   - **As duas lacunas de 2026-09-27:** o interruptor decorativo e o rebobinamento. Marcar `[x]` só com a evidência dos
     testes do grupo 1 e da prova manual do grupo 6. Se o portão 1.4 desviou o grupo, o item do rebobinamento fica
     aberto e anotado com o que se achou.
   - **Registrar como próximo passo:** as opções do coletor na tela ("ligar abre as opções"). Isso inclui corrigir por
     ali um campo da seção `poll` quebrado por SQL (D8).
   - **O que fica onde está:** o registro de publicação persistido segue na fatia de nuvem
-- [ ] 5.4 `docs/STATUS.md`: abrir o item **"O rótulo 'Tempo real' da lista de grupos"** (D12), com a distinção escrita:
+- [x] 5.4 `docs/STATUS.md`: abrir o item **"O rótulo 'Tempo real' da lista de grupos"** (D12), com a distinção escrita:
   - o `RealTime` do modo de integração diz como o documento entrou, e não se o conector roda sozinho. É a mesma palavra
     para conceitos diferentes;
   - renomear mexe em contrato: o valor gravado em `Trigger`, o modelo do `IDocumentQueries`, o rótulo e o valor padrão

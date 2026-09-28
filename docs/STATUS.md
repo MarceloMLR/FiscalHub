@@ -292,6 +292,17 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     dois lugares dizendo coisas diferentes. Mais adiante, ligar o interruptor abre as opções de configuração do coletor
     (intervalo de busca e afins), hoje sem tela. Rebobinar o `startFrom` continua sendo operação por SQL, de propósito.
   - **Sintoma:** o Admin liga o interruptor e nenhuma nota nova é descoberta; ou o desliga, e o coletor segue rodando.
+  - **Implementado (2026-09-27, change `automatic-integration-switch`, ADR-0029); falta a prova manual (tarefas 6.x da
+    change).**
+    - **A tela:** o interruptor "Integração automática" grava o `poll.enabled`, só aparece para adapter que varre, e o
+      selo da barra lateral vem do `/info`.
+    - **O `Realtime`:** saiu do perfil e da tabela (migração `RemoveConnectorProfileRealtime`).
+    - **O `/info`:** deriva o `automaticIntegration` do adapter que varre e do `poll.enabled` (`AutomaticIntegrationTests`).
+    - **A gravação:** recusa o valor da seção `poll` que ela escreve e que o coletor não leria, sem trancar a tela por
+      um valor inválido já gravado (`ConnectorProfileServiceTests`, design D8).
+  - **Próximo passo, fora desta change:** ligar o interruptor abre as opções do coletor (intervalo, sobreposição,
+    `startFrom`). É por ali que um campo da seção `poll` quebrado por SQL passa a ser corrigível pela tela. Hoje ele não
+    tranca a gravação, mas só se corrige por SQL.
 - [ ] **Rebobinar pelo roteiro não reprocessa nada.** (RUNNING §6)
   - **Falta:** o `ChangeFeedPublicationLog` é um singleton em memória. O rebobinamento do §6 do RUNNING (apagar o cursor
     para o `startFrom` valer de novo) não reprocessa nada enquanto o processo continua de pé: a passada roda e reporta
@@ -303,17 +314,6 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     variante do `UPDATE` na marca (`Watermark_rewind_republishes_everything_in_the_reread_window`). A variante do
     `DELETE`, que é a do roteiro, não tem teste, e a leitura do código não isolou por que ela escapa. O primeiro passo é
     reproduzir o sintoma num teste por essa variante.
-  - **Sintoma (silencioso):** quem rebobina para repetir o teste vê a passada rodar sem erro e nenhuma nota voltar à fila.
-- [ ] **O seed de dev roda em qualquer ambiente.** (risco de primeiro cliente, e não dívida de estilo)
-  - **Falta:** o seed de usuários, tenants e perfis de conector não tem guarda de `IsDevelopment()`; o único gate é a
-    tabela vazia, e um banco de produção novo é justamente um banco vazio. O `LocalSeed` também sobe os XMLs de exemplo
-    no Blob, em qualquer ambiente. (A demonstração, desde 2026-09-27, é opt-in por `Seed:DemoData`.)
-  - **Prova:** subir o host fora de Development contra um banco vazio, e conferir que nenhum usuário, tenant, perfil ou
-    blob de exemplo é criado. Precisa de uma guarda antes do primeiro deploy de cliente.
-  - **Sintoma:** num banco de produção novo, subir o host cria `admin@fiscalhub.local` com a senha conhecida
-    `Fiscal@123`, mais cinco usuários, e perfis de conector apontando para localhost e para o `fiscosysdev`.
-- [ ] **O `CompanyCode` mostra o fornecedor numa nota de terceiro.** (metadados do documento)
-  - **Falta:** o `CompanyCode` sai dos 8 primeiros dígitos do CNPJ do emitente, e o `BranchCode`, dos 4 seguintes. Numa
   - **Caminho confirmado por teste (2026-09-27, change `automatic-integration-switch`, design D5).** Os testes rodaram
     contra o código de antes da correção:
     - o `DELETE` entre passadas já funcionava: `Cursor_deleted_between_passes_republishes_from_startFrom` passou;
@@ -329,6 +329,31 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
 
     Não está provado que foi esse o caminho do sintoma visto no dev. Ele o explica se o `DELETE` caiu durante a primeira
     passada, que no dev é longa. Falta a prova manual do roteiro.
+  - **Sintoma (silencioso):** quem rebobina para repetir o teste vê a passada rodar sem erro e nenhuma nota voltar à fila.
+- [ ] **O rótulo "Tempo real" da lista de grupos.** (dashboard, `GroupsPage`; design D12 da change
+  `automatic-integration-switch`)
+  - **Falta:** a palavra é a mesma do antigo interruptor, mas o conceito é outro. O `RealTime` do modo de integração diz
+    como o documento entrou: é o gatilho gravado no documento processado (`Trigger`), ao lado de `Manual`,
+    `ScheduledDaily` e `ScheduledOnce`, e a referência sem modo cai nele. O interruptor diz se o conector roda sozinho.
+    Uma nota pode ter entrado em "tempo real" com a integração automática hoje desligada, e o contrário também vale.
+    Renomear mexe em contrato:
+    - o valor gravado em `Trigger` nos documentos já processados;
+    - o modelo servido pelo `IDocumentQueries`;
+    - o rótulo e o valor padrão da `GroupsPage`.
+  - **Prova:** a fatia que renomear migra o valor gravado e o contrato juntos, e a lista de grupos continua agrupando e
+    filtrando os documentos antigos pelo modo certo.
+  - **Sintoma:** o usuário lê "Tempo real" num grupo de notas e conclui que a integração automática está ligada, ou que
+    há integração por evento, que nenhum ERP nosso faz hoje.
+- [ ] **O seed de dev roda em qualquer ambiente.** (risco de primeiro cliente, e não dívida de estilo)
+  - **Falta:** o seed de usuários, tenants e perfis de conector não tem guarda de `IsDevelopment()`; o único gate é a
+    tabela vazia, e um banco de produção novo é justamente um banco vazio. O `LocalSeed` também sobe os XMLs de exemplo
+    no Blob, em qualquer ambiente. (A demonstração, desde 2026-09-27, é opt-in por `Seed:DemoData`.)
+  - **Prova:** subir o host fora de Development contra um banco vazio, e conferir que nenhum usuário, tenant, perfil ou
+    blob de exemplo é criado. Precisa de uma guarda antes do primeiro deploy de cliente.
+  - **Sintoma:** num banco de produção novo, subir o host cria `admin@fiscalhub.local` com a senha conhecida
+    `Fiscal@123`, mais cinco usuários, e perfis de conector apontando para localhost e para o `fiscosysdev`.
+- [ ] **O `CompanyCode` mostra o fornecedor numa nota de terceiro.** (metadados do documento)
+  - **Falta:** o `CompanyCode` sai dos 8 primeiros dígitos do CNPJ do emitente, e o `BranchCode`, dos 4 seguintes. Numa
     nota emitida por terceiro, isso é o fornecedor, e não o estabelecimento próprio. A origem do D365 traz os dois campos
     certos: `FiscalEstablishmentCNPJCPF` (o CNPJ completo do estabelecimento próprio, lido hoje só para montar a parte) e
     `FiscalEstablishment` (o código do estabelecimento, que não é lido).

@@ -2,7 +2,11 @@
 
 - **Status:** Aceito
 - **Data:** 2026-07-24
-- **Revisado por:** [ADR-0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md). O segredo entra pela tela e vai para o cofre; a referência é do servidor.
+- **Revisado por:**
+  - [ADR-0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md). O segredo entra pela tela e vai para o cofre; a
+    referência é do servidor.
+  - [ADR-0029](0029-integracao-automatica-e-o-poll.md). O flag de tempo real sai do perfil; a integração automática é o
+    `poll.enabled` das settings de entrada.
 
 ## Contexto
 
@@ -18,6 +22,11 @@ aqui tudo era single-tenant hardcoded (um Avalara, uma fonte). Precisávamos dec
   settings, ambiente ativo e flag de tempo real. Os **campos comuns são tipados** (ambiente,
   realtime, nomes dos adapters); as **settings de cada adapter são um blob JSON** — cada adapter tem
   seu próprio schema, então um blob por adapter é mais fiel que colunas fixas.
+
+  > **Revisado pelo ADR-0029 (2026-09-27).** O `realtime` saiu dos campos comuns: ele só desenhava um selo, e quem liga
+  > o coletor é o `poll.enabled` das settings de entrada, que agora é a única fonte. A tela grava o `poll.enabled` pelo
+  > interruptor "Integração automática", e o `/info` deriva dele o `automaticIntegration`. A coluna foi removida
+  > (migração `RemoveConnectorProfileRealtime`).
 - **Segredos NÃO ficam em claro.** As settings guardam **referências** (`kv:...`), nunca o valor —
   em produção resolvidas no **Key Vault**. No banco fica o não-secreto (adapter, urls, flags) + as
   referências.
