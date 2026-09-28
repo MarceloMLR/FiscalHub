@@ -55,7 +55,8 @@ premissa do pedido.
 - **O "Tempo real" é o `Trigger`.** O `SqlProcessingStore` grava `reference.SourceMode ?? "RealTime"`, e o
   `SqlDocumentQueries` serve `Trigger ?? "RealTime"`. O `RealTime` não viaja na fila: a referência de evento vai com
   `SourceMode = null`. Ele aparece no seed de demonstração e no `TRIGGER_LABEL` da `GroupsPage`.
-- **Papéis.** Existem `Admin` e `Viewer` (`UserRole`). O detalhe do documento não olha papel nenhum.
+- **Papéis.** Existem `Admin` e `Viewer` (`UserRole`). O detalhe do documento não olhava papel nenhum, e o `/trace` e o
+  zip eram abertos a qualquer usuário do tenant.
 - **Sem teste de Host e de dashboard.** O que precisa de teste mora na Application, na Infrastructure e nos adapters. O
   dashboard termina no `npm run build` e na prova manual.
 
@@ -72,7 +73,6 @@ premissa do pedido.
 **Non-Goals:**
 
 - Mudar o que o destino recebe. O payload da Avalara não muda nesta fatia.
-- Dar ao `/trace` controle de acesso por papel (D11).
 - Mover para o backend a humanização dos caminhos de campo (D8).
 
 ## Decisions
@@ -281,25 +281,40 @@ A `PlatformMessage` passa a tratar o mapa de erros por campo como um caso própr
 1000 continuaria, e a lista inteira já está na foto, de onde a tela a lê (D8). Duas cópias da lista divergiriam no
 primeiro corte.
 
-### D8. A lista na tela sai da foto, com uma leitura genérica do ProblemDetails
+### D8. A lista sai das fotos no servidor, por uma leitura do desfecho, e a tela só a humaniza
 
-- **De onde:** o `DocumentDetail` usa a foto que o `useTrace` já traz:
-  - `responses.status`, quando a nota foi rejeitada na consulta e a foto tem o mapa;
-  - senão, `responses.submit`.
-- **Como lê:** pelo `response.body.errors`, o mapa do ProblemDetails (RFC 9110), que é um formato padrão e não da
-  Avalara. A tela não conhece o contrato da plataforma.
-- **Como mostra:** uma entrada por caminho. O caminho é humanizado de forma genérica: `itens[0]` vira "item 1", e os
-  segmentos são separados por " › ". As mensagens vêm como a plataforma as escreveu, e já estão em português.
-- **Sem mapa, ou sem foto:** vale o `doc.reason`, como texto.
+**Revisado em 2026-09-28.** A primeira versão lia a lista da foto no front, pelo `useTrace`. Com o `/trace` restrito ao
+Admin (D11), o Viewer não teria mais de onde lê-la, e a alternativa que tinha sido descartada, a do backend servir a
+lista pronta, passou a ser a decisão.
+
+- **A leitura do desfecho:** `GET /documents/{tenant}/{chave}/reading`, aberta a qualquer papel do tenant e com a regra de
+  tenant do ADR-0028 (o de outro tenant, ou o documento sem fotos, dá o mesmo 404). Ela devolve só:
+  - `fields`: a lista de campos da recusa, `{ path, messages }`, na ordem da resposta;
+  - `omissions`: as omissões do envio.
+
+  Nada mais das fotos sai por ela: nem o payload, nem a fonte, nem o domínio, nem o corpo da resposta.
+- **Onde se lê:** na Application (`Tracing`), numa função pura sobre os arquivos que o `DocumentTraceQuery` já devolve:
+  - **a foto:** a da consulta de status (`*.response.status.json`) quando ela tem o mapa, e senão a do envio
+    (`*.response.submit.json`);
+  - **a lista:** sai do `response.body.errors`, o mapa do ProblemDetails (RFC 9110), que é um formato padrão, e não da
+    Avalara;
+  - **as omissões:** saem do `request.omissions` da foto do envio (D9).
+
+  O nome dos arquivos é a convenção do `TracePaths`, a mesma que a tela usava para classificar as fotos.
+- **Como mostra:** a tela humaniza o caminho de forma genérica. O `itens[0]` vira "item 1", e os segmentos são
+  separados por " › ". As mensagens vêm como a plataforma as escreveu, e já estão em português.
+- **Sem lista, ou sem leitura:** vale o `doc.reason`, como texto.
 
 **Alternativas descartadas:**
 
 - **Um dicionário de rótulos** (`tipoPagamento` → "Tipo de pagamento"). Foi descartada porque é o contrato da Avalara
   dentro do front, que é único para todos os clientes (ADR-0020). As mensagens já dizem o campo em português ("'Tipo
   Pagamento' não pode ser nulo.").
-- **O backend servir a lista pronta** (um endpoint do motivo estruturado). Seria o lugar certo para uma tradução
-  por destino. Mas é mais um contrato, e o pedido foi explícito: a tela renderiza a partir da foto. Fica como
-  alternativa se um segundo destino tiver outro formato.
+- **Continuar lendo a foto no front.** Foi a primeira versão. Ela exige que o `/trace` fique aberto ao Viewer, o que o
+  D11 revisado fecha.
+- **A leitura no adapter da Avalara.** Foi descartada porque ela só lê o formato padrão do ProblemDetails e o envelope
+  do hub (ADR-0027 §8). Não há contrato de destino nela, e na Application ela serve a qualquer destino que responda
+  nesse formato.
 
 ### D9. A omissão sai do motivo de falha e vai para a foto do envio
 
@@ -354,33 +369,37 @@ primeiro corte.
 evidência do formato. Uma próxima mudança do formato da recusa só seria vista pela diferença entre o que o sandbox
 manda e o que a foto mostra.
 
-### D11. "Visualizar JSON" é apresentação, e não autorização: só Admin vê o botão, com o gancho do Suporte
+### D11. As fotos cruas só para Admin, de fato: o `/trace` e o zip exigem o papel, e o JSON abre num modal próprio
 
-- **O gancho:** uma constante no front, `RAW_JSON_ROLES = ['Admin']`, e uma função `canViewRawJson(role)`. Criar o
-  papel de Suporte, depois, é acrescentar `'Support'` ao `UserRole` e à lista. O papel não é criado agora.
-- **A primeira vista:** o cabeçalho (a chave da nota, sem a linha "Rastreabilidade"), o botão "Reprocessar" nas
-  falhas, e o motivo (lista, ressalva ou aviso).
-- **O JSON cru:** as quatro abas ficam dentro de um bloco recolhido, aberto pelo botão "Visualizar JSON". O botão só é
-  desenhado para quem está na lista. O `useTrace` continua sendo chamado para todos, porque a lista do D8 depende da
-  foto.
-**"Visualizar JSON" é apresentação, e não autorização.** Para ninguém concluir mais tarde que o dado está protegido:
+**Revisado em 2026-09-28.** A primeira versão tornava o "Visualizar JSON" só apresentação: o `/trace` e o zip continuavam
+abertos a qualquer usuário do tenant. O pedido passou a ser que o usuário comum não tenha acesso, e a restrição agora é
+de autorização.
 
-- **O que o botão faz:** decide o que a tela desenha. Ele não decide o que o servidor entrega.
-- **O que continua acessível:** o `/trace` e o zip de download (`/documents/{tenant}/{chave}/download`), a qualquer
-  usuário autenticado do tenant, Viewer incluído. A regra continua sendo só a do ADR-0028: o tenant dono vê as
-  próprias fotos, e o de outro recebe 404.
-- **Como o Viewer lê o JSON:** pelo "Baixar arquivos", que segue na tela para todos os papéis, pelo chamado de
-  suporte, que anexa os zips, ou chamando a API direto. As fotos já são redigidas (ADR-0027), então o que ele lê não
-  tem credencial nem token.
-- **Restringir de fato é outra mudança,** e mexe em mais do que esta fatia:
-  - separar no backend a lista do motivo do JSON cru (o endpoint descartado no D8), porque o Viewer precisa da lista;
-  - exigir papel no `/trace` e no zip;
-  - decidir o que o chamado de suporte anexa quando quem o abre é Viewer.
+- **No servidor:**
+  - o `/trace` e o `/documents/{tenant}/{chave}/download` exigem um dos papéis de uma lista só no `Program.cs`
+    (`RawTraceRoles`, hoje `["Admin"]`);
+  - quem não tem o papel recebe 403 antes do handler, e o armazenamento das fotos nem é lido;
+  - o Admin segue com a regra do ADR-0028, com o 404 igual para outro tenant e para o documento sem fotos.
+- **O gancho do Suporte:** criar o papel é acrescentar `"Support"` ao `RawTraceRoles` do servidor, ao `RAW_JSON_ROLES` da
+  tela e ao `UserRole`. O papel não é criado agora.
+- **Na tela:**
+  - a lista de papéis da tela (`RAW_JSON_ROLES`, num módulo só) decide os botões "Visualizar JSON" e "Baixar arquivos";
+  - quem não está na lista não vê nenhum dos dois, e a tela nem chama o `/trace`;
+  - a primeira vista vem da leitura do desfecho (D8), para todos os papéis.
+- **O modal do JSON:**
+  - **o que abre:** o "Visualizar JSON" abre um modal próprio, por cima do detalhe, com as quatro abas (origem, domínio,
+    destino e resposta);
+  - **quando carrega:** o `useTrace` só é chamado com o modal aberto;
+  - **como fecha:** fechar o modal volta ao detalhe. O `Modal` passa a fechar no Esc só o de cima, porque hoje cada modal
+    aberto fecha no mesmo Esc.
+- **O chamado de suporte:** continua anexando os zips no servidor, para qualquer papel. O zip vai para o suporte, e o
+  pedido devolve só o id e o link do chamado. Se o portal de chamados mostrar os anexos a quem abriu, o Viewer os vê por
+  lá. Isso fica nos riscos e no STATUS.
 
-  Enquanto isso não for feito, o JSON cru não está protegido do Viewer.
+**Alternativas descartadas:**
 
-**Alternativa descartada: proteger o `/trace` por papel.** Foi descartada porque a lista do motivo sai da foto, e o
-Viewer precisa dela. Separar "a lista" do "JSON" no backend é o endpoint do D8, que ficou de fora.
+- **Só esconder os botões.** Foi a primeira versão. O Viewer continuaria baixando o zip e lendo o `/trace` pela API.
+- **Bloquear só o zip.** O `/trace` entrega as mesmas fotos, e o bloqueio seria só aparente.
 
 ### D12. O selo de duas cores e o `inboundScans`
 
@@ -481,7 +500,7 @@ execuções.
   chega à montagem (D1, D4);
 - **O dia:** o dia da nota é a data fiscal, no fuso de quem emitiu, sem conversão, com o mesmo critério para a nota
   montada e para a ignorada (D1);
-- **O "Visualizar JSON":** é apresentação, e não autorização (D11);
+- **As fotos cruas:** o `/trace` e o zip só para Admin, e a primeira vista pela leitura do desfecho (D8, D11);
 - **O critério:** os cards contam pela data fiscal, com recorte do dia, de propósito (D6);
 - **O canônico:** a subida para a v3 sem tenant em produção (D2, D3);
 - **O motivo:** vira resumo, a lista mora na foto, e a foto perde o ruído, com a sonda crua (D7, D8, D10);
@@ -517,9 +536,12 @@ O `docs/adr/README.md` ganha a linha do 0030 e as marcas de revisão.
 | `inboundScans` | `AutomaticIntegrationTests` |
 | Exclusão escopada; execuções intactas | `SqlScheduleStoreTests`, `SqlExecutionStoreTests` |
 | Ponta a ponta com a recusa do sandbox | `DispatchToMockTests` |
+| Leitura do desfecho: a lista da consulta antes da do envio, as omissões, e nada mais das fotos | teste da leitura na Application, sobre a fixture do sandbox |
+| Leitura de outro tenant ou sem fotos é "não encontrado" | teste da consulta da leitura, com o leitor falso |
 
-A tela (lista, marca, botão, selo, "Excluir", máscara) não tem suíte de componente. Ela é provada no `npm run build` e
-na passada manual do grupo final.
+A tela (lista, marca, modal do JSON, botões por papel, selo, "Excluir", máscara) não tem suíte de componente. Ela é
+provada no `npm run build` e na passada manual do grupo final. A exigência de papel no `/trace` e no zip mora no host,
+que não tem projeto de teste, e é provada no manual: 403 para o Viewer e 200 para o Admin.
 
 ## Risks / Trade-offs
 
@@ -543,14 +565,16 @@ na passada manual do grupo final.
   a linha agora é por tipo e modo também. O efeito é uma lista maior que o total da linha, só quando o mesmo
   estabelecimento tem tipos diferentes no mesmo dia. Filtrar o modal pelo tipo e pelo modo muda a rota
   `/groups/{c}/{b}/{d}/documents` e fica como item do STATUS.
-- **[Alguém concluir que o JSON cru está protegido do Viewer]** → Ele não está. O "Visualizar JSON" é apresentação, e
-  não autorização. O `/trace` e o zip seguem acessíveis a qualquer usuário do tenant, Viewer incluído (D11).
-  - **Onde isso fica escrito:** no D11, na spec (`platform-response-trace`, com um cenário do Viewer lendo pela API),
-    no ADR-0030 e num comentário junto do `RAW_JSON_ROLES`.
-  - **O que atenua:** as fotos já são redigidas (ADR-0027), e o tenant só vê as próprias (ADR-0028).
-  - **Onde fica a restrição:** restringir de fato é outra fatia.
+- **[O portal de chamados mostrar os zips a quem abriu o chamado]** → O chamado anexa os zips no servidor, para
+  qualquer papel (D11). Se o portal do Freshdesk mostrar os anexos ao solicitante, o Viewer vê as fotos por lá. Decidir
+  o que o chamado anexa quando quem o abre não pode ver as fotos cruas fica como item do STATUS.
+- **[A lista de papéis em dois lugares]** → O `RawTraceRoles` no servidor e o `RAW_JSON_ROLES` na tela precisam andar
+  juntos. O servidor é quem manda: uma divergência só esconde ou mostra um botão que o servidor recusa. O comentário de
+  cada lista aponta para a outra.
+- **[A leitura do desfecho conhece o nome dos arquivos da foto]** → A convenção é do `TracePaths` (Infrastructure). A
+  leitura, na Application, a usa pelo sufixo, como a tela fazia. Um teste da leitura fixa os nomes.
 - **[A humanização genérica não traduz o nome do campo]** → As mensagens da plataforma já dizem o campo em português.
-  O dicionário por destino fica como alternativa, no backend (D8).
+  O dicionário por destino fica como alternativa (D8).
 - **[A lista da tela e o resumo do `Reason` saem de lugares diferentes]** → Os dois saem da mesma resposta redigida: a
   foto e o motivo, pela regra do ADR-0027. O resumo só conta e nomeia, e não repete a lista.
 - **[A ressalva da nota aceita depende de "aceita tem só ressalva no `Reason`"]** → A regra já existe

@@ -62,10 +62,13 @@ nota aceita.
     `status` repetido.
   - **O que fica:** o método, a URL e o `traceId`. A URL prova para qual ambiente a nota foi, e o `traceId` é como se
     abre chamado na Avalara.
-- **O JSON cru sai da primeira vista.**
-  - **Onde fica:** atrás de um botão "Visualizar JSON", só para Admin, com o gancho para um papel de Suporte, sem
+- **O JSON cru sai da primeira vista, e só o Admin o vê.**
+  - **Onde fica:** num modal próprio, aberto pelo botão "Visualizar JSON", com as abas de cada foto.
+  - **Quem vê:** o botão e o "Baixar arquivos" aparecem só para Admin, com o gancho para um papel de Suporte, sem
     criá-lo agora.
-  - **O que isso não é:** controle de acesso. O `/trace` e o zip continuam abertos ao tenant (D11).
+  - **É autorização, e não só tela:** o `/trace` e o zip passam a exigir o papel, com 403 para os demais (D11).
+  - **A primeira vista:** a lista do motivo e as omissões vêm de uma leitura do desfecho, aberta a qualquer usuário do
+    tenant, que devolve só isso (D8).
   - **O cabeçalho:** "Rastreabilidade: origem → domínio → destino" sai do detalhe.
 - **O selo mostra o estado.**
   - **Quando aparece:** sempre que o adapter de entrada varre.
@@ -86,7 +89,8 @@ nota aceita.
   - o `DocumentGroup.trigger` troca `RealTime` por `Automatic`;
   - o `/info` ganha o `inboundScans`;
   - o `Reason` da recusa muda de forma;
-  - a foto da resposta muda de forma (sem o ruído, e com as omissões).
+  - a foto da resposta muda de forma (sem o ruído, e com as omissões);
+  - o `/trace` e o zip passam a dar 403 para quem não é Admin, e a primeira vista passa a usar a leitura do desfecho.
 
   Front e back sobem juntos, e não há cliente em produção.
 
@@ -109,9 +113,12 @@ nota aceita.
   - a omissão visível passa a ser ressalva de nota aceita. Ela sai do motivo de falha e fica na foto.
 - `platform-response-trace`:
   - a foto do envio perde o ruído do ProblemDetails e passa a levar as omissões do pedido;
-  - o detalhe do documento mostra primeiro o motivo como lista e a ressalva, e o JSON fica atrás do "Visualizar JSON",
-    só para Admin;
+  - o detalhe do documento mostra primeiro o motivo como lista e a ressalva, vindos de uma leitura do desfecho aberta a
+    qualquer usuário do tenant;
+  - o JSON cru abre num modal próprio, pelo "Visualizar JSON";
+  - o `/trace` e o zip passam a exigir Admin, e só o Admin vê os dois botões;
   - o cabeçalho do detalhe perde a linha "Rastreabilidade".
+- `tenant-boundary`: nas "Fotos só para o tenant do usuário", o mesmo tenant sem o papel recebe 403.
 - `automatic-integration`: o estado mostrado passa a ter as duas cores. Verde é ligado, vermelho é desligado, e não
   aparece nada para adapter que não varre. O `/info` diz se o adapter varre.
 - `d365-change-feed`: o `$select` da descoberta ganha a data fiscal e o estabelecimento, e a referência passa a levar
@@ -133,11 +140,8 @@ nota aceita.
   STATUS continua aberto como pré-requisito da primeira subida com cliente (D3).
 - **Tradução dos nomes de campo da plataforma** (um dicionário `tipoPagamento` → "Tipo de pagamento"). As mensagens já
   vêm em português. A tela humaniza o caminho de forma genérica, sem conhecer a Avalara (D8).
-- **Controle de acesso das fotos por papel.**
-  - **O que muda:** o "Visualizar JSON" é só apresentação, e não autorização.
-  - **O que não muda:** o `/trace` e o zip seguem acessíveis a qualquer usuário do tenant, Viewer incluído
-    (ADR-0028).
-  - **Onde fica:** restringir de fato é outra fatia (D11).
+- **O que o chamado de suporte anexa quando quem o abre não pode ver as fotos cruas.** O chamado continua anexando os
+  zips no servidor. Se o portal de chamados mostrar os anexos a quem abriu, é decisão de produto (STATUS).
 - **Papel exigido nos agendamentos.** A exclusão segue a regra do desativar, sem papel. Restringir o agendamento a
   Admin é outra fatia.
 - **Mudar o `ICompanyDirectory`, o `companies.json` e a descoberta local.** São o caminho de XML de dev, com o código
@@ -152,7 +156,8 @@ nota aceita.
   - `Inbound`:
     - a `DocumentReference` ganha o `Metadata` opcional (o grupo visto na descoberta);
     - o `AutomaticIntegration` ganha a leitura "varre";
-  - `Integrations`: o `IScheduleStore` ganha o `DeleteAsync`.
+  - `Integrations`: o `IScheduleStore` ganha o `DeleteAsync`;
+  - `Tracing`: a leitura do desfecho, uma função pura sobre as fotos que o `DocumentTraceQuery` já devolve.
 
   Nenhuma porta nova.
 - **Infrastructure:**
@@ -172,9 +177,14 @@ nota aceita.
   - `Messaging.ServiceBus`: o round-trip da referência com o `Metadata`.
 - **Host:**
   - o `/info` ganha o `inboundScans`;
-  - entra o `DELETE /schedules/{id}`.
+  - entra o `DELETE /schedules/{id}`;
+  - o `/trace` e o zip exigem os papéis do `RawTraceRoles` (hoje, Admin);
+  - entra o `GET /documents/{tenant}/{chave}/reading`, a leitura do desfecho.
 - **Dashboard:**
-  - `DocumentDetail`: a lista do motivo, a ressalva, o "Visualizar JSON" e o cabeçalho sem a linha;
+  - `DocumentDetail`: a lista do motivo e a ressalva pela leitura, o "Visualizar JSON" num modal próprio, e o cabeçalho
+    sem a linha;
+  - `NoteDialog`: o "Baixar arquivos" só para Admin;
+  - `Modal`: o Esc fecha só o modal de cima;
   - `GroupsPage`: "Automática", o CNPJ formatado, a chave de linha com o tipo e o modo, e o comentário do critério;
   - `GroupModal`: o CNPJ formatado;
   - `App.tsx`: o selo de duas cores;
