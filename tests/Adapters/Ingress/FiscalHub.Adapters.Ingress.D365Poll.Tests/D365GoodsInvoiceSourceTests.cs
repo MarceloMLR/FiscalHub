@@ -171,7 +171,7 @@ public class D365GoodsInvoiceSourceTests
         Assert.Equal("json", h.Trace.SourceFormat);
         Assert.Equal("brmf|BRMF21-10000026", h.Trace.SourceKey);
         Assert.StartsWith("{", h.Trace.SourceContent);
-        Assert.Contains("\"v\": 2", h.Trace.SourceContent);   // v2: $select ampliado (connector-not-validator, D12)
+        Assert.Contains("\"v\": 3", h.Trace.SourceContent);   // v3: o FiscalEstablishment no cabeçalho (establishment-and-readable-dashboard, D3)
         Assert.Equal(ContentFingerprint.Of(h.Trace.SourceContent!), result.ContentHash);
     }
 

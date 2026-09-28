@@ -12,13 +12,13 @@ public interface IDocumentMetadataExtractor<TDocument>
 /// <summary>Metadados usados para agrupar documentos (empresa/filial/dia) no dashboard.</summary>
 public sealed record DocumentMetadata
 {
-    /// <summary>Código da empresa (ex.: raiz do CNPJ, 8 dígitos, ou um código interno).</summary>
+    /// <summary>Código da empresa: o CNPJ completo do estabelecimento próprio (D365) ou a raiz do CNPJ do emitente (XML).</summary>
     public required string CompanyCode { get; init; }
 
-    /// <summary>Código da filial (ex.: ordem do CNPJ, "0001" = matriz, ou um código interno).</summary>
+    /// <summary>Código da filial: o código do estabelecimento na origem (D365) ou a ordem do CNPJ do emitente (XML).</summary>
     public required string BranchCode { get; init; }
 
-    /// <summary>Data de referência (dia) usada no agrupamento.</summary>
+    /// <summary>Data de referência (dia) usada no agrupamento: a data fiscal, no fuso de quem emitiu, sem conversão.</summary>
     public required DateOnly ReferenceDate { get; init; }
 
     /// <summary>Número do documento (ex.: nNF da NF-e).</summary>
