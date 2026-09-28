@@ -71,6 +71,26 @@ public class ChangeFeedPublicationLogTests
     }
 
     [Fact]
+    public void Forget_clears_pairs_and_last_watermark_of_only_that_tenant_and_origin()
+    {
+        var log = new ChangeFeedPublicationLog();
+        log.BeginPull("tenant-a", Origin, watermark: At(12, 0), since: At(11, 55));
+        log.Advanced("tenant-a", Origin, At(12, 5));
+        log.Record("tenant-a", Origin, "brmf|A", At(11, 58));
+        log.Record("tenant-c", Origin, "brmf|A", At(11, 58));
+
+        log.Forget("tenant-a", Origin);
+
+        Assert.False(log.WasPublished("tenant-a", Origin, "brmf|A", At(11, 58)));
+        Assert.True(log.WasPublished("tenant-c", Origin, "brmf|A", At(11, 58)));
+
+        // A última marca vista também foi esquecida: a leitura seguinte é a de uma partição nova, e não um rebobinamento.
+        log.Record("tenant-a", Origin, "brmf|B", At(8, 30));
+        log.BeginPull("tenant-a", Origin, watermark: At(8, 0), since: At(7, 55));
+        Assert.True(log.WasPublished("tenant-a", Origin, "brmf|B", At(8, 30)));
+    }
+
+    [Fact]
     public void Rewind_below_the_last_advanced_watermark_is_detected()
     {
         var log = new ChangeFeedPublicationLog();

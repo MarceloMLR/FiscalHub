@@ -115,6 +115,21 @@ cada lado. O risco da divergência está nos riscos.
 
 ### D5. Rebobinamento: a hipótese primeiro, a regra depois
 
+**Resultado das tarefas 1.2 e 1.3: hipótese confirmada na lógica do poller.** Os dois testes rodaram contra o código
+de antes da correção, em `ChangeFeedPollerTests`, com o cursor falso recusando o avanço sem a linha, como o SQL:
+
+- **`Cursor_deleted_between_passes_republishes_from_startFrom` passou.** O `DELETE` entre passadas já funcionava, como
+  a leitura previa.
+- **`Cursor_deleted_mid_first_pass_republishes_that_page_from_startFrom` falhou.** O que o teste mostrou:
+  - a primeira passada terminou sem marca e com "lease perdido";
+  - a segunda partiu do `startFrom` e suprimiu o A, em vez de enfileirá-lo.
+
+O que isso não prova: que foi esse o caminho do sintoma visto no dev. Ele o explica se o `DELETE` caiu durante a
+primeira passada, que no dev é longa. O `DELETE` entre passadas, que é o do critério de saída, é provado no manual (6.6).
+A spec delta fica como está.
+
+**O texto abaixo é o de antes dos testes, mantido como registro.**
+
 **Isto é hipótese, e não fato.** A causa abaixo saiu da leitura do código e nunca foi observada. O sintoma foi visto
 (a passada reporta tudo como "suprimida"), mas o caminho que o produz não foi reproduzido. As tarefas 1.2 e 1.3
 decidem. Até lá, é provisória a parte da spec delta que depende da causa, no requisito "Supressão de par já

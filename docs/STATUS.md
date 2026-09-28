@@ -314,6 +314,21 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     `Fiscal@123`, mais cinco usuários, e perfis de conector apontando para localhost e para o `fiscosysdev`.
 - [ ] **O `CompanyCode` mostra o fornecedor numa nota de terceiro.** (metadados do documento)
   - **Falta:** o `CompanyCode` sai dos 8 primeiros dígitos do CNPJ do emitente, e o `BranchCode`, dos 4 seguintes. Numa
+  - **Caminho confirmado por teste (2026-09-27, change `automatic-integration-switch`, design D5).** Os testes rodaram
+    contra o código de antes da correção:
+    - o `DELETE` entre passadas já funcionava: `Cursor_deleted_between_passes_republishes_from_startFrom` passou;
+    - o `DELETE` que cai durante a primeira passada, antes do primeiro avanço da marca, escapa:
+      `Cursor_deleted_mid_first_pass_republishes_that_page_from_startFrom` falhou. O avanço não acha a linha e vira
+      "lease perdido", e a última marca vista fica igual ao `startFrom`. Na passada seguinte, o `BeginPull` não vê
+      regressão, e a primeira página sai suprimida;
+    - o cursor recriado sem marca por uma falha escapa pelo mesmo motivo:
+      `Cursor_without_watermark_forgets_the_publications`.
+
+    A correção: sob o lease, o cursor ausente ou sem marca faz o poller esquecer o registro do (tenant, origem) antes da
+    leitura. Os três testes passam.
+
+    Não está provado que foi esse o caminho do sintoma visto no dev. Ele o explica se o `DELETE` caiu durante a primeira
+    passada, que no dev é longa. Falta a prova manual do roteiro.
     nota emitida por terceiro, isso é o fornecedor, e não o estabelecimento próprio. A origem do D365 traz os dois campos
     certos: `FiscalEstablishmentCNPJCPF` (o CNPJ completo do estabelecimento próprio, lido hoje só para montar a parte) e
     `FiscalEstablishment` (o código do estabelecimento, que não é lido).

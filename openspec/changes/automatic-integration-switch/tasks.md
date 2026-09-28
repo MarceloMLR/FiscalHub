@@ -14,16 +14,16 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 A causa do D5 é hipótese. As tarefas 1.2 e 1.3 decidem o que o grupo implementa, e a 1.4 é o portão: nada do 1.5 em
 diante começa antes dela.
 
-- [ ] 1.1 Dar ao cursor falso do `ChangeFeedPollerTests` um jeito de apagar a linha de um tenant, e de apagá-la durante
+- [x] 1.1 Dar ao cursor falso do `ChangeFeedPollerTests` um jeito de apagar a linha de um tenant, e de apagá-la durante
   a leitura de uma página do feed falso, antes do avanço da marca. O `TryAdvanceWatermarkAsync` do falso passa a recusar
   quando a linha não existe, como o SQL. Sem isso, o resultado no falso não diz nada sobre o SQL
-- [ ] 1.2 Teste de reprodução: **cursor apagado entre passadas**. A primeira passada parte do `startFrom` e enfileira A,
+- [x] 1.2 Teste de reprodução: **cursor apagado entre passadas**. A primeira passada parte do `startFrom` e enfileira A,
   assentado. O cursor é apagado, e a passada seguinte deve enfileirar A de novo, com zero suprimidas. Rodar contra o
   código de hoje e anotar se passa ou falha. A hipótese prevê que passa
-- [ ] 1.3 Teste de reprodução: **cursor apagado no meio da primeira passada**, antes do primeiro avanço. A passada
+- [x] 1.3 Teste de reprodução: **cursor apagado no meio da primeira passada**, antes do primeiro avanço. A passada
   termina sem gravar a marca, e a seguinte deve partir do `startFrom` e enfileirar de novo as referências da primeira
   página, com zero suprimidas. Rodar contra o código de hoje e anotar. A hipótese prevê que falha
-- [ ] 1.4 **Portão.** Escrever no D5 do design o resultado de 1.2 e 1.3 e seguir a linha correspondente da tabela do D5:
+- [x] 1.4 **Portão.** Escrever no D5 do design o resultado de 1.2 e 1.3 e seguir a linha correspondente da tabela do D5:
   - **1.2 passa e 1.3 falha:** a hipótese se confirma. O D5 passa a dizer "confirmada", com os nomes dos testes, e a
     spec delta fica como está. Seguir para o 1.5;
   - **1.2 falha:** parar o grupo. Investigar a causa, reescrever o D5 com ela e ajustar a spec e as tarefas deste grupo
@@ -35,11 +35,11 @@ diante começa antes dela.
     os testes 1.2 e 1.3 como prova de comportamento e manter o item do STATUS aberto, com o que foi tentado.
 
   As tarefas 1.5 a 1.7 valem só para o primeiro caso
-- [ ] 1.5 Teste primeiro: **cursor sem marca**. O registro tem pares do tenant-a, e o cursor existe sem `Watermark`,
+- [x] 1.5 Teste primeiro: **cursor sem marca**. O registro tem pares do tenant-a, e o cursor existe sem `Watermark`,
   recriado por uma falha registrada. A passada seguinte descarta o registro e enfileira de novo. E, no
   `ChangeFeedPublicationLogTests`, o descarte explícito esquece os pares e a última marca vista só do (tenant, origem)
   pedido, e as outras partições ficam
-- [ ] 1.6 Implementar:
+- [x] 1.6 Implementar:
   - o descarte explícito no `ChangeFeedPublicationLog`;
   - no `ChangeFeedPoller`, o cursor relido sob o lease desce para o `PullAsync`. Se ele é nulo ou tem `Watermark`
     nula, o registro do (tenant, origem) é descartado antes do `StartAsync` e do `BeginPull`;
@@ -47,8 +47,8 @@ diante começa antes dela.
     continua verde.
 
   O 1.3 passa a passar
-- [ ] 1.7 Registrar no item do STATUS o caminho confirmado, com os nomes dos testes
-- [ ] 1.8 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 1.7 Registrar no item do STATUS o caminho confirmado, com os nomes dos testes
+- [x] 1.8 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 2. Leitura derivada e guarda da seção `poll` (D4, D8, `automatic-integration`)
 
