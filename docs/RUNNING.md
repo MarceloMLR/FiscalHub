@@ -57,6 +57,23 @@ No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob
 tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
 que está no ar.
 
+### O dashboard
+
+Em **outro** terminal:
+
+```powershell
+cd dashboard; npm install; npm run dev
+```
+
+O Vite serve em `http://localhost:5173` e consome a API do host em `http://localhost:5200` (`VITE_API_BASE_URL`).
+
+**Depois de uma mudança no front, recarregue a página com Ctrl+Shift+R antes de testar.** Uma aba aberta desde antes
+da mudança continua rodando o pacote antigo.
+
+- **O sintoma:** o interruptor salva e volta desligado. O `PUT /connector` vai, responde sucesso e grava o campo antigo:
+  o pacote antigo manda o `realtime`, que o servidor ignora, e não mexe no `poll.enabled`.
+- **O custo:** custou uma rodada de diagnóstico na prova manual da `automatic-integration-switch`.
+
 ### O Client Secret, pela tela
 
 Todo envio leva o token da credencial do tenant, no ambiente ativo (ADR-0027). Não há modo "sem autenticação" no host.
