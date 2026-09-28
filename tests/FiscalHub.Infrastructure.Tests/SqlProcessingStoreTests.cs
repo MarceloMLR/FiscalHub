@@ -333,6 +333,34 @@ public class SqlProcessingStoreTests
         Assert.Equal("Automatic", ignored.Trigger);
     }
 
+    // ---------- o modo "Automática" (establishment-and-readable-dashboard, D13) ----------
+
+    [Fact]
+    public async Task Reference_without_source_mode_is_recorded_as_automatic()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+
+        Assert.Equal("Automatic", (await h.Db.ProcessedDocuments.SingleAsync()).Trigger);
+    }
+
+    [Fact]
+    public async Task Group_without_mode_is_served_as_automatic()
+    {
+        using var h = NewStore();
+        ProcessedDocument old = Row("nfe-1");   // linha sem modo, gravada antes de o upsert gravá-lo
+        old.CompanyCode = "12345678";
+        old.BranchCode = "0001";
+        old.ReferenceDate = "2026-07-23";
+        h.Db.ProcessedDocuments.Add(old);
+        await h.Db.SaveChangesAsync();
+
+        var queries = new SqlDocumentQueries(h.Db, new StubTenantContext("tenant-a"));
+
+        Assert.Equal("Automatic", (await queries.ListGroupsAsync(50)).Single().Trigger);
+    }
+
     // ---------- omissões do envio: observação visível no Reason (ADR-0026, design D11) ----------
 
     [Fact]

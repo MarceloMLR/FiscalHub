@@ -48,7 +48,7 @@ public sealed record DocumentGroup
     public required string ReferenceDate { get; init; }
     public required DocumentType Type { get; init; }
 
-    /// <summary>Modo/gatilho da integração do grupo (RealTime · Manual · ScheduledDaily · ScheduledOnce).</summary>
+    /// <summary>Modo/gatilho da integração do grupo (Automatic · Manual · ScheduledDaily · ScheduledOnce).</summary>
     public required string Trigger { get; init; }
 
     public required int Total { get; init; }

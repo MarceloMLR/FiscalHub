@@ -66,7 +66,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 ReferenceDate = refDate,
                 DocumentNumber = metadata.DocumentNumber,
                 DocumentModel = metadata.DocumentModel,
-                Trigger = reference.SourceMode ?? "RealTime",   // sem modo = chegou por evento (tempo real)
+                Trigger = reference.SourceMode ?? AutomaticMode,   // sem modo = entrou sem ação humana (coletor, drop, evento)
                 ContentHash = contentHash,
                 CreatedAt = now,
                 UpdatedAt = now,

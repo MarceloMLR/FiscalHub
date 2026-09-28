@@ -30,8 +30,9 @@ public sealed record DocumentReference
 
     /// <summary>
     /// Modo da integração que originou o disparo, para exibição (<c>Manual</c>, <c>ScheduledDaily</c>,
-    /// <c>ScheduledOnce</c>). <c>null</c> = chegou por evento/tempo real (o caminho por evento não passa
-    /// pelo runner). É só rótulo — a política de idempotência continua no <see cref="Trigger"/>.
+    /// <c>ScheduledOnce</c>). <c>null</c> = entrou sem ação humana (coletor, drop, evento), gravado como
+    /// <c>Automatic</c>: esse caminho não passa pelo runner. É só rótulo — a política de idempotência continua no
+    /// <see cref="Trigger"/>.
     /// </summary>
     public string? SourceMode { get; init; }
 
