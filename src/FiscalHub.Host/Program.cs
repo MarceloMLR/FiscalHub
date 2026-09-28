@@ -267,7 +267,7 @@ app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegr
 app.MapGet("/executions", async (IExecutionQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
-// Agendamentos: cria (D-1 recorrente ou único), lista e desativa. O timer do host executa os vencidos.
+// Agendamentos: cria (D-1 recorrente ou único), lista, desativa, reativa e exclui. O timer do host executa os vencidos.
 // Valida o corpo e calcula o próximo disparo (compartilhado pelo POST e pelo PUT).
 static (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd)
     PlanSchedule(ScheduleRequest req, TimeProvider clock)
@@ -351,6 +351,11 @@ app.MapGet("/schedules", async (IScheduleStore store, CancellationToken ct) =>
 // Escopado ao tenant logado (ADR-0028): o id de outro tenant dá 404, como no reactivate e no PUT.
 app.MapPost("/schedules/{id:int}/deactivate", async (int id, IScheduleStore store, CancellationToken ct) =>
     await store.DeactivateAsync(id, ct) ? Results.NoContent() : Results.NotFound());
+
+// Exclusão, com a mesma regra de acesso do desativar e o mesmo 404 para o id de outro tenant. As execuções que o
+// agendamento disparou ficam no histórico: guardam os próprios dados, e não há chave estrangeira.
+app.MapDelete("/schedules/{id:int}", async (int id, IScheduleStore store, CancellationToken ct) =>
+    await store.DeleteAsync(id, ct) ? Results.NoContent() : Results.NotFound());
 
 // Reativa um recorrente pausado. O único (ScheduledOnce) não reativa — já cumpriu seu papel.
 app.MapPost("/schedules/{id:int}/reactivate", async (int id, IScheduleStore store, TimeProvider clock, CancellationToken ct) =>
@@ -477,15 +482,17 @@ app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory d
 
 // Ambiente do conector e integração automática do tenant logado. A integração automática não é campo gravado: é
 // derivada do perfil (adapter que varre e poll.enabled), com as origens dos feeds registrados, as mesmas que o poller
-// consome (ADR-0029).
+// consome (ADR-0029). O inboundScans diz se o adapter varre: é o que faz o selo aparecer, verde ou vermelho, ou sumir.
 app.MapGet("/info", async (
     IConnectorProfileStore profiles, IEnumerable<IDocumentChangeFeed> feeds, ITenantContext tenant, CancellationToken ct) =>
 {
     TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
+    string[] scanning = [.. feeds.Select(f => f.Origin)];
     return Results.Ok(new
     {
         environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox",
-        automaticIntegration = AutomaticIntegration.IsOn(profile, feeds.Select(f => f.Origin)),
+        automaticIntegration = AutomaticIntegration.IsOn(profile, scanning),
+        inboundScans = AutomaticIntegration.Scans(profile, scanning),
     });
 });
 

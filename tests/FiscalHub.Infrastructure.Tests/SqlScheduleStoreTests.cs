@@ -57,6 +57,90 @@ public class SqlScheduleStoreTests
         Assert.False((await h.Store.ListAsync()).First(s => s.Id == id).Active);
     }
 
+    // ---------- exclusão (establishment-and-readable-dashboard, D14) ----------
+
+    [Fact]
+    public async Task Delete_removes_the_schedule_from_the_list_and_from_the_due_ones()
+    {
+        using var h = NewStore();
+        var past = new DateTimeOffset(2026, 7, 20, 9, 0, 0, TimeSpan.Zero);
+        int id = await h.Store.CreateAsync(Daily(past));
+        int other = await h.Store.CreateAsync(Daily(past));
+
+        Assert.True(await h.Store.DeleteAsync(id));
+
+        Assert.Equal([other], (await h.Store.ListAsync()).Select(s => s.Id));
+        Assert.Equal([other], (await h.Store.ListDueAsync(past.AddDays(1))).Select(s => s.Id));   // não dispara mais
+    }
+
+    [Fact]
+    public async Task Delete_by_another_tenant_is_not_found_and_keeps_the_schedule()
+    {
+        using var h = NewStore();
+        int id = await h.Store.CreateAsync(Daily(new DateTimeOffset(2026, 7, 20, 9, 0, 0, TimeSpan.Zero)));
+
+        Assert.False(await h.StoreFor("tenant-b").DeleteAsync(id));   // o id é do tenant-a (ADR-0028)
+
+        Assert.Single(await h.Store.ListAsync());
+    }
+
+    [Fact]
+    public async Task Rescheduling_a_deleted_schedule_does_nothing_and_does_not_fail()
+    {
+        // O agendador lista os vencidos e reprograma depois de rodar: a exclusão pode cair no meio.
+        using var h = NewStore();
+        int id = await h.Store.CreateAsync(Daily(new DateTimeOffset(2026, 7, 20, 9, 0, 0, TimeSpan.Zero)));
+        await h.Store.DeleteAsync(id);
+
+        await h.Store.RescheduleAsync(id, new DateTimeOffset(2026, 7, 21, 9, 0, 0, TimeSpan.Zero));
+
+        Assert.Empty(await h.Store.ListAsync());
+    }
+
+    [Fact]
+    public async Task Delete_of_an_unknown_id_is_not_found()
+    {
+        using var h = NewStore();
+
+        Assert.False(await h.Store.DeleteAsync(404));
+    }
+
+    [Fact]
+    public async Task Executions_of_a_deleted_schedule_stay_in_the_history_with_their_own_data()
+    {
+        // Sem chave estrangeira: a execução guarda os próprios dados, e o ScheduleId fica solto.
+        using var h = NewStore();
+        int id = await h.Store.CreateAsync(Daily(new DateTimeOffset(2026, 7, 20, 9, 0, 0, TimeSpan.Zero)));
+        var executions = new SqlExecutionStore(h.Db, TimeProvider.System);
+        await executions.RecordAsync(Execution(id, "2026-07-19"));
+        await executions.RecordAsync(Execution(id, "2026-07-20"));
+
+        Assert.True(await h.Store.DeleteAsync(id));
+
+        IReadOnlyList<ExecutionSummary> history = await new SqlExecutionQueries(h.Db, new StubTenantContext("tenant-a")).ListRecentAsync(10);
+        Assert.Equal(2, history.Count);
+        Assert.All(history, e =>
+        {
+            Assert.Equal(IntegrationMode.ScheduledDaily, e.Mode);
+            Assert.Equal("12345678", e.CompanyCode);
+            Assert.Equal("0001", e.BranchCode);
+            Assert.Equal(3, e.DiscoveredCount);
+        });
+        Assert.Equal(["2026-07-20", "2026-07-19"], history.Select(e => e.PeriodStart));
+    }
+
+    private static IntegrationExecution Execution(int scheduleId, string day) => new()
+    {
+        Mode = IntegrationMode.ScheduledDaily,
+        TenantId = "tenant-a",
+        CompanyCode = "12345678",
+        BranchCode = "0001",
+        PeriodStart = DateTimeOffset.Parse($"{day}T00:00:00-03:00", System.Globalization.CultureInfo.InvariantCulture),
+        PeriodEnd = DateTimeOffset.Parse($"{day}T23:59:59-03:00", System.Globalization.CultureInfo.InvariantCulture),
+        DiscoveredCount = 3,
+        ScheduleId = scheduleId,
+    };
+
     private static ScheduledIntegration Daily(DateTimeOffset nextRun) => new()
     {
         Mode = IntegrationMode.ScheduledDaily,
@@ -77,6 +161,8 @@ public class SqlScheduleStoreTests
 
     private sealed class Harness(ProcessingDbContext db, SqliteConnection conn, SqlScheduleStore store) : IDisposable
     {
+        public ProcessingDbContext Db => db;
+
         public SqlScheduleStore Store => store;
 
         /// <summary>O mesmo banco, visto por um usuário de outro tenant.</summary>

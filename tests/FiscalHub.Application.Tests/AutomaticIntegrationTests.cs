@@ -40,6 +40,30 @@ public class AutomaticIntegrationTests
         Assert.False(AutomaticIntegration.IsOn(Profile("Dynamics365", """{"poll":{"enabled":true}}"""), []));
     }
 
+    // ---------- o adapter varre: o selo aparece, verde ou vermelho (establishment-and-readable-dashboard, D12) ----------
+
+    [Theory]
+    [InlineData("""{"poll":{"enabled":true}}""")]
+    [InlineData("""{"poll":{"enabled":false}}""")]
+    [InlineData("""{"url":"https://erp/"}""")]   // sem a seção poll: varre, e está desligada
+    [InlineData("{not json")]                    // ilegível: varre, e conta como desligada
+    public void Scans_when_the_inbound_adapter_has_a_registered_feed_whatever_the_poll(string inboundSettings)
+    {
+        Assert.True(AutomaticIntegration.Scans(Profile("Dynamics365", inboundSettings), Scanning));
+    }
+
+    [Fact]
+    public void Does_not_scan_with_an_adapter_without_a_feed_even_with_poll_enabled()
+    {
+        Assert.False(AutomaticIntegration.Scans(Profile("iScala", """{"poll":{"enabled":true}}"""), Scanning));
+    }
+
+    [Fact]
+    public void Does_not_scan_without_a_profile()
+    {
+        Assert.False(AutomaticIntegration.Scans(null, Scanning));
+    }
+
     private static TenantConnectorProfile Profile(string inboundAdapter, string inboundSettings) => new()
     {
         TenantId = "tenant-a",

@@ -131,6 +131,23 @@ internal sealed class SqlScheduleStore : IScheduleStore
         return true;
     }
 
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+    {
+        // Escopado ao tenant logado, como o Deactivate (ADR-0028). DELETE físico: o histórico que importa está nas
+        // execuções, que guardam os próprios dados e não têm chave estrangeira para cá. O ScheduleId delas fica solto, e o
+        // IDENTITY do SQL Server não reusa o id.
+        ScheduledIntegrationRow? row = await _db.ScheduledIntegrations
+            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == _tenant.TenantId, ct);
+        if (row is null)
+        {
+            return false;
+        }
+
+        _db.ScheduledIntegrations.Remove(row);
+        await _db.SaveChangesAsync(ct);
+        return true;
+    }
+
     private static ScheduledIntegration Map(ScheduledIntegrationRow s) => new()
     {
         Id = s.Id,
