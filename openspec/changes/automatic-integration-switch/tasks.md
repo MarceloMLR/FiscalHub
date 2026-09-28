@@ -167,17 +167,56 @@ diante começa antes dela.
 
 ## 6. Prova manual do critério de saída
 
+**Como o `host.log` da prova de 2026-09-27 foi lido.** É a saída do `dotnet run` por `Tee-Object`, sem relógio, e as
+linhas citadas são as do arquivo convertido para UTF-8.
+
+- **O relógio é o tick.** A cada 15 segundos o poller lista os perfis por adapter. Só com o poll ligado ele lê o cursor
+  do tenant.
+- **O que marca a gravação do perfil:** o `UPDATE [ConnectorProfiles] SET [InboundSettings]`, que é o `PUT /connector`.
+- **O que marca o cursor que não existia:** o `INSERT INTO [ChangeFeedCursors]`.
+- **O que o log mostra do processo:** foi um só (uma única "Application started", linha 80), e não houve linha `fail:`.
+
 - [ ] 6.1 Preparar: `docker compose up -d` e `az login`. Rodar o SQL do RUNNING §6, passo 1, com `enabled: false` e
   `startFrom` em 2015. Subir o host e o dashboard e entrar como Admin do tenant-a. A barra lateral não mostra o selo
+  - **Parcial.** O log sustenta:
+    - a migração `RemoveConnectorProfileRealtime` aplicada (linha 35);
+    - o coletor desligado e calado até a primeira gravação: 33 ticks sem leitura do cursor e sem linha do feed (linhas
+      92 a 1413);
+    - o D365 autenticando com a credencial do tenant (linha 1587).
+
+    O selo ausente é visual, e o log não o registra.
 - [ ] 6.2 Pela tela, sem tocar no banco, ligar e salvar:
   - em até 15 segundos o log registra a passada, com as 14 referências na fila de descoberta;
   - o selo "Integração automática ligada" aparece sem recarregar
+  - **Parcial. O "ligar" está sustentado, e falta só o selo, que é visual.**
+    - **A gravação:** linha 1439.
+    - **O tick seguinte lê o cursor:** linha 1502, ou seja, em até 15 segundos.
+    - **O cursor nasce do `startFrom`:** linha 1569.
+    - **A passada:** "1 tenant(s) consultado(s), 14 referência(s) na fila de descoberta, 0 suprimida(s)" (linha 1830).
+    - **A esteira até a plataforma:** 5 envios ao sandbox da Avalara (`taxcompliance/v2/fiscal/dfe`, linhas 1985 a
+      2425), todos recusados com HTTP 400.
 - [ ] 6.3 Antes e depois de salvar, conferir pelo `GET /connector` que `companies`, `pageSize`, a seção `poll` (fora o
   `enabled`) e os `establishments` ficaram iguais (guarda do RUNNING §8)
+  - **Sem evidência.** O log não registra o corpo do `GET /connector`.
 - [ ] 6.4 Desligar pela tela e salvar:
   - em até 15 segundos o log do feed fica em silêncio para o tenant-a, sem passada, falha ou aviso de configuração;
   - o selo some
+  - **Não sustentado.** O log mostra o silêncio do desligado: 7 ticks, das linhas 1832 a 2601, em que o tenant é
+    listado e não consultado, sem passada, sem aviso e sem falha. Mas não há nenhuma gravação do perfil pelo host
+    entre as linhas 1439 e 2647. O poll foi desligado fora do host, provavelmente pelo SQL do passo 1, e não pela tela.
+    Falta desligar pela tela.
 - [ ] 6.5 Ligar pela tela e salvar: a passada volta, retomando da marca, sem reenfileirar o histórico
-- [ ] 6.6 Apagar o cursor (`DELETE FROM ChangeFeedCursors WHERE TenantId = 'tenant-a'`), com o host de pé: a passada
+  - **Não exercitado.** O religar (gravação na linha 2647) encontrou o cursor apagado: ele foi recriado na linha 2724, e a
+    passada partiu do `startFrom`, e não da marca. As passadas seguintes, da linha 3904 em diante, releem só a
+    sobreposição, com 0 referências. Isso é o passo 4 do RUNNING, e não a retomada depois de uma pausa.
+- [x] 6.6 Apagar o cursor (`DELETE FROM ChangeFeedCursors WHERE TenantId = 'tenant-a'`), com o host de pé: a passada
   seguinte redescobre as 14 referências, com zero suprimidas, sem reiniciar o processo
-- [ ] 6.7 Registrar os resultados, com as linhas de log, no STATUS (5.3)
+  - **Sustentado.**
+    - **O `DELETE`:** foi fora do host e não aparece no log.
+    - **O efeito dele:** o host recria o cursor na linha 2724, e o `INSERT` só acontece quando a linha não existe.
+    - **A redescoberta:** a passada seguinte, no mesmo processo, dá "14 referência(s) na fila de descoberta, 0
+      suprimida(s)" (linha 2944).
+    - **A variante:** foi a do `DELETE` entre passadas, com o coletor desligado no meio. É a que já funcionava antes da
+      correção (1.2). O caminho corrigido, o do `DELETE` no meio da passada, só tem prova por teste.
+    - **Efeito colateral:** a redescoberta reenviou as 5 NF-e 55 ao sandbox (linhas 3057 a 3483, todas com HTTP 400).
+- [x] 6.7 Registrar os resultados, com as linhas de log, no STATUS (5.3)

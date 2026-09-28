@@ -292,18 +292,29 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     dois lugares dizendo coisas diferentes. Mais adiante, ligar o interruptor abre as opções de configuração do coletor
     (intervalo de busca e afins), hoje sem tela. Rebobinar o `startFrom` continua sendo operação por SQL, de propósito.
   - **Sintoma:** o Admin liga o interruptor e nenhuma nota nova é descoberta; ou o desliga, e o coletor segue rodando.
-  - **Implementado (2026-09-27, change `automatic-integration-switch`, ADR-0029); falta a prova manual (tarefas 6.x da
-    change).**
+  - **Implementado (2026-09-27, change `automatic-integration-switch`, ADR-0029). A prova manual cobriu só o "ligar".**
     - **A tela:** o interruptor "Integração automática" grava o `poll.enabled`, só aparece para adapter que varre, e o
       selo da barra lateral vem do `/info`.
     - **O `Realtime`:** saiu do perfil e da tabela (migração `RemoveConnectorProfileRealtime`).
     - **O `/info`:** deriva o `automaticIntegration` do adapter que varre e do `poll.enabled` (`AutomaticIntegrationTests`).
     - **A gravação:** recusa o valor da seção `poll` que ela escreve e que o coletor não leria, sem trancar a tela por
       um valor inválido já gravado (`ConnectorProfileServiceTests`, design D8).
+  - **Prova manual pela tela (2026-09-27, `host.log` fora do git).** Um processo só, e sem relógio no log: o tick de 15
+    segundos do poller serve de relógio. O detalhe, com as linhas, está nas tarefas 6.x da change.
+    - **Ligar: sustentado.** O perfil é gravado (linha 1439). O tick seguinte consulta o tenant (1502), ou seja, em até
+      15 segundos. A passada dá 14 referências na fila, com 0 suprimidas (1830). As 5 NF-e 55 chegam ao sandbox da
+      Avalara e são recusadas por validação, com HTTP 400 (1985 a 2425).
+    - **Desligar pela tela: não sustentado.** O desligado em silêncio aparece: 7 ticks sem consulta, sem aviso e sem
+      falha (1832 a 2601). Mas não há gravação do perfil pelo host nesse intervalo: o poll foi desligado fora da tela,
+      provavelmente pelo SQL do RUNNING §6.
+    - **Religar retomando da marca: não exercitado.** No religar (2647), o cursor tinha sido apagado.
+    - **O selo e a guarda do `GET /connector` (RUNNING §8):** não aparecem no log.
+
+    Fica aberto até desligar pela tela e religar com o cursor de pé.
   - **Próximo passo, fora desta change:** ligar o interruptor abre as opções do coletor (intervalo, sobreposição,
     `startFrom`). É por ali que um campo da seção `poll` quebrado por SQL passa a ser corrigível pela tela. Hoje ele não
     tranca a gravação, mas só se corrige por SQL.
-- [ ] **Rebobinar pelo roteiro não reprocessa nada.** (RUNNING §6)
+- [x] **Rebobinar pelo roteiro não reprocessa nada.** (RUNNING §6) — fechado em 2026-09-27, com teste e prova manual
   - **Falta:** o `ChangeFeedPublicationLog` é um singleton em memória. O rebobinamento do §6 do RUNNING (apagar o cursor
     para o `startFrom` valer de novo) não reprocessa nada enquanto o processo continua de pé: a passada roda e reporta
     tudo como "suprimida(s) por já publicadas". O procedimento está documentado, não funciona e não avisa.
@@ -328,7 +339,18 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     leitura. Os três testes passam.
 
     Não está provado que foi esse o caminho do sintoma visto no dev. Ele o explica se o `DELETE` caiu durante a primeira
-    passada, que no dev é longa. Falta a prova manual do roteiro.
+    passada, que no dev é longa.
+  - **Prova manual do roteiro (2026-09-27, `host.log` fora do git, tarefa 6.6 da change).** O cursor foi apagado com o
+    host de pé.
+    - **O `DELETE`:** foi fora do host e não aparece no log.
+    - **O efeito dele:** o host recria a linha (linha 2724), e esse `INSERT` só acontece quando o cursor não existe.
+    - **A redescoberta:** a passada seguinte, no mesmo processo, dá 14 referências na fila, com 0 suprimidas (linha
+      2944).
+    - **A variante exercitada:** foi a do `DELETE` entre passadas, que já funcionava antes da correção. O caminho
+      corrigido, o do `DELETE` no meio da passada, só tem prova por teste.
+    - **Efeito que confirma o fora de escopo da change:** a redescoberta reenviou as 5 NF-e 55 ao sandbox (linhas 3057
+      a 3483, todas com HTTP 400). Rebobinar põe documentos reais de volta na plataforma, e por isso um botão de
+      "reprocessar" é decisão de produto.
   - **Sintoma (silencioso):** quem rebobina para repetir o teste vê a passada rodar sem erro e nenhuma nota voltar à fila.
 - [ ] **O rótulo "Tempo real" da lista de grupos.** (dashboard, `GroupsPage`; design D12 da change
   `automatic-integration-switch`)
