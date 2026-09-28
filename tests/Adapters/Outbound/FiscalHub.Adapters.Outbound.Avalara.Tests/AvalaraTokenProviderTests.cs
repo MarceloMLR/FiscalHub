@@ -484,7 +484,6 @@ public class AvalaraTokenProviderTests
         {
             TenantId = tenant,
             Environment = environment,
-            Realtime = false,
             InboundAdapter = "Xml",
             OutboundAdapter = "Avalara",
             OutboundSettings = outbound,

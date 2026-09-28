@@ -299,7 +299,6 @@ public class D365GoodsInvoiceSourceTests
             {
                 TenantId = "tenant-a",
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = "Dynamics365",
                 InboundSettings = settings ?? $$"""{"url":"{{Env}}","companies":["brmf"]}""",
                 OutboundAdapter = "Avalara",

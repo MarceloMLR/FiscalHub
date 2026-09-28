@@ -15,11 +15,18 @@ import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useConnector } from './useConnector';
-import { INBOUND_ADAPTERS, OUTBOUND_ADAPTERS, ENVIRONMENTS, type AdapterField } from './adapterSchemas';
+import {
+  INBOUND_ADAPTERS,
+  OUTBOUND_ADAPTERS,
+  ENVIRONMENTS,
+  SCANNING_INBOUND_ADAPTERS,
+  type AdapterField,
+} from './adapterSchemas';
 import type { SecretStatus } from '../../types';
 
 // Settings como vieram do servidor (sem segredos e sem referências). Os campos que a tela não mostra
-// (establishments, companies, poll…) ficam aqui e voltam intactos ao salvar.
+// (establishments, companies, poll…) ficam aqui e voltam intactos ao salvar. Da seção poll, a tela só mexe no
+// enabled, pelo interruptor "Integração automática".
 type Json = Record<string, unknown>;
 // Segredos digitados nesta edição, por caminho (`outbound.sandbox.clientSecret`). Nunca vêm do servidor.
 type Typed = Record<string, string>;
@@ -118,7 +125,6 @@ export function ConnectorsPage() {
 
   const [tab, setTab] = useState(0);
   const [environment, setEnvironment] = useState('Sandbox');
-  const [realtime, setRealtime] = useState(false);
   const [inboundAdapter, setInboundAdapter] = useState('Dynamics365');
   const [outboundAdapter, setOutboundAdapter] = useState('Avalara');
   const [inboundValues, setInboundValues] = useState<Json>({});
@@ -139,7 +145,6 @@ export function ConnectorsPage() {
       return;
     }
     setEnvironment(data.environment);
-    setRealtime(data.realtime);
     setInboundAdapter(data.inboundAdapter in INBOUND_ADAPTERS ? data.inboundAdapter : 'Dynamics365');
     setOutboundAdapter(data.outboundAdapter in OUTBOUND_ADAPTERS ? data.outboundAdapter : 'Avalara');
     setInboundValues(parseObj(data.inboundSettings));
@@ -156,6 +161,13 @@ export function ConnectorsPage() {
     setInboundValues(name === data?.inboundAdapter ? parseObj(data.inboundSettings) : {});
     dropTyped('inbound.');
   };
+  // Integração automática = poll.enabled das settings de entrada, e em nenhum outro lugar (ADR-0029). Grava um booleano
+  // JSON (e não texto, como o setPath) e preserva o resto da seção: intervalo, sobreposição e startFrom.
+  const scans = SCANNING_INBOUND_ADAPTERS.has(inboundAdapter);
+  const automatic = asObj(inboundValues.poll).enabled === true;
+  const setAutomatic = (on: boolean) =>
+    setInboundValues((v) => ({ ...v, poll: { ...asObj(v.poll), enabled: on } }));
+
   const changeOutbound = (name: string) => {
     setOutboundAdapter(name);
     loadOutbound(name === data?.outboundAdapter ? data.outboundSettings : '{}');
@@ -168,7 +180,6 @@ export function ConnectorsPage() {
       const outSchema = OUTBOUND_ADAPTERS[outboundAdapter] ?? [];
       return api.saveConnector({
         environment,
-        realtime,
         inboundAdapter,
         inboundSettings: JSON.stringify(withTyped(inSchema, inboundValues, 'inbound.', typed)),
         outboundAdapter,
@@ -252,11 +263,18 @@ export function ConnectorsPage() {
                   </MenuItem>
                 ))}
               </TextField>
-              <FormControlLabel
-                control={<Switch checked={realtime} onChange={(e) => setRealtime(e.target.checked)} />}
-                label="Integração em tempo real"
-              />
+              {scans && (
+                <FormControlLabel
+                  control={<Switch checked={automatic} onChange={(e) => setAutomatic(e.target.checked)} />}
+                  label="Integração automática"
+                />
+              )}
             </Box>
+            {scans && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
+                Busca sozinha as notas novas no ERP. Desligada, a busca pausa e, religada, retoma de onde parou.
+              </Typography>
+            )}
             <Fields
               schema={INBOUND_ADAPTERS[inboundAdapter] ?? []}
               values={inboundValues}

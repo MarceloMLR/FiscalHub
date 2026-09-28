@@ -343,7 +343,6 @@ public class AvalaraOutboundSettingsTests
         {
             TenantId = "tenant-a",
             Environment = environment,
-            Realtime = true,
             InboundAdapter = "Dynamics365",
             OutboundAdapter = "Avalara",
             OutboundSettings = outboundSettings,

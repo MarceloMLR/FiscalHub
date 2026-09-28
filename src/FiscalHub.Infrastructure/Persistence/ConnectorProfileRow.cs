@@ -9,8 +9,6 @@ internal sealed class ConnectorProfileRow
 
     public required string Environment { get; set; }
 
-    public bool Realtime { get; set; }
-
     public required string InboundAdapter { get; set; }
 
     public required string InboundSettings { get; set; }

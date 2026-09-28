@@ -7,7 +7,6 @@ namespace FiscalHub.Application.Connectors;
 /// </summary>
 public sealed record ConnectorProfileRequest(
     string Environment,
-    bool Realtime,
     string InboundAdapter,
     string? InboundSettings,
     string OutboundAdapter,
@@ -17,7 +16,7 @@ public sealed record ConnectorProfileRequest(
 {
     // As settings podem carregar segredo: nunca entram no texto, que pode acabar num log.
     public override string ToString()
-        => $"ConnectorProfileRequest {{ Environment = {Environment}, Realtime = {Realtime}, InboundAdapter = {InboundAdapter}, "
+        => $"ConnectorProfileRequest {{ Environment = {Environment}, InboundAdapter = {InboundAdapter}, "
             + $"OutboundAdapter = {OutboundAdapter}, SupportAdapter = {SupportAdapter} }}";
 }
 
@@ -46,7 +45,6 @@ public sealed record ConnectorProfileSaveResult(ConnectorProfileSaveStatus Statu
 public sealed record ConnectorProfileView(
     string TenantId,
     string Environment,
-    bool Realtime,
     string InboundAdapter,
     string InboundSettings,
     string OutboundAdapter,

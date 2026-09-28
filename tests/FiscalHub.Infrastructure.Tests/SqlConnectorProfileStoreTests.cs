@@ -15,16 +15,14 @@ public class SqlConnectorProfileStoreTests
 
         Assert.Null(await h.Store.GetAsync("tenant-a"));   // ainda não existe
 
-        await h.Store.UpsertAsync(Profile("Sandbox", realtime: true));
+        await h.Store.UpsertAsync(Profile("Sandbox"));
         TenantConnectorProfile? created = await h.Store.GetAsync("tenant-a");
         Assert.Equal("Sandbox", created!.Environment);
-        Assert.True(created.Realtime);
         Assert.Equal("Avalara", created.OutboundAdapter);
 
-        await h.Store.UpsertAsync(Profile("Production", realtime: false));   // atualiza o mesmo tenant
+        await h.Store.UpsertAsync(Profile("Production"));   // atualiza o mesmo tenant
         TenantConnectorProfile? updated = await h.Store.GetAsync("tenant-a");
         Assert.Equal("Production", updated!.Environment);
-        Assert.False(updated.Realtime);
         Assert.Equal(1, await h.Db.ConnectorProfiles.CountAsync());   // upsert: uma linha só
     }
 
@@ -32,9 +30,9 @@ public class SqlConnectorProfileStoreTests
     public async Task Lists_profiles_by_inbound_adapter_across_tenants()
     {
         using var h = NewStore();
-        await h.Store.UpsertAsync(Profile("Sandbox", realtime: true) with { TenantId = "tenant-c" });
-        await h.Store.UpsertAsync(Profile("Sandbox", realtime: true));   // tenant-a, Dynamics365
-        await h.Store.UpsertAsync(Profile("Sandbox", realtime: false) with { TenantId = "tenant-b", InboundAdapter = "iScala" });
+        await h.Store.UpsertAsync(Profile("Sandbox") with { TenantId = "tenant-c" });
+        await h.Store.UpsertAsync(Profile("Sandbox"));   // tenant-a, Dynamics365
+        await h.Store.UpsertAsync(Profile("Sandbox") with { TenantId = "tenant-b", InboundAdapter = "iScala" });
 
         IReadOnlyList<TenantConnectorProfile> d365 = await h.Store.ListByInboundAdapterAsync("Dynamics365");
 
@@ -42,11 +40,10 @@ public class SqlConnectorProfileStoreTests
         Assert.Empty(await h.Store.ListByInboundAdapterAsync("Xml"));
     }
 
-    private static TenantConnectorProfile Profile(string environment, bool realtime) => new()
+    private static TenantConnectorProfile Profile(string environment) => new()
     {
         TenantId = "tenant-a",
         Environment = environment,
-        Realtime = realtime,
         InboundAdapter = "Dynamics365",
         OutboundAdapter = "Avalara",
     };

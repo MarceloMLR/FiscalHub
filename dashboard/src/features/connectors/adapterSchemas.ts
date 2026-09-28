@@ -11,7 +11,8 @@ export interface AdapterField {
   secret?: boolean; // campo de escrita: senha, sem preenchimento, enviado só quando digitado
 }
 
-// Adapters de entrada (ERP). Os campos que a tela não mostra (companies, poll…) são preservados ao salvar.
+// Adapters de entrada (ERP). Os campos que a tela não mostra (companies, e da seção poll tudo menos o enabled) são
+// preservados ao salvar.
 export const INBOUND_ADAPTERS: Record<string, AdapterField[]> = {
   Dynamics365: [
     { key: 'url', label: 'URL do ambiente F&O', placeholder: 'https://empresa.operations.dynamics.com' },
@@ -26,6 +27,11 @@ export const INBOUND_ADAPTERS: Record<string, AdapterField[]> = {
     { key: 'password', label: 'Senha', secret: true },
   ],
 };
+
+// Adapters de entrada que varrem a origem: só eles têm o interruptor "Integração automática", que grava o poll.enabled
+// das settings. No backend, varrer é ter um feed de mudanças (IDocumentChangeFeed) registrado para a origem; esta marca
+// é o espelho dele na tela, até os schemas virem do backend (ADR-0029).
+export const SCANNING_INBOUND_ADAPTERS: ReadonlySet<string> = new Set(['Dynamics365']);
 
 // Adapters de saída (compliance) — settings por ambiente (sandbox/production). Os campos que a tela não
 // mostra (establishments…) são preservados ao salvar.

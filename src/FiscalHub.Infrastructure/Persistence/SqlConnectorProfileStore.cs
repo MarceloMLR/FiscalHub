@@ -26,7 +26,6 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
             {
                 TenantId = profile.TenantId,
                 Environment = profile.Environment,
-                Realtime = profile.Realtime,
                 InboundAdapter = profile.InboundAdapter,
                 InboundSettings = profile.InboundSettings,
                 OutboundAdapter = profile.OutboundAdapter,
@@ -38,7 +37,6 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
         else
         {
             row.Environment = profile.Environment;
-            row.Realtime = profile.Realtime;
             row.InboundAdapter = profile.InboundAdapter;
             row.InboundSettings = profile.InboundSettings;
             row.OutboundAdapter = profile.OutboundAdapter;
@@ -64,7 +62,6 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
     {
         TenantId = r.TenantId,
         Environment = r.Environment,
-        Realtime = r.Realtime,
         InboundAdapter = r.InboundAdapter,
         InboundSettings = r.InboundSettings,
         OutboundAdapter = r.OutboundAdapter,

@@ -45,7 +45,6 @@ public class AvalaraComplianceDispatcherTests
         {
             TenantId = "tenant-a",
             Environment = "Sandbox",
-            Realtime = true,
             InboundAdapter = "Dynamics365",
             OutboundAdapter = "Avalara",
             OutboundSettings = """
@@ -582,7 +581,6 @@ public class AvalaraComplianceDispatcherTests
         {
             TenantId = "tenant-a",
             Environment = "Sandbox",
-            Realtime = true,
             InboundAdapter = "Xml",
             OutboundAdapter = "Avalara",
             OutboundSettings = outboundSettings ?? Section("12345678000190"),

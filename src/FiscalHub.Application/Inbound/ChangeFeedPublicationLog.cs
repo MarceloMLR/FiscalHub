@@ -33,6 +33,21 @@ public sealed class ChangeFeedPublicationLog
         }
     }
 
+    /// <summary>
+    /// Esquece tudo de um (tenant, origem), os pares e a última marca vista, como numa partição nova. O poller chama
+    /// quando o cursor não tem marca (apagado para o <c>startFrom</c> valer de novo, ou recriado sem marca por uma falha):
+    /// a marca que vai nascer pode ser igual à última vista, e aí o <see cref="BeginPull"/> não reconhece o rebobinamento.
+    /// </summary>
+    public void Forget(string tenantId, string origin)
+    {
+        Partition partition = Get(tenantId, origin);
+        lock (partition)
+        {
+            partition.Pairs.Clear();
+            partition.LastWatermark = null;
+        }
+    }
+
     /// <summary>Anota o avanço da marca, para um rebobinamento posterior ser reconhecido.</summary>
     public void Advanced(string tenantId, string origin, DateTimeOffset watermark)
     {

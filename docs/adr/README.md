@@ -26,7 +26,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0016](0016-idempotencia-por-conteudo.md) | Idempotência por conteúdo (nota de entrada pode ser corrigida) | Aceito |
 | [0017](0017-agendador-e-execucao-compartilhada.md) | Agendador in-process + execução compartilhada (runner) | Aceito |
 | [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito — revisado pelo 0028 |
-| [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito — revisado pelo 0027 |
+| [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito — revisado pelo 0027 e pelo 0029 |
 | [0020](0020-topologia-de-deploy-por-cliente-e-frontend-unico.md) | Topologia de deploy (backend por-cliente, frontend único, subdomínio) | Aceito |
 | [0021](0021-adapter-de-chamados-de-suporte.md) | Adapter de chamados de suporte (Freshdesk) — porta + anexos zipados por nota | Aceito |
 | [0022](0022-adapter-de-entrada-dynamics-365-fo.md) | Adapter de entrada Dynamics 365 F&O (pacote de data entities de nome fixo) | Proposto — revisado pelo 0023 |
@@ -36,6 +36,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito — §2 revisado pelo 0027 |
 | [0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md) | Credencial da plataforma por tenant, segredo pela tela no cofre, e a resposta como quarta foto | Aceito |
 | [0028](0028-limite-de-tenant.md) | Limite de tenant: o tenant vem de quem está logado, nunca da requisição; o locator mora em quem o lê | Aceito |
+| [0029](0029-integracao-automatica-e-o-poll.md) | Integração automática é o `poll.enabled`; o perfil perde o flag de tempo real | Aceito |
 
 ## Planejados
 

@@ -181,7 +181,6 @@ public static class InfrastructureServiceCollectionExtensions
             {
                 TenantId = "tenant-a",
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = "Dynamics365",
                 // Feed de mudanças do D365 (ADR-0024). Poll desligado: liga no perfil para o teste manual (docs/RUNNING.md).
                 // tenantId/clientId do Entra entram quando a app registration existir; em dev o token vem do Azure CLI.
@@ -199,7 +198,6 @@ public static class InfrastructureServiceCollectionExtensions
             {
                 TenantId = "tenant-b",
                 Environment = "Sandbox",
-                Realtime = false,   // iScala deste cliente não faz evento — só agendado/manual
                 InboundAdapter = "iScala",
                 InboundSettings = """{"host":"iscala-b.local","company":"B01","user":"integracao","passwordRef":"kv:fh-tenant-b--inbound--password"}""",
                 OutboundAdapter = "Avalara",

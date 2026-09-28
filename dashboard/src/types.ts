@@ -116,7 +116,6 @@ export interface SecretStatus {
 export interface ConnectorProfile {
   tenantId: string;
   environment: string;
-  realtime: boolean;
   inboundAdapter: string;
   inboundSettings: string;
   outboundAdapter: string;
@@ -128,7 +127,6 @@ export interface ConnectorProfile {
 
 export interface ConnectorProfileRequest {
   environment: string;
-  realtime: boolean;
   inboundAdapter: string;
   inboundSettings: string | null;
   outboundAdapter: string;

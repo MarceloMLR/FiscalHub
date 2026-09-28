@@ -292,7 +292,29 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     dois lugares dizendo coisas diferentes. Mais adiante, ligar o interruptor abre as opções de configuração do coletor
     (intervalo de busca e afins), hoje sem tela. Rebobinar o `startFrom` continua sendo operação por SQL, de propósito.
   - **Sintoma:** o Admin liga o interruptor e nenhuma nota nova é descoberta; ou o desliga, e o coletor segue rodando.
-- [ ] **Rebobinar pelo roteiro não reprocessa nada.** (RUNNING §6)
+  - **Implementado (2026-09-27, change `automatic-integration-switch`, ADR-0029). A prova manual cobriu só o "ligar".**
+    - **A tela:** o interruptor "Integração automática" grava o `poll.enabled`, só aparece para adapter que varre, e o
+      selo da barra lateral vem do `/info`.
+    - **O `Realtime`:** saiu do perfil e da tabela (migração `RemoveConnectorProfileRealtime`).
+    - **O `/info`:** deriva o `automaticIntegration` do adapter que varre e do `poll.enabled` (`AutomaticIntegrationTests`).
+    - **A gravação:** recusa o valor da seção `poll` que ela escreve e que o coletor não leria, sem trancar a tela por
+      um valor inválido já gravado (`ConnectorProfileServiceTests`, design D8).
+  - **Prova manual pela tela (2026-09-27, `host.log` fora do git).** Um processo só, e sem relógio no log: o tick de 15
+    segundos do poller serve de relógio. O detalhe, com as linhas, está nas tarefas 6.x da change.
+    - **Ligar: sustentado.** O perfil é gravado (linha 1439). O tick seguinte consulta o tenant (1502), ou seja, em até
+      15 segundos. A passada dá 14 referências na fila, com 0 suprimidas (1830). As 5 NF-e 55 chegam ao sandbox da
+      Avalara e são recusadas por validação, com HTTP 400 (1985 a 2425).
+    - **Desligar pela tela: não sustentado.** O desligado em silêncio aparece: 7 ticks sem consulta, sem aviso e sem
+      falha (1832 a 2601). Mas não há gravação do perfil pelo host nesse intervalo: o poll foi desligado fora da tela,
+      provavelmente pelo SQL do RUNNING §6.
+    - **Religar retomando da marca: não exercitado.** No religar (2647), o cursor tinha sido apagado.
+    - **O selo e a guarda do `GET /connector` (RUNNING §8):** não aparecem no log.
+
+    Fica aberto até desligar pela tela e religar com o cursor de pé.
+  - **Próximo passo, fora desta change:** ligar o interruptor abre as opções do coletor (intervalo, sobreposição,
+    `startFrom`). É por ali que um campo da seção `poll` quebrado por SQL passa a ser corrigível pela tela. Hoje ele não
+    tranca a gravação, mas só se corrige por SQL.
+- [x] **Rebobinar pelo roteiro não reprocessa nada.** (RUNNING §6) — fechado em 2026-09-27, com teste e prova manual
   - **Falta:** o `ChangeFeedPublicationLog` é um singleton em memória. O rebobinamento do §6 do RUNNING (apagar o cursor
     para o `startFrom` valer de novo) não reprocessa nada enquanto o processo continua de pé: a passada roda e reporta
     tudo como "suprimida(s) por já publicadas". O procedimento está documentado, não funciona e não avisa.
@@ -303,7 +325,47 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     variante do `UPDATE` na marca (`Watermark_rewind_republishes_everything_in_the_reread_window`). A variante do
     `DELETE`, que é a do roteiro, não tem teste, e a leitura do código não isolou por que ela escapa. O primeiro passo é
     reproduzir o sintoma num teste por essa variante.
+  - **Caminho confirmado por teste (2026-09-27, change `automatic-integration-switch`, design D5).** Os testes rodaram
+    contra o código de antes da correção:
+    - o `DELETE` entre passadas já funcionava: `Cursor_deleted_between_passes_republishes_from_startFrom` passou;
+    - o `DELETE` que cai durante a primeira passada, antes do primeiro avanço da marca, escapa:
+      `Cursor_deleted_mid_first_pass_republishes_that_page_from_startFrom` falhou. O avanço não acha a linha e vira
+      "lease perdido", e a última marca vista fica igual ao `startFrom`. Na passada seguinte, o `BeginPull` não vê
+      regressão, e a primeira página sai suprimida;
+    - o cursor recriado sem marca por uma falha escapa pelo mesmo motivo:
+      `Cursor_without_watermark_forgets_the_publications`.
+
+    A correção: sob o lease, o cursor ausente ou sem marca faz o poller esquecer o registro do (tenant, origem) antes da
+    leitura. Os três testes passam.
+
+    Não está provado que foi esse o caminho do sintoma visto no dev. Ele o explica se o `DELETE` caiu durante a primeira
+    passada, que no dev é longa.
+  - **Prova manual do roteiro (2026-09-27, `host.log` fora do git, tarefa 6.6 da change).** O cursor foi apagado com o
+    host de pé.
+    - **O `DELETE`:** foi fora do host e não aparece no log.
+    - **O efeito dele:** o host recria a linha (linha 2724), e esse `INSERT` só acontece quando o cursor não existe.
+    - **A redescoberta:** a passada seguinte, no mesmo processo, dá 14 referências na fila, com 0 suprimidas (linha
+      2944).
+    - **A variante exercitada:** foi a do `DELETE` entre passadas, que já funcionava antes da correção. O caminho
+      corrigido, o do `DELETE` no meio da passada, só tem prova por teste.
+    - **Efeito que confirma o fora de escopo da change:** a redescoberta reenviou as 5 NF-e 55 ao sandbox (linhas 3057
+      a 3483, todas com HTTP 400). Rebobinar põe documentos reais de volta na plataforma, e por isso um botão de
+      "reprocessar" é decisão de produto.
   - **Sintoma (silencioso):** quem rebobina para repetir o teste vê a passada rodar sem erro e nenhuma nota voltar à fila.
+- [ ] **O rótulo "Tempo real" da lista de grupos.** (dashboard, `GroupsPage`; design D12 da change
+  `automatic-integration-switch`)
+  - **Falta:** a palavra é a mesma do antigo interruptor, mas o conceito é outro. O `RealTime` do modo de integração diz
+    como o documento entrou: é o gatilho gravado no documento processado (`Trigger`), ao lado de `Manual`,
+    `ScheduledDaily` e `ScheduledOnce`, e a referência sem modo cai nele. O interruptor diz se o conector roda sozinho.
+    Uma nota pode ter entrado em "tempo real" com a integração automática hoje desligada, e o contrário também vale.
+    Renomear mexe em contrato:
+    - o valor gravado em `Trigger` nos documentos já processados;
+    - o modelo servido pelo `IDocumentQueries`;
+    - o rótulo e o valor padrão da `GroupsPage`.
+  - **Prova:** a fatia que renomear migra o valor gravado e o contrato juntos, e a lista de grupos continua agrupando e
+    filtrando os documentos antigos pelo modo certo.
+  - **Sintoma:** o usuário lê "Tempo real" num grupo de notas e conclui que a integração automática está ligada, ou que
+    há integração por evento, que nenhum ERP nosso faz hoje.
 - [ ] **O seed de dev roda em qualquer ambiente.** (risco de primeiro cliente, e não dívida de estilo)
   - **Falta:** o seed de usuários, tenants e perfis de conector não tem guarda de `IsDevelopment()`; o único gate é a
     tabela vazia, e um banco de produção novo é justamente um banco vazio. O `LocalSeed` também sobe os XMLs de exemplo
@@ -597,6 +659,10 @@ Também para a próxima fatia, do teste manual:
 - **O host em dev não escreve arquivo de log.** A saída vai só para a console, e foi o que impediu a conferência dos logs
   (tarefa 16.4); vai impedir de novo. Resolve uma saída para arquivo no Development, ou a instrução no RUNNING de
   redirecionar a saída do `dotnet run`.
+  - **Contorno de 2026-09-27 (prova manual da `automatic-integration-switch`):** redirecionar a saída do `dotnet run`
+    com `Tee-Object`, por exemplo `dotnet run --project src/FiscalHub.Host 2>&1 | Tee-Object -FilePath host.log`.
+    Resolve na mão, mas a conferência de log já ficou sem exercitar duas vezes por falta de arquivo. O item continua
+    aberto.
 
 **Movido da change para a próxima fatia:**
 

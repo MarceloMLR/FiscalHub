@@ -51,7 +51,8 @@ function Dashboard() {
   const isAdmin = user?.role === 'Admin';
   const env = info?.environment ?? 'Sandbox';
   const isProd = /produ|production/i.test(env);
-  const realtime = info?.realtime ?? true;
+  // Enquanto o /info não chega, o selo não afirma nada: "ligada" só com a resposta do servidor.
+  const automatic = info?.automaticIntegration ?? false;
   const initials = (user?.name ?? '?').trim().charAt(0).toUpperCase();
 
   // Fecha o menu do usuário ao clicar fora.
@@ -177,10 +178,10 @@ function Dashboard() {
               Ambiente ativo
             </div>
             <EnvPill isProd={isProd} label={isProd ? 'Produção' : 'Sandbox'} />
-            {realtime && (
+            {automatic && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--muted)' }}>
                 <RadioButtonCheckedIcon sx={{ fontSize: 12 }} />
-                Tempo real ligado
+                Integração automática ligada
               </div>
             )}
           </div>

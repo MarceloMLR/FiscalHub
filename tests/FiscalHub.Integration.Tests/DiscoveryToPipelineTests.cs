@@ -213,7 +213,6 @@ public class DiscoveryToPipelineTests
             {
                 TenantId = tenantId,
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = "Dynamics365",   // como o seed de dev do tenant-a
                 InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]}""",
                 OutboundAdapter = "Avalara",

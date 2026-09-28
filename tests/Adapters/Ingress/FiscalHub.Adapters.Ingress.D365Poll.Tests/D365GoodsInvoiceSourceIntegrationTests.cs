@@ -27,7 +27,6 @@ public class D365GoodsInvoiceSourceIntegrationTests
             {
                 TenantId = "tenant-a",
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = "Dynamics365",
                 InboundSettings = $$"""{"url":"{{url}}","companies":["{{company}}"]}""",
                 OutboundAdapter = "Avalara",

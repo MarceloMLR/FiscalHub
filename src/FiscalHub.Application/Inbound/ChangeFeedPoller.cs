@@ -110,7 +110,8 @@ public sealed class ChangeFeedPoller
         try
         {
             // Relê sob o lease: outra réplica pode ter terminado um poll entre a checagem e a tomada.
-            if (!IsDue(await _cursors.GetAsync(tenant, _feed.Origin, ct), interval))
+            ChangeFeedCursor? stored = await _cursors.GetAsync(tenant, _feed.Origin, ct);
+            if (!IsDue(stored, interval))
             {
                 return;
             }
@@ -122,7 +123,7 @@ public sealed class ChangeFeedPoller
                     throw settingsError;
                 }
 
-                await PullAsync(tenant, settings!, lease, pass, ct);
+                await PullAsync(tenant, settings!, stored, lease, pass, ct);
             }
             catch (LeaseLostException)
             {
@@ -148,8 +149,16 @@ public sealed class ChangeFeedPoller
         }
     }
 
-    private async Task PullAsync(string tenant, ChangeFeedPollSettings settings, LeaseClaim lease, PassTally pass, CancellationToken ct)
+    private async Task PullAsync(
+        string tenant, ChangeFeedPollSettings settings, ChangeFeedCursor? stored, LeaseClaim lease, PassTally pass, CancellationToken ct)
     {
+        // Cursor sem marca (apagado para o startFrom valer de novo, ou recriado por uma falha): a marca que vai nascer pode
+        // ser igual à última vista, e a regressão do BeginPull não a reconheceria. O registro recomeça (design D5).
+        if (stored?.Watermark is null)
+        {
+            _published.Forget(tenant, _feed.Origin);
+        }
+
         ChangeFeedCursor cursor = await _cursors.StartAsync(tenant, _feed.Origin, settings.StartFrom ?? _clock.GetUtcNow(), ct);
         DateTimeOffset start = cursor.Watermark!.Value;
         DateTimeOffset watermark = start;

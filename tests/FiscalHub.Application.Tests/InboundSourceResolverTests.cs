@@ -109,7 +109,6 @@ public class InboundSourceResolverTests
             {
                 TenantId = p.Tenant,
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = p.Adapter,
                 OutboundAdapter = "Avalara",
             }).FirstOrDefault());

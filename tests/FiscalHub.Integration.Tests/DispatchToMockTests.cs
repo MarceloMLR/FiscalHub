@@ -346,7 +346,6 @@ public class DispatchToMockTests
             string secret = clientSecret is null ? string.Empty : $",\"clientSecret\":\"{clientSecret}\"";
             return _profileService.SaveAsync(new ConnectorProfileRequest(
                 "Sandbox",
-                true,
                 "Dynamics365",
                 """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]}""",
                 "Avalara",

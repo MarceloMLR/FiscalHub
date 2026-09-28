@@ -594,6 +594,60 @@ public class ChangeFeedPollerTests
         Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
     }
 
+    private const string EnabledFrom2015 = """{"poll":{"enabled":true,"startFrom":"2015-01-01T00:00:00Z"}}""";
+
+    [Fact]
+    public async Task Cursor_deleted_between_passes_republishes_from_startFrom()
+    {
+        var h = new Harness().WithTenant("tenant-a", EnabledFrom2015);
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        h.Cursors.Delete("tenant-a");   // o rebobinamento do RUNNING §6, com o processo de pé
+        ChangeFeedPassSummary rewound = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+        Assert.Equal(0, rewound.ReferencesSuppressed);
+        Assert.Equal(new DateTimeOffset(2015, 1, 1, 0, 0, 0, TimeSpan.Zero) - TimeSpan.FromSeconds(300), h.Feed.Calls[^1].Since);
+    }
+
+    [Fact]
+    public async Task Cursor_deleted_mid_first_pass_republishes_that_page_from_startFrom()
+    {
+        var h = new Harness().WithTenant("tenant-a", EnabledFrom2015);
+        // O DELETE cai durante a leitura da primeira página, antes do primeiro avanço da marca.
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))) with { OnReach = () => h.Cursors.Delete("tenant-a") });
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+
+        ChangeFeedPassSummary first = await h.RunAsync();
+        Assert.Null(h.Cursors.Find("tenant-a"));   // a passada terminou sem gravar a marca da página
+        Assert.Equal(["tenant-a"], first.LeasesLost);
+
+        ChangeFeedPassSummary rewound = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+        Assert.Equal(0, rewound.ReferencesSuppressed);
+    }
+
+    [Fact]
+    public async Task Cursor_without_watermark_forgets_the_publications()
+    {
+        var h = new Harness().WithTenant("tenant-a", EnabledFrom2015);
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))) with { OnReach = () => h.Cursors.Delete("tenant-a") });
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        // Depois do DELETE, uma falha registrada recria o cursor sem marca.
+        h.Cursors.Seed("tenant-a", watermark: null, lastPolledAt: Now, failures: 1, lastError: "F&O fora");
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        ChangeFeedPassSummary rewound = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+        Assert.Equal(0, rewound.ReferencesSuppressed);
+        Assert.Equal(new DateTimeOffset(2015, 1, 1, 0, 0, 0, TimeSpan.Zero) - TimeSpan.FromSeconds(300), h.Feed.Calls[^1].Since);   // a marca nasceu do startFrom
+    }
+
     [Fact]
     public async Task After_a_failure_mid_page_the_enqueued_ones_are_suppressed_and_the_rest_enqueued()
     {
@@ -787,7 +841,6 @@ public class ChangeFeedPollerTests
             {
                 TenantId = tenant,
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = inboundAdapter,
                 InboundSettings = inboundSettings,
                 OutboundAdapter = "Avalara",
@@ -923,6 +976,9 @@ public class ChangeFeedPollerTests
 
         public ChangeFeedCursor? Find(string tenant) => _items.GetValueOrDefault(tenant);
 
+        /// <summary>O operador apaga a linha do cursor (o rebobinamento do RUNNING §6).</summary>
+        public void Delete(string tenant) => _items.Remove(tenant);
+
         public void Seed(
             string tenant, DateTimeOffset? watermark, DateTimeOffset? lastPolledAt = null,
             DateTimeOffset? notBefore = null, int failures = 0, string? lastError = null)
@@ -964,8 +1020,9 @@ public class ChangeFeedPollerTests
 
         public Task<bool> TryAdvanceWatermarkAsync(string tenantId, string origin, DateTimeOffset watermark, LeaseClaim lease, CancellationToken ct = default)
         {
-            ChangeFeedCursor current = _items[tenantId];
-            if (RefuseAdvance || !leases.IsHeldBy(lease.Resource, lease.Owner) || !(current.Watermark < watermark))
+            // Como o UPDATE condicionado do SQL: sem a linha, nada é gravado.
+            if (!_items.TryGetValue(tenantId, out ChangeFeedCursor? current)
+                || RefuseAdvance || !leases.IsHeldBy(lease.Resource, lease.Owner) || !(current.Watermark < watermark))
             {
                 return Task.FromResult(false);
             }
@@ -977,7 +1034,11 @@ public class ChangeFeedPollerTests
 
         public Task RecordSuccessAsync(string tenantId, string origin, DateTimeOffset polledAt, CancellationToken ct = default)
         {
-            _items[tenantId] = _items[tenantId] with { LastPolledAt = polledAt, ConsecutiveFailures = 0, LastError = null, NotBefore = null };
+            if (_items.TryGetValue(tenantId, out ChangeFeedCursor? current))   // sem a linha, o UPDATE do SQL não toca nada
+            {
+                _items[tenantId] = current with { LastPolledAt = polledAt, ConsecutiveFailures = 0, LastError = null, NotBefore = null };
+            }
+
             return Task.CompletedTask;
         }
 

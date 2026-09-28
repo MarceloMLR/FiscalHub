@@ -134,6 +134,107 @@ public class ConnectorProfileServiceTests
         Assert.DoesNotContain(Secret, result.Message);
     }
 
+    // ---- Seção poll: a guarda julga o que a gravação escreve (design D8) ----
+
+    private const string InboundSecretName = "fh-tenant-a--inbound--auth--clientsecret";
+
+    [Theory]
+    [InlineData("""{"poll":{"enabled":"sim","overlapSeconds":300}}""", "InboundSettings.poll.enabled", "verdadeiro ou falso", "veio texto")]
+    [InlineData("""{"poll":{"enabled":false,"overlapSeconds":0}}""", "InboundSettings.poll.overlapSeconds", "pelo menos 1", "veio 0")]
+    [InlineData("""{"poll":"ligado"}""", "InboundSettings.poll", "um objeto", "veio texto")]
+    public async Task Poll_value_being_written_that_the_collector_cannot_read_is_refused_without_any_write(
+        string inbound, string field, string acceptedForm, string received)
+    {
+        var h = new Harness(stored: Profile(inbound: """{"poll":{"enabled":false,"overlapSeconds":300}}"""));
+        TenantConnectorProfile before = h.Profiles.Stored!;
+        JsonObject body = JsonNode.Parse(inbound)!.AsObject();
+        body["auth"] = new JsonObject { ["clientSecret"] = Secret };   // nem o segredo válido vai para o cofre
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(inbound: body.ToJsonString()));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Invalid, result.Status);
+        Assert.Contains(field, result.Message);
+        Assert.Contains(acceptedForm, result.Message);
+        Assert.Contains(received, result.Message);
+        Assert.Equal(0, h.Secrets.SetCount);
+        Assert.Equal(0, h.Profiles.UpsertCount);
+        Assert.Same(before, h.Profiles.Stored);
+        Assert.Empty(h.Observer.Tenants);
+    }
+
+    [Fact]
+    public async Task Invalid_poll_value_already_stored_does_not_lock_the_screen()
+    {
+        // Posto por SQL: a tela não edita o overlapSeconds, e o devolve igual em todo PUT.
+        var h = new Harness(stored: Profile(inbound: """{"url":"https://erp/","poll":{"enabled":false,"overlapSeconds":0}}"""));
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(
+            inbound: $$$$"""{"url":"https://erp/","auth":{"clientSecret":"{{{{Secret}}}}"},"poll":{"enabled":true,"overlapSeconds":0}}"""));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Saved, result.Status);
+        Assert.Equal(Secret, h.Secrets.Values[InboundSecretName]);
+        JsonObject poll = Section(h.Profiles.Stored!.InboundSettings, "poll");
+        Assert.True((bool)poll["enabled"]!);
+        Assert.Equal(0, (int)poll["overlapSeconds"]!);
+    }
+
+    [Fact]
+    public async Task Without_a_stored_profile_every_poll_field_is_judged()
+    {
+        var h = new Harness();
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(inbound: """{"poll":{"enabled":true,"overlapSeconds":0}}"""));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Invalid, result.Status);
+        Assert.Contains("InboundSettings.poll.overlapSeconds", result.Message);
+    }
+
+    [Fact]
+    public async Task Poll_stored_for_another_adapter_does_not_count_as_already_stored()
+    {
+        var h = new Harness(stored: Profile(inbound: """{"poll":{"enabled":true,"overlapSeconds":0}}""") with { InboundAdapter = "iScala" });
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(inbound: """{"poll":{"enabled":true,"overlapSeconds":0}}"""));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Invalid, result.Status);
+        Assert.Contains("InboundSettings.poll.overlapSeconds", result.Message);
+    }
+
+    [Fact]
+    public async Task Settings_without_poll_section_are_saved()
+    {
+        var h = new Harness();
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(inbound: """{"url":"https://erp/"}"""));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Saved, result.Status);
+    }
+
+    [Fact]
+    public async Task Valid_poll_section_reaches_the_profile_intact()
+    {
+        var h = new Harness(stored: Profile(inbound: $$$$"""
+            {"url":"https://erp/","companies":["brmf"],"auth":{"clientSecretRef":"kv:{{{{InboundSecretName}}}}"},
+             "poll":{"enabled":false,"intervalSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}
+            """));
+
+        // Como a tela manda: as settings lidas (sem a referência), só com o enabled trocado.
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(inbound: """
+            {"url":"https://erp/","companies":["brmf"],"auth":{},
+             "poll":{"enabled":true,"intervalSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}
+            """));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Saved, result.Status);
+        JsonObject root = JsonNode.Parse(h.Profiles.Stored!.InboundSettings)!.AsObject();
+        Assert.Equal("https://erp/", (string?)root["url"]);
+        Assert.Equal("brmf", (string?)root["companies"]![0]);
+        Assert.Equal($"kv:{InboundSecretName}", (string?)root["auth"]!["clientSecretRef"]);
+        JsonObject poll = root["poll"]!.AsObject();
+        Assert.True((bool)poll["enabled"]!);
+        Assert.Equal(300, (int)poll["intervalSeconds"]!);
+        Assert.Equal("2015-01-01T00:00:00Z", (string?)poll["startFrom"]);
+    }
+
     [Fact]
     public async Task Write_field_that_is_not_text_is_refused()
     {
@@ -211,6 +312,39 @@ public class ConnectorProfileServiceTests
 
         Assert.Equal("Local", h.Profiles.Stored!.SupportAdapter);
         Assert.Equal(support, h.Profiles.Stored.SupportSettings);
+    }
+
+    // ---- Sem campo de tempo real: a integração automática é o poll.enabled (ADR-0029) ----
+
+    // As opções do Host: as da Web mais o conversor de enum (Program.cs).
+    private static readonly JsonSerializerOptions HostJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
+    [Fact]
+    public void Put_body_with_realtime_from_an_old_client_is_read_and_the_field_ignored()
+    {
+        ConnectorProfileRequest? request = JsonSerializer.Deserialize<ConnectorProfileRequest>("""
+            {"environment":"Sandbox","realtime":true,"inboundAdapter":"Dynamics365","inboundSettings":"{}",
+             "outboundAdapter":"Avalara","outboundSettings":"{}"}
+            """, HostJson);
+
+        Assert.NotNull(request);
+        Assert.Equal("Dynamics365", request.InboundAdapter);
+        Assert.Equal("{}", request.InboundSettings);
+    }
+
+    [Fact]
+    public async Task Read_of_the_profile_has_no_realtime_field()
+    {
+        var h = new Harness(stored: Profile(inbound: """{"poll":{"enabled":true}}"""));
+
+        ConnectorProfileView? view = await h.Service.GetAsync();
+
+        JsonObject json = JsonSerializer.SerializeToNode(view, HostJson)!.AsObject();
+        Assert.DoesNotContain(json, p => string.Equals(p.Key, "realtime", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("\"enabled\":true", (string?)json["inboundSettings"]);   // o estado está nas settings, e só nelas
     }
 
     [Fact]
@@ -312,7 +446,7 @@ public class ConnectorProfileServiceTests
     // ---- Apoio ----
 
     private static ConnectorProfileRequest Request(string? outbound = null, string? inbound = null, string outboundAdapter = "Avalara")
-        => new("Sandbox", false, "Dynamics365", inbound, outboundAdapter, outbound);
+        => new("Sandbox", "Dynamics365", inbound, outboundAdapter, outbound);
 
     private static ConnectorProfileRequest RequestWith(ConnectorSettingsKind kind, string json) => kind switch
     {
@@ -325,7 +459,6 @@ public class ConnectorProfileServiceTests
     {
         TenantId = tenant,
         Environment = "Sandbox",
-        Realtime = false,
         InboundAdapter = "Dynamics365",
         InboundSettings = inbound,
         OutboundAdapter = "Avalara",
