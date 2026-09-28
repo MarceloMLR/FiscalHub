@@ -8,6 +8,8 @@
   - **ADR-0006:** quatro fotos, com a resposta da plataforma gravada por melhor esforço.
   - **ADR-0019:** o segredo entra pela tela e vai para o cofre; a referência é do servidor, e o valor cru persistido é
     recusado na leitura.
+- **Revisado por:** [ADR-0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md). No §8, o corpo com mapa de
+  erros por campo perde o ruído do `ProblemDetails`, e o envelope do envio leva as omissões do pedido.
 - **Change OpenSpec:** `openspec/changes/connect-avalara-sandbox` (parte 2, grupos 5 a 18), capacidades
   `connector-secret-references`, `avalara-tenant-authentication`, `platform-response-trace` e o delta de
   `compliance-dispatch-outcome`.
@@ -208,6 +210,13 @@ A guarda `fh-` do adapter não substitui a política. Ela serve para um defeito 
 - **Envelope:** `request` com só o método e a URL sem query; `response` com status, momento, a lista fechada de
   cabeçalhos (`Content-Type`, `Date`, `X-Correlation-Id`, `X-Request-Id`, `Request-Id`, `traceparent`) e o corpo;
   `redactions`. É o mesmo `PlatformResponseEnvelope` que a sonda do sandbox grava.
+
+  > **Revisado pelo ADR-0030 (2026-09-28).**
+  > - **O corpo sem o ruído:** na foto do trace, o corpo com o mapa de erros por campo (`errors`) perde o `type`, o
+  >   `title` e o `status` que repete o HTTP. O `traceId` e o `errors` ficam, e o corpo sem o mapa fica como veio.
+  > - **As omissões:** o envelope do envio leva, em `request.omissions`, o que o hub declarou que o contrato não levou.
+  > - **A sonda:** continua gravando o corpo cru, porque registra a forma da plataforma.
+  > - **O envelope:** continua sendo um só (`PlatformResponseEnvelope.Build`), e recebe o corpo e as omissões.
 - **Redação num ponto só,** o `SensitiveText`, aplicado ao corpo cru antes da foto, do motivo e de qualquer log: por
   valor (o token em uso; no endpoint de token, o segredo), por padrão (`Bearer <valor>`) e, no JSON, por nome
   (`authorization`, `access_token`, `token`, `refresh_token`, `id_token`, `client_secret`, `secret`, `password`, `senha`,

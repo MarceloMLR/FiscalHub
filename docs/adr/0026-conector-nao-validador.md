@@ -8,6 +8,8 @@
     normalizado.
 - **Revisado por:** [ADR-0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md). No §2, o 403 e o 401 com token recém-emitido deixam de ser falha transitória, e o
   aceite sem identificador deixa de ser retentado.
+- **Revisado por:** [ADR-0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md). A omissão visível deixa de fazer
+  parte do motivo de falha. Ela é ressalva de nota aceita e fica gravada na foto da resposta do envio.
 - **Change OpenSpec:** `openspec/changes/connector-not-validator`
 - **Validado no ambiente:** 2026-09-27, contra o `fiscosysdev` e o mock (ver o fim do documento).
 
@@ -138,6 +140,12 @@ própria ou de terceiros (`GoodsInvoice.Issuance`, o IND_EMIT do SPED). O parcei
   A omissão sai no recibo do envio e fica no registro do documento ("Enviado sem: …"). A confirmação da plataforma a
   preserva, e numa rejeição posterior ela vem depois do motivo da plataforma. O dashboard a mostra como **aviso**,
   e não como falha.
+
+  > **Revisado pelo ADR-0030 (2026-09-28).** A omissão sai do motivo de falha: a recusa do envio, a recusa da consulta
+  > e o "sem retorno" trazem só o motivo da falha. Ela fica gravada na foto da resposta do envio (`request.omissions`),
+  > em todo envio que recebeu resposta. Na nota aceita, continua no registro ("Enviado sem: …"), e o dashboard a mostra
+  > como a marca "Enviado com ressalvas", que abre a lista. O porquê: o motivo de falha virou resumo, e a ressalva
+  > misturada a ele fazia a omissão do hub parecer erro da plataforma.
 - **Retenção nunca entra no array `impostos`:** seria lida como imposto do item e somada a ele.
 
 ### 6. Versão da impressão do D365: regra para base grande

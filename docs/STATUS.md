@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-09-27
+**Última atualização:** 2026-09-28
 
 ## Ferramentas da sessão
 
@@ -208,6 +208,9 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
   - **Falta:** a consulta de status com erro, que não aconteceu (nenhuma nota aceita).
   - **Prova:** gravar uma consulta com erro no sandbox.
   - **Sintoma:** motivo ilegível no dashboard, como JSON cru ou texto demais.
+  - **Desde 2026-09-28 (change `establishment-and-readable-dashboard`, D7 e D8):** com o mapa `errors`, o motivo é
+    um resumo ("6 campos com erro: …"), sem o `title`. A tela lê a lista inteira da foto, campo a campo, e o corte em
+    1000 caracteres não a atinge mais.
 - [ ] **Reenvio: atualiza ou duplica?** (CNV D17)
   - **Falta:** saber o que a plataforma faz com o mesmo `codigoReferenciaIntegracao` enviado de novo, numa
     correção ou num reprocesso.
@@ -370,6 +373,13 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     filtrando os documentos antigos pelo modo certo.
   - **Sintoma:** o usuário lê "Tempo real" num grupo de notas e conclui que a integração automática está ligada, ou que
     há integração por evento, que nenhum ERP nosso faz hoje.
+  - **Implementado (2026-09-28, change `establishment-and-readable-dashboard`, D13); falta a prova manual do grupo 8 para
+    fechar.**
+    - **O valor gravado:** passa de `RealTime` a `Automatic`, com a migração de dados `RenameRealTimeTrigger`.
+    - **O rótulo:** "Automática".
+    - **O modo nos outros desfechos:** também a nota ignorada e a da dead-letter gravam o modo.
+    - **A prova por teste:** `SqlProcessingStoreTests.Reference_without_source_mode_is_recorded_as_automatic`, o
+      `Group_without_mode_is_served_as_automatic` e o `Ignored_note_of_a_manual_run_keeps_the_manual_mode`.
 - [ ] **O seed de dev roda em qualquer ambiente.** (risco de primeiro cliente, e não dívida de estilo)
   - **Falta:** o seed de usuários, tenants e perfis de conector não tem guarda de `IsDevelopment()`; o único gate é a
     tabela vazia, e um banco de produção novo é justamente um banco vazio. O `LocalSeed` também sobe os XMLs de exemplo
@@ -386,6 +396,52 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Correção pretendida:** o `CompanyCode` passa a ser o CNPJ completo do estabelecimento próprio. Encosta no banco,
     nos filtros do dashboard, nos agendamentos e no contrato do `/ingest`.
   - **Sintoma:** filtros, KPIs e agendamentos por empresa agrupam as notas de entrada pelo fornecedor.
+  - **Implementado (2026-09-28, change `establishment-and-readable-dashboard`, D1 a D5); falta a prova manual do grupo 8
+    para fechar.**
+    - **O grupo:** a empresa é o CNPJ de 14 dígitos do estabelecimento próprio, e a filial, o código dele no F&O
+      (`Matriz`, `SP-01`, `SAL-01` na `brmf`). O dia é a data fiscal, no fuso de quem emitiu, sem conversão.
+    - **A prova por teste:** `GoodsInvoiceMetadataExtractorTests`, `D365GoodsInvoiceAssemblerTests` e
+      `D365ChangeFeedTests.Discovery_and_assembly_give_the_same_day_for_the_same_header`.
+    - **O que a leitura do código corrigiu no pedido:**
+      - o `CompanyCode` já tinha 20 caracteres, e os 14 dígitos couberam sem migração;
+      - o `/ingest` não carrega empresa;
+      - o que precisou de migração foi o `BranchCode` (`WidenBranchCode`, de 10 para 20).
+
+- [ ] **Filtros dos cards.** (dashboard, `GroupsPage`; próximo passo da change `establishment-and-readable-dashboard`)
+  - **Comportamento correto, e não defeito:** os cards contam as notas cuja data de referência é hoje.
+    - **Qual data:** a data fiscal, no fuso de quem emitiu, sem conversão, com o mesmo critério para a nota montada e para
+      a ignorada.
+    - **Qual "hoje":** o do navegador.
+    - **O que fica fora:** as notas de 2016 do fiscosysdev, o que é o correto. Não "corrigir" para a data de
+      processamento.
+  - **Falta:** os filtros, por período (dia, 7, 15 e 30 dias, com o dia como padrão) e por modelo. A nota ignorada já
+    grava data e modelo, e com eles um contador próprio para as ignoradas deixa de ser necessário.
+  - **Prova:** com o filtro de 30 dias, as NFS-e de 2026-08-07 da `brmf` entram nos cards de 2026-09-06, e as de 2016
+    não.
+  - **Sintoma:** hoje, quem quer ver as notas da semana só tem a tabela.
+- [ ] **O modal do grupo não filtra pelo tipo e pelo modo.** (dashboard, `GroupModal`; risco do design da change
+  `establishment-and-readable-dashboard`)
+  - **Falta:** a linha da tabela é por empresa, filial, dia, tipo e modo, e a consulta do modal
+    (`/groups/{empresa}/{filial}/{dia}/documents`) é só pelos três primeiros.
+  - **Prova:** um estabelecimento com uma NF-e e uma NFS-e ignorada no mesmo dia mostra, nas duas linhas, as duas notas.
+  - **Sintoma:** o título do modal diz "1 nota", e a lista traz duas.
+- [ ] **O tamanho do código do estabelecimento no F&O.** (change `establishment-and-readable-dashboard`, tarefa 1.1)
+  - **Falta:** conferir no AOT o tamanho do EDT do `FiscalEstablishmentId`. O `$metadata` do OData declara a
+    propriedade só como `Edm.String`, sem `MaxLength`, e o CDM da Microsoft também não o traz. O `BranchCode` foi
+    alargado para 20.
+  - **O dado real que temos cabe com folga:** os códigos de estabelecimento da `brmf` no fiscosysdev são `Matriz`,
+    `SP-01` e `SAL-01`, com no máximo 6 caracteres. Foram lidos na regravação das fixtures de 2026-09-27 e estão
+    anotados em `tools/d365-fixtures/README.md`. A conferência no AOT continua aberta, porque um cliente pode usar
+    códigos mais longos que os da base de demonstração.
+  - **Prova:** o EDT com tamanho até 20, ou uma migração nova que o acompanhe.
+  - **Sintoma:** um código de estabelecimento acima de 20 caracteres faz o `INSERT` falhar, e a nota vai para a
+    dead-letter.
+- [ ] **O diretório de empresas com o CNPJ de 14 dígitos.** (quando houver descoberta por período com D365)
+  - **Falta:** o `ICompanyDirectory` (`companies.json`) e a descoberta local são o caminho de XML de dev, com o
+    código de 8 dígitos. Uma integração manual ou agendada do D365 vai precisar do mesmo código do grupo, que é o CNPJ
+    de 14 dígitos.
+  - **Prova:** a primeira descoberta por período do D365 filtra pela empresa de 14 dígitos.
+  - **Sintoma:** o dropdown mostra uma empresa que não casa com nenhum grupo da tabela.
 
 ### Operação
 
@@ -395,6 +451,9 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     produção.
   - **Sintoma:** rebobinar a marca ou fazer backfill depois do deploy reenvia cada nota relida. Em cem mil
     notas, isso dá mais de 30 horas de fila e reenvios em massa à plataforma.
+  - **A v3 (2026-09-28, change `establishment-and-readable-dashboard`, D3):** subiu com o `FiscalEstablishment` no
+    cabeçalho, sem tenant em produção e sem nota aceita no fiscosysdev, então sem efeito. O hash de transição continua
+    pré-requisito da primeira subida com cliente.
 - [ ] **Throttling do F&O queimando entregas.** (ADR-0025)
   - **Falta:** carga do tamanho de um cliente. A reentrega do Service Bus é imediata, e sob throttling longo
     uma mensagem esgota as 5 entregas.

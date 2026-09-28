@@ -140,5 +140,11 @@ Só o que a evidência sustenta:
 ## Achados
 
 - **O motivo é cortado em 1000 caracteres** numa nota com muitos itens (`BRMF21-10000026`). A lista inteira fica na foto.
+  - **Resolvido em 2026-09-28** (change `establishment-and-readable-dashboard`, ADR-0030).
+    - **O motivo:** com o mapa `errors`, é um resumo ("6 campos com erro: operacao, tipoPagamento, parceiro.Codigo e
+      mais 3"), sem o `title` "One or more validation errors occurred." e sem a omissão.
+    - **O detalhe da nota:** lê a lista inteira da foto, campo a campo.
+    - **A foto:** perdeu o `type`, o `title` e o `status` repetido, e guarda o `traceId` e a URL.
+    - **Os motivos literais acima:** são os de antes da mudança, como foram gravados.
 - **A resposta de token traz um `email`** (vazio neste tenant) que a máscara da troca de token não cobria. Passou a cobrir
   no mesmo dia, depois do envio, junto com os outros identificadores.

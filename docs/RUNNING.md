@@ -57,6 +57,11 @@ No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob
 tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
 que está no ar.
 
+As migrações rodam na subida (`Migrate`), e o log mostra cada uma aplicada. Duas delas mexem em dado já gravado:
+
+- **`WidenBranchCode`:** alarga o `BranchCode` para 20, porque a filial do D365 é o código do estabelecimento.
+- **`RenameRealTimeTrigger`:** troca o modo `RealTime` por `Automatic` nos documentos já processados.
+
 ### O dashboard
 
 Em **outro** terminal:
@@ -73,6 +78,32 @@ da mudança continua rodando o pacote antigo.
 - **O sintoma:** o interruptor salva e volta desligado. O `PUT /connector` vai, responde sucesso e grava o campo antigo:
   o pacote antigo manda o `realtime`, que o servidor ignora, e não mexe no `poll.enabled`.
 - **O custo:** custou uma rodada de diagnóstico na prova manual da `automatic-integration-switch`.
+
+O que a tela mostra, e que parece defeito mas não é:
+
+- **Os cards contam a data fiscal de hoje.**
+  - **Qual data:** a data de referência é a data fiscal, no fuso de quem emitiu, sem conversão, na nota processada e na
+    ignorada.
+  - **Qual "hoje":** o do navegador.
+  - **O efeito no fiscosysdev:** as notas são de 2015, 2016 e agosto de 2026, então os cards mostram 0. Elas aparecem na
+    tabela, nas datas fiscais delas, e as NFS-e ignoradas também.
+- **A empresa é o CNPJ do estabelecimento próprio.**
+  - **Nas notas do D365:** o CNPJ de 14 dígitos, com máscara, e a filial é o código do estabelecimento (`Matriz`,
+    `SP-01`, `SAL-01` na `brmf`).
+  - **No caminho de XML de dev:** continuam os 8 dígitos do emitente.
+- **O selo da barra lateral:**
+  - **Quando aparece:** só para o adapter de entrada que varre (hoje, o `Dynamics365`);
+  - **As cores:** verde é "ligada", e vermelho é "desligada".
+  - **Adapter que não varre:** o selo não aparece.
+- **O detalhe da nota** mostra primeiro o que se lê:
+  - **na recusa:** a lista de campos, com as mensagens da plataforma;
+  - **na nota aceita com omissão:** a marca "Enviado com ressalvas".
+
+  O JSON cru fica atrás do "Visualizar JSON", que só o Admin vê.
+  - **É apresentação, e não autorização:** o `/trace` e o "Baixar arquivos" seguem abertos a qualquer usuário do tenant,
+    Viewer incluído.
+- **Agendamentos:** a aba "Agendamentos" de Integrações tem "Excluir", com confirmação. A exclusão não se desfaz, e as
+  execuções que o agendamento disparou continuam na aba "Execuções".
 
 ### O Client Secret, pela tela
 
@@ -341,7 +372,14 @@ O motivo gravado diz quem recusou:
 - "Plataforma de compliance rejeitou: …", na consulta;
 - "Plataforma de compliance recusou: …", no envio.
 
-Se a nota tinha observação de omissão, ela vem depois do motivo, separada por ` | `.
+No envio, o mock recusa como o sandbox: HTTP 400 com o ProblemDetails, e o motivo do `?motivo=` num campo do mapa
+`errors`.
+
+- **O motivo gravado:** é o resumo ("1 campo com erro: documento").
+- **Onde fica o texto do `?motivo=`:** na foto da resposta, e o detalhe da nota o mostra na lista.
+
+A omissão não entra no motivo da falha. Ela fica na foto da resposta do envio (`request.omissions`). Numa nota aceita,
+continua no registro e aparece na tela como "Enviado com ressalvas".
 
 **Foto da fonte.** O JSON canônico que a montagem hasheia fica no Blob, em
 `traces/tenant-a/<período>/brmf|<voucher>/source.json`. A impressão gravada em `ProcessedDocuments.ContentHash`
