@@ -373,7 +373,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     filtrando os documentos antigos pelo modo certo.
   - **Sintoma:** o usuário lê "Tempo real" num grupo de notas e conclui que a integração automática está ligada, ou que
     há integração por evento, que nenhum ERP nosso faz hoje.
-  - **Implementado (2026-09-28, change `establishment-and-readable-dashboard`, D13); falta a prova manual do grupo 8 para
+  - **Implementado (2026-09-28, change `establishment-and-readable-dashboard`, D13); falta a prova manual do grupo 9 para
     fechar.**
     - **O valor gravado:** passa de `RealTime` a `Automatic`, com a migração de dados `RenameRealTimeTrigger`.
     - **O rótulo:** "Automática".
@@ -396,7 +396,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Correção pretendida:** o `CompanyCode` passa a ser o CNPJ completo do estabelecimento próprio. Encosta no banco,
     nos filtros do dashboard, nos agendamentos e no contrato do `/ingest`.
   - **Sintoma:** filtros, KPIs e agendamentos por empresa agrupam as notas de entrada pelo fornecedor.
-  - **Implementado (2026-09-28, change `establishment-and-readable-dashboard`, D1 a D5); falta a prova manual do grupo 8
+  - **Implementado (2026-09-28, change `establishment-and-readable-dashboard`, D1 a D5); falta a prova manual do grupo 9
     para fechar.**
     - **O grupo:** a empresa é o CNPJ de 14 dígitos do estabelecimento próprio, e a filial, o código dele no F&O
       (`Matriz`, `SP-01`, `SAL-01` na `brmf`). O dia é a data fiscal, no fuso de quem emitiu, sem conversão.
@@ -442,6 +442,14 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     de 14 dígitos.
   - **Prova:** a primeira descoberta por período do D365 filtra pela empresa de 14 dígitos.
   - **Sintoma:** o dropdown mostra uma empresa que não casa com nenhum grupo da tabela.
+
+- [ ] **O que o chamado de suporte anexa quando quem o abre não pode ver as fotos cruas.** (change
+  `establishment-and-readable-dashboard`, D11)
+  - **Falta:** decidir. O `/trace` e o zip passaram a exigir Admin, mas o chamado de suporte continua anexando os zips
+    das notas no servidor, para qualquer papel. O zip vai para o suporte, e o pedido devolve só o id e o link do chamado.
+  - **Prova:** abrir um chamado como Viewer e conferir, no portal de chamados, se o solicitante vê os anexos.
+  - **Sintoma:** se o portal mostrar os anexos ao solicitante, o Viewer baixa por lá as fotos que a tela e a API lhe
+    negam.
 
 ### Operação
 

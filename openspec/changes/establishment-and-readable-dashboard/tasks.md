@@ -4,7 +4,10 @@ A ordem vai da origem para a tela:
   "Automática". O grupo 1 começa pelas fixtures, porque a montagem passa a exigir o `FiscalEstablishment` na resposta.
 - **Grupos 4 e 5, o desfecho e o que a tela consome.** O motivo, a foto, o mock, o selo e a exclusão de agendamento.
 - **Grupo 6, a tela.**
-- **Grupos 7 e 8, a documentação e a prova manual do critério de saída.**
+- **Grupo 7, a documentação.**
+- **Grupo 8, o JSON num modal próprio e as fotos cruas só para Admin.** Entrou depois do grupo 7, por pedido de
+  2026-09-28, e revisa o que o 6.4 e o 7.1 fizeram (D8 e D11 revisados).
+- **Grupo 9, a prova manual do critério de saída.**
 
 Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` verde. O grupo da tela termina com o
 `npm run build`.
@@ -216,7 +219,7 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   dois caminhos). Registra também que o "Visualizar JSON" é apresentação, e não autorização
 - [ ] 7.2 `docs/STATUS.md`:
   - **fechar** "O `CompanyCode` mostra o fornecedor numa nota de terceiro" e "O rótulo 'Tempo real' da lista de
-    grupos", só com a evidência dos testes e da prova do grupo 8;
+    grupos", só com a evidência dos testes e da prova do grupo 9;
   - **abrir** "Filtros dos cards": período (dia, 7, 15 e 30 dias, com o dia como padrão) e modelo. Com eles, o
     contador próprio das ignoradas deixa de ser necessário;
   - **abrir** "O modal do grupo não filtra pelo tipo e pelo modo" (risco do design);
@@ -239,8 +242,8 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
       como comportamento correto; o modal que não filtra pelo tipo e pelo modo; o tamanho do código no AOT, da 1.1; e o
       diretório com o CNPJ de 14 dígitos;
     - as notas da v3 do canônico e do formato do erro estão feitas.
-  - **Aberto:** o fechamento dos dois itens. Eles estão anotados como "implementado, falta a prova manual do grupo 8",
-    porque a tarefa pede a evidência do grupo 8 para fechar
+  - **Aberto:** o fechamento dos dois itens. Eles estão anotados como "implementado, falta a prova manual do grupo 9",
+    porque a tarefa pede a evidência do grupo 9 para fechar
 - [x] 7.3 `docs/RUNNING.md`:
   - o critério dos cards, na seção do dashboard;
   - a exclusão de agendamento;
@@ -249,12 +252,41 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 - [x] 7.4 `docs/avalara-sandbox-primeiro-envio.md`: uma nota nos achados. O corte em 1000 caracteres e o `title` no
   motivo foram resolvidos nesta change, e a lista inteira vem da foto
 
-## 8. Prova manual do critério de saída
+## 8. O JSON num modal próprio e as fotos cruas só para Admin (D8 e D11 revisados, `platform-response-trace`, `tenant-boundary`)
 
-- [ ] 8.1 Preparar: `docker compose up -d`, `az login` e o host e o dashboard de pé. As migrações `WidenBranchCode` e
+- [x] 8.1 Teste primeiro, da leitura do desfecho (Application.Tests), sobre as fotos da fixture do sandbox e do mock:
+  - **a recusa no envio:** 6 campos, na ordem da resposta, com as mensagens, e nada além de `fields` e `omissions`;
+  - **a recusa na consulta:** com o mapa na foto da consulta, a lista é a dela, e não a do envio;
+  - **as omissões:** saem do `request.omissions` da foto do envio, e ficam vazias sem ele;
+  - **sem mapa, ou corpo que não é JSON:** a lista vem vazia;
+  - **na consulta da leitura:** o documento de outro tenant e o sem fotos dão "não encontrado", pela regra do
+    `DocumentTraceQuery`
+- [x] 8.2 Implementar a leitura na Application (`Tracing`) e o `GET /documents/{tenant}/{chave}/reading` no host,
+  aberto a qualquer papel do tenant, com o mesmo 404 do `/trace`
+- [x] 8.3 Host: o `/trace` e o `/documents/{tenant}/{chave}/download` exigem os papéis de uma lista só
+  (`RawTraceRoles`, hoje `["Admin"]`). O comentário dela aponta para o `RAW_JSON_ROLES` da tela e diz que é o gancho do
+  Suporte
+- [x] 8.4 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 8.5 Tela:
+  - o `RAW_JSON_ROLES` num módulo só, usado pelo detalhe e pelo `NoteDialog`, com o comentário apontando para o
+    `RawTraceRoles` do servidor;
+  - o `client.ts` com a leitura (`reading`), e o detalhe tirando dela a lista e as omissões (o `platformReason`
+    passa a só humanizar o caminho, e a cair para o `reason`);
+  - o "Visualizar JSON" abre um modal próprio com as quatro abas, e o `useTrace` só roda com ele aberto;
+  - o "Baixar arquivos" do `NoteDialog` só para os papéis da lista;
+  - o `Modal` fecha no Esc só o de cima
+- [x] 8.6 `npm run build` verde, com o `tsc --noEmit` sem erro
+- [x] 8.7 Docs:
+  - **ADR-0030:** o item 8 passa a dizer que o `/trace` e o zip exigem o papel, e que a primeira vista vem da leitura;
+  - **STATUS:** abre o item "O que o chamado de suporte anexa quando quem o abre não pode ver as fotos cruas";
+  - **RUNNING:** o "Visualizar JSON" e o "Baixar arquivos" só para Admin, e o 403 do Viewer no `/trace` e no zip
+
+## 9. Prova manual do critério de saída
+
+- [ ] 9.1 Preparar: `docker compose up -d`, `az login` e o host e o dashboard de pé. As migrações `WidenBranchCode` e
   `RenameRealTimeTrigger` aplicadas no log da subida. Rebobinar o tenant-a pelo RUNNING §6, para as 14 notas da `brmf`
   serem relidas
-- [ ] 8.2 Numa passada contra o fiscosysdev, a tabela de grupos mostra:
+- [ ] 9.2 Numa passada contra o fiscosysdev, a tabela de grupos mostra:
   - o CNPJ completo do estabelecimento próprio, formatado, e o código de filial vindos do 365;
   - as 14 notas nas datas fiscais delas, com as 9 NFS-e ignoradas incluídas;
   - o "Tipo" como "Automática".
@@ -262,15 +294,20 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   Os cards de hoje mostram 0, que é o correto: nenhuma nota tem data fiscal de hoje. Conferir no banco que nenhuma das
   14 linhas ficou com data nula, e que a data de referência de cada uma é o `FiscalDocumentDate` dela no F&O, nas
   montadas e nas ignoradas
-- [ ] 8.3 Abrir uma NF-e 55 recusada como Viewer: o motivo é uma lista de campos, com as mensagens em português, sem
-  "One or more validation errors occurred.", sem "Enviado sem" e sem botão "Visualizar JSON". Como o mesmo Viewer,
-  conferir que o "Baixar arquivos" ainda traz o zip com as fotos. É o esperado: o botão é apresentação, e não
-  autorização (D11)
-- [ ] 8.4 Abrir a mesma nota como Admin: o "Visualizar JSON" abre as quatro abas. A foto da resposta tem o método, a
-  URL do sandbox e o `traceId`, não tem `type`, `title` nem `status` no corpo, e traz as omissões da
-  `BRMF06-110000027` e da `BRMF06-110000031`
-- [ ] 8.5 O selo: verde com o poll ligado e vermelho depois de desligar pela tela, sem recarregar. Com um adapter que
+- [ ] 9.3 Abrir uma NF-e 55 recusada como Viewer:
+  - **o motivo:** uma lista de campos, com as mensagens em português, sem "One or more validation errors occurred." e
+    sem "Enviado sem";
+  - **os botões:** não há "Visualizar JSON" nem "Baixar arquivos", e o "Abrir chamado" continua;
+  - **pela API, com o token do Viewer:** o `/trace` e o `/documents/{tenant}/{chave}/download` dão 403, e a
+    `/documents/{tenant}/{chave}/reading` dá a lista
+- [ ] 9.4 Abrir a mesma nota como Admin:
+  - **o modal do JSON:** o "Visualizar JSON" abre um modal próprio, por cima do detalhe, com as quatro abas. Fechar ou
+    apertar Esc volta ao detalhe, que continua aberto;
+  - **a foto da resposta:** tem o método, a URL do sandbox e o `traceId`, não tem `type`, `title` nem `status` no
+    corpo, e traz as omissões da `BRMF06-110000027` e da `BRMF06-110000031`;
+  - **o "Baixar arquivos":** aparece e baixa o zip
+- [ ] 9.5 O selo: verde com o poll ligado e vermelho depois de desligar pela tela, sem recarregar. Com um adapter que
   não varre, some
-- [ ] 8.6 Criar um agendamento, deixá-lo disparar ou rodar uma execução ligada a ele, e excluí-lo pela tela,
+- [ ] 9.6 Criar um agendamento, deixá-lo disparar ou rodar uma execução ligada a ele, e excluí-lo pela tela,
   confirmando. O agendamento some, e a execução continua na aba de execuções
-- [ ] 8.7 Registrar a prova no STATUS, com as linhas do log e o que foi só conferência visual, como na change anterior
+- [ ] 9.7 Registrar a prova no STATUS, com as linhas do log e o que foi só conferência visual, como na change anterior

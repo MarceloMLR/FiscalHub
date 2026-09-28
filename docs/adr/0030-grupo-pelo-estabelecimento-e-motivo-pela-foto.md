@@ -64,11 +64,19 @@ montagem é agrupada pelo que a descoberta leu, e a tela lê o motivo da recusa 
      resposta.
    - **No motivo de falha:** a recusa do envio, a recusa da consulta e o "sem retorno" não a trazem.
    - **Na nota aceita:** continua no `Reason`, e a tela a mostra como a marca "Enviado com ressalvas".
-8. **"Visualizar JSON" é apresentação, e não autorização.**
-   - **O que o botão faz:** o JSON cru fica atrás dele, e só o Admin o vê (`RAW_JSON_ROLES`), com o gancho para um papel
-     de Suporte.
-   - **O que continua acessível:** o `/trace` e o zip, a qualquer usuário do tenant, Viewer incluído (ADR-0028).
-   - **O que isso quer dizer:** o JSON cru não está protegido do Viewer. Restringir de fato é outra decisão.
+8. **As fotos cruas são só para Admin, de fato.**
+   - **No servidor:** o `/trace` e o zip exigem um dos papéis de uma lista só (`rawTraceRoles`, hoje o Admin). Quem não
+     tem o papel recebe 403 antes de qualquer leitura. A regra de tenant do ADR-0028 continua valendo para o Admin.
+   - **A primeira vista:** vem de uma leitura do desfecho (`/documents/{tenant}/{chave}/reading`), aberta a qualquer
+     papel do tenant. Ela devolve só a lista de campos da recusa e as omissões, tiradas das fotos no servidor.
+   - **Na tela:** o "Visualizar JSON" abre um modal próprio, com uma aba por foto. Ele e o "Baixar arquivos" aparecem só
+     para os papéis da lista (`RAW_JSON_ROLES`).
+   - **O gancho do Suporte:** o papel entra nas duas listas e no `UserRole`. Ele não é criado agora.
+   - **O chamado de suporte:** continua anexando os zips no servidor, para qualquer papel. O que ele anexa quando quem
+     o abre não pode ver as fotos cruas fica em aberto (STATUS).
+
+   Uma primeira versão fazia o botão só esconder a tela, com o `/trace` e o zip abertos. O pedido passou a ser que o
+   usuário comum não tenha acesso, e a restrição virou de autorização.
 9. **O modo "Automática".** O modo gravado da nota que entrou sem ação humana passa de `RealTime` a `Automatic`, com a
    migração `RenameRealTimeTrigger`, e a tela o chama "Automática".
 
@@ -83,7 +91,10 @@ montagem é agrupada pelo que a descoberta leu, e a tela lê o motivo da recusa 
 - **Tirar só o `title` e manter a lista inteira no `Reason`.** O corte em 1000 continuaria, com duas cópias da lista.
 - **Uma coluna para a ressalva, ou uma foto só das omissões.** Seria contrato e arquivo novos para um valor que o estado
   já separa e que pertence à requisição que o envelope descreve.
-- **Proteger o `/trace` por papel.** A lista do motivo sai da foto, e o Viewer precisa dela.
+- **Só esconder os botões, ou bloquear só o zip.** O `/trace` entrega as mesmas fotos do zip, e o Viewer as leria pela
+  API. A proteção seria só aparente.
+- **A tela ler a lista direto da foto.** Exige o `/trace` aberto ao Viewer. A leitura do desfecho no servidor entrega só
+  o que a primeira vista usa.
 
 ## Consequências
 
@@ -93,7 +104,8 @@ montagem é agrupada pelo que a descoberta leu, e a tela lê o motivo da recusa 
   - o `DocumentGroup.trigger` (`Automatic`);
   - o `/info` (`inboundScans`);
   - a forma do `Reason` da recusa;
-  - a forma da foto da resposta.
+  - a forma da foto da resposta;
+  - o `/trace` e o zip, que dão 403 para quem não é Admin, e a leitura do desfecho, nova.
 
   Não há cliente em produção, e front e back sobem juntos.
 - **Uma nota já aceita e relida depois do deploy é reenviada uma vez,** pela v3. Hoje nenhuma nota foi aceita.

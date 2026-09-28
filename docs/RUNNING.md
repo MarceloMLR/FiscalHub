@@ -99,9 +99,12 @@ O que a tela mostra, e que parece defeito mas não é:
   - **na recusa:** a lista de campos, com as mensagens da plataforma;
   - **na nota aceita com omissão:** a marca "Enviado com ressalvas".
 
-  O JSON cru fica atrás do "Visualizar JSON", que só o Admin vê.
-  - **É apresentação, e não autorização:** o `/trace` e o "Baixar arquivos" seguem abertos a qualquer usuário do tenant,
-    Viewer incluído.
+  O JSON cru abre num modal próprio, pelo "Visualizar JSON", com uma aba por foto. Fechar ou apertar Esc volta ao
+  detalhe.
+  - **Só para Admin, de fato:** o "Visualizar JSON" e o "Baixar arquivos" só aparecem para o Admin, e o `/trace` e o zip
+    dão 403 para os demais papéis.
+  - **O Viewer:** vê a primeira vista pela leitura do desfecho (`/documents/{tenant}/{chave}/reading`), que traz só a
+    lista de campos e as omissões.
 - **Agendamentos:** a aba "Agendamentos" de Integrações tem "Excluir", com confirmação. A exclusão não se desfaz, e as
   execuções que o agendamento disparou continuam na aba "Execuções".
 
