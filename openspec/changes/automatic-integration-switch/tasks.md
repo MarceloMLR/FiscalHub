@@ -123,20 +123,20 @@ diante começa antes dela.
 
 ## 4. A tela (D2, D3, D6, D9, `automatic-integration`)
 
-- [ ] 4.1 `types.ts` e `client.ts`:
+- [x] 4.1 `types.ts` e `client.ts`:
   - o `ConnectorProfile` e o `ConnectorProfileRequest` perdem o `realtime`;
   - o tipo do `/info` passa a `{ environment: string; automaticIntegration: boolean }`
-- [ ] 4.2 `adapterSchemas.ts`: marcar o `Dynamics365` como adapter que varre, no próprio schema. O formato fica para a
+- [x] 4.2 `adapterSchemas.ts`: marcar o `Dynamics365` como adapter que varre, no próprio schema. O formato fica para a
   implementação (D3). Atualizar o comentário, que diz "Os campos que a tela não mostra (companies, poll…)"
-- [ ] 4.3 `ConnectorsPage`:
+- [x] 4.3 `ConnectorsPage`:
   - **O interruptor:** "Integração automática", só quando o adapter escolhido varre, com a frase do D6 embaixo.
   - **Estado:** vem de `inboundValues.poll?.enabled === true`.
   - **Mudança:** grava um booleano JSON em `poll.enabled` e preserva o resto da seção, sem passar pelo `setPath`.
   - **Envio:** o `PUT` não leva mais o `realtime`.
   - **Trocar de ERP:** para um adapter que não varre, o interruptor some. As settings vazias, que a troca já produz,
     não ganham seção `poll`
-- [ ] 4.4 `App.tsx`: `info?.automaticIntegration ?? false`, e o selo passa a dizer "Integração automática ligada"
-- [ ] 4.5 `npm run build` verde, com o `tsc --noEmit` sem erro
+- [x] 4.4 `App.tsx`: `info?.automaticIntegration ?? false`, e o selo passa a dizer "Integração automática ligada"
+- [x] 4.5 `npm run build` verde, com o `tsc --noEmit` sem erro
 
 ## 5. Documentação (D11)
 
