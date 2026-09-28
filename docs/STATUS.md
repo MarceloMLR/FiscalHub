@@ -292,6 +292,18 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     dois lugares dizendo coisas diferentes. Mais adiante, ligar o interruptor abre as opções de configuração do coletor
     (intervalo de busca e afins), hoje sem tela. Rebobinar o `startFrom` continua sendo operação por SQL, de propósito.
   - **Sintoma:** o Admin liga o interruptor e nenhuma nota nova é descoberta; ou o desliga, e o coletor segue rodando.
+- [ ] **Rebobinar pelo roteiro não reprocessa nada.** (RUNNING §6)
+  - **Falta:** o `ChangeFeedPublicationLog` é um singleton em memória. O rebobinamento do §6 do RUNNING (apagar o cursor
+    para o `startFrom` valer de novo) não reprocessa nada enquanto o processo continua de pé: a passada roda e reporta
+    tudo como "suprimida(s) por já publicadas". O procedimento está documentado, não funciona e não avisa.
+  - **Correção pretendida (próxima fatia, junto com o interruptor):** quando a marca d'água andar para trás, ou quando o
+    cursor do tenant não existir, o poller descarta o registro de publicação daquele tenant. Corrige sozinho, sem passo
+    manual.
+  - **Antes de corrigir:** o `BeginPull` já zera o registro quando a marca fica abaixo da última vista, com teste pela
+    variante do `UPDATE` na marca (`Watermark_rewind_republishes_everything_in_the_reread_window`). A variante do
+    `DELETE`, que é a do roteiro, não tem teste, e a leitura do código não isolou por que ela escapa. O primeiro passo é
+    reproduzir o sintoma num teste por essa variante.
+  - **Sintoma (silencioso):** quem rebobina para repetir o teste vê a passada rodar sem erro e nenhuma nota voltar à fila.
 - [ ] **O seed de dev roda em qualquer ambiente.** (risco de primeiro cliente, e não dívida de estilo)
   - **Falta:** o seed de usuários, tenants e perfis de conector não tem guarda de `IsDevelopment()`; o único gate é a
     tabela vazia, e um banco de produção novo é justamente um banco vazio. O `LocalSeed` também sobe os XMLs de exemplo
@@ -327,9 +339,13 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     horas.
   - **Prova:** medir no volume do cliente, no fechamento do mês.
   - **Sintoma:** fila crescendo e notas atrasadas no fechamento.
-- [ ] **Reinício ou troca de réplica.** (ADR-0025 §9)
-  - **Falta:** o registro de publicações é em memória.
-  - **Prova:** reiniciar o host com nota mudando e contar os GETs.
+- [ ] **Reinício ou troca de réplica.** (ADR-0025 §9; fatia de nuvem)
+  - **Falta:** o registro de publicações é em memória e vale por processo. O lease por tenant impede duas réplicas de
+    varrer o mesmo tenant ao mesmo tempo. Mas, quando o lease muda de mão, a réplica nova não sabe o que a anterior
+    publicou e republica a janela de sobreposição inteira. O mesmo acontece a cada reinício.
+  - **Direção:** registro persistido, podado pelo horizonte estável.
+  - **Prova:** reiniciar o host com nota mudando e contar os GETs. Com duas réplicas, forçar a troca do lease e contar
+    de novo.
   - **Sintoma:** por uma janela de sobreposição, o tráfego no F&O volta a cerca de 6 vezes por nota. O hash
     impede o reenvio.
 
@@ -569,8 +585,8 @@ e o valor esperado de cada um é pergunta à Avalara:
 - `itens[].UnidadeMedida.Descricao`;
 - `itens[].Item.UnidadeMedida.Descricao`.
 
-Junto, das lacunas conhecidas do checklist: o interruptor de integração automática gravando no `poll.enabled`, e o
-`CompanyCode` pelo estabelecimento próprio. O seed de dev sem guarda de ambiente é risco de primeiro cliente, e precisa
+Junto, das lacunas conhecidas do checklist: o interruptor de integração automática gravando no `poll.enabled`, com o
+rebobinamento que se corrige sozinho, e o `CompanyCode` pelo estabelecimento próprio. O seed de dev sem guarda de ambiente é risco de primeiro cliente, e precisa
 fechar antes do primeiro deploy.
 
 Também para a próxima fatia, do teste manual:
