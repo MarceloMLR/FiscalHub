@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
 using FiscalHub.Domain.Envelope;
@@ -43,6 +44,30 @@ public class QueuedDocumentProcessorTests
         // Mensagem publicada antes do campo existir: continua válida, sem origem (cai no perfil do tenant).
         await processor.HandleAsync(BinaryData.FromString("""{"tenantId":"tenant-a","type":"GoodsInvoice55","naturalKey":"nfe-1","locator":"nfe/nfe-1.xml"}"""), "c");
         Assert.Null(router.Reference!.Origin);
+    }
+
+    [Fact]
+    public async Task Discovered_group_survives_the_round_trip_and_its_absence_stays_absent()
+    {
+        var router = new FakeRouter();
+        var processor = new QueuedDocumentProcessor(router);
+        var metadata = new DocumentMetadata
+        {
+            CompanyCode = "44278225000260",
+            BranchCode = "SP-01",
+            ReferenceDate = new DateOnly(2026, 8, 7),
+            DocumentNumber = "000123",
+            DocumentModel = "SE",
+        };
+
+        BinaryData body = BinaryData.FromObjectAsJson(Reference() with { Metadata = metadata }, DocumentQueueSerialization.Options);
+        Assert.Contains("\"referenceDate\":\"2026-08-07\"", body.ToString());   // o dia, sem hora e sem fuso
+        await processor.HandleAsync(body, "c");
+        Assert.Equal(metadata, router.Reference!.Metadata);
+
+        // Mensagem publicada antes do campo existir: continua válida, sem o grupo.
+        await processor.HandleAsync(BinaryData.FromString("""{"tenantId":"tenant-a","type":"GoodsInvoice55","naturalKey":"nfe-1","locator":"nfe/nfe-1.xml"}"""), "c");
+        Assert.Null(router.Reference!.Metadata);
     }
 
     [Fact]

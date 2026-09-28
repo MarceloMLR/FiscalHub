@@ -9,6 +9,9 @@ namespace FiscalHub.Infrastructure.Persistence;
 /// <summary>Implementação de <see cref="IProcessingStore"/> em banco relacional (EF Core / Azure SQL).</summary>
 internal sealed class SqlProcessingStore : IProcessingStore
 {
+    /// <summary>O modo da nota que entrou sem ação humana (coletor, drop, evento): a referência sem <c>SourceMode</c>.</summary>
+    internal const string AutomaticMode = "Automatic";
+
     private readonly ProcessingDbContext _db;
     private readonly TimeProvider _clock;
 
@@ -132,7 +135,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
 
         if (row is null)
         {
-            _db.ProcessedDocuments.Add(new ProcessedDocument
+            row = new ProcessedDocument
             {
                 TenantId = reference.TenantId,
                 NaturalKey = reference.NaturalKey,
@@ -140,9 +143,11 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 Status = status,
                 ExternalId = externalId,
                 Reason = reason,
+                Trigger = reference.SourceMode ?? AutomaticMode,   // o modo em qualquer desfecho, também o que não chega à montagem
                 CreatedAt = now,
                 UpdatedAt = now,
-            });
+            };
+            _db.ProcessedDocuments.Add(row);
         }
         else
         {
@@ -153,6 +158,22 @@ internal sealed class SqlProcessingStore : IProcessingStore
             row.UpdatedAt = now;
         }
 
+        // O grupo visto na descoberta, para a nota que não chega à montagem (design D4). O da montagem, já gravado pelo
+        // RecordMetadataAsync, nunca é trocado por ele.
+        if (row.CompanyCode is null && reference.Metadata is { } discovered)
+        {
+            ApplyGroup(row, discovered);
+        }
+
         await _db.SaveChangesAsync(ct);
+    }
+
+    private static void ApplyGroup(ProcessedDocument row, DocumentMetadata metadata)
+    {
+        row.CompanyCode = metadata.CompanyCode;
+        row.BranchCode = metadata.BranchCode;
+        row.ReferenceDate = metadata.ReferenceDate.ToString("yyyy-MM-dd");
+        row.DocumentNumber = metadata.DocumentNumber;
+        row.DocumentModel = metadata.DocumentModel;
     }
 }

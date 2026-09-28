@@ -1,3 +1,4 @@
+using FiscalHub.Application.Metadata;
 using FiscalHub.Domain.Envelope;
 
 namespace FiscalHub.Application.Inbound;
@@ -41,4 +42,12 @@ public sealed record DocumentReference
     /// (ADR-0025) — o perfil diz o que varrer; a referência diz de onde o documento veio.
     /// </summary>
     public string? Origin { get; init; }
+
+    /// <summary>
+    /// O grupo da nota (empresa, filial, data de referência, número e modelo) como a descoberta o leu na origem, para a
+    /// nota que não chega à montagem — ignorada no roteamento, fora do escopo na montagem, ou na dead-letter — entrar no
+    /// grupo e nos cards da data fiscal dela. A nota montada é agrupada pela montagem, que prevalece. <c>null</c> = a
+    /// origem não o informa na descoberta (XML) ou a mensagem é anterior ao campo.
+    /// </summary>
+    public DocumentMetadata? Metadata { get; init; }
 }

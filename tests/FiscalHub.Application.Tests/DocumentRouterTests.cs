@@ -45,6 +45,25 @@ public class DocumentRouterTests
     }
 
     [Fact]
+    public async Task Ignored_type_reaches_the_store_with_the_discovered_group()
+    {
+        var store = new FakeStore();
+        var router = new DocumentRouter(new FakePipeline(), store);
+        var metadata = new DocumentMetadata
+        {
+            CompanyCode = "44278225000260",
+            BranchCode = "SP-01",
+            ReferenceDate = new DateOnly(2026, 8, 7),
+            DocumentNumber = "000123",
+            DocumentModel = "SE",
+        };
+
+        await router.RouteAsync(Reference(DocumentType.ServiceNfse) with { Metadata = metadata }, Context());
+
+        Assert.Equal(metadata, Assert.Single(store.IgnoredReferences).Metadata);   // o store grava o grupo com o desfecho
+    }
+
+    [Fact]
     public async Task Out_of_scope_found_while_fetching_is_recorded_as_ignored_and_not_rethrown()
     {
         var pipeline = new FakePipeline { Throw = new DocumentOutOfScopeException("ignorado: tipo fora do escopo (modelo SE)") };
@@ -109,9 +128,12 @@ public class DocumentRouterTests
     {
         public List<(string Key, string Reason)> Ignored { get; } = [];
 
+        public List<DocumentReference> IgnoredReferences { get; } = [];
+
         public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         {
             Ignored.Add((reference.NaturalKey, reason));
+            IgnoredReferences.Add(reference);
             return Task.CompletedTask;
         }
 
