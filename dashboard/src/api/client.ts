@@ -8,6 +8,7 @@ import type {
   CreateScheduleRequest,
   CreateUserRequest,
   DocumentGroup,
+  DocumentReading,
   DocumentSummary,
   ExecutionSummary,
   LoginResponse,
@@ -142,8 +143,12 @@ export const api = {
       `/groups/${encodeURIComponent(company)}/${encodeURIComponent(branch)}/${encodeURIComponent(date)}/documents`,
     ),
   documents: () => getJson<DocumentSummary[]>('/documents'),
+  // As fotos cruas: só para os papéis que as veem (403 para os demais). Usado pelo modal do JSON.
   trace: (tenantId: string, naturalKey: string) =>
     getJson<TraceResponse>(`/trace/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}`),
+  // A leitura do desfecho: a lista de campos da recusa e as omissões, para qualquer papel. 404 = sem fotos.
+  reading: (tenantId: string, naturalKey: string) =>
+    getJson<DocumentReading>(`/documents/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}/reading`),
   // automaticIntegration: o adapter de entrada varre e o poll.enabled está ligado (derivado no servidor, ADR-0029).
   // inboundScans: o adapter de entrada varre — o selo aparece (verde ou vermelho) só quando ele é verdadeiro.
   info: () => getJson<{ environment: string; automaticIntegration: boolean; inboundScans: boolean }>('/info'),

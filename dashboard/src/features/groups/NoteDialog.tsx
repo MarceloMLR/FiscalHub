@@ -5,9 +5,12 @@ import { Modal } from '../../components/Modal';
 import { DocumentDetail } from '../documents/DocumentDetail';
 import { TicketModal } from '../support/TicketModal';
 import { api } from '../../api/client';
+import { useAuth } from '../auth/AuthContext';
+import { canViewRawJson } from '../auth/roles';
 import type { DocumentSummary } from '../../types';
 
 export function NoteDialog({ note, onClose }: { note: DocumentSummary | null; onClose: () => void }) {
+  const { user } = useAuth();
   const [ticketOpen, setTicketOpen] = useState(false);
 
   if (!note) {
@@ -29,10 +32,13 @@ export function NoteDialog({ note, onClose }: { note: DocumentSummary | null; on
             <button type="button" className="fh-btn fh-btn-secondary" onClick={onClose} style={{ height: 32 }}>
               Fechar
             </button>
-            <button type="button" className="fh-btn" onClick={() => api.downloadTrace(note.tenantId, note.naturalKey)} style={{ height: 32 }}>
-              <DownloadOutlinedIcon sx={{ fontSize: 16 }} />
-              Baixar arquivos
-            </button>
+            {/* O zip tem as fotos cruas: só para quem tem o papel (o servidor dá 403 para os demais). */}
+            {canViewRawJson(user?.role) && (
+              <button type="button" className="fh-btn" onClick={() => api.downloadTrace(note.tenantId, note.naturalKey)} style={{ height: 32 }}>
+                <DownloadOutlinedIcon sx={{ fontSize: 16 }} />
+                Baixar arquivos
+              </button>
+            )}
           </>
         }
       >

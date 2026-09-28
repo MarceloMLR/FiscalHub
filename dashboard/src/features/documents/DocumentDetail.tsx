@@ -7,29 +7,21 @@ import DataObjectIcon from '@mui/icons-material/DataObject';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { useTrace } from './useTrace';
+import { canViewRawJson } from '../auth/roles';
+import { useReading } from './useReading';
 import { isFailure } from './StatusChip';
-import { omissionsFromReason, omissionsOf, rejectionFields, type FieldError } from './platformReason';
-import type { DocumentSummary, IntegrationStatus } from '../../types';
-
-type Tab = 'source' | 'domain' | 'destination' | 'response';
-const pretty = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v, null, 2));
-
-// Quem vê o JSON cru (as quatro fotos) atrás do "Visualizar JSON". Hoje só o Admin; um papel de Suporte, quando existir,
-// entra aqui e no UserRole. É APRESENTAÇÃO, E NÃO AUTORIZAÇÃO: o /trace e o zip seguem acessíveis a qualquer usuário
-// do tenant, Viewer incluído (ADR-0028), porque a lista do motivo e o chamado dependem deles. Restringir o JSON de fato é
-// outra fatia (design D11 da change establishment-and-readable-dashboard).
-const RAW_JSON_ROLES: readonly string[] = ['Admin'];
-const canViewRawJson = (role?: string) => role !== undefined && RAW_JSON_ROLES.includes(role);
+import { humanizePath, omissionsFromReason } from './platformReason';
+import { RawJsonModal } from './RawJsonModal';
+import type { DocumentSummary, FieldRejection, IntegrationStatus } from '../../types';
 
 // Aceita pela plataforma: aqui o reason só pode ser a ressalva do envio (as omissões), nunca uma falha.
 const ACCEPTED: IntegrationStatus[] = ['Submitted', 'Confirmed'];
 
 export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
   const { user } = useAuth();
-  const { data, isLoading, isError } = useTrace(doc.tenantId, doc.naturalKey);
-  const [tab, setTab] = useState<Tab>('source');
-  const [showJson, setShowJson] = useState(false);
+  // A primeira vista vem da leitura do desfecho, para qualquer papel; as fotos cruas só no modal do JSON.
+  const { data: reading } = useReading(doc.tenantId, doc.naturalKey);
+  const [jsonOpen, setJsonOpen] = useState(false);
   const qc = useQueryClient();
 
   // Reprocessar: entrega o id ao adapter de entrada, que rebusca na origem e reintegra.
@@ -44,7 +36,8 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
 
   const failed = isFailure(doc.status);
   const accepted = ACCEPTED.includes(doc.status);
-  const fields = failed ? rejectionFields(data) : null;
+  const fields = failed && reading && reading.fields.length > 0 ? reading.fields : null;
+  const omissions = reading && reading.omissions.length > 0 ? reading.omissions : null;
 
   return (
     <div style={{ padding: '18px 22px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -53,28 +46,37 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
         <div style={{ minWidth: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink)', wordBreak: 'break-all', lineHeight: 1.4 }}>
           {doc.naturalKey}
         </div>
-        {failed && (
-          <button
-            type="button"
-            className="fh-btn"
-            onClick={() => reprocess.mutate()}
-            disabled={reprocess.isPending || reprocess.isSuccess}
-            style={{ height: 32, flexShrink: 0 }}
-          >
-            <ReplayIcon sx={{ fontSize: 16 }} />
-            {reprocess.isPending ? 'Reprocessando…' : reprocess.isSuccess ? 'Reenviado' : 'Reprocessar'}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          {/* O JSON cru abre num modal próprio, só para quem tem o papel (o /trace dá 403 para os demais). */}
+          {canViewRawJson(user?.role) && (
+            <button type="button" className="fh-btn fh-btn-secondary" onClick={() => setJsonOpen(true)} style={{ height: 32 }}>
+              <DataObjectIcon sx={{ fontSize: 16 }} />
+              Visualizar JSON
+            </button>
+          )}
+          {failed && (
+            <button
+              type="button"
+              className="fh-btn"
+              onClick={() => reprocess.mutate()}
+              disabled={reprocess.isPending || reprocess.isSuccess}
+              style={{ height: 32 }}
+            >
+              <ReplayIcon sx={{ fontSize: 16 }} />
+              {reprocess.isPending ? 'Reprocessando…' : reprocess.isSuccess ? 'Reenviado' : 'Reprocessar'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Primeira vista: o motivo que se lê. Falha é erro, com a lista de campos da foto quando há; aceita com ressalva é
-          a marca discreta; ignorada é aviso (ADR-0026). */}
+      {/* Primeira vista: o motivo que se lê. Falha é erro, com a lista de campos da leitura quando há; aceita com
+          ressalva é a marca discreta; ignorada é aviso (ADR-0026). */}
       {doc.reason && !reprocess.isSuccess && (failed ? (
         <Banner tone="error" icon={<ErrorOutlineIcon sx={{ fontSize: 16, color: 'var(--error-text)' }} />}>
           {fields ? <FieldList fields={fields} /> : doc.reason}
         </Banner>
       ) : accepted ? (
-        <RemarksMark omissions={omissionsOf(data) ?? omissionsFromReason(doc.reason)} />
+        <RemarksMark omissions={omissions ?? omissionsFromReason(doc.reason)} />
       ) : (
         <Banner tone="warn" icon={<WarningAmberOutlinedIcon sx={{ fontSize: 16, color: 'var(--warn-text)' }} />}>{doc.reason}</Banner>
       ))}
@@ -89,62 +91,13 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
         </Banner>
       )}
 
-      {/* O JSON cru fica atrás do botão, só para quem pode vê-lo. */}
-      {canViewRawJson(user?.role) && (
-        <div>
-          <button
-            type="button"
-            className="fh-btn fh-btn-secondary"
-            onClick={() => setShowJson((v) => !v)}
-            aria-expanded={showJson}
-            style={{ height: 30 }}
-          >
-            <DataObjectIcon sx={{ fontSize: 16 }} />
-            {showJson ? 'Ocultar JSON' : 'Visualizar JSON'}
-          </button>
-        </div>
-      )}
-
-      {showJson && canViewRawJson(user?.role) && (
-        <>
-          {isLoading && <div style={{ padding: '20px 0', color: 'var(--muted)', fontSize: 13 }}>Carregando arquivos…</div>}
-
-          {(isError || (!isLoading && !data)) && (
-            <div style={{ padding: '20px 0', color: 'var(--muted)', fontSize: 13 }}>Sem arquivos para este documento ainda.</div>
-          )}
-
-          {data && (
-            <div>
-              {/* Abas */}
-              <div style={{ display: 'flex', gap: 22, borderBottom: '1px solid var(--border)', marginBottom: 12 }}>
-                <TabButton active={tab === 'source'} onClick={() => setTab('source')}>Origem</TabButton>
-                <TabButton active={tab === 'domain'} onClick={() => setTab('domain')}>Domínio</TabButton>
-                <TabButton active={tab === 'destination'} onClick={() => setTab('destination')}>Destino</TabButton>
-                <TabButton active={tab === 'response'} onClick={() => setTab('response')}>Resposta</TabButton>
-              </div>
-
-              {tab === 'source' && (data.source ? <Code>{data.source}</Code> : <Empty />)}
-              {tab === 'domain' && (data.domain !== undefined ? <Code>{pretty(data.domain)}</Code> : <Empty />)}
-              {tab === 'destination' && (data.destination ? <Code>{pretty(data.destination.payload)}</Code> : <Empty />)}
-              {tab === 'response' &&
-                (data.responses ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <ResponseBlock title="Envio" envelope={data.responses.submit} />
-                    <ResponseBlock title="Consulta de status" envelope={data.responses.status} />
-                  </div>
-                ) : (
-                  <Empty />
-                ))}
-            </div>
-          )}
-        </>
-      )}
+      {jsonOpen && <RawJsonModal tenantId={doc.tenantId} naturalKey={doc.naturalKey} onClose={() => setJsonOpen(false)} />}
     </div>
   );
 }
 
 // A recusa campo a campo: o caminho legível e, abaixo, as mensagens da plataforma, como vieram.
-function FieldList({ fields }: { fields: FieldError[] }) {
+function FieldList({ fields }: { fields: FieldRejection[] }) {
   return (
     <div>
       <div style={{ fontWeight: 600, marginBottom: 6 }}>
@@ -153,7 +106,7 @@ function FieldList({ fields }: { fields: FieldError[] }) {
       <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
         {fields.map((f) => (
           <li key={f.path}>
-            <span style={{ fontWeight: 600 }}>{f.label}</span>
+            <span style={{ fontWeight: 600 }}>{humanizePath(f.path)}</span>
             {f.messages.map((m, i) => (
               <div key={i}>{m}</div>
             ))}
@@ -193,65 +146,6 @@ function RemarksMark({ omissions }: { omissions: string[] }) {
       )}
     </div>
   );
-}
-
-// Um envelope de resposta da plataforma (já redigido no servidor), ou a falta dele.
-function ResponseBlock({ title, envelope }: { title: string; envelope: unknown }) {
-  return (
-    <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>{title}</div>
-      {envelope !== undefined ? <Code>{pretty(envelope)}</Code> : <Empty />}
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--text)'; }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--muted)'; }}
-      style={{
-        fontSize: 13.5,
-        fontWeight: active ? 600 : 500,
-        color: active ? 'var(--ink)' : 'var(--muted)',
-        paddingBottom: 10,
-        borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-        marginBottom: -1,
-        cursor: 'pointer',
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Code({ children }: { children: string }) {
-  return (
-    <pre
-      className="fh-mono"
-      style={{
-        margin: 0,
-        padding: '14px 16px',
-        background: 'var(--surface-sunken)',
-        color: 'var(--text)',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        fontSize: 12.5,
-        lineHeight: 1.55,
-        overflow: 'auto',
-        maxHeight: 380,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {children}
-    </pre>
-  );
-}
-
-function Empty() {
-  return <div style={{ padding: '16px 0', color: 'var(--muted)', fontSize: 13 }}>Sem este arquivo.</div>;
 }
 
 const BANNER_TONES = {

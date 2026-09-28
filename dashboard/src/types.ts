@@ -34,6 +34,18 @@ export interface DocumentTrace {
   responses?: { submit?: unknown; status?: unknown };
 }
 
+// A leitura do desfecho (GET /documents/{tenant}/{chave}/reading): o que a primeira vista do detalhe usa, tirado das
+// fotos no servidor, e nada mais delas. Aberta a qualquer papel; as fotos cruas (o /trace) so para Admin.
+export interface FieldRejection {
+  path: string; // o caminho como a plataforma o escreveu (ex.: itens[0].Item.TipoItem)
+  messages: string[]; // as mensagens da plataforma, como vieram
+}
+
+export interface DocumentReading {
+  fields: FieldRejection[];
+  omissions: string[];
+}
+
 // Diretorio de empresas/filiais (GET /companies, /companies/{code}/branches) — dropdowns da manual.
 export interface Company {
   code: string;

@@ -22,4 +22,9 @@
     <ProjectReference Include="..\..\src\FiscalHub.Application\FiscalHub.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- A recusa real do sandbox, a mesma dos testes do adapter Avalara: a leitura do desfecho parte dela. -->
+    <None Include="..\Adapters\Outbound\FiscalHub.Adapters.Outbound.Avalara.Tests\Fixtures\sandbox\*.json" Link="Fixtures\sandbox\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
