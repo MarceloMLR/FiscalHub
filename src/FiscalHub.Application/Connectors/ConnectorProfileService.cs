@@ -4,6 +4,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FiscalHub.Application.Auth;
+using FiscalHub.Application.Inbound;
 
 namespace FiscalHub.Application.Connectors;
 
@@ -42,8 +43,9 @@ public sealed class ConnectorProfileService
         string? supportAdapter = request.SupportAdapter ?? stored?.SupportAdapter;
 
         var problems = new List<string>();
-        Prepared inbound = Prepare(tenantId, ConnectorSettingsKind.Inbound, request.InboundSettings,
-            StoredFor(stored?.InboundAdapter, request.InboundAdapter, stored?.InboundSettings), problems);
+        string? storedInbound = StoredFor(stored?.InboundAdapter, request.InboundAdapter, stored?.InboundSettings);
+        Prepared inbound = Prepare(tenantId, ConnectorSettingsKind.Inbound, request.InboundSettings, storedInbound, problems);
+        AddPollProblems(inbound.Json, storedInbound, problems);
         Prepared outbound = Prepare(tenantId, ConnectorSettingsKind.Outbound, request.OutboundSettings,
             StoredFor(stored?.OutboundAdapter, request.OutboundAdapter, stored?.OutboundSettings), problems);
         Prepared support = request.SupportSettings is null
@@ -145,6 +147,30 @@ public sealed class ConnectorProfileService
         SecretDescription? description = await _secrets.DescribeAsync(name, ct);
         return description is null ? new SecretStatus(false, null) : new SecretStatus(true, description.UpdatedOn);
     }
+    // A seção poll é o contrato do coletor (igual para qualquer origem): o valor que esta gravação escreve e que o poller
+    // não leria é recusado aqui, e não vira falha a cada intervalo. O inválido já gravado, que volta igual, passa (D8).
+    private static void AddPollProblems(string json, string? storedJson, List<string> problems)
+    {
+        if (!TryParseObject(json, out JsonObject? written, out _))
+        {
+            return;   // o Prepare já recusou
+        }
+
+        JsonObject? stored = TryParseObject(storedJson, out JsonObject? storedRoot, out _) ? storedRoot : null;
+        IReadOnlyList<string> found;
+        try
+        {
+            found = ChangeFeedPollSettings.ProblemsInWrite(written, stored);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            // Nome repetido nas settings gravadas (o pedido já foi reserializado): não dá para dizer o que volta igual.
+            found = ChangeFeedPollSettings.ProblemsInWrite(written, null);
+        }
+
+        problems.AddRange(found.Select(p => $"{ConnectorSettingsKind.Inbound}Settings.{p}"));
+    }
+
 
     // As referências gravadas só são mantidas para o mesmo adapter: as de outro adapter são de outro schema.
     private static string? StoredFor(string? storedAdapter, string? adapter, string? storedSettings)

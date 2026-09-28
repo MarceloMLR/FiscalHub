@@ -52,22 +52,22 @@ diante começa antes dela.
 
 ## 2. Leitura derivada e guarda da seção `poll` (D4, D8, `automatic-integration`)
 
-- [ ] 2.1 Teste primeiro (Application.Tests): uma leitura do `ChangeFeedPollSettings` que não lança. Casos:
+- [x] 2.1 Teste primeiro (Application.Tests): uma leitura do `ChangeFeedPollSettings` que não lança. Casos:
   - settings válidas com a seção, e sem a seção;
   - JSON inválido;
   - `poll.enabled = "sim"`;
   - `poll.overlapSeconds = 0`.
 
   O inválido dá "não lido", sem exceção
-- [ ] 2.2 Teste primeiro: a derivação do estado da integração automática, a partir do perfil e das origens que varrem.
+- [x] 2.2 Teste primeiro: a derivação do estado da integração automática, a partir do perfil e das origens que varrem.
   É verdadeira só com `Dynamics365` numa origem que varre e `poll.enabled = true`. Os casos falsos:
   - sem perfil;
   - `enabled = false`;
   - sem a seção;
   - `iScala` com `poll.enabled = true`;
   - settings ilegíveis
-- [ ] 2.3 Implementar as duas em `Application/Inbound`, puras, sem porta nova
-- [ ] 2.4 Teste primeiro (`ConnectorProfileServiceTests`): a guarda julga o que a gravação escreve na seção `poll`
+- [x] 2.3 Implementar as duas em `Application/Inbound`, puras, sem porta nova
+- [x] 2.4 Teste primeiro (`ConnectorProfileServiceTests`): a guarda julga o que a gravação escreve na seção `poll`
   (D8).
   - **Recusa do valor novo:**
     - `enabled` mudado para `"sim"` dá `Invalid`;
@@ -83,14 +83,14 @@ diante começa antes dela.
   - **Seção válida:** chega intacta ao perfil. Com
     `{"enabled": true, "intervalSeconds": 300, "startFrom": "2015-01-01T00:00:00Z"}`, os três campos ficam, junto com
     a URL, as empresas e as referências de segredo
-- [ ] 2.5 Implementar a guarda no `ConnectorProfileService.SaveAsync`, junto das outras validações que rodam antes de
+- [x] 2.5 Implementar a guarda no `ConnectorProfileService.SaveAsync`, junto das outras validações que rodam antes de
   qualquer escrita:
   - comparar a seção `poll` do pedido com a gravada do mesmo adapter, pela regra do `StoredFor`;
   - juntar numa seção só os campos introduzidos ou mudados;
   - passá-la pelo mesmo `ChangeFeedPollSettings.Parse` do poller.
 
   A mensagem é montada pelo serviço, e não é o texto da exceção
-- [ ] 2.6 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 2.6 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 3. O `Realtime` sai, e o `/info` deriva (D1, D3, D4, D10, `automatic-integration`)
 

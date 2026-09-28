@@ -92,4 +92,28 @@ public class ChangeFeedPollSettingsTests
     {
         Assert.Throws<ConnectorSettingsException>(() => ChangeFeedPollSettings.Parse(json));
     }
+
+    // ---------- leitura que não lança (o /info e o selo, design D4) ----------
+
+    [Theory]
+    [InlineData("""{"poll":{"enabled":true,"intervalSeconds":300}}""", true, true)]
+    [InlineData("""{"poll":{"enabled":false}}""", true, false)]
+    [InlineData("""{"url":"https://erp.example/"}""", false, false)]
+    [InlineData(null, false, false)]
+    public void TryParse_reads_what_Parse_reads(string? json, bool configured, bool enabled)
+    {
+        Assert.True(ChangeFeedPollSettings.TryParse(json, out ChangeFeedPollSettings? settings));
+        Assert.Equal(configured, settings.Configured);
+        Assert.Equal(enabled, settings.Enabled);
+    }
+
+    [Theory]
+    [InlineData("{not json")]
+    [InlineData("""{"poll":{"enabled":"sim"}}""")]
+    [InlineData("""{"poll":{"enabled":true,"overlapSeconds":0}}""")]
+    public void TryParse_reports_unreadable_settings_without_throwing(string json)
+    {
+        Assert.False(ChangeFeedPollSettings.TryParse(json, out ChangeFeedPollSettings? settings));
+        Assert.Null(settings);
+    }
 }
