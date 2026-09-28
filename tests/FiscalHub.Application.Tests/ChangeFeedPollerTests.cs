@@ -841,7 +841,6 @@ public class ChangeFeedPollerTests
             {
                 TenantId = tenant,
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = inboundAdapter,
                 InboundSettings = inboundSettings,
                 OutboundAdapter = "Avalara",
@@ -976,9 +975,9 @@ public class ChangeFeedPollerTests
         public Action<int>? OnGet { get; set; }
 
         public ChangeFeedCursor? Find(string tenant) => _items.GetValueOrDefault(tenant);
+
         /// <summary>O operador apaga a linha do cursor (o rebobinamento do RUNNING §6).</summary>
         public void Delete(string tenant) => _items.Remove(tenant);
-
 
         public void Seed(
             string tenant, DateTimeOffset? watermark, DateTimeOffset? lastPolledAt = null,

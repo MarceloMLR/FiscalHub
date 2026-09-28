@@ -86,7 +86,6 @@ public sealed class ConnectorProfileService
             {
                 TenantId = tenantId,
                 Environment = request.Environment,
-                Realtime = request.Realtime,
                 InboundAdapter = request.InboundAdapter,
                 InboundSettings = inbound.Json,
                 OutboundAdapter = request.OutboundAdapter,
@@ -132,7 +131,7 @@ public sealed class ConnectorProfileService
             secrets[key] = await StatusAsync(tenantId, value, ct);
         }
 
-        return new ConnectorProfileView(profile.TenantId, profile.Environment, profile.Realtime,
+        return new ConnectorProfileView(profile.TenantId, profile.Environment,
             profile.InboundAdapter, inbound, profile.OutboundAdapter, outbound, profile.SupportAdapter, support, secrets);
     }
 
@@ -147,6 +146,7 @@ public sealed class ConnectorProfileService
         SecretDescription? description = await _secrets.DescribeAsync(name, ct);
         return description is null ? new SecretStatus(false, null) : new SecretStatus(true, description.UpdatedOn);
     }
+
     // A seção poll é o contrato do coletor (igual para qualquer origem): o valor que esta gravação escreve e que o poller
     // não leria é recusado aqui, e não vira falha a cada intervalo. O inválido já gravado, que volta igual, passa (D8).
     private static void AddPollProblems(string json, string? storedJson, List<string> problems)
@@ -170,7 +170,6 @@ public sealed class ConnectorProfileService
 
         problems.AddRange(found.Select(p => $"{ConnectorSettingsKind.Inbound}Settings.{p}"));
     }
-
 
     // As referências gravadas só são mantidas para o mesmo adapter: as de outro adapter são de outro schema.
     private static string? StoredFor(string? storedAdapter, string? adapter, string? storedSettings)

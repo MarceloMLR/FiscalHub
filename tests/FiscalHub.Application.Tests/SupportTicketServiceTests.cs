@@ -138,7 +138,6 @@ public class SupportTicketServiceTests
             {
                 TenantId = tenantId,
                 Environment = "Sandbox",
-                Realtime = false,
                 InboundAdapter = "Xml",
                 OutboundAdapter = "Avalara",
                 SupportAdapter = adapter,

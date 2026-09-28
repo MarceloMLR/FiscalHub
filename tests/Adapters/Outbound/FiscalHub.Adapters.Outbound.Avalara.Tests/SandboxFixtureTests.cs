@@ -157,7 +157,6 @@ public partial class SandboxFixtureTests
             {
                 TenantId = tenantId,
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = "Dynamics365",
                 OutboundAdapter = "Avalara",
                 OutboundSettings = """{"sandbox":{"baseUrl":"https://api-gateway.sandbox.avalarabrasil.com.br","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}}}""",

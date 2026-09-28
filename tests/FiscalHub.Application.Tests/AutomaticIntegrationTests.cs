@@ -44,7 +44,6 @@ public class AutomaticIntegrationTests
     {
         TenantId = "tenant-a",
         Environment = "Sandbox",
-        Realtime = false,
         InboundAdapter = inboundAdapter,
         InboundSettings = inboundSettings,
         OutboundAdapter = "Avalara",

@@ -32,7 +32,6 @@ public class D365ChangeFeedIntegrationTests
             {
                 TenantId = "tenant-a",
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = "Dynamics365",
                 InboundSettings = $$"""{"url":"{{url}}","companies":{{companies}},"pageSize":{{PageSize}}}""",
                 OutboundAdapter = "Avalara",

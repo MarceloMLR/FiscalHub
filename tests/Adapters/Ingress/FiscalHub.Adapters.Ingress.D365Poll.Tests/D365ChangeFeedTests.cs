@@ -499,7 +499,6 @@ public class D365ChangeFeedTests
             {
                 TenantId = "tenant-a",
                 Environment = "Sandbox",
-                Realtime = true,
                 InboundAdapter = "Dynamics365",
                 InboundSettings = settings ?? $$"""{"url":"{{Env}}","pageSize":{{pageSize}}}""",
                 OutboundAdapter = "Avalara",

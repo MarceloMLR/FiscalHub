@@ -475,14 +475,17 @@ app.MapGet("/companies", async (ICompanyDirectory dir, CancellationToken ct) =>
 app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory dir, CancellationToken ct) =>
     Results.Ok(await dir.ListBranchesAsync(code, ct)));
 
-// Ambiente do conector — agora vem do perfil do tenant logado (cada tenant tem o seu).
-app.MapGet("/info", async (IConnectorProfileStore profiles, ITenantContext tenant, CancellationToken ct) =>
+// Ambiente do conector e integração automática do tenant logado. A integração automática não é campo gravado: é
+// derivada do perfil (adapter que varre e poll.enabled), com as origens dos feeds registrados, as mesmas que o poller
+// consome (ADR-0029).
+app.MapGet("/info", async (
+    IConnectorProfileStore profiles, IEnumerable<IDocumentChangeFeed> feeds, ITenantContext tenant, CancellationToken ct) =>
 {
     TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
     return Results.Ok(new
     {
         environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox",
-        realtime = profile?.Realtime ?? false,
+        automaticIntegration = AutomaticIntegration.IsOn(profile, feeds.Select(f => f.Origin)),
     });
 });
 

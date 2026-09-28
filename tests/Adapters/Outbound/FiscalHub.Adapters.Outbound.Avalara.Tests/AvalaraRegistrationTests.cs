@@ -68,7 +68,7 @@ public class AvalaraRegistrationTests
         await using AsyncServiceScope scope = sp.CreateAsyncScope();
 
         ConnectorProfileSaveResult result = await scope.ServiceProvider.GetRequiredService<ConnectorProfileService>().SaveAsync(
-            new ConnectorProfileRequest("Sandbox", false, "Xml", "{}", "Avalara", """{"sandbox":{"clientId":"id-a","clientSecret":"novo"}}"""));
+            new ConnectorProfileRequest("Sandbox", "Xml", "{}", "Avalara", """{"sandbox":{"clientId":"id-a","clientSecret":"novo"}}"""));
 
         Assert.Equal(ConnectorProfileSaveStatus.Saved, result.Status);
         Assert.Equal(["tenant-a"], tokens.Forgotten);

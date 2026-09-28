@@ -314,6 +314,39 @@ public class ConnectorProfileServiceTests
         Assert.Equal(support, h.Profiles.Stored.SupportSettings);
     }
 
+    // ---- Sem campo de tempo real: a integração automática é o poll.enabled (ADR-0029) ----
+
+    // As opções do Host: as da Web mais o conversor de enum (Program.cs).
+    private static readonly JsonSerializerOptions HostJson = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+
+    [Fact]
+    public void Put_body_with_realtime_from_an_old_client_is_read_and_the_field_ignored()
+    {
+        ConnectorProfileRequest? request = JsonSerializer.Deserialize<ConnectorProfileRequest>("""
+            {"environment":"Sandbox","realtime":true,"inboundAdapter":"Dynamics365","inboundSettings":"{}",
+             "outboundAdapter":"Avalara","outboundSettings":"{}"}
+            """, HostJson);
+
+        Assert.NotNull(request);
+        Assert.Equal("Dynamics365", request.InboundAdapter);
+        Assert.Equal("{}", request.InboundSettings);
+    }
+
+    [Fact]
+    public async Task Read_of_the_profile_has_no_realtime_field()
+    {
+        var h = new Harness(stored: Profile(inbound: """{"poll":{"enabled":true}}"""));
+
+        ConnectorProfileView? view = await h.Service.GetAsync();
+
+        JsonObject json = JsonSerializer.SerializeToNode(view, HostJson)!.AsObject();
+        Assert.DoesNotContain(json, p => string.Equals(p.Key, "realtime", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("\"enabled\":true", (string?)json["inboundSettings"]);   // o estado está nas settings, e só nelas
+    }
+
     [Fact]
     public void Request_to_string_does_not_print_the_settings()
     {
@@ -413,7 +446,7 @@ public class ConnectorProfileServiceTests
     // ---- Apoio ----
 
     private static ConnectorProfileRequest Request(string? outbound = null, string? inbound = null, string outboundAdapter = "Avalara")
-        => new("Sandbox", false, "Dynamics365", inbound, outboundAdapter, outbound);
+        => new("Sandbox", "Dynamics365", inbound, outboundAdapter, outbound);
 
     private static ConnectorProfileRequest RequestWith(ConnectorSettingsKind kind, string json) => kind switch
     {
@@ -426,7 +459,6 @@ public class ConnectorProfileServiceTests
     {
         TenantId = tenant,
         Environment = "Sandbox",
-        Realtime = false,
         InboundAdapter = "Dynamics365",
         InboundSettings = inbound,
         OutboundAdapter = "Avalara",

@@ -94,32 +94,32 @@ diante começa antes dela.
 
 ## 3. O `Realtime` sai, e o `/info` deriva (D1, D3, D4, D10, `automatic-integration`)
 
-- [ ] 3.1 Tirar o `Realtime`:
+- [x] 3.1 Tirar o `Realtime`:
   - do `TenantConnectorProfile`;
   - do `ConnectorProfileRequest`, inclusive do `ToString`;
   - do `ConnectorProfileView`;
   - da cópia no `ConnectorProfileService`.
 
   Atualizar o comentário do `TenantConnectorProfile`, que fala em "se tem tempo real"
-- [ ] 3.2 Tirar o `Realtime` do `ConnectorProfileRow`, do `SqlConnectorProfileStore` e do seed dos dois tenants. Sai
+- [x] 3.2 Tirar o `Realtime` do `ConnectorProfileRow`, do `SqlConnectorProfileStore` e do seed dos dois tenants. Sai
   junto o comentário "iScala deste cliente não faz evento". O seed do tenant-a continua com `poll.enabled = false`
-- [ ] 3.3 Gerar a migração `RemoveConnectorProfileRealtime`:
+- [x] 3.3 Gerar a migração `RemoveConnectorProfileRealtime`:
   - o `Up` remove a coluna;
   - o `Down` a recria como `bit NOT NULL DEFAULT 0`;
   - o snapshot acompanha
-- [ ] 3.4 Ajustar os testes que constroem o `TenantConnectorProfile` com `Realtime`. São os adapters D365 e Avalara, o
+- [x] 3.4 Ajustar os testes que constroem o `TenantConnectorProfile` com `Realtime`. São os adapters D365 e Avalara, o
   `ChangeFeedPollerTests`, o `ConnectorProfileServiceTests`, o `InboundSourceResolverTests`, o
   `SupportTicketServiceTests`, o `SqlConnectorProfileStoreTests` e o `DiscoveryToPipelineTests`. O round-trip do store
   SQL passa a conferir o perfil sem o campo
-- [ ] 3.5 Teste (Application.Tests), com as opções JSON da Web:
+- [x] 3.5 Teste (Application.Tests), com as opções JSON da Web:
   - um corpo de `PUT` com `realtime: true` desserializa no `ConnectorProfileRequest` sem erro, e o campo é ignorado;
   - o `ConnectorProfileView` serializado não tem a propriedade `realtime`
-- [ ] 3.6 Host: o `/info` passa a devolver `{ environment, automaticIntegration }`.
+- [x] 3.6 Host: o `/info` passa a devolver `{ environment, automaticIntegration }`.
   - **O cálculo:** vem da derivação do 2.2, com as origens tiradas de `IEnumerable<IDocumentChangeFeed>` resolvido no
     escopo da requisição.
   - **O que não muda:** o endpoint continua sem exigir papel.
   - **O que sai:** o `realtime`
-- [ ] 3.7 `dotnet build` com 0 warnings e `dotnet test` verde
+- [x] 3.7 `dotnet build` com 0 warnings e `dotnet test` verde
 
 ## 4. A tela (D2, D3, D6, D9, `automatic-integration`)
 
