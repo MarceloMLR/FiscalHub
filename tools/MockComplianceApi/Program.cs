@@ -5,8 +5,9 @@ using System.Text.Json.Nodes;
 // Mock minimal-API que simula a plataforma de compliance (Avalara) para testes manuais e2e.
 // Fluxo de duas fases (ADR-0003): POST devolve um GUID (aceito); GET status devolve o resultado.
 // Store em memória — some quando o processo reinicia. Nunca usar em produção.
-// Os formatos de recusa ({"mensagens":[...]}) são PRESUMIDOS até haver resposta real gravada (ADR-0026); o hub
-// extrai o motivo de forma tolerante e não depende deles.
+// A recusa no envio imita a do sandbox (2026-09-27, Fixtures/sandbox/recusa-no-envio.json): HTTP 400 com o ProblemDetails
+// (type, title, status, traceId e o mapa errors por campo). O erro da consulta de status ({"mensagens":[...]}) continua
+// PRESUMIDO, porque a consulta não foi exercitada no sandbox, e não se fabrica forma.
 // Autentica como a plataforma (ADR-0027): POST /oauth/token (client_credentials com corpo JSON, a forma da coleção do
 // Postman do cliente) emite um token, e /documents* exigem o Bearer emitido aqui. /admin/* e a inspeção do payload
 // continuam abertos, porque são ferramenta de dev.
@@ -99,6 +100,16 @@ bool Authorized(HttpRequest request)
         && header.StartsWith("Bearer ", StringComparison.Ordinal)
         && tokens.ContainsKey(header["Bearer ".Length..]);
 
+// O ProblemDetails de validação do sandbox, com o motivo num campo do mapa errors.
+static object SandboxRefusal(string reason) => new Dictionary<string, object>
+{
+    ["errors"] = new Dictionary<string, string[]> { ["documento"] = [reason] },
+    ["type"] = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+    ["title"] = "One or more validation errors occurred.",
+    ["status"] = 400,
+    ["traceId"] = $"00-{Guid.NewGuid():N}-{Guid.NewGuid():N}"[..52] + "-00",
+};
+
 IResult Unauthenticated() => Results.Json(new { mensagens = new[] { "token ausente ou inválido (mock)" } }, statusCode: StatusCodes.Status401Unauthorized);
 
 foreach (string path in documentPaths)
@@ -117,10 +128,11 @@ foreach (string path in documentPaths)
 
         var result = ResultToggle.Normalize(resultado) ?? toggle.Value;
 
-        // Recusa síncrona: a plataforma não aceita o documento (o hub registra o motivo, sem retentativa).
+        // Recusa síncrona: a plataforma não aceita o documento (o hub registra o motivo, sem retentativa). A forma é a do
+        // sandbox; o motivo do toggle vai num campo do mapa errors.
         if (result == "rejeitar")
         {
-            return Results.BadRequest(new { mensagens = new[] { toggle.Reason } });
+            return Results.Json(SandboxRefusal(toggle.Reason), statusCode: StatusCodes.Status400BadRequest);
         }
 
         var id = Guid.NewGuid().ToString();

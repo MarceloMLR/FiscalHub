@@ -410,8 +410,10 @@ public class SqlProcessingStoreTests
     }
 
     [Fact]
-    public async Task Platform_rejection_comes_first_and_keeps_the_omissions_after_it()
+    public async Task Platform_rejection_leaves_the_omissions_out_of_the_failure_reason()
     {
+        // A ressalva é de nota aceita; na falha, o motivo é só o da falha, e a omissão fica na foto do envio
+        // (establishment-and-readable-dashboard, D9).
         using var h = NewStore();
         await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a"] });
 
@@ -419,7 +421,18 @@ public class SqlProcessingStoreTests
 
         ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
-        Assert.Equal("Plataforma de compliance rejeitou: X | Enviado sem: item 1: a", row.Reason);
+        Assert.Equal("Plataforma de compliance rejeitou: X", row.Reason);
+    }
+
+    [Fact]
+    public async Task Giving_up_on_the_status_leaves_the_omissions_out_of_the_reason()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a"] });
+
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Unconfirmed, "Sem resposta da plataforma após o limite de consultas.", 20);
+
+        Assert.Equal("Sem resposta da plataforma após o limite de consultas.", (await h.Db.ProcessedDocuments.SingleAsync()).Reason);
     }
 
     [Fact]

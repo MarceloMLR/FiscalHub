@@ -115,11 +115,12 @@ internal sealed class SqlProcessingStore : IProcessingStore
             return;
         }
 
-        // Enquanto enviado, o Reason só pode ser a observação do envio (as omissões). Confirmação ou "ainda
-        // processando" a preservam; um motivo novo (recusa, sem retorno) vem primeiro e ela fica depois dele.
+        // Enquanto aceita, o Reason só pode ser a ressalva do envio (as omissões). Confirmação ou "ainda processando" a
+        // preservam. Numa falha (recusa, sem retorno), o motivo é só o da falha: a ressalva é de nota aceita, e a omissão
+        // continua na foto do envio (establishment-and-readable-dashboard, D9).
         string? submissionNote = row.Status == IntegrationStatus.Submitted ? row.Reason : null;
         row.Status = status;
-        row.Reason = reason is null ? submissionNote : submissionNote is null ? reason : $"{reason} | {submissionNote}";
+        row.Reason = status is IntegrationStatus.IntegrationError or IntegrationStatus.Unconfirmed ? reason : reason ?? submissionNote;
         row.Attempts = attempts;
         row.UpdatedAt = _clock.GetUtcNow();
         await _db.SaveChangesAsync(ct);

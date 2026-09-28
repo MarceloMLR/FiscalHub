@@ -19,14 +19,9 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 /// </summary>
 public partial class SandboxFixtureTests
 {
-    // O motivo que a PlatformMessage tira da recusa real: o mapa "errors" do ProblemDetails, campo a campo, e o "title".
-    private const string RealRefusalReason =
-        "operacao: 'Operacao' não pode ser nulo.; tipoPagamento: 'Tipo Pagamento' não pode ser nulo.; "
-        + "parceiro.Codigo: 'Codigo' não pode ser nulo.; parceiro.Codigo: 'Codigo' deve ser informado.; "
-        + "itens[0].Item.TipoItem: 'Tipo Item' não pode ser nulo.; "
-        + "itens[0].UnidadeMedida.Descricao: 'Descricao' não pode ser nulo.; itens[0].UnidadeMedida.Descricao: 'Descricao' deve ser informado.; "
-        + "itens[0].Item.UnidadeMedida.Descricao: 'Descricao' não pode ser nulo.; itens[0].Item.UnidadeMedida.Descricao: 'Descricao' deve ser informado.; "
-        + "One or more validation errors occurred.";
+    // O motivo que a PlatformMessage tira da recusa real: o resumo do mapa "errors" do ProblemDetails, sem o "title"
+    // (establishment-and-readable-dashboard, D7). A lista inteira, campo a campo, fica na foto, de onde a tela a lê.
+    private const string RealRefusalReason = "6 campos com erro: operacao, tipoPagamento, parceiro.Codigo e mais 3";
 
     private static readonly string FixtureDir = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sandbox");
 
@@ -70,6 +65,7 @@ public partial class SandboxFixtureTests
         Assert.Equal(RealRefusalReason, reason);
         Assert.DoesNotContain("{", reason);          // texto, e não o JSON cru
         Assert.DoesNotContain("traceId", reason);
+        Assert.DoesNotContain("One or more validation errors occurred.", reason);   // o title do ProblemDetails não vaza
     }
 
     [Fact]
@@ -86,7 +82,18 @@ public partial class SandboxFixtureTests
 
         Assert.Equal($"Plataforma de compliance recusou: {RealRefusalReason}", ex.Reason);
         Assert.Equal(1, handler.Requests);
-        Assert.Equal(400, (int?)JsonNode.Parse(trace.Submit!)!["response"]!["status"]);
+
+        // A foto: sem o ruído do ProblemDetails, com o que prova o ambiente e abre chamado na plataforma (D10).
+        JsonNode photo = JsonNode.Parse(trace.Submit!)!;
+        Assert.Equal(400, (int?)photo["response"]!["status"]);
+        Assert.Equal("POST", (string?)photo["request"]!["method"]);
+        Assert.Equal("https://api-gateway.sandbox.avalarabrasil.com.br/taxcompliance/v2/fiscal/dfe", (string?)photo["request"]!["url"]);
+        JsonObject photoBody = photo["response"]!["body"]!.AsObject();
+        Assert.False(photoBody.ContainsKey("type"));
+        Assert.False(photoBody.ContainsKey("title"));
+        Assert.False(photoBody.ContainsKey("status"));
+        Assert.Equal("00-bb582c93ed4d2544429b0af1cbf7fd05-c04a22f297974e99-00", (string?)photoBody["traceId"]);
+        Assert.Equal(6, photoBody["errors"]!.AsObject().Count);
     }
 
     // O status e o corpo gravados no envelope, como a plataforma devolveu (já redigidos).

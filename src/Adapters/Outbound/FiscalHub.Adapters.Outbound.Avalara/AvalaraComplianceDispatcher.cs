@@ -82,15 +82,16 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         // O corpo é lido uma vez, como texto, e redigido: a foto, o motivo e o identificador saem dele. A foto vem antes
         // de classificar, em qualquer status, e por melhor esforço — uma falha nela não pode provocar reenvio.
         (string body, int redactions) = await ReadRedactedAsync(response, token, ct);
-        await PhotographAsync(context, TraceExchanges.Submit, request, response, body, redactions, token, ct);
+        await PhotographAsync(context, TraceExchanges.Submit, request, response, body, redactions, token, ct, mapping.Omissions);
         int status = (int)response.StatusCode;
 
         switch (response.StatusCode)
         {
-            // Recusa de conteúdo: permanente — registrada com o motivo da plataforma, sem retentativa (ADR-0026).
+            // Recusa de conteúdo: permanente — registrada com o motivo da plataforma, sem retentativa (ADR-0026). A omissão
+            // não entra no motivo de falha: ela é ressalva de nota aceita, e fica gravada na foto do envio (D9 da change
+            // establishment-and-readable-dashboard).
             case HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity:
-                string omitted = mapping.Omissions.Count == 0 ? string.Empty : $" | Enviado sem: {string.Join("; ", mapping.Omissions)}";
-                throw new DispatchRejectedException($"Plataforma de compliance recusou: {PlatformMessage.Extract(body, status)}{omitted}");
+                throw new DispatchRejectedException($"Plataforma de compliance recusou: {PlatformMessage.Extract(body, status)}");
 
             // A credencial não tem acesso, ou o token recém-emitido foi recusado: retentar não muda permissão, e pode
             // bloquear a conta. Rejeição com o motivo da plataforma, que na dead-letter se perderia (ADR-0027).
@@ -198,16 +199,18 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     private static async Task<(string Body, int Redactions)> ReadRedactedAsync(HttpResponseMessage response, AvalaraAccessToken token, CancellationToken ct)
         => SensitiveText.Redact(await response.Content.ReadAsStringAsync(ct), [token.Value]);
 
-    // A quarta foto: o envelope do D8, já redigido. Melhor esforço — a falha é logada sem o conteúdo, e o desfecho segue
-    // como se tivesse dado certo, porque a requisição já saiu.
+    // A quarta foto: o envelope do D8, já redigido, com o corpo sem o ruído do ProblemDetails e, no envio, as omissões
+    // (D10 e D9 da change establishment-and-readable-dashboard). Melhor esforço — a falha é logada sem o conteúdo, e o
+    // desfecho segue como se tivesse dado certo, porque a requisição já saiu.
     private async Task PhotographAsync(
         DispatchContext context, string exchange, HttpRequestMessage request, HttpResponseMessage response, string body, int redactions,
-        AvalaraAccessToken token, CancellationToken ct)
+        AvalaraAccessToken token, CancellationToken ct, IReadOnlyList<string>? omissions = null)
     {
         try
         {
             string envelope = PlatformResponseEnvelope.Build(
-                exchange, request, response, body, redactions, value => SensitiveText.Redact(value, [token.Value]), _clock.GetUtcNow());
+                exchange, request, response, ProblemDetailsNoise.Strip(body, (int)response.StatusCode), redactions,
+                value => SensitiveText.Redact(value, [token.Value]), _clock.GetUtcNow(), omissions);
             await _trace.SaveResponseAsync(context.TenantId, context.NaturalKey, Destination, exchange, envelope, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
