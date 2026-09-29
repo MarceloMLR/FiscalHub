@@ -217,7 +217,7 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 
   O ADR registra o que o D16 lista, incluindo o fuso do dia (o de quem emitiu, sem conversão, com o mesmo critério nos
   dois caminhos). Registra também que o "Visualizar JSON" é apresentação, e não autorização
-- [ ] 7.2 `docs/STATUS.md`:
+- [x] 7.2 `docs/STATUS.md`:
   - **fechar** "O `CompanyCode` mostra o fornecedor numa nota de terceiro" e "O rótulo 'Tempo real' da lista de
     grupos", só com a evidência dos testes e da prova do grupo 9;
   - **abrir** "Filtros dos cards": período (dia, 7, 15 e 30 dias, com o dia como padrão) e modelo. Com eles, o
@@ -236,14 +236,13 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   Nenhum item adia o dia fiscal da nota montada: ele entra nesta change (D1). Usar o formato **Falta / Prova /
   Sintoma**
 
-  **Parcial (2026-09-28).**
-  - **Feito:**
+  **Feito.**
+  - **Aberto em 2026-09-28:**
     - os itens novos estão abertos, no formato **Falta / Prova / Sintoma**: os filtros dos cards, com o critério escrito
       como comportamento correto; o modal que não filtra pelo tipo e pelo modo; o tamanho do código no AOT, da 1.1; e o
       diretório com o CNPJ de 14 dígitos;
     - as notas da v3 do canônico e do formato do erro estão feitas.
-  - **Aberto:** o fechamento dos dois itens. Eles estão anotados como "implementado, falta a prova manual do grupo 9",
-    porque a tarefa pede a evidência do grupo 9 para fechar
+  - **Fechado em 2026-09-29:** os dois itens, com a prova do grupo 9.
 - [x] 7.3 `docs/RUNNING.md`:
   - o critério dos cards, na seção do dashboard;
   - a exclusão de agendamento;
@@ -283,10 +282,18 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 
 ## 9. Prova manual do critério de saída
 
-- [ ] 9.1 Preparar: `docker compose up -d`, `az login` e o host e o dashboard de pé. As migrações `WidenBranchCode` e
+**Como a prova foi lida (2026-09-29).** O `host-fatia3.log` é a saída do `dotnet run` por `Tee-Object`, fora do git, em
+UTF-16, e as linhas citadas são as do arquivo convertido para UTF-8. Ele tem duas subidas (linhas 108 e 4625). O banco e
+a API foram conferidos depois, contra o host de pé desde 2026-09-29 14:05, já com o código do grupo 8. O que é da tela
+ficou como conferência visual do usuário, sem linha de log.
+
+- [x] 9.1 Preparar: `docker compose up -d`, `az login` e o host e o dashboard de pé. As migrações `WidenBranchCode` e
   `RenameRealTimeTrigger` aplicadas no log da subida. Rebobinar o tenant-a pelo RUNNING §6, para as 14 notas da `brmf`
   serem relidas
-- [ ] 9.2 Numa passada contra o fiscosysdev, a tabela de grupos mostra:
+  - **As migrações:** aplicadas nas linhas 35 e 68, e no `__EFMigrationsHistory`.
+  - **O rebobinamento:** o cursor foi recriado (linha 6175), e a passada deu 14 referências na fila de descoberta, com 0
+    suprimidas (linha 6382). As 5 NF-e 55 foram ao sandbox (linhas 6528 a 6945).
+- [x] 9.2 Numa passada contra o fiscosysdev, a tabela de grupos mostra:
   - o CNPJ completo do estabelecimento próprio, formatado, e o código de filial vindos do 365;
   - as 14 notas nas datas fiscais delas, com as 9 NFS-e ignoradas incluídas;
   - o "Tipo" como "Automática".
@@ -294,20 +301,59 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   Os cards de hoje mostram 0, que é o correto: nenhuma nota tem data fiscal de hoje. Conferir no banco que nenhuma das
   14 linhas ficou com data nula, e que a data de referência de cada uma é o `FiscalDocumentDate` dela no F&O, nas
   montadas e nas ignoradas
-- [ ] 9.3 Abrir uma NF-e 55 recusada como Viewer:
+  - **No banco (2026-09-29):**
+    - as 14 linhas da `brmf` têm empresa `44278225000180` (Matriz) ou `44278225000260` (`SP-01`), onde antes havia só a
+      raiz `44278225` e a filial `0001`;
+    - as 9 NFS-e ignoradas têm modelo `SE` e data de referência, antes nulos;
+    - o modo é `Automatic` em todas, e não há mais nenhuma linha com `RealTime` na base;
+    - a data de referência bate com o `FiscalDocumentDate` do snapshot gravado nas 14 (14 de 14).
+  - **Na tela:** a tabela, a máscara do CNPJ, a filial, o "Automática" e os cards em 0 foram conferência visual do
+    usuário, sem linha de log.
+- [x] 9.3 Abrir uma NF-e 55 recusada como Viewer:
   - **o motivo:** uma lista de campos, com as mensagens em português, sem "One or more validation errors occurred." e
     sem "Enviado sem";
   - **os botões:** não há "Visualizar JSON" nem "Baixar arquivos", e o "Abrir chamado" continua;
   - **pela API, com o token do Viewer:** o `/trace` e o `/documents/{tenant}/{chave}/download` dão 403, e a
     `/documents/{tenant}/{chave}/reading` dá a lista
-- [ ] 9.4 Abrir a mesma nota como Admin:
+
+  **Feito (2026-09-29).**
+  - **Pela API, com o Viewer do seed (`carlos.dias`), na `BRMF06-110000027`:**
+    - o `/trace` e o download deram 403;
+    - a leitura deu 200, com 6 campos (o primeiro `operacao`, "'Operacao' não pode ser nulo."), a omissão do
+      `IcmsDiff` do item 1, e só as propriedades `fields` e `omissions`.
+  - **No banco:** o motivo das 5 NF-e recusadas é o resumo ("… recusou: 6 campos com erro: operacao, tipoPagamento,
+    parceiro.Codigo e mais 3"; 12 e 9 campos nas notas de mais itens), sem o `title` e sem "Enviado sem".
+  - **Na tela:** a lista e os botões foram conferência visual do usuário, sem linha de log.
+- [x] 9.4 Abrir a mesma nota como Admin:
   - **o modal do JSON:** o "Visualizar JSON" abre um modal próprio, por cima do detalhe, com as quatro abas. Fechar ou
     apertar Esc volta ao detalhe, que continua aberto;
   - **a foto da resposta:** tem o método, a URL do sandbox e o `traceId`, não tem `type`, `title` nem `status` no
     corpo, e traz as omissões da `BRMF06-110000027` e da `BRMF06-110000031`;
   - **o "Baixar arquivos":** aparece e baixa o zip
-- [ ] 9.5 O selo: verde com o poll ligado e vermelho depois de desligar pela tela, sem recarregar. Com um adapter que
+
+  **Feito (2026-09-29).**
+  - **Pela API, com o Admin:** o `/trace` e o download deram 200.
+  - **A foto do envio da `BRMF06-110000027` e da `BRMF06-110000031`:**
+    - o corpo tem só `errors` e `traceId`;
+    - a URL é `https://api-gateway.sandbox.avalarabrasil.com.br/taxcompliance/v2/fiscal/dfe`;
+    - o `request.omissions` traz o `IcmsDiff` do item 1 numa, e o encargo `Other` de 416,25 na outra.
+  - **Na tela:** o modal por cima do detalhe e o Esc foram conferência visual do usuário, sem linha de log.
+- [x] 9.5 O selo: verde com o poll ligado e vermelho depois de desligar pela tela, sem recarregar. Com um adapter que
   não varre, some
+  - **As gravações do perfil pela tela:** estão nas linhas 1072, 6053 e 9382 (`UPDATE [ConnectorProfiles]`).
+  - **As cores e o sumiço:** foram conferência visual do usuário, sem linha de log.
+  - **O que o banco mostrou depois:** as `InboundSettings` do tenant-a ficaram `{}`, sem URL, empresas, `auth` nem
+    `poll`. Parece efeito de trocar o ERP na tela para um adapter que não varre e voltar, mas isso não está provado.
+    Está registrado no STATUS, junto com o achado do `startFrom`.
 - [ ] 9.6 Criar um agendamento, deixá-lo disparar ou rodar uma execução ligada a ele, e excluí-lo pela tela,
   confirmando. O agendamento some, e a execução continua na aba de execuções
-- [ ] 9.7 Registrar a prova no STATUS, com as linhas do log e o que foi só conferência visual, como na change anterior
+
+  **Parcial (2026-09-29).**
+  - **O que foi feito e verificado:** a exclusão. O agendamento foi criado (linha 798, `INSERT INTO
+    [ScheduledIntegrations]`) e excluído (linha 953, `DELETE FROM [ScheduledIntegrations]`), e o sumiço da lista foi
+    conferência visual do usuário.
+  - **O que não foi exercitado:** o histórico. A `IntegrationExecutions` está vazia, então o agendamento não disparou,
+    e não havia execução para continuar na aba. Que as execuções de um agendamento excluído ficam, com os dados delas,
+    está provado só por teste
+    (`SqlScheduleStoreTests.Executions_of_a_deleted_schedule_stay_in_the_history_with_their_own_data`).
+- [x] 9.7 Registrar a prova no STATUS, com as linhas do log e o que foi só conferência visual, como na change anterior
