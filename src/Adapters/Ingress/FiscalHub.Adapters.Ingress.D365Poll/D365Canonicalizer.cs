@@ -9,13 +9,16 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 /// (ADR-0016) é calculada, e que vira a foto da fonte (ADR-0006). Estável enquanto nada fiscal mudar:
 /// entidades em ordem fixa, coleções pelo próprio RecId, propriedades em ordem ordinal, números como vieram, e
 /// sem <c>@odata.*</c> nem <c>SysModifiedDateTime</c> — senão um toque de auditoria reenviaria a nota.
-/// Mudar este formato (ou o <c>$select</c>) muda a impressão de toda nota redescoberta: suba <see cref="Version"/>.
+/// Mudar este formato, ou o <c>$select</c> da montagem (<see cref="D365GoodsInvoiceSource"/>), muda a impressão de toda
+/// nota redescoberta: suba <see cref="Version"/>. O <c>$select</c> da descoberta (<see cref="D365ChangeFeed"/>) não entra
+/// aqui, e ampliá-lo não muda impressão nenhuma.
 /// </summary>
 internal static class D365Canonicalizer
 {
-    // v2 (connector-not-validator, D12): $select do cabeçalho e da linha ampliados. Em produção, mudança de versão exige
-    // o hash de transição (design D17, ADR-0026) antes de rebobinar ou fazer backfill.
-    public const int Version = 2;
+    // v3 (establishment-and-readable-dashboard, D3): o cabeçalho ganhou o FiscalEstablishment. v2 (connector-not-validator,
+    // D12): $select do cabeçalho e da linha ampliados. Em produção, mudança de versão exige o hash de transição (design
+    // D17, ADR-0026) antes de rebobinar ou fazer backfill; a v3 subiu sem tenant em produção.
+    public const int Version = 3;
 
     private static readonly JsonWriterOptions WriterOptions = new()
     {

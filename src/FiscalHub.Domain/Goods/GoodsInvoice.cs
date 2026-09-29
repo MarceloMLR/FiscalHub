@@ -21,6 +21,13 @@ public sealed record GoodsInvoice
     /// <summary>Data e hora de emissão.</summary>
     public required DateTimeOffset IssueDate { get; init; }
 
+    /// <summary>
+    /// O dia fiscal da nota como a origem o registra, sem hora e sem fuso, quando ela o guarda separado do instante da
+    /// emissão (no D365, o <c>FiscalDocumentDate</c>). <c>null</c> = a origem não o separa (ex.: XML), e o dia é a data da
+    /// <see cref="IssueDate"/> no fuso que ela traz.
+    /// </summary>
+    public DateOnly? FiscalDate { get; init; }
+
     /// <summary>Data de entrada ou saída, quando a origem a traz.</summary>
     public DateTimeOffset? EntryExitDate { get; init; }
 
@@ -29,6 +36,12 @@ public sealed record GoodsInvoice
     /// saber qual parte é o estabelecimento próprio decide por outro meio.
     /// </summary>
     public Issuance? Issuance { get; init; }
+
+    /// <summary>
+    /// O estabelecimento próprio que escritura a nota, quando a origem o informa (D365). <c>null</c> = a origem não diz
+    /// (ex.: XML).
+    /// </summary>
+    public Establishment? Establishment { get; init; }
 
     /// <summary>Emitente da nota.</summary>
     public required Party Issuer { get; init; }

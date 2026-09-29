@@ -1,8 +1,12 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import CloseIcon from '@mui/icons-material/Close';
 
+// Os modais abertos, do de baixo para o de cima. O Esc fecha só o de cima: com o JSON aberto por cima do detalhe da
+// nota, um Esc volta ao detalhe, e não fecha os dois.
+const openModals: symbol[] = [];
+
 /** Modal do design system v3: overlay + cartão (surface/borda/raio 12/sombra), cabeçalho com título/subtítulo
- *  e X, corpo rolável e rodapé opcional. Fecha no clique fora e no Esc. Dark-aware pelos tokens. */
+ *  e X, corpo rolável e rodapé opcional. Fecha no clique fora e no Esc (só o de cima). Dark-aware pelos tokens. */
 export function Modal({
   title,
   subtitle,
@@ -18,13 +22,24 @@ export function Modal({
   maxWidth?: number;
   children: ReactNode;
 }) {
+  // O lugar na pilha é o da montagem: um onClose novo a cada render do pai não pode trazer o modal para o topo.
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const id = Symbol('modal');
+    openModals.push(id);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && openModals[openModals.length - 1] === id) onCloseRef.current();
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      openModals.splice(openModals.indexOf(id), 1);
+    };
+  }, []);
 
   return (
     <div

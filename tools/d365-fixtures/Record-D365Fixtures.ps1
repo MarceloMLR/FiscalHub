@@ -31,9 +31,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# $select do design D5 (add-d365-document-assembly), ampliado pelo D12 (connector-not-validator) — precisa bater
-# com o D365GoodsInvoiceSource.
-$HeaderSelect = 'FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount,TotalGoodsAmount,AccountingDate'
+# $select do design D5 (add-d365-document-assembly), ampliado pelo D12 (connector-not-validator) e pelo D3
+# (establishment-and-readable-dashboard, o FiscalEstablishment) — precisa bater com o D365GoodsInvoiceSource. O snapshot
+# dos cabeçalhos também cobre os campos da descoberta (D365ChangeFeed.Select): data fiscal e estabelecimento.
+$HeaderSelect = 'FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishment,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount,TotalGoodsAmount,AccountingDate'
 $LineSelect = 'FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin'
 $TaxSelect = 'FiscalDocumentTaxTransRecId,FiscalDocumentLineRecId,FiscalDocumentMiscChargeRecId,TaxTransRecId,FiscalTaxType,TaxationCode,TaxBaseAmount,TaxBaseAmountExempt,TaxBaseAmountOther,TaxValue,TaxAmount,RetainedTax'
 $ChargeSelect = 'FiscalDocumentMiscChargeRecId,FiscalDocumentLineRecId,ChargeNum,MiscChargeType,Amount,Txt'

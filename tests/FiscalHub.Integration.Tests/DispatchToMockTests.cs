@@ -108,9 +108,11 @@ public class DispatchToMockTests
     }
 
     [Fact]
-    public async Task Platform_refusal_on_submission_is_recorded_with_the_platform_reason_after_a_single_post()
+    public async Task Platform_refusal_on_submission_is_recorded_with_the_platform_summary_after_a_single_post()
     {
-        using Harness h = await Harness.CreateAsync();
+        // O mock recusa como o sandbox: ProblemDetails com o mapa errors (establishment-and-readable-dashboard, D15).
+        var trace = new RecordingTrace();
+        using Harness h = await Harness.CreateAsync(trace: trace);
         await h.SetMockResultAsync("rejeitar", "codigoEmpresa não cadastrado");
         h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
 
@@ -118,8 +120,36 @@ public class DispatchToMockTests
 
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
-        Assert.Equal("Plataforma de compliance recusou: codigoEmpresa não cadastrado", row.Reason);
+        Assert.Equal("Plataforma de compliance recusou: 1 campo com erro: documento", row.Reason);   // o resumo, sem o title
         Assert.Equal(1, h.DocumentPosts);
+
+        // A foto: a lista inteira, sem o ruído do ProblemDetails.
+        using JsonDocument photo = JsonDocument.Parse(trace.Responses[(OutgoingKey, TraceExchanges.Submit)]);
+        JsonElement body = photo.RootElement.GetProperty("response").GetProperty("body");
+        Assert.Equal("codigoEmpresa não cadastrado", body.GetProperty("errors").GetProperty("documento")[0].GetString());
+        Assert.True(body.TryGetProperty("traceId", out _));
+        Assert.False(body.TryGetProperty("type", out _));
+        Assert.False(body.TryGetProperty("title", out _));
+        Assert.False(body.TryGetProperty("status", out _));
+    }
+
+    [Fact]
+    public async Task Refused_note_with_an_omission_keeps_it_in_the_photo_and_out_of_the_reason()
+    {
+        var trace = new RecordingTrace();
+        using Harness h = await Harness.CreateAsync(trace: trace);
+        await h.SetMockResultAsync("rejeitar", "codigoEmpresa não cadastrado");
+        h.ServeNote("35637156586", withAccounting: true, "postaladdress-22565428565", "city-22565694955", "postaladdress-22565426303");
+
+        await h.ProcessAsync(ImportKey, "35637156586");
+
+        StoredRow row = h.Store.Rows[ImportKey];
+        Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
+        Assert.DoesNotContain("Enviado sem", row.Reason);
+        using JsonDocument photo = JsonDocument.Parse(trace.Responses[(ImportKey, TraceExchanges.Submit)]);
+        Assert.Equal(
+            "item 1: encargo Other de 416,25 não enviado (o contrato mínimo não tem campo de encargo)",
+            photo.RootElement.GetProperty("request").GetProperty("omissions")[0].GetString());
     }
 
     // ---------- autenticação contra o mock (ADR-0027) ----------
@@ -228,10 +258,8 @@ public class DispatchToMockTests
 
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
-        Assert.StartsWith("Plataforma de compliance recusou: operacao: 'Operacao' não pode ser nulo.; tipoPagamento:", row.Reason);
-        Assert.Contains("parceiro.Codigo: 'Codigo' deve ser informado.", row.Reason);
-        Assert.Contains("itens[0].Item.TipoItem: 'Tipo Item' não pode ser nulo.", row.Reason);
-        Assert.Contains("One or more validation errors occurred.", row.Reason);
+        Assert.Equal("Plataforma de compliance recusou: 6 campos com erro: operacao, tipoPagamento, parceiro.Codigo e mais 3", row.Reason);
+        Assert.DoesNotContain("One or more validation errors occurred.", row.Reason);
         Assert.Equal(1, h.DocumentPosts);
     }
 

@@ -5,6 +5,7 @@ import { FhDataGrid } from '../../components/FhDataGrid';
 import { useGroups } from './useGroups';
 import { groupStatus, GroupStatusChip } from './GroupStatusChip';
 import { GroupModal } from './GroupModal';
+import { formatCompany } from './companyCode';
 import type { DocumentGroup } from '../../types';
 
 const cardStyle: CSSProperties = {
@@ -14,14 +15,14 @@ const cardStyle: CSSProperties = {
   boxShadow: 'var(--shadow-card)',
 };
 
-// Modo/gatilho da integração → rótulo do usuário.
+// Modo/gatilho da integração → rótulo do usuário. Automatic = entrou sem ação humana (coletor, drop, evento).
 const TRIGGER_LABEL: Record<string, string> = {
-  RealTime: 'Tempo real',
+  Automatic: 'Automática',
   Manual: 'Imediata',
   ScheduledDaily: 'Diária (D-1)',
   ScheduledOnce: 'Agendada',
 };
-const triggerLabel = (t: string) => TRIGGER_LABEL[t] ?? 'Tempo real';
+const triggerLabel = (t: string) => TRIGGER_LABEL[t] ?? 'Automática';
 
 function todayIso(): string {
   const d = new Date();
@@ -29,7 +30,9 @@ function todayIso(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-const rowId = (g: DocumentGroup) => `${g.companyCode}:${g.branchCode}:${g.referenceDate}`;
+// O grupo é (empresa, filial, dia, tipo, modo): no mesmo dia, a NF-e e a NFS-e ignorada do mesmo estabelecimento são
+// linhas distintas.
+const rowId = (g: DocumentGroup) => `${g.companyCode}:${g.branchCode}:${g.referenceDate}:${g.type}:${g.trigger}`;
 
 const columns: GridColDef<DocumentGroup>[] = [
   {
@@ -39,6 +42,8 @@ const columns: GridColDef<DocumentGroup>[] = [
     minWidth: 140,
     headerClassName: 'fhFirstCol',
     cellClassName: 'fhFirstCol',
+    // A máscara é só de exibição; o filtro da grade casa pelo texto mostrado, e a URL do grupo usa os dígitos.
+    valueGetter: (_v, row) => formatCompany(row.companyCode),
   },
   { field: 'branchCode', headerName: 'Filial', width: 90 },
   { field: 'referenceDate', headerName: 'Data', width: 120 },
@@ -96,7 +101,10 @@ export function GroupsPage() {
   const [group, setGroup] = useState<DocumentGroup | null>(null);
   const groups = useMemo(() => data ?? [], [data]);
 
-  // Os KPIs refletem só o dia de hoje; a tabela abaixo mostra o histórico completo.
+  // Os KPIs contam as notas cuja data de referência é hoje. É de propósito: a data de referência é a data fiscal, no
+  // fuso de quem emitiu, sem conversão, e o "hoje" é o do navegador. A nota processada hoje com data fiscal de outro dia
+  // fica fora: as de 2016 do fiscosysdev ficam fora, e isso é o correto, e não defeito. A ignorada conta em
+  // "Documentos", e não em "Com erro" (spec document-grouping). A tabela abaixo mostra o histórico completo.
   const today = todayIso();
   const doje = useMemo(() => groups.filter((g) => g.referenceDate === today), [groups, today]);
   const sum = (pick: (g: DocumentGroup) => number) => doje.reduce((acc, g) => acc + pick(g), 0);

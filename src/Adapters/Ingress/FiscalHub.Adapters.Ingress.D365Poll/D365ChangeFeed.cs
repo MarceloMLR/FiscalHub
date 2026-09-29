@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Domain.Envelope;
 using Microsoft.Extensions.Logging;
 
@@ -22,7 +23,10 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
     public const string OriginName = "Dynamics365";
 
     private const string EntitySet = "data/FSFiscalDocumentBRs";
-    private const string Select = "dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,SysModifiedDateTime,FiscalDocumentRecId";
+
+    // O que a referência, o grupo da nota e a paginação precisam. Não entra na impressão de conteúdo (o canônico é feito
+    // das respostas da montagem): ampliar este $select não sobe o D365Canonicalizer.Version.
+    private const string Select = "dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,FiscalDocumentDate,FiscalEstablishmentCNPJCPF,FiscalEstablishment,SysModifiedDateTime,FiscalDocumentRecId";
 
     private readonly D365ODataClient _client;
     private readonly IConnectorProfileStore _profiles;
@@ -162,8 +166,23 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
             // nenhum índice da FiscalDocument_BR. O Voucher segue na NaturalKey, que a montagem confere.
             Locator = $"d365/{Uri.EscapeDataString(row.DataAreaId)}/{row.FiscalDocumentRecId.ToString(CultureInfo.InvariantCulture)}",
             Trigger = IngestionTrigger.Event,
+            Metadata = Group(row),
         };
     }
+
+    /// <summary>
+    /// O grupo da nota, lido do mesmo registro, pelas mesmas leituras da montagem (<see cref="D365HeaderValues"/>): o
+    /// estabelecimento próprio e o dia fiscal, sem valor padrão e sem conversão de fuso. A data inválida falha a leitura,
+    /// como um <c>SysModifiedDateTime</c> inválido.
+    /// </summary>
+    private static DocumentMetadata Group(Row row) => new()
+    {
+        CompanyCode = D365HeaderValues.Digits(row.FiscalEstablishmentCnpjCpf ?? string.Empty),
+        BranchCode = row.FiscalEstablishment ?? string.Empty,
+        ReferenceDate = D365HeaderValues.FiscalDay(row.FiscalDocumentDate),
+        DocumentNumber = row.FiscalDocumentNumber ?? string.Empty,
+        DocumentModel = row.Model!,   // o Map só chega aqui com o modelo no mapa do tenant
+    };
 
     private static DateTimeOffset ParseModified(Row row)
         => DateTimeOffset.TryParse(row.SysModifiedDateTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset value)
@@ -190,6 +209,19 @@ internal sealed class D365ChangeFeed : IDocumentChangeFeed
 
         [JsonPropertyName("Model")]
         public string? Model { get; init; }
+
+        [JsonPropertyName("FiscalDocumentNumber")]
+        public string? FiscalDocumentNumber { get; init; }
+
+        /// <summary>O dia fiscal, como o OData devolve um campo de data (<c>yyyy-MM-ddT12:00:00Z</c>).</summary>
+        [JsonPropertyName("FiscalDocumentDate")]
+        public string? FiscalDocumentDate { get; init; }
+
+        [JsonPropertyName("FiscalEstablishmentCNPJCPF")]
+        public string? FiscalEstablishmentCnpjCpf { get; init; }
+
+        [JsonPropertyName("FiscalEstablishment")]
+        public string? FiscalEstablishment { get; init; }
 
         /// <summary>Guardado como texto: é o literal que volta na âncora do keyset.</summary>
         [JsonPropertyName("SysModifiedDateTime")]

@@ -8,6 +8,7 @@ import type {
   CreateScheduleRequest,
   CreateUserRequest,
   DocumentGroup,
+  DocumentReading,
   DocumentSummary,
   ExecutionSummary,
   LoginResponse,
@@ -142,10 +143,15 @@ export const api = {
       `/groups/${encodeURIComponent(company)}/${encodeURIComponent(branch)}/${encodeURIComponent(date)}/documents`,
     ),
   documents: () => getJson<DocumentSummary[]>('/documents'),
+  // As fotos cruas: só para os papéis que as veem (403 para os demais). Usado pelo modal do JSON.
   trace: (tenantId: string, naturalKey: string) =>
     getJson<TraceResponse>(`/trace/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}`),
+  // A leitura do desfecho: a lista de campos da recusa e as omissões, para qualquer papel. 404 = sem fotos.
+  reading: (tenantId: string, naturalKey: string) =>
+    getJson<DocumentReading>(`/documents/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}/reading`),
   // automaticIntegration: o adapter de entrada varre e o poll.enabled está ligado (derivado no servidor, ADR-0029).
-  info: () => getJson<{ environment: string; automaticIntegration: boolean }>('/info'),
+  // inboundScans: o adapter de entrada varre — o selo aparece (verde ou vermelho) só quando ele é verdadeiro.
+  info: () => getJson<{ environment: string; automaticIntegration: boolean; inboundScans: boolean }>('/info'),
   // Download com Bearer: baixa como blob (um <a href> não mandaria o token).
   downloadTrace: async (tenantId: string, naturalKey: string): Promise<void> => {
     const res = await fetch(
@@ -177,6 +183,16 @@ export const api = {
   updateSchedule: (id: number, body: CreateScheduleRequest) => putJson<{ id: number }>(`/schedules/${id}`, body),
   deactivateSchedule: async (id: number): Promise<void> => {
     const res = await fetch(`${BASE}/schedules/${id}/deactivate`, { method: 'POST', headers: authHeaders() });
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
+    if (!res.ok) {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  },
+  // Exclusão física; as execuções que o agendamento disparou ficam no histórico.
+  deleteSchedule: async (id: number): Promise<void> => {
+    const res = await fetch(`${BASE}/schedules/${id}`, { method: 'DELETE', headers: authHeaders() });
     if (res.status === 401) {
       handleUnauthorized();
     }

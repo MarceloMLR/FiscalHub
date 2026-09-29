@@ -5,10 +5,11 @@ using System.Text.RegularExpressions;
 namespace FiscalHub.Adapters.Outbound.Avalara;
 
 /// <summary>
-/// Extrai o motivo humano de uma recusa da plataforma (design D10). O formato real da resposta de erro ainda não
-/// foi gravado, então a extração é tolerante: junta os textos das propriedades de mensagem conhecidas (lista de
-/// mensagens, <c>ProblemDetails</c>, objetos com descrição); sem nenhuma, devolve o JSON compactado; sem JSON, o
-/// texto. O status nativo nunca entra — só o texto da plataforma atravessa o adapter (ADR-0003). Recebe o corpo já
+/// Extrai o motivo humano de uma recusa da plataforma (design D10). Com o mapa de erros por campo do
+/// <c>ProblemDetails</c>, a forma que o sandbox mostrou, o motivo é um resumo curto: quantos campos e os três primeiros.
+/// A lista inteira fica na foto da resposta. Nos outros formatos, a extração é tolerante: junta os textos das
+/// propriedades de mensagem conhecidas (lista de mensagens, <c>ProblemDetails</c> sem mapa, objetos com descrição); sem
+/// nenhuma, devolve o JSON compactado; sem JSON, o texto. O status nativo nunca entra — só o texto da plataforma atravessa o adapter (ADR-0003). Recebe o corpo já
 /// redigido pelo <see cref="SensitiveText"/> (ADR-0027): o motivo nunca vê o token em uso.
 /// </summary>
 internal static partial class PlatformMessage
@@ -56,6 +57,15 @@ internal static partial class PlatformMessage
     /// </summary>
     public static string? FindMessages(JsonElement root)
     {
+        // Mapa de erros por campo (ValidationProblemDetails): o motivo é o resumo, e a lista inteira fica na foto, de onde a
+        // tela a lê. O title, genérico, não entra (establishment-and-readable-dashboard, D7).
+        if (root.ValueKind == JsonValueKind.Object
+            && root.TryGetProperty("errors", out JsonElement errors) && errors.ValueKind == JsonValueKind.Object
+            && errors.EnumerateObject().Any())
+        {
+            return Truncate(Summary([.. errors.EnumerateObject().Select(p => p.Name)]));
+        }
+
         var found = new List<string>();
         if (root.ValueKind == JsonValueKind.String)
         {
@@ -67,6 +77,16 @@ internal static partial class PlatformMessage
         }
 
         return found.Count > 0 ? Truncate(string.Join("; ", found)) : null;
+    }
+
+    private const int NamedFields = 3;
+
+    // "6 campos com erro: operacao, tipoPagamento, parceiro.Codigo e mais 3" — os caminhos na ordem da resposta.
+    private static string Summary(IReadOnlyList<string> fields)
+    {
+        string count = fields.Count == 1 ? "1 campo com erro" : $"{fields.Count} campos com erro";
+        string named = string.Join(", ", fields.Take(NamedFields));
+        return fields.Count > NamedFields ? $"{count}: {named} e mais {fields.Count - NamedFields}" : $"{count}: {named}";
     }
 
     private static string Truncate(string text)

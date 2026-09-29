@@ -143,8 +143,11 @@ internal static class D365GoodsInvoiceAssembler
             Series = Str(header, "FiscalDocumentSeries"),
             Number = Str(header, "FiscalDocumentNumber"),
             IssueDate = IssueDate(header),
+            FiscalDate = D365HeaderValues.FiscalDay(Str(header, "FiscalDocumentDate")),   // o dia, sem conversão de fuso
             EntryExitDate = OptionalDate(header, "AccountingDate"),
             Issuance = ownIssued ? Issuance.Own : Issuance.ThirdParty,
+            // O estabelecimento que escritura, em qualquer direção: o mesmo campo que monta a parte dele.
+            Establishment = new Establishment { TaxId = establishment.TaxId, Code = Str(header, "FiscalEstablishment") },
             Issuer = ownIssued ? establishment : thirdParty,
             Recipient = ownIssued ? thirdParty : establishment,
             Items = [.. lines.Values.OrderBy(l => Dec(l.Row, "LineNum")).Select(l => Item(l, voucher))],
@@ -390,7 +393,7 @@ internal static class D365GoodsInvoiceAssembler
     private static DateTimeOffset Date(JsonElement row, string name)
         => DateTimeOffset.Parse(Str(row, name), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
-    private static string Digits(string value) => new([.. value.Where(char.IsAsciiDigit)]);
+    private static string Digits(string value) => D365HeaderValues.Digits(value);
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
 

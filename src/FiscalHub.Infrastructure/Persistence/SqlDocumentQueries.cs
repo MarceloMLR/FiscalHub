@@ -50,7 +50,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 BranchCode = g.Key.BranchCode ?? string.Empty,
                 ReferenceDate = g.Key.ReferenceDate!,
                 Type = g.Key.Type,
-                Trigger = g.Key.Trigger ?? "RealTime",
+                Trigger = g.Key.Trigger ?? SqlProcessingStore.AutomaticMode,
                 Total = g.Count(),
                 Finalizadas = g.Count(x => x.Status == IntegrationStatus.Confirmed),
                 EmProcessamento = g.Count(x =>

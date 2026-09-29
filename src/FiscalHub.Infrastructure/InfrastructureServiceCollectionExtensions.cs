@@ -160,8 +160,8 @@ public static class InfrastructureServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Semeia perfis de conector de dev (uma vez): tenant-a via Dynamics 365 com tempo real, tenant-b
-    /// via iScala sem tempo real — os dois enviando pra Avalara com credenciais próprias por ambiente.
+    /// Semeia perfis de conector de dev (uma vez): tenant-a via Dynamics 365, que varre (o poll nasce
+    /// desligado), e tenant-b via iScala, que não varre — os dois enviando pra Avalara com credenciais próprias por ambiente.
     /// Segredos entram só como referência no prefixo do próprio tenant (<c>kv:fh-{tenant}--…</c>), o nome que a tela
     /// deriva ao gravar (ADR-0027). Nenhum valor, nem de mentira: o cofre de dev começa vazio, e o valor é digitado na
     /// tela de conectores.
@@ -238,8 +238,8 @@ public static class InfrastructureServiceCollectionExtensions
             ("12345678", "0001"), ("12345678", "0002"), ("98765432", "0001"),
             ("98765432", "0003"), ("11222333", "0001"), ("44556677", "0002"),
         ];
-        // Modo/gatilho da integração — variado para a coluna "Tipo" mostrar Tempo real / Imediata / Diária / Agendada.
-        string[] triggers = ["RealTime", "RealTime", "Manual", "ScheduledDaily", "ScheduledOnce"];
+        // Modo/gatilho da integração — variado para a coluna "Tipo" mostrar Automática / Imediata / Diária / Agendada.
+        string[] triggers = ["Automatic", "Automatic", "Manual", "ScheduledDaily", "ScheduledOnce"];
 
         // Container das fotos de rastreabilidade (origem/domínio/destino) — semeadas junto com as notas.
         BlobContainerClient traces = scope.ServiceProvider.GetRequiredService<BlobServiceClient>().GetBlobContainerClient("traces");
@@ -301,7 +301,7 @@ public static class InfrastructureServiceCollectionExtensions
             Type = DocumentType.GoodsInvoice55,
             Status = IntegrationStatus.IntegrationError,
             CompanyCode = "12345678", BranchCode = "0001", ReferenceDate = "2026-06-01",
-            DocumentNumber = "123", DocumentModel = "55", Attempts = 1, Trigger = "RealTime",
+            DocumentNumber = "123", DocumentModel = "55", Attempts = 1, Trigger = "Automatic",
             Reason = "Rejeitada pelo compliance — reprocessar após ajuste.",
             CreatedAt = nowUtc, UpdatedAt = nowUtc,
         });

@@ -78,8 +78,10 @@ public class D365CanonicalizerTests
         string canonical = D365Canonicalizer.Canonicalize(Recorded());
 
         using JsonDocument doc = JsonDocument.Parse(canonical);
-        // v2: o $select do cabeçalho e da linha cresceu (connector-not-validator, D12) — os campos novos entram na impressão.
-        Assert.Equal(2, doc.RootElement.GetProperty("v").GetInt32());
+        // v3: o cabeçalho ganhou o FiscalEstablishment (establishment-and-readable-dashboard, D3). A v2 tinha ampliado o
+        // $select do cabeçalho e da linha (connector-not-validator, D12). Os campos novos entram na impressão.
+        Assert.Equal(3, doc.RootElement.GetProperty("v").GetInt32());
+        Assert.Equal("Matriz", doc.RootElement.GetProperty("header").GetProperty("FiscalEstablishment").GetString());
         Assert.True(doc.RootElement.GetProperty("header").TryGetProperty("AccountingDate", out _));
         Assert.True(doc.RootElement.GetProperty("header").TryGetProperty("TotalGoodsAmount", out _));
         Assert.All(doc.RootElement.GetProperty("lines").EnumerateArray(), line =>

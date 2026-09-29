@@ -3,18 +3,25 @@ import ReplayIcon from '@mui/icons-material/Replay';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { useTrace } from './useTrace';
+import { useAuth } from '../auth/AuthContext';
+import { canViewRawJson } from '../auth/roles';
+import { useReading } from './useReading';
 import { isFailure } from './StatusChip';
-import type { DocumentSummary } from '../../types';
+import { humanizePath, omissionsFromReason } from './platformReason';
+import { RawJsonModal } from './RawJsonModal';
+import type { DocumentSummary, FieldRejection, IntegrationStatus } from '../../types';
 
-type Tab = 'source' | 'domain' | 'destination' | 'response';
-const pretty = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v, null, 2));
+// Aceita pela plataforma: aqui o reason só pode ser a ressalva do envio (as omissões), nunca uma falha.
+const ACCEPTED: IntegrationStatus[] = ['Submitted', 'Confirmed'];
 
 export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
-  const { data, isLoading, isError } = useTrace(doc.tenantId, doc.naturalKey);
-  const [tab, setTab] = useState<Tab>('source');
+  const { user } = useAuth();
+  // A primeira vista vem da leitura do desfecho, para qualquer papel; as fotos cruas só no modal do JSON.
+  const { data: reading } = useReading(doc.tenantId, doc.naturalKey);
+  const [jsonOpen, setJsonOpen] = useState(false);
   const qc = useQueryClient();
 
   // Reprocessar: entrega o id ao adapter de entrada, que rebusca na origem e reintegra.
@@ -27,33 +34,49 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
     },
   });
 
+  const failed = isFailure(doc.status);
+  const accepted = ACCEPTED.includes(doc.status);
+  const fields = failed && reading && reading.fields.length > 0 ? reading.fields : null;
+  const omissions = reading && reading.omissions.length > 0 ? reading.omissions : null;
+
   return (
     <div style={{ padding: '18px 22px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Cabeçalho */}
+      {/* Cabeçalho: a chave da nota */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', wordBreak: 'break-all', lineHeight: 1.4 }}>
-            {doc.naturalKey}
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>Rastreabilidade: origem → domínio → destino</div>
+        <div style={{ minWidth: 0, fontSize: 14, fontWeight: 600, color: 'var(--ink)', wordBreak: 'break-all', lineHeight: 1.4 }}>
+          {doc.naturalKey}
         </div>
-        {isFailure(doc.status) && (
-          <button
-            type="button"
-            className="fh-btn"
-            onClick={() => reprocess.mutate()}
-            disabled={reprocess.isPending || reprocess.isSuccess}
-            style={{ height: 32, flexShrink: 0 }}
-          >
-            <ReplayIcon sx={{ fontSize: 16 }} />
-            {reprocess.isPending ? 'Reprocessando…' : reprocess.isSuccess ? 'Reenviado' : 'Reprocessar'}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          {/* O JSON cru abre num modal próprio, só para quem tem o papel (o /trace dá 403 para os demais). */}
+          {canViewRawJson(user?.role) && (
+            <button type="button" className="fh-btn fh-btn-secondary" onClick={() => setJsonOpen(true)} style={{ height: 32 }}>
+              <DataObjectIcon sx={{ fontSize: 16 }} />
+              Visualizar JSON
+            </button>
+          )}
+          {failed && (
+            <button
+              type="button"
+              className="fh-btn"
+              onClick={() => reprocess.mutate()}
+              disabled={reprocess.isPending || reprocess.isSuccess}
+              style={{ height: 32 }}
+            >
+              <ReplayIcon sx={{ fontSize: 16 }} />
+              {reprocess.isPending ? 'Reprocessando…' : reprocess.isSuccess ? 'Reenviado' : 'Reprocessar'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Motivo de falha é erro; em documento que não falhou (enviado com omissões, ignorado) é aviso — ADR-0026. */}
-      {doc.reason && !reprocess.isSuccess && (isFailure(doc.status) ? (
-        <Banner tone="error" icon={<ErrorOutlineIcon sx={{ fontSize: 16, color: 'var(--error-text)' }} />}>{doc.reason}</Banner>
+      {/* Primeira vista: o motivo que se lê. Falha é erro, com a lista de campos da leitura quando há; aceita com
+          ressalva é a marca discreta; ignorada é aviso (ADR-0026). */}
+      {doc.reason && !reprocess.isSuccess && (failed ? (
+        <Banner tone="error" icon={<ErrorOutlineIcon sx={{ fontSize: 16, color: 'var(--error-text)' }} />}>
+          {fields ? <FieldList fields={fields} /> : doc.reason}
+        </Banner>
+      ) : accepted ? (
+        <RemarksMark omissions={omissions ?? omissionsFromReason(doc.reason)} />
       ) : (
         <Banner tone="warn" icon={<WarningAmberOutlinedIcon sx={{ fontSize: 16, color: 'var(--warn-text)' }} />}>{doc.reason}</Banner>
       ))}
@@ -68,97 +91,61 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
         </Banner>
       )}
 
-      {isLoading && <div style={{ padding: '20px 0', color: 'var(--muted)', fontSize: 13 }}>Carregando arquivos…</div>}
+      {jsonOpen && <RawJsonModal tenantId={doc.tenantId} naturalKey={doc.naturalKey} onClose={() => setJsonOpen(false)} />}
+    </div>
+  );
+}
 
-      {(isError || (!isLoading && !data)) && (
-        <div style={{ padding: '20px 0', color: 'var(--muted)', fontSize: 13 }}>Sem arquivos para este documento ainda.</div>
-      )}
-
-      {data && (
-        <div>
-          {/* Abas */}
-          <div style={{ display: 'flex', gap: 22, borderBottom: '1px solid var(--border)', marginBottom: 12 }}>
-            <TabButton active={tab === 'source'} onClick={() => setTab('source')}>Origem</TabButton>
-            <TabButton active={tab === 'domain'} onClick={() => setTab('domain')}>Domínio</TabButton>
-            <TabButton active={tab === 'destination'} onClick={() => setTab('destination')}>Destino</TabButton>
-            <TabButton active={tab === 'response'} onClick={() => setTab('response')}>Resposta</TabButton>
-          </div>
-
-          {tab === 'source' && (data.source ? <Code>{data.source}</Code> : <Empty />)}
-          {tab === 'domain' && (data.domain !== undefined ? <Code>{pretty(data.domain)}</Code> : <Empty />)}
-          {tab === 'destination' && (data.destination ? <Code>{pretty(data.destination.payload)}</Code> : <Empty />)}
-          {tab === 'response' &&
-            (data.responses ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <ResponseBlock title="Envio" envelope={data.responses.submit} />
-                <ResponseBlock title="Consulta de status" envelope={data.responses.status} />
-              </div>
-            ) : (
-              <Empty />
+// A recusa campo a campo: o caminho legível e, abaixo, as mensagens da plataforma, como vieram.
+function FieldList({ fields }: { fields: FieldRejection[] }) {
+  return (
+    <div>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>
+        A plataforma de compliance recusou {fields.length === 1 ? '1 campo' : `${fields.length} campos`}:
+      </div>
+      <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {fields.map((f) => (
+          <li key={f.path}>
+            <span style={{ fontWeight: 600 }}>{humanizePath(f.path)}</span>
+            {f.messages.map((m, i) => (
+              <div key={i}>{m}</div>
             ))}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// A marca discreta da nota aceita com omissões: o único sinal de que o hub descartou um campo do documento do cliente.
+function RemarksMark({ omissions }: { omissions: string[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6, border: '1px solid var(--warn-border)', background: 'var(--warn-bg)',
+          color: 'var(--warn-text)', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        <WarningAmberOutlinedIcon sx={{ fontSize: 14 }} />
+        Enviado com ressalvas
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, fontSize: 12.5, color: 'var(--text)' }}>
+          <div style={{ color: 'var(--muted)', marginBottom: 4 }}>O que o documento tem e o contrato do destino não levou:</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {omissions.map((o) => (
+              <li key={o}>{o}</li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
   );
-}
-
-// Um envelope de resposta da plataforma (já redigido no servidor), ou a falta dele.
-function ResponseBlock({ title, envelope }: { title: string; envelope: unknown }) {
-  return (
-    <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', marginBottom: 6 }}>{title}</div>
-      {envelope !== undefined ? <Code>{pretty(envelope)}</Code> : <Empty />}
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--text)'; }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--muted)'; }}
-      style={{
-        fontSize: 13.5,
-        fontWeight: active ? 600 : 500,
-        color: active ? 'var(--ink)' : 'var(--muted)',
-        paddingBottom: 10,
-        borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-        marginBottom: -1,
-        cursor: 'pointer',
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Code({ children }: { children: string }) {
-  return (
-    <pre
-      className="fh-mono"
-      style={{
-        margin: 0,
-        padding: '14px 16px',
-        background: 'var(--surface-sunken)',
-        color: 'var(--text)',
-        border: '1px solid var(--border)',
-        borderRadius: 8,
-        fontSize: 12.5,
-        lineHeight: 1.55,
-        overflow: 'auto',
-        maxHeight: 380,
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {children}
-    </pre>
-  );
-}
-
-function Empty() {
-  return <div style={{ padding: '16px 0', color: 'var(--muted)', fontSize: 13 }}>Sem este arquivo.</div>;
 }
 
 const BANNER_TONES = {

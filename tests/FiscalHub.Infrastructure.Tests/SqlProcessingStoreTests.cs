@@ -226,6 +226,141 @@ public class SqlProcessingStoreTests
         Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
     }
 
+    // ---------- o grupo da descoberta na nota que não chega à montagem (establishment-and-readable-dashboard, D4) ----------
+
+    [Fact]
+    public async Task Ignored_note_is_recorded_with_the_discovered_group_and_mode()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordIgnoredAsync(Service("brmf|SE-1") with { Metadata = Discovered() }, "ignorado: tipo fora do escopo (ServiceNfse)");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Ignored, row.Status);
+        Assert.Equal("44278225000260", row.CompanyCode);
+        Assert.Equal("SP-01", row.BranchCode);
+        Assert.Equal("2026-08-07", row.ReferenceDate);
+        Assert.Equal("000123", row.DocumentNumber);
+        Assert.Equal("SE", row.DocumentModel);
+        Assert.Equal("Automatic", row.Trigger);   // sem modo = entrou sem ação humana
+    }
+
+    [Fact]
+    public async Task Ignored_note_of_a_manual_run_keeps_the_manual_mode()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordIgnoredAsync(Service("brmf|SE-1") with { Metadata = Discovered(), SourceMode = "Manual" }, "ignorado");
+
+        Assert.Equal("Manual", (await h.Db.ProcessedDocuments.SingleAsync()).Trigger);
+    }
+
+    [Fact]
+    public async Task Assembled_group_is_kept_when_a_later_outcome_brings_the_discovered_one()
+    {
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+
+        await h.Store.RecordRejectionAsync(Reference("nfe-1") with { Metadata = Discovered() }, "Plataforma de compliance recusou: X");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal("12345678", row.CompanyCode);      // o da montagem, e não o da descoberta
+        Assert.Equal("2026-07-23", row.ReferenceDate);
+        Assert.Equal("55", row.DocumentModel);
+    }
+
+    [Fact]
+    public async Task Existing_row_without_group_receives_the_discovered_one()
+    {
+        using var h = NewStore();
+        await h.Store.RecordIgnoredAsync(Service("brmf|SE-1"), "ignorado");   // passada antiga, sem grupo
+
+        await h.Store.RecordIgnoredAsync(Service("brmf|SE-1") with { Metadata = Discovered() }, "ignorado");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal("44278225000260", row.CompanyCode);
+        Assert.Equal("2026-08-07", row.ReferenceDate);
+    }
+
+    [Fact]
+    public async Task Reference_without_group_records_the_outcome_without_it()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordIgnoredAsync(Service("brmf|SE-1"), "ignorado: tipo fora do escopo (ServiceNfse)");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Ignored, row.Status);
+        Assert.Null(row.CompanyCode);
+        Assert.Null(row.ReferenceDate);
+    }
+
+    [Fact]
+    public async Task Dead_letter_is_recorded_with_the_discovered_group()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordDeadLetterAsync(Reference("brmf|BRMF-55") with { Metadata = Discovered() with { DocumentModel = "55" } }, "MaxDeliveryCountExceeded");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.DeadLettered, row.Status);
+        Assert.Equal("44278225000260", row.CompanyCode);
+        Assert.Equal("2026-08-07", row.ReferenceDate);
+    }
+
+    [Fact]
+    public async Task Ignored_note_counts_in_the_day_total_and_not_as_error()
+    {
+        using var h = NewStore();
+        var sameDay = Discovered() with { DocumentModel = "55" };
+        await h.Store.RecordMetadataAsync(Reference("brmf|NFE-1"), sameDay, Hash);
+        await h.Store.RecordSubmissionAsync(Reference("brmf|NFE-1"), Receipt());
+        await h.Store.MarkPolledAsync("tenant-a", "brmf|NFE-1", IntegrationStatus.Confirmed, null, 1);
+        await h.Store.RecordIgnoredAsync(Service("brmf|SE-1") with { Metadata = Discovered() }, "ignorado: tipo fora do escopo (ServiceNfse)");
+
+        var queries = new SqlDocumentQueries(h.Db, new StubTenantContext("tenant-a"));
+        IReadOnlyList<Application.Queries.DocumentGroup> groups = await queries.ListGroupsAsync(50);
+
+        // Um grupo por tipo no mesmo dia do mesmo estabelecimento; somados, são o card "Documentos" do dia.
+        Assert.Equal(2, groups.Count);
+        Assert.All(groups, g => Assert.Equal("2026-08-07", g.ReferenceDate));
+        Assert.Equal(2, groups.Sum(g => g.Total));
+        Assert.Equal(1, groups.Sum(g => g.Finalizadas));
+        Assert.Equal(0, groups.Sum(g => g.ComErro));
+        Assert.Equal(0, groups.Sum(g => g.EmProcessamento));
+        Application.Queries.DocumentGroup ignored = Assert.Single(groups, g => g.Type == DocumentType.ServiceNfse);
+        Assert.Equal(1, ignored.Total);
+        Assert.Equal("Automatic", ignored.Trigger);
+    }
+
+    // ---------- o modo "Automática" (establishment-and-readable-dashboard, D13) ----------
+
+    [Fact]
+    public async Task Reference_without_source_mode_is_recorded_as_automatic()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+
+        Assert.Equal("Automatic", (await h.Db.ProcessedDocuments.SingleAsync()).Trigger);
+    }
+
+    [Fact]
+    public async Task Group_without_mode_is_served_as_automatic()
+    {
+        using var h = NewStore();
+        ProcessedDocument old = Row("nfe-1");   // linha sem modo, gravada antes de o upsert gravá-lo
+        old.CompanyCode = "12345678";
+        old.BranchCode = "0001";
+        old.ReferenceDate = "2026-07-23";
+        h.Db.ProcessedDocuments.Add(old);
+        await h.Db.SaveChangesAsync();
+
+        var queries = new SqlDocumentQueries(h.Db, new StubTenantContext("tenant-a"));
+
+        Assert.Equal("Automatic", (await queries.ListGroupsAsync(50)).Single().Trigger);
+    }
+
     // ---------- omissões do envio: observação visível no Reason (ADR-0026, design D11) ----------
 
     [Fact]
@@ -275,8 +410,10 @@ public class SqlProcessingStoreTests
     }
 
     [Fact]
-    public async Task Platform_rejection_comes_first_and_keeps_the_omissions_after_it()
+    public async Task Platform_rejection_leaves_the_omissions_out_of_the_failure_reason()
     {
+        // A ressalva é de nota aceita; na falha, o motivo é só o da falha, e a omissão fica na foto do envio
+        // (establishment-and-readable-dashboard, D9).
         using var h = NewStore();
         await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a"] });
 
@@ -284,7 +421,18 @@ public class SqlProcessingStoreTests
 
         ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
-        Assert.Equal("Plataforma de compliance rejeitou: X | Enviado sem: item 1: a", row.Reason);
+        Assert.Equal("Plataforma de compliance rejeitou: X", row.Reason);
+    }
+
+    [Fact]
+    public async Task Giving_up_on_the_status_leaves_the_omissions_out_of_the_reason()
+    {
+        using var h = NewStore();
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt() with { Omissions = ["item 1: a"] });
+
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Unconfirmed, "Sem resposta da plataforma após o limite de consultas.", 20);
+
+        Assert.Equal("Sem resposta da plataforma após o limite de consultas.", (await h.Db.ProcessedDocuments.SingleAsync()).Reason);
     }
 
     [Fact]
@@ -316,6 +464,18 @@ public class SqlProcessingStoreTests
         Type = DocumentType.GoodsInvoice55,
         NaturalKey = key,
         Locator = "blob://" + key,
+    };
+
+    private static DocumentReference Service(string key) => Reference(key) with { Type = DocumentType.ServiceNfse };
+
+    /// <summary>O grupo que a descoberta do D365 leu de uma NFS-e da <c>SP-01</c>.</summary>
+    private static DocumentMetadata Discovered() => new()
+    {
+        CompanyCode = "44278225000260",
+        BranchCode = "SP-01",
+        ReferenceDate = new DateOnly(2026, 8, 7),
+        DocumentNumber = "000123",
+        DocumentModel = "SE",
     };
 
     private static IntegrationReceipt Receipt() => new()

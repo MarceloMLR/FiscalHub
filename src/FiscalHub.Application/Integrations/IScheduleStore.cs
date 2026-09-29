@@ -21,4 +21,10 @@ public interface IScheduleStore
 
     /// <summary>Desativa um agendamento (escopado ao tenant). <c>false</c> se não achou.</summary>
     Task<bool> DeactivateAsync(int id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Exclui um agendamento (escopado ao tenant). <c>false</c> se não achou. As execuções que ele disparou ficam no
+    /// histórico: guardam os próprios dados, e não há chave estrangeira.
+    /// </summary>
+    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
 }

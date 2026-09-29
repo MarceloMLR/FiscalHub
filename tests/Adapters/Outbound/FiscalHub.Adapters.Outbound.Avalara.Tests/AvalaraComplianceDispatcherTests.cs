@@ -556,8 +556,12 @@ public class AvalaraComplianceDispatcherTests
         Assert.Equal(["item 1: encargo Other de 416,25 não enviado (o contrato mínimo não tem campo de encargo)"], receipt.Omissions);
     }
 
+    // ---------- a omissão sai do motivo de falha e vai para a foto do envio (establishment-and-readable-dashboard, D9) ----------
+
+    private const string ChargeOmission = "item 1: encargo Other de 416,25 não enviado (o contrato mínimo não tem campo de encargo)";
+
     [Fact]
-    public async Task Platform_refusal_keeps_the_omissions_after_its_reason_and_the_payload_was_traced_before_the_post()
+    public async Task Platform_refusal_leaves_the_omissions_out_of_the_reason_and_in_the_photo()
     {
         var handler = new StubHttpMessageHandler("""{"mensagens":["codigoEmpresa não cadastrado"]}""", HttpStatusCode.BadRequest);
         var trace = new RecordingTrace();
@@ -565,11 +569,37 @@ public class AvalaraComplianceDispatcherTests
 
         DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(WithCharge(SampleInvoice()), Context()));
 
-        Assert.Equal(
-            "Plataforma de compliance recusou: codigoEmpresa não cadastrado | Enviado sem: item 1: encargo Other de 416,25 não enviado (o contrato mínimo não tem campo de encargo)",
-            ex.Reason);
+        Assert.Equal("Plataforma de compliance recusou: codigoEmpresa não cadastrado", ex.Reason);
+        Assert.DoesNotContain("Enviado sem", ex.Reason);
+        Assert.Equal([ChargeOmission], Omissions(trace));
         Assert.NotNull(trace.Outbound);   // a foto do destino já estava salva quando a plataforma recusou
     }
+
+    [Fact]
+    public async Task Accepted_submission_photographs_the_omissions_and_keeps_them_in_the_receipt()
+    {
+        var trace = new RecordingTrace();
+        var dispatcher = Build(new StubHttpMessageHandler("""{"id":"ext-guid-1"}"""), trace: trace);
+
+        IntegrationReceipt receipt = await dispatcher.SubmitAsync(WithCharge(SampleInvoice()), Context());
+
+        Assert.Equal([ChargeOmission], receipt.Omissions);
+        Assert.Equal([ChargeOmission], Omissions(trace));
+    }
+
+    [Fact]
+    public async Task Submission_without_omissions_has_no_omissions_field_in_the_photo()
+    {
+        var trace = new RecordingTrace();
+        var dispatcher = Build(new StubHttpMessageHandler("""{"id":"ext-guid-1"}"""), trace: trace);
+
+        await dispatcher.SubmitAsync(SampleInvoice(), Context());
+
+        Assert.False(JsonNode.Parse(trace.Responses[TraceExchanges.Submit])!["request"]!.AsObject().ContainsKey("omissions"));
+    }
+
+    private static string[] Omissions(RecordingTrace trace)
+        => [.. JsonNode.Parse(trace.Responses[TraceExchanges.Submit])!["request"]!["omissions"]!.AsArray().Select(o => (string)o!)];
 
     private static GoodsInvoice WithCharge(GoodsInvoice invoice)
         => invoice with { Items = [invoice.Items[0] with { Charges = [new ItemCharge { Number = 1, Kind = ChargeKind.Other, Amount = 416.25m }] }] };

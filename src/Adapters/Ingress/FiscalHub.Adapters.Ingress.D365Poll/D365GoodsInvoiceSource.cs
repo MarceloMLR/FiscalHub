@@ -18,9 +18,10 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 /// </summary>
 internal sealed class D365GoodsInvoiceSource : IInboundSource<GoodsInvoice>
 {
-    // $select do design D5 (add-d365-document-assembly), ampliado pelo D12 (connector-not-validator): o que a montagem
-    // lê, mais as chaves — e o limite do que entra no hash. Mudou? Suba D365Canonicalizer.Version.
-    public const string HeaderSelect = "FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount,TotalGoodsAmount,AccountingDate";
+    // $select do design D5 (add-d365-document-assembly), ampliado pelo D12 (connector-not-validator) e pelo D3
+    // (establishment-and-readable-dashboard, o FiscalEstablishment): o que a montagem lê, mais as chaves — e o limite do
+    // que entra no hash. Mudou? Suba D365Canonicalizer.Version.
+    public const string HeaderSelect = "FiscalDocumentRecId,dataAreaId,Voucher,Model,Status,Direction,FiscalDocumentIssuer,AccessKey,FiscalDocumentSeries,FiscalDocumentNumber,FiscalDocumentDate,FiscalDocumentDateTime,FiscalEstablishment,FiscalEstablishmentCNPJCPF,FiscalEstablishmentName,FiscalEstablishmentIE,FiscalEstablishmentPostalAddress,ThirdPartyCNPJCPF,ThirdPartyName,ThirdPartyIE,ThirdPartyPostalAddress,TotalAmount,TotalGoodsAmount,AccountingDate";
     public const string LineSelect = "FiscalDocumentLineRecId,FiscalDocumentRecId,LineNum,ItemId,Description,FiscalClassification,CFOP,Quantity,UnitPrice,LineAmount,Unit,AccountingAmount,Origin";
     public const string TaxSelect = "FiscalDocumentTaxTransRecId,FiscalDocumentLineRecId,FiscalDocumentMiscChargeRecId,TaxTransRecId,FiscalTaxType,TaxationCode,TaxBaseAmount,TaxBaseAmountExempt,TaxBaseAmountOther,TaxValue,TaxAmount,RetainedTax";
     public const string ChargeSelect = "FiscalDocumentMiscChargeRecId,FiscalDocumentLineRecId,ChargeNum,MiscChargeType,Amount,Txt";

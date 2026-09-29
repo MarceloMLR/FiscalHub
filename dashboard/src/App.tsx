@@ -51,8 +51,10 @@ function Dashboard() {
   const isAdmin = user?.role === 'Admin';
   const env = info?.environment ?? 'Sandbox';
   const isProd = /produ|production/i.test(env);
-  // Enquanto o /info não chega, o selo não afirma nada: "ligada" só com a resposta do servidor.
-  const automatic = info?.automaticIntegration ?? false;
+  // O selo mostra o estado, e não só o ligado: aparece quando o adapter de entrada varre, verde ligado e vermelho
+  // desligado, e some para adapter que não varre. Enquanto o /info não chega (ou se falhou), não afirma nada.
+  const scans = info?.inboundScans === true;
+  const automatic = info?.automaticIntegration === true;
   const initials = (user?.name ?? '?').trim().charAt(0).toUpperCase();
 
   // Fecha o menu do usuário ao clicar fora.
@@ -178,10 +180,15 @@ function Dashboard() {
               Ambiente ativo
             </div>
             <EnvPill isProd={isProd} label={isProd ? 'Produção' : 'Sandbox'} />
-            {automatic && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--muted)' }}>
+            {scans && (
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600,
+                  color: automatic ? 'var(--ok-text)' : 'var(--error-text)',
+                }}
+              >
                 <RadioButtonCheckedIcon sx={{ fontSize: 12 }} />
-                Integração automática ligada
+                {automatic ? 'Integração automática ligada' : 'Integração automática desligada'}
               </div>
             )}
           </div>

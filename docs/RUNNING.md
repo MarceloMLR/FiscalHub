@@ -21,11 +21,24 @@ serviço da nuvem (Azure "sem Azure").
 Na raiz do repositório:
 
 ```powershell
-docker compose up -d
+.\scripts\up.ps1
 ```
 
 Sobe `azurite` (Blob nas portas 10000/10001), `sql` (SQL Server na 1433), `servicebus` (AMQP na 5672) e `keyvault`
-(a API do Key Vault na 8443). Conferir: `docker compose ps` (todos `running`).
+(a API do Key Vault na 8443), e confere no fim que os quatro ficaram de pé.
+
+**Use o script, e não o `docker compose up -d` cru.** O emulador do Service Bus não tem armazenamento próprio: ele cria
+as bases dele dentro do container de SQL e, na subida, derruba e recria essas bases. Quando os dois containers morrem
+juntos — um reinício da máquina, por exemplo — o SQL pode parar no meio de um `DROP`: a base sai do catálogo e os
+arquivos ficam no disco. Na subida seguinte o emulador não encontra a base, pula o drop, tenta criar e morre com
+`Cannot create file ... because it already exists`, saindo com código 139. Ele não se recupera sozinho, porque o estado
+órfão não é "existe" nem "não existe".
+
+O script sobe o SQL primeiro, remove as bases do emulador (catálogo e arquivos) e só então sobe o Service Bus. Limpar
+não perde nada: o emulador recria essas bases em toda subida, por conta própria.
+
+Sem a fila no ar, o poll do D365 até roda, mas nada é enfileirado nem montado — e o sintoma é "descobriu e não fez
+nada". Isso já custou dois diagnósticos.
 
 **O cofre de dev é em memória, de propósito** (ADR-0027). O `keyvault` é o emulador da mesma API do Key Vault, e o host
 fala com ele pelo mesmo adapter de produção; o `appsettings.Development.json` só troca o endereço, a credencial e o
@@ -57,6 +70,11 @@ No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob
 tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
 que está no ar.
 
+As migrações rodam na subida (`Migrate`), e o log mostra cada uma aplicada. Duas delas mexem em dado já gravado:
+
+- **`WidenBranchCode`:** alarga o `BranchCode` para 20, porque a filial do D365 é o código do estabelecimento.
+- **`RenameRealTimeTrigger`:** troca o modo `RealTime` por `Automatic` nos documentos já processados.
+
 ### O dashboard
 
 Em **outro** terminal:
@@ -73,6 +91,35 @@ da mudança continua rodando o pacote antigo.
 - **O sintoma:** o interruptor salva e volta desligado. O `PUT /connector` vai, responde sucesso e grava o campo antigo:
   o pacote antigo manda o `realtime`, que o servidor ignora, e não mexe no `poll.enabled`.
 - **O custo:** custou uma rodada de diagnóstico na prova manual da `automatic-integration-switch`.
+
+O que a tela mostra, e que parece defeito mas não é:
+
+- **Os cards contam a data fiscal de hoje.**
+  - **Qual data:** a data de referência é a data fiscal, no fuso de quem emitiu, sem conversão, na nota processada e na
+    ignorada.
+  - **Qual "hoje":** o do navegador.
+  - **O efeito no fiscosysdev:** as notas são de 2015, 2016 e agosto de 2026, então os cards mostram 0. Elas aparecem na
+    tabela, nas datas fiscais delas, e as NFS-e ignoradas também.
+- **A empresa é o CNPJ do estabelecimento próprio.**
+  - **Nas notas do D365:** o CNPJ de 14 dígitos, com máscara, e a filial é o código do estabelecimento (`Matriz`,
+    `SP-01`, `SAL-01` na `brmf`).
+  - **No caminho de XML de dev:** continuam os 8 dígitos do emitente.
+- **O selo da barra lateral:**
+  - **Quando aparece:** só para o adapter de entrada que varre (hoje, o `Dynamics365`);
+  - **As cores:** verde é "ligada", e vermelho é "desligada".
+  - **Adapter que não varre:** o selo não aparece.
+- **O detalhe da nota** mostra primeiro o que se lê:
+  - **na recusa:** a lista de campos, com as mensagens da plataforma;
+  - **na nota aceita com omissão:** a marca "Enviado com ressalvas".
+
+  O JSON cru abre num modal próprio, pelo "Visualizar JSON", com uma aba por foto. Fechar ou apertar Esc volta ao
+  detalhe.
+  - **Só para Admin, de fato:** o "Visualizar JSON" e o "Baixar arquivos" só aparecem para o Admin, e o `/trace` e o zip
+    dão 403 para os demais papéis.
+  - **O Viewer:** vê a primeira vista pela leitura do desfecho (`/documents/{tenant}/{chave}/reading`), que traz só a
+    lista de campos e as omissões.
+- **Agendamentos:** a aba "Agendamentos" de Integrações tem "Excluir", com confirmação. A exclusão não se desfaz, e as
+  execuções que o agendamento disparou continuam na aba "Execuções".
 
 ### O Client Secret, pela tela
 
@@ -341,7 +388,14 @@ O motivo gravado diz quem recusou:
 - "Plataforma de compliance rejeitou: …", na consulta;
 - "Plataforma de compliance recusou: …", no envio.
 
-Se a nota tinha observação de omissão, ela vem depois do motivo, separada por ` | `.
+No envio, o mock recusa como o sandbox: HTTP 400 com o ProblemDetails, e o motivo do `?motivo=` num campo do mapa
+`errors`.
+
+- **O motivo gravado:** é o resumo ("1 campo com erro: documento").
+- **Onde fica o texto do `?motivo=`:** na foto da resposta, e o detalhe da nota o mostra na lista.
+
+A omissão não entra no motivo da falha. Ela fica na foto da resposta do envio (`request.omissions`). Numa nota aceita,
+continua no registro e aparece na tela como "Enviado com ressalvas".
 
 **Foto da fonte.** O JSON canônico que a montagem hasheia fica no Blob, em
 `traces/tenant-a/<período>/brmf|<voucher>/source.json`. A impressão gravada em `ProcessedDocuments.ContentHash`

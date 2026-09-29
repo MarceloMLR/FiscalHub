@@ -81,6 +81,28 @@ public class IntegrationSchedulerTests
         Assert.Null(runner.Last);
     }
 
+    [Fact]
+    public async Task Schedule_deleted_during_the_pass_does_not_break_it()
+    {
+        // Excluído entre o ListDueAsync e o RescheduleAsync: o reprogramar não acha a linha e segue, e o próximo roda
+        // (establishment-and-readable-dashboard, D14).
+        var now = new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        var due = new DateTimeOffset(2026, 7, 24, 6, 0, 0, Brt);
+        var store = new FakeScheduleStore(
+            new ScheduledIntegration { Id = 1, Mode = IntegrationMode.ScheduledDaily, TenantId = "tenant-a", CompanyCode = "12345678", NextRunAt = due },
+            new ScheduledIntegration { Id = 2, Mode = IntegrationMode.ScheduledDaily, TenantId = "tenant-a", CompanyCode = "98765432", NextRunAt = due });
+        var runner = new FakeRunner { OnRun = request => { if (request.ScheduleId == 1) { _ = store.DeleteAsync(1); } } };   // o falso conclui na hora
+        var scheduler = new IntegrationScheduler(store, runner, new StubClock(now));
+
+        int ran = await scheduler.RunDueAsync();
+
+        Assert.Equal(2, ran);
+        Assert.Equal([1, 2], runner.Runs.Select(r => r.ScheduleId));   // a execução em curso termina, e a seguinte roda
+        ScheduledIntegration remaining = Assert.Single(await store.ListAsync());
+        Assert.Equal(2, remaining.Id);
+        Assert.Equal(due.AddDays(1), remaining.NextRunAt);
+    }
+
     private sealed class StubClock(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
@@ -90,9 +112,15 @@ public class IntegrationSchedulerTests
     {
         public RunRequest? Last { get; private set; }
 
+        public List<RunRequest> Runs { get; } = [];
+
+        public Action<RunRequest>? OnRun { get; init; }
+
         public Task<int> RunAsync(RunRequest request, CancellationToken ct = default)
         {
             Last = request;
+            Runs.Add(request);
+            OnRun?.Invoke(request);
             return Task.FromResult(1);
         }
     }
@@ -163,5 +191,8 @@ public class IntegrationSchedulerTests
 
             return Task.FromResult(i >= 0);
         }
+
+        public Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+            => Task.FromResult(_items.RemoveAll(s => s.Id == id) > 0);
     }
 }

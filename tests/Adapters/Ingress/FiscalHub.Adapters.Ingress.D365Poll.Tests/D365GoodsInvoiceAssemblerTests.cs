@@ -97,6 +97,41 @@ public class D365GoodsInvoiceAssemblerTests
     }
 
     [Fact]
+    public void Recorded_third_party_note_carries_the_own_establishment_as_recipient()
+    {
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(Note(ThirdPartyIncomingNote), NoReferenceData);
+
+        // FiscalEstablishmentCNPJCPF "442782250001-80" e FiscalEstablishment "Matriz", como gravados.
+        Assert.Equal(new Establishment { TaxId = "44278225000180", Code = "Matriz" }, invoice.Establishment);
+        Assert.Equal(invoice.Recipient.TaxId, invoice.Establishment!.TaxId);   // na nota de terceiro, o próprio é o destinatário
+        Assert.NotEqual(invoice.Issuer.TaxId, invoice.Establishment.TaxId);
+    }
+
+    [Fact]
+    public void Recorded_note_with_empty_date_time_has_the_fiscal_date_of_the_fiscal_document_date()
+    {
+        // O FiscalDocumentDateTime vem 1900; a data fiscal é o FiscalDocumentDate (2016-09-02T12:00:00Z).
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(Note(ThirdPartyIncomingNote), NoReferenceData);
+
+        Assert.Equal(new DateOnly(2016, 9, 2), invoice.FiscalDate);
+    }
+
+    [Fact]
+    public void Fiscal_date_is_the_fiscal_document_date_and_not_the_utc_day_of_the_issue_instant()
+    {
+        // Derivada: a nota emitida às 22:30 de 2026-08-07 em Brasília, que o F&O guarda em UTC.
+        D365DocumentRows rows = Note(OutgoingNote);
+        JsonObject header = Editable(rows.Header);
+        header["FiscalDocumentDateTime"] = "2026-08-08T01:30:00Z";
+        header["FiscalDocumentDate"] = "2026-08-07T12:00:00Z";
+
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(rows with { Header = ToElement(header) }, NoReferenceData);
+
+        Assert.Equal(new DateOnly(2026, 8, 7), invoice.FiscalDate);
+        Assert.Equal(new DateTimeOffset(2026, 8, 8, 1, 30, 0, TimeSpan.Zero), invoice.IssueDate);   // o instante segue como veio
+    }
+
+    [Fact]
     public void Party_addresses_come_with_their_reference_data()
     {
         var establishment = new Address { Street = "Av. das Nações Unidas", Number = "12901", District = "Brooklin", PostalCode = "04795100" };

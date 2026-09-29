@@ -3,25 +3,39 @@ using FiscalHub.Domain.Goods;
 namespace FiscalHub.Application.Metadata;
 
 /// <summary>
-/// Deriva empresa/filial/data da NF-e a partir do emitente: os 8 primeiros dígitos do CNPJ são a
-/// empresa (raiz), os dígitos 9–12 são a filial (ordem do estabelecimento; "0001" = matriz), e a
-/// data de referência é a de emissão. O "código interno" (Avalara e afins) entra como config depois.
+/// Deriva empresa/filial/data da NF-e.
+/// <list type="bullet">
+///   <item><b>Empresa e filial:</b> pelo estabelecimento próprio, quando a origem o informa (D365): o CNPJ completo é a
+///   empresa, e o código do estabelecimento é a filial — numa nota de terceiro, é o estabelecimento que escritura, e não o
+///   fornecedor. Sem ele (XML, andaime de dev), pelo emitente: os 8 primeiros dígitos do CNPJ são a empresa (raiz) e os
+///   dígitos 9–12, a filial ("0001" = matriz).</item>
+///   <item><b>Dia:</b> a data fiscal que o próprio documento registra, no fuso de quem emitiu, sem conversão — nem UTC,
+///   nem um fuso fixo. No D365, o <see cref="GoodsInvoice.FiscalDate"/>; no XML, a data do <c>dhEmi</c> no fuso que ele
+///   traz. A nota ignorada, que não chega aqui, usa o mesmo dia pela descoberta.</item>
+/// </list>
 /// </summary>
 public sealed class GoodsInvoiceMetadataExtractor : IDocumentMetadataExtractor<GoodsInvoice>
 {
     public DocumentMetadata Extract(GoodsInvoice document)
     {
-        string cnpj = new string(document.Issuer.TaxId.Where(char.IsDigit).ToArray());
-        string company = cnpj.Length >= 8 ? cnpj[..8] : cnpj;
-        string branch = cnpj.Length >= 12 ? cnpj.Substring(8, 4) : "0001";
+        (string company, string branch) = document.Establishment is { } own
+            ? (own.TaxId, own.Code)
+            : FromIssuer(document.Issuer);
 
         return new DocumentMetadata
         {
             CompanyCode = company,
             BranchCode = branch,
-            ReferenceDate = DateOnly.FromDateTime(document.IssueDate.Date),
+            // DateTimeOffset.Date é a data no fuso do próprio valor: o do dhEmi, e nunca convertida.
+            ReferenceDate = document.FiscalDate ?? DateOnly.FromDateTime(document.IssueDate.Date),
             DocumentNumber = document.Number,
             DocumentModel = document.Model,
         };
+    }
+
+    private static (string Company, string Branch) FromIssuer(Party issuer)
+    {
+        string cnpj = new string(issuer.TaxId.Where(char.IsDigit).ToArray());
+        return (cnpj.Length >= 8 ? cnpj[..8] : cnpj, cnpj.Length >= 12 ? cnpj.Substring(8, 4) : "0001");
     }
 }

@@ -127,8 +127,8 @@ namespace FiscalHub.Infrastructure.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BranchCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("CompanyCode")
                         .IsRequired()
@@ -199,8 +199,8 @@ namespace FiscalHub.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("BranchCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("CompanyCode")
                         .HasMaxLength(20)
@@ -278,8 +278,8 @@ namespace FiscalHub.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("BranchCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("CompanyCode")
                         .IsRequired()

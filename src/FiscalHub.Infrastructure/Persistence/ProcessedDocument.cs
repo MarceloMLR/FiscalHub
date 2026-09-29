@@ -38,7 +38,7 @@ internal sealed class ProcessedDocument
     /// <summary>Modelo do documento (ex.: "55").</summary>
     public string? DocumentModel { get; set; }
 
-    /// <summary>Modo/gatilho da integração (RealTime · Manual · ScheduledDaily · ScheduledOnce) — rótulo do dashboard.</summary>
+    /// <summary>Modo/gatilho da integração (Automatic · Manual · ScheduledDaily · ScheduledOnce) — rótulo do dashboard. Automatic = entrou sem ação humana (coletor, drop, evento).</summary>
     public string? Trigger { get; set; }
 
     /// <summary>Impressão (SHA-256) do conteúdo cru já processado — chave da idempotência por conteúdo.</summary>

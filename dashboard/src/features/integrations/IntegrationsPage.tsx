@@ -147,6 +147,20 @@ export function IntegrationsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
   });
 
+  // Exclusão física, depois de confirmar. As execuções que o agendamento disparou ficam no histórico.
+  const remove = useMutation({
+    mutationFn: (id: number) => api.deleteSchedule(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['schedules'] });
+      setBanner('Agendamento excluído. O histórico de execuções continua na aba Execuções.');
+    },
+  });
+  const confirmRemove = (id: number) => {
+    if (window.confirm('Excluir o agendamento? A exclusão não se desfaz, e o histórico de execuções fica.')) {
+      remove.mutate(id);
+    }
+  };
+
   const periodOk = start !== '' && end !== '' && start <= end;
   const pending = runNow.isPending || createSchedule.isPending || updateSchedule.isPending;
   const canSubmit =
@@ -214,7 +228,7 @@ export function IntegrationsPage() {
     {
       field: 'acao',
       headerName: 'Ação',
-      width: 190,
+      width: 280,
       sortable: false,
       filterable: false,
       headerAlign: 'right',
@@ -233,6 +247,9 @@ export function IntegrationsPage() {
               Ativar
             </button>
           ) : null}
+          <button type="button" className="fh-btn-danger" onClick={() => confirmRemove(p.row.id)} disabled={remove.isPending} style={{ height: 30, padding: '0 12px', fontSize: 13, fontWeight: 600, borderRadius: 6 }}>
+            Excluir
+          </button>
         </span>
       ),
     },
@@ -267,6 +284,12 @@ export function IntegrationsPage() {
         <div style={{ border: '1px solid var(--ok-border)', background: 'var(--ok-bg)', borderRadius: 8, padding: '10px 13px', display: 'flex', gap: 9, alignItems: 'center' }}>
           <CheckCircleOutlineIcon sx={{ fontSize: 16, color: 'var(--ok-text)', flexShrink: 0 }} />
           <div style={{ fontSize: 12.5, color: 'var(--ok-text)' }}>{banner}</div>
+        </div>
+      )}
+
+      {remove.isError && (
+        <div style={{ border: '1px solid var(--error-border)', background: 'var(--error-bg)', color: 'var(--error-text)', borderRadius: 8, padding: '10px 13px', fontSize: 12.5 }}>
+          Não foi possível excluir o agendamento: {(remove.error as Error)?.message}.
         </div>
       )}
 

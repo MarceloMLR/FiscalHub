@@ -9,6 +9,9 @@ namespace FiscalHub.Infrastructure.Persistence;
 /// <summary>Implementação de <see cref="IProcessingStore"/> em banco relacional (EF Core / Azure SQL).</summary>
 internal sealed class SqlProcessingStore : IProcessingStore
 {
+    /// <summary>O modo da nota que entrou sem ação humana (coletor, drop, evento): a referência sem <c>SourceMode</c>.</summary>
+    internal const string AutomaticMode = "Automatic";
+
     private readonly ProcessingDbContext _db;
     private readonly TimeProvider _clock;
 
@@ -63,7 +66,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 ReferenceDate = refDate,
                 DocumentNumber = metadata.DocumentNumber,
                 DocumentModel = metadata.DocumentModel,
-                Trigger = reference.SourceMode ?? "RealTime",   // sem modo = chegou por evento (tempo real)
+                Trigger = reference.SourceMode ?? AutomaticMode,   // sem modo = entrou sem ação humana (coletor, drop, evento)
                 ContentHash = contentHash,
                 CreatedAt = now,
                 UpdatedAt = now,
@@ -112,11 +115,12 @@ internal sealed class SqlProcessingStore : IProcessingStore
             return;
         }
 
-        // Enquanto enviado, o Reason só pode ser a observação do envio (as omissões). Confirmação ou "ainda
-        // processando" a preservam; um motivo novo (recusa, sem retorno) vem primeiro e ela fica depois dele.
+        // Enquanto aceita, o Reason só pode ser a ressalva do envio (as omissões). Confirmação ou "ainda processando" a
+        // preservam. Numa falha (recusa, sem retorno), o motivo é só o da falha: a ressalva é de nota aceita, e a omissão
+        // continua na foto do envio (establishment-and-readable-dashboard, D9).
         string? submissionNote = row.Status == IntegrationStatus.Submitted ? row.Reason : null;
         row.Status = status;
-        row.Reason = reason is null ? submissionNote : submissionNote is null ? reason : $"{reason} | {submissionNote}";
+        row.Reason = status is IntegrationStatus.IntegrationError or IntegrationStatus.Unconfirmed ? reason : reason ?? submissionNote;
         row.Attempts = attempts;
         row.UpdatedAt = _clock.GetUtcNow();
         await _db.SaveChangesAsync(ct);
@@ -132,7 +136,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
 
         if (row is null)
         {
-            _db.ProcessedDocuments.Add(new ProcessedDocument
+            row = new ProcessedDocument
             {
                 TenantId = reference.TenantId,
                 NaturalKey = reference.NaturalKey,
@@ -140,9 +144,11 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 Status = status,
                 ExternalId = externalId,
                 Reason = reason,
+                Trigger = reference.SourceMode ?? AutomaticMode,   // o modo em qualquer desfecho, também o que não chega à montagem
                 CreatedAt = now,
                 UpdatedAt = now,
-            });
+            };
+            _db.ProcessedDocuments.Add(row);
         }
         else
         {
@@ -153,6 +159,22 @@ internal sealed class SqlProcessingStore : IProcessingStore
             row.UpdatedAt = now;
         }
 
+        // O grupo visto na descoberta, para a nota que não chega à montagem (design D4). O da montagem, já gravado pelo
+        // RecordMetadataAsync, nunca é trocado por ele.
+        if (row.CompanyCode is null && reference.Metadata is { } discovered)
+        {
+            ApplyGroup(row, discovered);
+        }
+
         await _db.SaveChangesAsync(ct);
+    }
+
+    private static void ApplyGroup(ProcessedDocument row, DocumentMetadata metadata)
+    {
+        row.CompanyCode = metadata.CompanyCode;
+        row.BranchCode = metadata.BranchCode;
+        row.ReferenceDate = metadata.ReferenceDate.ToString("yyyy-MM-dd");
+        row.DocumentNumber = metadata.DocumentNumber;
+        row.DocumentModel = metadata.DocumentModel;
     }
 }

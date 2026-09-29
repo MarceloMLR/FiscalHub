@@ -1,9 +1,11 @@
 using System.Collections.Specialized;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Web;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Metadata;
 using FiscalHub.Domain.Envelope;
 using Microsoft.Extensions.Logging;
 
@@ -39,7 +41,8 @@ public class D365ChangeFeedTests
         Assert.Equal("SysModifiedDateTime,FiscalDocumentRecId", q["$orderby"]);
         Assert.Equal("500", q["$top"]);
         Assert.Equal(
-            ["dataAreaId", "Voucher", "Model", "Direction", "Status", "FiscalDocumentNumber", "FiscalDocumentSeries", "SysModifiedDateTime", "FiscalDocumentRecId"],
+            ["dataAreaId", "Voucher", "Model", "Direction", "Status", "FiscalDocumentNumber", "FiscalDocumentSeries", "FiscalDocumentDate",
+             "FiscalEstablishmentCNPJCPF", "FiscalEstablishment", "SysModifiedDateTime", "FiscalDocumentRecId"],
             q["$select"]!.Split(','));
         Assert.DoesNotContain("Status", q["$filter"]);
         Assert.DoesNotContain("Model", q["$filter"]);
@@ -278,6 +281,52 @@ public class D365ChangeFeedTests
     }
 
     [Fact]
+    public async Task Reference_carries_the_group_read_from_the_discovery()
+    {
+        var h = new Harness();
+        h.Http.Respond(Rows(Row("BRMF21-10000025", "2026-08-07T18:14:01Z", 7, model: "SE",
+            fiscalDate: "2026-08-07T12:00:00Z", establishmentCnpj: "442782250002-60", establishment: "SP-01")));
+
+        DocumentReference reference = (await h.PullAllAsync(Since2015)).Single().Items.Single().Reference;
+
+        Assert.Equal(
+            new DocumentMetadata
+            {
+                CompanyCode = "44278225000260",   // o CNPJ do estabelecimento, só com dígitos
+                BranchCode = "SP-01",
+                ReferenceDate = new DateOnly(2026, 8, 7),   // o dia do FiscalDocumentDate, sem conversão de fuso
+                DocumentNumber = "000002",
+                DocumentModel = "SE",
+            },
+            reference.Metadata);
+    }
+
+    [Fact]
+    public async Task Discovery_and_assembly_give_the_same_day_for_the_same_header()
+    {
+        // Derivada: o cabeçalho gravado da nota de saída, emitida às 22:30 de 2026-08-07 em Brasília (01:30Z do dia 8).
+        JsonObject header = D365Fixtures.Editable(D365Fixtures.Rows(D365Fixtures.Note(D365Fixtures.OutgoingNote, "header")).Single());
+        header["FiscalDocumentDateTime"] = "2026-08-08T01:30:00Z";
+        header["FiscalDocumentDate"] = "2026-08-07T12:00:00Z";
+        header["SysModifiedDateTime"] = "2026-08-08T01:31:00Z";
+
+        // Descoberta: o feed lê o mesmo cabeçalho (só os campos do $select dele importam).
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Response(header));
+        DocumentReference reference = (await h.PullAllAsync(Since2015)).Single().Items.Single().Reference;
+
+        // Montagem: o assembler e o extrator sobre o mesmo cabeçalho.
+        var rows = new D365DocumentRows(D365Fixtures.ToElement(header), [], [], [], []);
+        DocumentMetadata assembled = new GoodsInvoiceMetadataExtractor().Extract(
+            D365GoodsInvoiceAssembler.Assemble(rows, new D365PartyReferenceData(D365PartyPlace.None, D365PartyPlace.None)));
+
+        Assert.Equal(new DateOnly(2026, 8, 7), reference.Metadata!.ReferenceDate);
+        Assert.Equal(reference.Metadata.ReferenceDate, assembled.ReferenceDate);
+        Assert.Equal(reference.Metadata.CompanyCode, assembled.CompanyCode);
+        Assert.Equal(reference.Metadata.BranchCode, assembled.BranchCode);
+    }
+
+    [Fact]
     public async Task Voucher_with_special_characters_stays_only_in_the_natural_key()
     {
         var h = new Harness();
@@ -465,18 +514,24 @@ public class D365ChangeFeedTests
 
     private static NameValueCollection Query(HttpRequestMessage request) => HttpUtility.ParseQueryString(request.RequestUri!.Query);
 
-    private static object Row(string voucher, string modified, long recId, string model = "55", string company = "brmf") => new Dictionary<string, object?>
-    {
-        ["dataAreaId"] = company,
-        ["Voucher"] = voucher,
-        ["Model"] = model,
-        ["Direction"] = "Outgoing",
-        ["Status"] = "Approved",
-        ["FiscalDocumentNumber"] = "000002",
-        ["FiscalDocumentSeries"] = "02",
-        ["SysModifiedDateTime"] = modified,
-        ["FiscalDocumentRecId"] = recId,
-    };
+    private static object Row(
+        string voucher, string modified, long recId, string model = "55", string company = "brmf",
+        string fiscalDate = "2017-01-21T12:00:00Z", string establishmentCnpj = "442782250001-80", string establishment = "Matriz")
+        => new Dictionary<string, object?>
+        {
+            ["dataAreaId"] = company,
+            ["Voucher"] = voucher,
+            ["Model"] = model,
+            ["Direction"] = "Outgoing",
+            ["Status"] = "Approved",
+            ["FiscalDocumentNumber"] = "000002",
+            ["FiscalDocumentSeries"] = "02",
+            ["FiscalDocumentDate"] = fiscalDate,
+            ["FiscalEstablishmentCNPJCPF"] = establishmentCnpj,
+            ["FiscalEstablishment"] = establishment,
+            ["SysModifiedDateTime"] = modified,
+            ["FiscalDocumentRecId"] = recId,
+        };
 
     private static string Rows(params object[] rows) => Rows(nextLink: null, rows);
 

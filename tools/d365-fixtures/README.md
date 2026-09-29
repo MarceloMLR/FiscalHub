@@ -29,3 +29,19 @@ script contra ambiente de cliente.
 
 O teste que usa uma derivada diz isso no nome ou num comentário. Derivada não prova que o caminho já
 passou dado real — ver "O que a base não exercita" no design da change.
+
+## O estabelecimento na `brmf`
+
+Regravado em 2026-09-27 (change `establishment-and-readable-dashboard`, design D3), com o `FiscalEstablishment` no
+`$select` do cabeçalho. A regravação só acrescentou esse campo: nenhum outro valor mudou. Na `brmf`, os 83 cabeçalhos
+têm três estabelecimentos:
+
+| `FiscalEstablishment` | `FiscalEstablishmentCNPJCPF` | Cabeçalhos |
+|---|---|---|
+| `Matriz` | `442782250001-80` | 61 |
+| `SP-01` | `442782250002-60` | 7 |
+| `SAL-01` | `442782250003-41` | 15 |
+
+O CNPJ vem formatado (`NNNNNNNNNNNN-NN`), e o hub o reduz a dígitos. O código vem preenchido em todos. O tamanho máximo
+do campo não aparece no `$metadata` do OData (a propriedade é só `Edm.String`) nem no esquema CDM da Microsoft. Conferir
+no AOT (EDT do `FiscalEstablishmentId`, tabela `FiscalEstablishment_BR`).

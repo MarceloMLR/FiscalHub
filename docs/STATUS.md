@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-09-27
+**Última atualização:** 2026-09-29
 
 ## Ferramentas da sessão
 
@@ -208,6 +208,9 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
   - **Falta:** a consulta de status com erro, que não aconteceu (nenhuma nota aceita).
   - **Prova:** gravar uma consulta com erro no sandbox.
   - **Sintoma:** motivo ilegível no dashboard, como JSON cru ou texto demais.
+  - **Desde 2026-09-28 (change `establishment-and-readable-dashboard`, D7 e D8):** com o mapa `errors`, o motivo é
+    um resumo ("6 campos com erro: …"), sem o `title`. A tela lê a lista inteira da foto, campo a campo, e o corte em
+    1000 caracteres não a atinge mais.
 - [ ] **Reenvio: atualiza ou duplica?** (CNV D17)
   - **Falta:** saber o que a plataforma faz com o mesmo `codigoReferenciaIntegracao` enviado de novo, numa
     correção ou num reprocesso.
@@ -356,7 +359,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
       a 3483, todas com HTTP 400). Rebobinar põe documentos reais de volta na plataforma, e por isso um botão de
       "reprocessar" é decisão de produto.
   - **Sintoma (silencioso):** quem rebobina para repetir o teste vê a passada rodar sem erro e nenhuma nota voltar à fila.
-- [ ] **O rótulo "Tempo real" da lista de grupos.** (dashboard, `GroupsPage`; design D12 da change
+- [x] **O rótulo "Tempo real" da lista de grupos.** (dashboard, `GroupsPage`; design D12 da change
   `automatic-integration-switch`)
   - **Falta:** a palavra é a mesma do antigo interruptor, mas o conceito é outro. O `RealTime` do modo de integração diz
     como o documento entrou: é o gatilho gravado no documento processado (`Trigger`), ao lado de `Manual`,
@@ -370,6 +373,16 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     filtrando os documentos antigos pelo modo certo.
   - **Sintoma:** o usuário lê "Tempo real" num grupo de notas e conclui que a integração automática está ligada, ou que
     há integração por evento, que nenhum ERP nosso faz hoje.
+  - **Fechado em 2026-09-29, com teste e prova manual (change `establishment-and-readable-dashboard`, D13).**
+    - **O valor gravado:** passa de `RealTime` a `Automatic`, com a migração de dados `RenameRealTimeTrigger`.
+    - **O rótulo:** "Automática".
+    - **O modo nos outros desfechos:** também a nota ignorada e a da dead-letter gravam o modo.
+    - **A prova por teste:** `SqlProcessingStoreTests.Reference_without_source_mode_is_recorded_as_automatic`, o
+      `Group_without_mode_is_served_as_automatic` e o `Ignored_note_of_a_manual_run_keeps_the_manual_mode`.
+    - **A prova manual (`host-fatia3.log`, fora do git):**
+      - a migração aplicada na subida (linha 68);
+      - no banco, as 14 notas da `brmf` com modo `Automatic`, e nenhuma linha com `RealTime` na base;
+      - na tela, a coluna "Tipo" com "Automática": conferência visual do usuário, sem linha de log.
 - [ ] **O seed de dev roda em qualquer ambiente.** (risco de primeiro cliente, e não dívida de estilo)
   - **Falta:** o seed de usuários, tenants e perfis de conector não tem guarda de `IsDevelopment()`; o único gate é a
     tabela vazia, e um banco de produção novo é justamente um banco vazio. O `LocalSeed` também sobe os XMLs de exemplo
@@ -378,7 +391,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     blob de exemplo é criado. Precisa de uma guarda antes do primeiro deploy de cliente.
   - **Sintoma:** num banco de produção novo, subir o host cria `admin@fiscalhub.local` com a senha conhecida
     `Fiscal@123`, mais cinco usuários, e perfis de conector apontando para localhost e para o `fiscosysdev`.
-- [ ] **O `CompanyCode` mostra o fornecedor numa nota de terceiro.** (metadados do documento)
+- [x] **O `CompanyCode` mostra o fornecedor numa nota de terceiro.** (metadados do documento)
   - **Falta:** o `CompanyCode` sai dos 8 primeiros dígitos do CNPJ do emitente, e o `BranchCode`, dos 4 seguintes. Numa
     nota emitida por terceiro, isso é o fornecedor, e não o estabelecimento próprio. A origem do D365 traz os dois campos
     certos: `FiscalEstablishmentCNPJCPF` (o CNPJ completo do estabelecimento próprio, lido hoje só para montar a parte) e
@@ -386,6 +399,88 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Correção pretendida:** o `CompanyCode` passa a ser o CNPJ completo do estabelecimento próprio. Encosta no banco,
     nos filtros do dashboard, nos agendamentos e no contrato do `/ingest`.
   - **Sintoma:** filtros, KPIs e agendamentos por empresa agrupam as notas de entrada pelo fornecedor.
+  - **Fechado em 2026-09-29, com teste e prova manual (change `establishment-and-readable-dashboard`, D1 a D5).**
+    - **O grupo:** a empresa é o CNPJ de 14 dígitos do estabelecimento próprio, e a filial, o código dele no F&O
+      (`Matriz`, `SP-01`, `SAL-01` na `brmf`). O dia é a data fiscal, no fuso de quem emitiu, sem conversão.
+    - **A prova por teste:** `GoodsInvoiceMetadataExtractorTests`, `D365GoodsInvoiceAssemblerTests` e
+      `D365ChangeFeedTests.Discovery_and_assembly_give_the_same_day_for_the_same_header`.
+    - **O que a leitura do código corrigiu no pedido:**
+      - o `CompanyCode` já tinha 20 caracteres, e os 14 dígitos couberam sem migração;
+      - o `/ingest` não carrega empresa;
+      - o que precisou de migração foi o `BranchCode` (`WidenBranchCode`, de 10 para 20).
+    - **A prova manual (`host-fatia3.log`, fora do git), depois de uma passada limpa contra o fiscosysdev:**
+      - a passada deu 14 referências na fila, com 0 suprimidas (linha 6382);
+      - no banco, a empresa é o CNPJ completo, `44278225000180` e `44278225000260`: dois estabelecimentos distintos onde
+        antes havia só a raiz `44278225`;
+      - a filial vem do 365, `Matriz` e `SP-01`, no lugar de `0001`;
+      - as 9 NFS-e ignoradas passaram a ter modelo (`SE`) e data de referência, antes nulos;
+      - a data de referência bate com o `FiscalDocumentDate` do F&O nas 14 notas, montadas e ignoradas;
+      - na tela, a tabela, a máscara do CNPJ e os cards em 0 (nenhuma nota tem data fiscal de hoje): conferência visual
+        do usuário, sem linha de log.
+
+- [ ] **O `startFrom` que some e o cursor que nasce em "agora" sem avisar.** (achado da change
+  `establishment-and-readable-dashboard`, 2026-09-28)
+  - **O que aconteceu:** o `startFrom` sumiu da seção `poll` do perfil em algum momento da prova, e a causa não foi
+    investigada.
+    - **O sintoma:** foi indistinguível de "não há nota nova": nenhuma falha, a marca avançando e zero documento. Sem o
+      `startFrom`, o cursor criado do zero nasce no instante atual, e o histórico fica de fora em silêncio.
+    - **A frequência:** é a terceira vez que um campo invisível da seção `poll` custa investigação.
+  - **Direção:** avisar quando o cursor é criado do zero sem `startFrom`. O desenho é o do aviso de poll ausente que já
+    existe (`PollNotConfiguredNotices`): avisa na primeira vez e diz o que fazer (`docs/RUNNING.md` §6). O aviso nomeia
+    o tenant e o instante em que a marca nasceu.
+  - **Um segundo sintoma da mesma família, visto no banco em 2026-09-29, depois da prova:** as `InboundSettings` do
+    tenant-a ficaram `{}`, sem URL, empresas, `auth` nem `poll`.
+    - **A hipótese:** é o efeito de trocar o ERP na tela de conectores para um adapter que não varre (a tarefa 9.5 da
+      change) e voltar para o `Dynamics365`. A troca zera as settings, e voltar não as restaura.
+    - **O que não se sabe:** não foi reproduzido.
+    - **O que acontece com o perfil assim:** o poller cai no aviso de poll ausente, e não em silêncio. Mas o perfil perde
+      tudo o que a tela não mostra.
+  - **Prova:** apagar o `startFrom` e o cursor com o host de pé, e ver o aviso na passada seguinte. Trocar o ERP na tela
+    e voltar, e conferir as settings no banco.
+  - **Sintoma:** quem rebobina ou liga o coletor de um tenant novo vê a passada rodar limpa e nenhuma nota entrar.
+- [ ] **Filtros dos cards.** (dashboard, `GroupsPage`; próximo passo da change `establishment-and-readable-dashboard`)
+  - **Comportamento correto, e não defeito:** os cards contam as notas cuja data de referência é hoje.
+    - **Qual data:** a data fiscal, no fuso de quem emitiu, sem conversão, com o mesmo critério para a nota montada e para
+      a ignorada.
+    - **Qual "hoje":** o do navegador.
+    - **O que fica fora:** as notas de 2016 do fiscosysdev, o que é o correto. Não "corrigir" para a data de
+      processamento.
+  - **Falta:** os filtros, por período (dia, 7, 15 e 30 dias, com o dia como padrão) e por modelo. A nota ignorada já
+    grava data e modelo, e com eles um contador próprio para as ignoradas deixa de ser necessário.
+  - **Prova:** com o filtro de 30 dias, as NFS-e de 2026-08-07 da `brmf` entram nos cards de 2026-09-06, e as de 2016
+    não.
+  - **Sintoma:** hoje, quem quer ver as notas da semana só tem a tabela.
+- [ ] **O modal do grupo não filtra pelo tipo e pelo modo.** (dashboard, `GroupModal`; risco do design da change
+  `establishment-and-readable-dashboard`)
+  - **Falta:** a linha da tabela é por empresa, filial, dia, tipo e modo, e a consulta do modal
+    (`/groups/{empresa}/{filial}/{dia}/documents`) é só pelos três primeiros.
+  - **Prova:** um estabelecimento com uma NF-e e uma NFS-e ignorada no mesmo dia mostra, nas duas linhas, as duas notas.
+  - **Sintoma:** o título do modal diz "1 nota", e a lista traz duas.
+- [ ] **O tamanho do código do estabelecimento no F&O.** (change `establishment-and-readable-dashboard`, tarefa 1.1)
+  - **Falta:** conferir no AOT o tamanho do EDT do `FiscalEstablishmentId`. O `$metadata` do OData declara a
+    propriedade só como `Edm.String`, sem `MaxLength`, e o CDM da Microsoft também não o traz. O `BranchCode` foi
+    alargado para 20.
+  - **O dado real que temos cabe com folga:** os códigos de estabelecimento da `brmf` no fiscosysdev são `Matriz`,
+    `SP-01` e `SAL-01`, com no máximo 6 caracteres. Foram lidos na regravação das fixtures de 2026-09-27 e estão
+    anotados em `tools/d365-fixtures/README.md`. A conferência no AOT continua aberta, porque um cliente pode usar
+    códigos mais longos que os da base de demonstração.
+  - **Prova:** o EDT com tamanho até 20, ou uma migração nova que o acompanhe.
+  - **Sintoma:** um código de estabelecimento acima de 20 caracteres faz o `INSERT` falhar, e a nota vai para a
+    dead-letter.
+- [ ] **O diretório de empresas com o CNPJ de 14 dígitos.** (quando houver descoberta por período com D365)
+  - **Falta:** o `ICompanyDirectory` (`companies.json`) e a descoberta local são o caminho de XML de dev, com o
+    código de 8 dígitos. Uma integração manual ou agendada do D365 vai precisar do mesmo código do grupo, que é o CNPJ
+    de 14 dígitos.
+  - **Prova:** a primeira descoberta por período do D365 filtra pela empresa de 14 dígitos.
+  - **Sintoma:** o dropdown mostra uma empresa que não casa com nenhum grupo da tabela.
+
+- [ ] **O que o chamado de suporte anexa quando quem o abre não pode ver as fotos cruas.** (change
+  `establishment-and-readable-dashboard`, D11)
+  - **Falta:** decidir. O `/trace` e o zip passaram a exigir Admin, mas o chamado de suporte continua anexando os zips
+    das notas no servidor, para qualquer papel. O zip vai para o suporte, e o pedido devolve só o id e o link do chamado.
+  - **Prova:** abrir um chamado como Viewer e conferir, no portal de chamados, se o solicitante vê os anexos.
+  - **Sintoma:** se o portal mostrar os anexos ao solicitante, o Viewer baixa por lá as fotos que a tela e a API lhe
+    negam.
 
 ### Operação
 
@@ -395,6 +490,9 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     produção.
   - **Sintoma:** rebobinar a marca ou fazer backfill depois do deploy reenvia cada nota relida. Em cem mil
     notas, isso dá mais de 30 horas de fila e reenvios em massa à plataforma.
+  - **A v3 (2026-09-28, change `establishment-and-readable-dashboard`, D3):** subiu com o `FiscalEstablishment` no
+    cabeçalho, sem tenant em produção e sem nota aceita no fiscosysdev, então sem efeito. O hash de transição continua
+    pré-requisito da primeira subida com cliente.
 - [ ] **Throttling do F&O queimando entregas.** (ADR-0025)
   - **Falta:** carga do tamanho de um cliente. A reentrega do Service Bus é imediata, e sob throttling longo
     uma mensagem esgota as 5 entregas.
@@ -688,3 +786,53 @@ Também para a próxima fatia, do teste manual:
   passou a ser mascarado, como os outros identificadores da conta;
 - a foto da recusa não teve `Content-Type` porque a resposta do endpoint de envio do sandbox não o traz. A foto lê os
   cabeçalhos de conteúdo, e o capturou na resposta de token do mesmo sandbox e nas do mock.
+
+---
+
+## Sessão 2026-09-28/29 — Estabelecimento próprio e a tela legível (change `establishment-and-readable-dashboard`)
+
+**Entregue.** A tela mostra o dado certo, na língua de quem usa (ADR-0030):
+
+- **O grupo:** a empresa e a filial vêm do estabelecimento próprio no 365 (o CNPJ completo e o código). O dia é a data
+  fiscal, no fuso de quem emitiu, sem conversão, na nota montada e na ignorada. O canônico sobe para a v3.
+- **A ignorada:** a descoberta leva o grupo, e a nota ignorada entra na tabela e nos cards da data fiscal dela.
+- **O motivo:** vira resumo, sem o `title` do ProblemDetails e sem a omissão. A lista inteira vem da leitura do desfecho,
+  tirada das fotos no servidor.
+- **A omissão:** é ressalva de nota aceita ("Enviado com ressalvas"), gravada na foto do envio.
+- **A foto:** perde o ruído do ProblemDetails e guarda a URL e o `traceId`.
+- **As fotos cruas:** só para Admin, de fato. O `/trace` e o zip dão 403 aos demais, e o JSON abre num modal próprio.
+- **A tela:** o selo de duas cores, a exclusão de agendamento, e "Automática" no lugar de "Tempo real".
+
+**Prova manual (2026-09-29).** O detalhe, com as linhas do `host-fatia3.log`, está nas tarefas 9.x da change.
+
+- **Sustentado:**
+  - a passada limpa, com 14 referências;
+  - o grupo no banco, com as 14 datas iguais ao `FiscalDocumentDate`;
+  - o 403 do Viewer no `/trace` e no zip, e o 200 da leitura, com 6 campos;
+  - a foto sem o ruído, com as omissões;
+  - a criação e a exclusão de um agendamento.
+- **Conferência visual do usuário, sem linha de log:** a tela inteira.
+- **Não exercitado:** o histórico de execução de um agendamento excluído, porque nenhum agendamento disparou. Só o teste
+  o prova (tarefa 9.6, parcial).
+
+**Ficou aberto na change:** a 1.1 (o tamanho do código do estabelecimento no AOT) e a 9.6.
+
+**Achados:**
+
+- **O `startFrom` que some:** o cursor nasce em "agora" sem avisar (item próprio acima).
+- **As `InboundSettings` do tenant-a em `{}`:** vistas depois da prova, no mesmo item.
+- **O SQL fora do ar:** no fim do `host-fatia3.log`, consultas ficaram cerca de 28 minutos sem resposta. É o caso das
+  bases órfãs do emulador do Service Bus, que o `scripts/up.ps1` passou a limpar na subida (`docs/RUNNING.md` §1).
+- **Os testes do D365 num caminho longo:** o projeto de testes do D365 falha num worktree de caminho longo. O
+  `D365Fixtures` monta os caminhos com `/`, e o Windows os recusa com o prefixo `\\?\`. Não afeta o repositório no
+  caminho de hoje, mas pode afetar um CI que clone fundo.
+
+**Próxima fatia:** os seis campos obrigatórios da recusa da Avalara:
+
+- `operacao`;
+- `tipoPagamento`;
+- `parceiro.Codigo`;
+- `itens[].Item.TipoItem`;
+- as duas `UnidadeMedida.Descricao`.
+
+O critério de saída é uma nota aceita.

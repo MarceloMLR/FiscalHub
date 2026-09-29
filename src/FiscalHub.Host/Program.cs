@@ -83,6 +83,7 @@ builder.Services.AddScoped<ConnectorProfileService>();
 builder.Services.AddAvalaraComplianceDispatcher(options => cfg.GetSection("Avalara").Bind(options));
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddScoped<DocumentTraceQuery>();   // fotos de um documento, só para o tenant de quem está logado (ADR-0028)
+builder.Services.AddScoped<DocumentReadingQuery>(); // o que a primeira vista do detalhe usa, tirado das fotos, para qualquer papel
 builder.Services.AddSingleton<IDocumentValidator<GoodsInvoice>, GoodsInvoiceValidator>();
 builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInvoiceMetadataExtractor>();
 // A esteira escolhe o source por documento, pela origem da referência (fallback: perfil do tenant) —
@@ -267,7 +268,7 @@ app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegr
 app.MapGet("/executions", async (IExecutionQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
-// Agendamentos: cria (D-1 recorrente ou único), lista e desativa. O timer do host executa os vencidos.
+// Agendamentos: cria (D-1 recorrente ou único), lista, desativa, reativa e exclui. O timer do host executa os vencidos.
 // Valida o corpo e calcula o próximo disparo (compartilhado pelo POST e pelo PUT).
 static (IResult? error, IntegrationMode mode, DateTimeOffset nextRun, string? periodStart, string? periodEnd)
     PlanSchedule(ScheduleRequest req, TimeProvider clock)
@@ -352,6 +353,11 @@ app.MapGet("/schedules", async (IScheduleStore store, CancellationToken ct) =>
 app.MapPost("/schedules/{id:int}/deactivate", async (int id, IScheduleStore store, CancellationToken ct) =>
     await store.DeactivateAsync(id, ct) ? Results.NoContent() : Results.NotFound());
 
+// Exclusão, com a mesma regra de acesso do desativar e o mesmo 404 para o id de outro tenant. As execuções que o
+// agendamento disparou ficam no histórico: guardam os próprios dados, e não há chave estrangeira.
+app.MapDelete("/schedules/{id:int}", async (int id, IScheduleStore store, CancellationToken ct) =>
+    await store.DeleteAsync(id, ct) ? Results.NoContent() : Results.NotFound());
+
 // Reativa um recorrente pausado. O único (ScheduledOnce) não reativa — já cumpriu seu papel.
 app.MapPost("/schedules/{id:int}/reactivate", async (int id, IScheduleStore store, TimeProvider clock, CancellationToken ct) =>
 {
@@ -403,8 +409,14 @@ app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient
 // A mesma resposta para "é de outro tenant" e "não tem fotos": não se confirma a existência de nota alheia.
 const string NoTraceMessage = "sem fotos para esse documento.";
 
-// Fotos de rastreabilidade de um documento (fonte, domínio, destino), para o detalhe do dashboard. Só o tenant de
-// quem está logado (ADR-0028): outro tenant e documento sem fotos têm o mesmo 404 — não se confirma nota alheia.
+// Quem vê as fotos cruas (o /trace e o zip). Hoje só o Admin; um papel de Suporte, quando existir, entra aqui, no
+// RAW_JSON_ROLES da tela (dashboard/src/features/auth/roles.ts) e no UserRole. Quem não tem o papel recebe 403 antes de
+// qualquer leitura. A primeira vista do detalhe vem do /reading, aberto a qualquer papel (ADR-0030).
+string[] rawTraceRoles = ["Admin"];
+
+// Fotos de rastreabilidade de um documento (fonte, domínio, destino, respostas), para o JSON cru do dashboard. Só para
+// quem tem o papel, e só o tenant de quem está logado (ADR-0028): outro tenant e documento sem fotos têm o mesmo 404 —
+// não se confirma nota alheia.
 app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string naturalKey, DocumentTraceQuery traces, CancellationToken ct) =>
 {
     IReadOnlyList<TraceFile>? files = await traces.GetAsync(tenantId, naturalKey, ct);
@@ -424,16 +436,23 @@ app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string natu
     }
 
     return Results.Ok(snapshots);
-});
+}).RequireAuthorization(policy => policy.RequireRole(rawTraceRoles));
 
-// Download: zipa as fotos de um documento pra baixar de uma vez, com a mesma regra de tenant do /trace.
+// Download: zipa as fotos de um documento pra baixar de uma vez, com a mesma regra de papel e de tenant do /trace.
 app.MapGet("/documents/{tenantId}/{naturalKey}/download", async (string tenantId, string naturalKey, DocumentTraceQuery traces, CancellationToken ct) =>
 {
     IReadOnlyList<TraceFile>? files = await traces.GetAsync(tenantId, naturalKey, ct);
     return files is null
         ? Results.NotFound(new { message = NoTraceMessage })
         : Results.File(TraceArchive.Zip(files), "application/zip", $"{naturalKey}.zip");
-});
+}).RequireAuthorization(policy => policy.RequireRole(rawTraceRoles));
+
+// A leitura do desfecho: a lista de campos da recusa e as omissões do envio, tiradas das fotos, e nada mais delas. É a
+// primeira vista do detalhe, para qualquer papel, com a regra de tenant do /trace e o mesmo 404.
+app.MapGet("/documents/{tenantId}/{naturalKey}/reading", async (string tenantId, string naturalKey, DocumentReadingQuery readings, CancellationToken ct) =>
+    await readings.GetAsync(tenantId, naturalKey, ct) is { } reading
+        ? Results.Ok(reading)
+        : Results.NotFound(new { message = NoTraceMessage }));
 
 // Leitura pro dashboard: os documentos mais recentes com status. Em produção, atrás de auth e
 // filtrado por tenant.
@@ -477,15 +496,17 @@ app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory d
 
 // Ambiente do conector e integração automática do tenant logado. A integração automática não é campo gravado: é
 // derivada do perfil (adapter que varre e poll.enabled), com as origens dos feeds registrados, as mesmas que o poller
-// consome (ADR-0029).
+// consome (ADR-0029). O inboundScans diz se o adapter varre: é o que faz o selo aparecer, verde ou vermelho, ou sumir.
 app.MapGet("/info", async (
     IConnectorProfileStore profiles, IEnumerable<IDocumentChangeFeed> feeds, ITenantContext tenant, CancellationToken ct) =>
 {
     TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
+    string[] scanning = [.. feeds.Select(f => f.Origin)];
     return Results.Ok(new
     {
         environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox",
-        automaticIntegration = AutomaticIntegration.IsOn(profile, feeds.Select(f => f.Origin)),
+        automaticIntegration = AutomaticIntegration.IsOn(profile, scanning),
+        inboundScans = AutomaticIntegration.Scans(profile, scanning),
     });
 });
 
