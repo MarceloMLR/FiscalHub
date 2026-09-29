@@ -21,11 +21,24 @@ serviço da nuvem (Azure "sem Azure").
 Na raiz do repositório:
 
 ```powershell
-docker compose up -d
+.\scripts\up.ps1
 ```
 
 Sobe `azurite` (Blob nas portas 10000/10001), `sql` (SQL Server na 1433), `servicebus` (AMQP na 5672) e `keyvault`
-(a API do Key Vault na 8443). Conferir: `docker compose ps` (todos `running`).
+(a API do Key Vault na 8443), e confere no fim que os quatro ficaram de pé.
+
+**Use o script, e não o `docker compose up -d` cru.** O emulador do Service Bus não tem armazenamento próprio: ele cria
+as bases dele dentro do container de SQL e, na subida, derruba e recria essas bases. Quando os dois containers morrem
+juntos — um reinício da máquina, por exemplo — o SQL pode parar no meio de um `DROP`: a base sai do catálogo e os
+arquivos ficam no disco. Na subida seguinte o emulador não encontra a base, pula o drop, tenta criar e morre com
+`Cannot create file ... because it already exists`, saindo com código 139. Ele não se recupera sozinho, porque o estado
+órfão não é "existe" nem "não existe".
+
+O script sobe o SQL primeiro, remove as bases do emulador (catálogo e arquivos) e só então sobe o Service Bus. Limpar
+não perde nada: o emulador recria essas bases em toda subida, por conta própria.
+
+Sem a fila no ar, o poll do D365 até roda, mas nada é enfileirado nem montado — e o sintoma é "descobriu e não fez
+nada". Isso já custou dois diagnósticos.
 
 **O cofre de dev é em memória, de propósito** (ADR-0027). O `keyvault` é o emulador da mesma API do Key Vault, e o host
 fala com ele pelo mesmo adapter de produção; o `appsettings.Development.json` só troca o endereço, a credencial e o
