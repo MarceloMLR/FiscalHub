@@ -48,6 +48,39 @@ public class ChangeFeedFencingSqlTests
         AssertSingleFencedUpdate(capture.Commands);
     }
 
+    // O rebobinamento pela tela é o mesmo fencing, com a comparação invertida: uma instrução só, condicionada ao lease
+    // (change module-navigation-and-integration-panel, D7).
+    [Fact]
+    public async Task Sqlite_rewind_is_a_single_conditional_update()
+    {
+        var capture = new CommandCapture(suppress: false);
+        using var conn = new SqliteConnection("DataSource=:memory:");
+        conn.Open();
+        await using var db = new ProcessingDbContext(new DbContextOptionsBuilder<ProcessingDbContext>()
+            .UseSqlite(conn).AddInterceptors(capture).Options);
+        db.Database.EnsureCreated();
+        var store = new SqlChangeFeedCursorStore(db, TimeProvider.System);
+        capture.Commands.Clear();
+
+        await store.TryRewindWatermarkAsync("tenant-a", "Dynamics365", DateTimeOffset.UtcNow.AddYears(-10), Claim);
+
+        AssertSingleFencedUpdate(capture.Commands);
+    }
+
+    [Fact]
+    public async Task SqlServer_rewind_is_a_single_conditional_update()
+    {
+        var capture = new CommandCapture(suppress: true);
+        await using var db = new ProcessingDbContext(new DbContextOptionsBuilder<ProcessingDbContext>()
+            .UseSqlServer("Server=nao-existe;Database=x;Trusted_Connection=true")
+            .AddInterceptors(capture, new SuppressOpen()).Options);
+        var store = new SqlChangeFeedCursorStore(db, TimeProvider.System);
+
+        await store.TryRewindWatermarkAsync("tenant-a", "Dynamics365", DateTimeOffset.UtcNow.AddYears(-10), Claim);
+
+        AssertSingleFencedUpdate(capture.Commands);
+    }
+
     private static void AssertSingleFencedUpdate(List<string> commands)
     {
         string sql = Assert.Single(commands);

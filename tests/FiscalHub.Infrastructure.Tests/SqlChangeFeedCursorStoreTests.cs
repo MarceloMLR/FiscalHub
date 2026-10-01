@@ -110,6 +110,90 @@ public class SqlChangeFeedCursorStoreTests
         Assert.Equal(Start, (await h.OtherStore().GetAsync("tenant-a", Origin))!.Watermark);
     }
 
+    // ---- Rebobinar: o mesmo fencing do avanço, com a comparação invertida (change module-navigation-and-integration-panel, D7) ----
+
+    private static readonly LeaseClaim Rewind = new("changefeed:Dynamics365:tenant-a", "rewind:1");
+
+    [Fact]
+    public async Task Rewind_with_the_valid_lease_of_the_owner_and_a_lower_target_is_accepted()
+    {
+        using var h = new Harness();
+        await h.Store.StartAsync("tenant-a", Origin, Start.AddYears(10));
+        await h.Leases.TryAcquireAsync(Rewind.Resource, Rewind.Owner, Ttl);
+
+        Assert.True(await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start, Rewind));
+        Assert.Equal(Start, (await h.OtherStore().GetAsync("tenant-a", Origin))!.Watermark);   // ticks exatos
+    }
+
+    [Fact]
+    public async Task Rewind_that_is_not_lower_is_refused()
+    {
+        using var h = new Harness();
+        await h.Store.StartAsync("tenant-a", Origin, Start);
+        await h.Leases.TryAcquireAsync(Rewind.Resource, Rewind.Owner, Ttl);
+
+        Assert.False(await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start, Rewind));
+        Assert.False(await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start.AddDays(1), Rewind));
+        Assert.Equal(Start, (await h.OtherStore().GetAsync("tenant-a", Origin))!.Watermark);
+    }
+
+    [Fact]
+    public async Task Rewind_with_the_lease_of_another_owner_or_expired_is_refused()
+    {
+        using var h = new Harness();
+        await h.Store.StartAsync("tenant-a", Origin, Start.AddYears(10));
+        await h.Leases.TryAcquireAsync(Rewind.Resource, "replica-1", Ttl);   // o coletor está lendo
+
+        Assert.False(await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start, Rewind));
+
+        await h.Leases.ReleaseAsync(Rewind.Resource, "replica-1");
+        await h.Leases.TryAcquireAsync(Rewind.Resource, Rewind.Owner, Ttl);
+        h.Clock.Advance(Ttl + TimeSpan.FromSeconds(1));   // o lease do rebobinamento venceu
+
+        Assert.False(await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start, Rewind));
+        Assert.Equal(Start.AddYears(10), (await h.OtherStore().GetAsync("tenant-a", Origin))!.Watermark);
+    }
+
+    [Fact]
+    public async Task Rewind_without_the_row_writes_nothing_and_creates_nothing()
+    {
+        using var h = new Harness();
+        await h.Leases.TryAcquireAsync(Rewind.Resource, Rewind.Owner, Ttl);
+
+        Assert.False(await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start, Rewind));
+        Assert.Null(await h.OtherStore().GetAsync("tenant-a", Origin));
+    }
+
+    [Fact]
+    public async Task Rewind_of_a_cursor_without_mark_writes_nothing()
+    {
+        using var h = new Harness();
+        await h.Store.RecordFailureAsync("tenant-a", Origin, h.Clock.GetUtcNow(), "falhou antes da primeira passada", notBefore: null);
+        await h.Leases.TryAcquireAsync(Rewind.Resource, Rewind.Owner, Ttl);
+
+        Assert.False(await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start, Rewind));
+        Assert.Null((await h.OtherStore().GetAsync("tenant-a", Origin))!.Watermark);
+    }
+
+    [Fact]
+    public async Task Rewind_keeps_the_diagnostic_of_the_collector()
+    {
+        using var h = new Harness();
+        await h.Store.StartAsync("tenant-a", Origin, Start.AddYears(10));
+        DateTimeOffset polled = h.Clock.GetUtcNow();
+        await h.Store.RecordFailureAsync("tenant-a", Origin, polled, "AADSTS7000215", notBefore: polled.AddMinutes(5));
+        await h.Leases.TryAcquireAsync(Rewind.Resource, Rewind.Owner, Ttl);
+
+        await h.Store.TryRewindWatermarkAsync("tenant-a", Origin, Start, Rewind);
+
+        ChangeFeedCursor rewound = (await h.OtherStore().GetAsync("tenant-a", Origin))!;
+        Assert.Equal(Start, rewound.Watermark);
+        Assert.Equal(polled, rewound.LastPolledAt);
+        Assert.Equal(1, rewound.ConsecutiveFailures);
+        Assert.Equal("AADSTS7000215", rewound.LastError);
+        Assert.Equal(polled.AddMinutes(5), rewound.NotBefore);
+    }
+
     [Fact]
     public async Task Records_failure_then_success()
     {

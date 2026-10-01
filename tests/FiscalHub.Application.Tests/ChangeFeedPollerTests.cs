@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using FiscalHub.Application.Auth;
 using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Coordination;
 using FiscalHub.Application.Inbound;
@@ -594,6 +595,44 @@ public class ChangeFeedPollerTests
         Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
     }
 
+    // O rebobinamento pela tela não chama o Forget: é a regressão da marca que zera o registro, na réplica que faz o poll,
+    // como no rebobinamento por SQL (change module-navigation-and-integration-panel, D7).
+    [Fact]
+    public async Task Rewind_through_the_screen_goes_through_the_same_rule_and_republishes_with_zero_suppressed()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();   // A publicado com o carimbo assentado, e a marca em 12:00
+        RewindResult rewind = await new ChangeFeedRewind(h.Profiles, h.Cursors, h.Leases, [h.Feed], new LoggedTenant("tenant-a"), h.Clock)
+            .RewindAsync(At(11, 0));   // para antes do carimbo de A
+        h.Clock.Advance(TimeSpan.FromSeconds(61));   // o rebobinamento não antecipa a passada: ela vem no intervalo
+        ChangeFeedPassSummary after = await h.RunAsync();
+
+        Assert.Equal(RewindStatus.Rewound, rewind.Status);
+        Assert.Equal(["tenant-a|A", "tenant-a|A"], h.Queue.Keys);
+        Assert.Equal(0, after.ReferencesSuppressed);
+        Assert.Equal(At(11, 0) - TimeSpan.FromSeconds(300), h.Feed.Calls[^1].Since);
+    }
+
+    [Fact]
+    public async Task Without_the_rewind_the_same_reread_is_suppressed()
+    {
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(11, 50));
+        h.Feed.Read("tenant-a", Stamped(At(12, 0), At(11, 59, 50), ("A", At(11, 58))));
+        h.Feed.Read("tenant-a", Stamped(At(12, 1), At(12, 0, 50), ("A", At(11, 58))));
+
+        await h.RunAsync();
+        h.Clock.Advance(TimeSpan.FromSeconds(61));
+        ChangeFeedPassSummary after = await h.RunAsync();
+
+        Assert.Equal(["tenant-a|A"], h.Queue.Keys);   // o controle: é o rebobinamento que faz A voltar
+        Assert.Equal(1, after.ReferencesSuppressed);
+    }
+
     private const string EnabledFrom2015 = """{"poll":{"enabled":true,"startFrom":"2015-01-01T00:00:00Z"}}""";
 
     [Fact]
@@ -1032,6 +1071,22 @@ public class ChangeFeedPollerTests
             return Task.FromResult(true);
         }
 
+        public List<DateTimeOffset> Rewinds { get; } = [];
+
+        public Task<bool> TryRewindWatermarkAsync(string tenantId, string origin, DateTimeOffset watermark, LeaseClaim lease, CancellationToken ct = default)
+        {
+            // Como o UPDATE condicionado do SQL: sem a linha, sem marca, sem o lease ou com alvo que não é menor, nada.
+            if (!_items.TryGetValue(tenantId, out ChangeFeedCursor? current)
+                || !leases.IsHeldBy(lease.Resource, lease.Owner) || !(current.Watermark > watermark))
+            {
+                return Task.FromResult(false);
+            }
+
+            _items[tenantId] = current with { Watermark = watermark };
+            Rewinds.Add(watermark);
+            return Task.FromResult(true);
+        }
+
         public Task RecordSuccessAsync(string tenantId, string origin, DateTimeOffset polledAt, CancellationToken ct = default)
         {
             if (_items.TryGetValue(tenantId, out ChangeFeedCursor? current))   // sem a linha, o UPDATE do SQL não toca nada
@@ -1074,6 +1129,11 @@ public class ChangeFeedPollerTests
             Items.Add(reference);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class LoggedTenant(string tenantId) : ITenantContext
+    {
+        public string TenantId => tenantId;
     }
 
     private sealed class StubClock(DateTimeOffset now) : TimeProvider
