@@ -52,3 +52,6 @@ avalara-integration-flow.mermaid
 
 # saída da sonda do sandbox: respostas reais, só o que for curado sai daqui (ADR-0027)
 tools/AvalaraSandboxProbe/out/
+
+# logs de execucao local do host
+*.log
