@@ -319,7 +319,7 @@ terminam com o `npm test` e o `npm run build`.
   - **O host:** subiu às 11:52 com o código novo. A DLL do D365 em `bin` é das 11:51, já com a classificação do 11.10.
   - **A integração:** ligada pela tela. O cursor avançou até 10:54 e buscou até 11:25.
   - **Sem log em arquivo**, de novo.
-- [ ] 10.2 O painel, sem abrir o banco:
+- [x] 10.2 O painel, sem abrir o banco:
   1. como Admin, ver a última verificação e a marca;
   2. gravar um Client Secret errado do D365 pela tela;
   3. ver o erro `AADSTS` e as falhas seguidas no painel, em cerca de um minuto;
@@ -338,6 +338,14 @@ terminam com o `npm test` e o `npm run build`.
       aparece;
     - a segunda (apagar o cursor e ver de onde a primeira busca começa) está provada só pelo teste da leitura do painel
       (4.1) e pela lógica do componente.
+
+  **Fechado (2026-10-01, 14:13 local): o passo 5 feito.**
+  - **O comando:** o usuário apagou o cursor do tenant-a com o `DELETE` do RUNNING §6.
+  - **A busca seguinte:** recriou o cursor, com o `Id` 2 (antes era o 1, e o `IDENT_CURRENT` foi a 2). A marca nasceu às
+    14:13:50, no instante da busca, sem `startFrom`, com 0 falhas. É o que o quadro avisa sem marca: "A primeira busca
+    começa no momento em que rodar".
+  - **A tela:** a janela sem marca durou até a busca seguinte, no máximo 15 segundos. O texto do quadro nela é
+    conferência visual do usuário.
 - [x] 10.3 O teste de credencial:
   - **os dois certos:** testar a Avalara (Sandbox) e o D365 com as credenciais certas dá "Funcionou";
   - **o segredo errado:**
