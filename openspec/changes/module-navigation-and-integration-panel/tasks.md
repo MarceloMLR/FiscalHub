@@ -303,7 +303,7 @@ terminam com o `npm test` e o `npm run build`.
 
 ## 10. Prova manual do critério de saída
 
-- [ ] 10.1 Preparar:
+- [x] 10.1 Preparar:
   - `scripts/up.ps1`, `az login`, e o host e o dashboard de pé;
   - a migração `AddConnectorProfileModules` aplicada no log da subida;
   - o tenant-a com o `Dynamics365` e a integração ligada
@@ -314,6 +314,11 @@ terminam com o `npm test` e o `npm run build`.
     `poll`, o `/info` dava `automaticIntegration: false`, e não havia painel, rebobinamento nem teste do D365.
   - **O que foi feito:** o usuário refez a entrada pela tela.
   - **Sem linha de log:** o host rodou sem o `Tee-Object`.
+
+  **Feito (2026-10-01).**
+  - **O host:** subiu às 11:52 com o código novo. A DLL do D365 em `bin` é das 11:51, já com a classificação do 11.10.
+  - **A integração:** ligada pela tela. O cursor avançou até 10:54 e buscou até 11:25.
+  - **Sem log em arquivo**, de novo.
 - [ ] 10.2 O painel, sem abrir o banco:
   1. como Admin, ver a última verificação e a marca;
   2. gravar um Client Secret errado do D365 pela tela;
@@ -323,7 +328,17 @@ terminam com o `npm test` e o `npm run build`.
      diz, antes da passada, de onde a primeira vai começar.
 
   Registrar os horários e as linhas do log
-- [ ] 10.3 O teste de credencial:
+
+  **Parcial (2026-10-01).** Sem log em arquivo; a evidência é do banco.
+  - **Os passos 1 a 3:** o cursor registrou 25 falhas seguidas com o erro do Entra ID, até 11:25, com o Tenant do Entra
+    ID com um caractere a mais. O usuário as viu no painel.
+  - **O passo 4:** com o Tenant corrigido e a integração religada, as falhas foram a 0, sem erro, na busca das 14:05:38.
+  - **O passo 5, não feito na tela:**
+    - a primeira metade (o `startFrom` com a marca de pé) deixou de valer com o 11.6: com marca, o ponto de partida não
+      aparece;
+    - a segunda (apagar o cursor e ver de onde a primeira busca começa) está provada só pelo teste da leitura do painel
+      (4.1) e pela lógica do componente.
+- [x] 10.3 O teste de credencial:
   - **os dois certos:** testar a Avalara (Sandbox) e o D365 com as credenciais certas dá "Funcionou";
   - **o segredo errado:**
     - com um segredo errado, dá "Não funcionou", com o motivo;
@@ -343,7 +358,13 @@ terminam com o `npm test` e o `npm run build`.
   - **O que o usuário pediu:** as mensagens eram longas demais, e viraram as curtas do grupo 11.
   - **O que não foi relatado:** o freio, a conferência na rede e a revogação no Entra ID. Ficam para a conferência do
     11.9
-- [ ] 10.4 O segredo mascarado:
+
+  **Fechado (2026-10-01), conferência visual do usuário:**
+  - **O freio:** visto na tela ("Novo teste disponível às 12:00"), que levou ao texto novo do aviso;
+  - **o resto:** o usuário confirmou as tarefas concluídas;
+  - **a revogação no Entra ID:** não foi relatada. O token novo fica provado pelos testes 7.5 (duas instâncias, dois
+    pedidos, e a do coletor intacta)
+- [x] 10.4 O segredo mascarado:
   - abrir Configurações com o segredo configurado, e ver a máscara e a data com o campo vazio;
   - salvar sem digitar;
   - conferir no log que o cofre não foi escrito, e que o teste de credencial continua dando "Funcionou"
@@ -353,7 +374,11 @@ terminam com o `npm test` e o `npm run build`.
     Sandbox continuou na versão de 2026-09-29T17:12:50Z. O salvar não tocou o cofre.
   - **A máscara, na tela:** não aparecia. O usuário viu o campo vazio, só com "configurado em". A causa e a correção
     estão na 11.3, e a conferência fica para o 11.9
-- [ ] 10.5 O rebobinamento:
+
+  **Fechado (2026-10-01):**
+  - **A máscara:** o usuário a viu na tela e pediu a cor do texto (11.11) e as 32 bolinhas (11.12);
+  - **o teste depois do salvar sem digitar:** deu "Credenciais e conexão válidas", pela conferência do usuário
+- [x] 10.5 O rebobinamento:
   - **pela tela:** rebobinar o tenant-a para uma data antes das notas da `brmf`. Conferir o texto da confirmação e
     confirmar;
   - **no log:**
@@ -363,10 +388,31 @@ terminam com o `npm test` e o `npm run build`.
     - as NF-e recusadas foram reenviadas;
     - as confirmadas, se houver, não foram;
     - as NFS-e voltaram a ser ignoradas
-- [ ] 10.6 Os módulos:
+
+  **Feito (2026-10-01, 14:05 local).** Sem log em arquivo; a evidência é do banco.
+  - **Pela tela:** o usuário buscou novamente desde 01/01/2015 e confirmou.
+  - **Na busca seguinte voltaram as 14 notas da `brmf`,** entre 14:05:41 e 14:05:50:
+    - as 5 NF-e foram reprocessadas e enviadas ao sandbox. Voltaram `IntegrationError`, com a recusa conhecida (6, 12 e 9
+      campos: `operacao`, `tipoPagamento`, `parceiro.Codigo`…);
+    - as 9 NFS-e voltaram a ser ignoradas.
+  - **O cursor:** a marca seguiu até 14:05:36, com 0 falhas.
+  - **As confirmadas:** a base tinha sido limpa antes, e não havia nenhuma, então "as confirmadas não foram reenviadas"
+    não se aplica.
+  - **O "0 suprimidas":** não se distingue aqui. O host reiniciou às 11:52, e o registro de publicações, em memória, já
+    estava vazio. A regra de regressão está provada pelo teste 5.5.
+- [x] 10.6 Os módulos:
   - com o tenant-a só com o Fiscal, a barra não mostra o Inventário, para o Admin e para o Viewer;
   - marcar o Inventário e salvar mostra o Inventário, com o painel reservado;
   - como Viewer, o `/groups` continua respondendo com o Fiscal desmarcado
+
+  **Feito (2026-09-30 e 10-01).**
+  - **No banco e na API:**
+    - os módulos gravados pela tela (`["Fiscal","Contabil","Inventario"]`);
+    - o `/info` com eles, para o Admin e para o Viewer;
+    - o Viewer com 200 no `/groups`, e 403 no painel, no teste e no rebobinamento.
+  - **O `/groups` com o Fiscal desmarcado:** a chamada foi feita com o Fiscal marcado. Os endpoints de documentos não
+    leem os módulos (D2), e a resposta não depende deles.
+  - **A barra lateral:** conferência visual do usuário, para o Admin e para o Viewer, sem linha de log.
 - [x] 10.7 Registrar a prova no STATUS, com as linhas do log, e o que foi só conferência visual do usuário, sem linha
   de log
 
@@ -442,7 +488,7 @@ conferência na tela fica para o 11.9.
   - **O tamanho:** continua fixo, e não conta os caracteres do segredo.
   - **Os testes:** o teste do payload procura a constante e os caracteres de máscara, e continua valendo. `npm test` e
     `npm run build` verdes
-- [ ] 11.9 Conferência na tela, com o host reiniciado no código novo (e, se possível, com `| Tee-Object -FilePath
+- [x] 11.9 Conferência na tela, com o host reiniciado no código novo (e, se possível, com `| Tee-Object -FilePath
   host-fatia4.log`):
   - **o teste de credencial:** as três mensagens curtas. O freio com "Corrija e salve para testar de novo, ou aguarde
     até…" no segundo clique. A linha
@@ -455,3 +501,8 @@ conferência na tela fica para o 11.9.
     - os textos novos;
   - **o rebobinamento:** "Buscar novamente desde", a confirmação curta, e a passada seguinte;
   - **o resto:** o 10.2, o 10.5 e o 10.6, que ainda não foram relatados
+
+  **Feito (2026-10-01), conferência visual do usuário:**
+  - as mensagens curtas, o aviso do freio, a máscara, a Avalara sem a URL do token, o painel ao ligar o interruptor e os
+    textos novos;
+  - a busca seguinte ao rebobinamento fica com o 10.5.

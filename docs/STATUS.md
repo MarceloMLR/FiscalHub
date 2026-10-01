@@ -898,23 +898,25 @@ O critério de saída é uma nota aceita.
   - **O freio:** fica no botão, por 5 minutos depois de uma recusa, e salvar o desfaz.
 - **A URL do token:** saiu da tela da Avalara.
 
-**Prova manual: parcial.** Não houve log em arquivo, porque o host rodou sem o `Tee-Object`.
+**Prova manual.** Não houve log em arquivo, porque o host rodou sem o `Tee-Object`. A evidência é do banco, da API e da
+conferência visual do usuário.
 
 - **Visto no banco e na API:**
   - a migração `AddConnectorProfileModules` aplicada;
   - os módulos gravados pela tela;
   - o `/info` com os módulos, para o Admin e para o Viewer;
   - o Viewer com 403 no painel, no teste e no rebobinamento, e 200 no `/groups`;
-  - o Client Secret do Sandbox intacto depois de um salvar sem digitar.
+  - o Client Secret do Sandbox intacto depois de um salvar sem digitar;
+  - as falhas do coletor zeradas, com o Tenant corrigido;
+  - buscar novamente desde 2015 trouxe de volta as 14 notas da `brmf`, com as 5 NF-e reenviadas ao sandbox (a recusa
+    conhecida) e as 9 NFS-e ignoradas.
 - **Conferência visual do usuário, sem linha de log:**
   - os testes de credencial do D365 e da Avalara, certos e errados;
   - a máscara;
   - a aparência do painel.
-- **Aberto na change:**
-  - o painel com o erro do coletor (10.2);
-  - o rebobinamento com a passada seguinte e as NF-e reenviadas (10.5);
-  - os módulos na barra, para o Admin e o Viewer (10.6);
-  - a conferência final da tela (11.9).
+- **Aberto na change:** só o passo 5 do 10.2, o painel sem marca, provado só por teste.
+- **Não distinguível pela tela:** o "0 suprimidas" depois do rebobinamento. O host tinha reiniciado, e o registro de
+  publicações já estava vazio. A regra está provada pelo teste 5.5.
 
 **Achados:**
 
