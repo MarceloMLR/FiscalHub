@@ -109,9 +109,12 @@ Antes de criar abstração nova, procure a porta/analógico que já existe (`gre
 
 O conector do ERP é um **hook fino e genérico**, propositalmente burro:
 
-- **16 data entities** OData com prefixo `FS` (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`,
-  `FSTaxTransBR`…) expõem a nota e seus cadastros. Públicas, somente leitura, sem Data Management.
-  Lista completa em `d365/README.md`.
+- **22 data entities** OData com prefixo `FS`, todas públicas, somente leitura e sem Data Management. A lista
+  completa está em `d365/README.md`.
+  - **16 fiscais** (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR`…): expõem a nota e os cadastros
+    dela.
+  - **6 do contábil e do inventário** (Partes II e III do `04`): o hub ainda não as lê. Contábil e Inventário são
+    fatias próprias (ADR-0031).
 - **Descoberta por polling** sobre a `FSFiscalDocumentBR` é a **garantia** (ADR-0023). O hub
   pergunta o que mudou; o ERP não precisa avisar.
 - **Business event** + **CoC** continuam previstos como **otimizador de latência opcional**, não
@@ -125,9 +128,14 @@ Princípios:
   "Deploy Models to Online Environment". Promoção estilo cliente = deployable package + o ALM
   do cliente (pipeline ou apply manual). **1 código → 1 build → N clientes.**
 
-Docs de referência: `d365/README.md` (índice), `d365/04-mapeamento-de-entidades.md` (o que ler de
-cada entidade), `d365/05-achados-de-metadata-e-ciclo-de-deploy.md` (armadilhas de metadata e o ciclo
-build → deploy → sync), `d365/glossario-x++-fno.md`.
+Docs de referência:
+
+- `d365/README.md`: o índice;
+- `d365/04-mapeamento-de-entidades.md`: o que ler de cada entidade;
+- `d365/05-achados-de-metadata-e-ciclo-de-deploy.md`: as armadilhas de metadata e o ciclo build → deploy → sync;
+- `d365/06-receita-criar-entidade-na-mao.md`: criar ou alterar uma entidade editando o XML;
+- `d365/07-como-decidir-quais-entidades-criar.md`: o método para decidir o que criar antes do XML;
+- `d365/glossario-x++-fno.md`.
 
 ---
 

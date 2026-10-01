@@ -437,7 +437,7 @@ resolve, saem do escopo.
 
 ## 8. Change tracking e data management
 
-**Estado atual (implementado e validado):** as 14 entidades estão com
+**Estado atual (implementado e validado):** as 22 entidades (as 16 fiscais e as 6 do contábil e do inventário) estão com
 `DataManagementEnabled = No` e **sem staging table** — ver `05`, seção 4. O cabeçalho expõe o campo
 de data como **`SysModifiedDateTime`** (alias de `ModifiedDateTime`, seguindo a convenção das
 entidades padrão da Microsoft); ver `05`, seção 5.

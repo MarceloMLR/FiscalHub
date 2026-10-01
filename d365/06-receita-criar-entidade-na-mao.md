@@ -121,7 +121,7 @@ sempre com nome proprio (`FiscalDocumentRecId`), nunca `RecId` puro.
 
 ## 5. A regra de ouro: copie uma fonte que ja funciona
 
-Antes de escrever uma fonte de dados nova, procure nas 16 entidades existentes uma que ja ligue
+Antes de escrever uma fonte de dados nova, procure nas 22 entidades existentes uma que ja ligue
 as mesmas tabelas, e **copie o bloco inteiro**. O `JoinRelationName` correto e a informacao mais
 dificil de adivinhar e a mais facil de copiar.
 
@@ -207,4 +207,4 @@ Invoke-WebRequest -Uri "https://fiscosysdev.operations.dynamics.com/data/FSFisca
 - `01-criar-e-publicar-data-entity.md` - o caminho pelo assistente do Visual Studio
 - `04-mapeamento-de-entidades.md` - o que cada entidade expoe e por que
 - `05-achados-de-metadata-e-ciclo-de-deploy.md` - os achados em detalhe, com os scripts de auditoria
-- `README.md` - as 16 entidades e o contrato de nome fixo
+- `README.md` - as 22 entidades e o contrato de nome fixo
