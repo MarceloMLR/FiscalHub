@@ -1,3 +1,5 @@
+using FiscalHub.Application.Connectors;
+
 namespace FiscalHub.Adapters.Outbound.Avalara;
 
 /// <summary>
@@ -18,6 +20,14 @@ internal interface IAvalaraTokenProvider
 
     /// <summary>Esquece a recusa lembrada e os tokens do tenant, em todos os ambientes. Chamado ao salvar o perfil.</summary>
     void Forget(string tenantId);
+
+    /// <summary>
+    /// O teste de credencial (change module-navigation-and-integration-panel, D10): troca um token NOVO, sem o cache e sem
+    /// a recusa lembrada, porque o botão responde "essa credencial funciona agora". Nunca lança pela plataforma: o
+    /// desfecho vem no veredito. O sucesso esquece a recusa e os tokens do tenant, como o salvar do perfil, e guarda o token
+    /// novo. A recusa fica lembrada para o envio.
+    /// </summary>
+    Task<CredentialTestOutcome> ProbeAsync(AvalaraOutboundSettings settings, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -69,4 +79,8 @@ internal sealed class NoOpAvalaraTokenProvider : IAvalaraTokenProvider
     public void Forget(string tenantId)
     {
     }
+
+    public Task<CredentialTestOutcome> ProbeAsync(AvalaraOutboundSettings settings, CancellationToken ct = default)
+        => Task.FromResult(new CredentialTestOutcome(CredentialTestVerdict.Incomplete,
+            "O adapter está composto sem autenticação (UseAvalaraWithoutAuthentication): não há credencial para testar."));
 }

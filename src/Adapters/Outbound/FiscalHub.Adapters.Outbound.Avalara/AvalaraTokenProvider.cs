@@ -116,6 +116,84 @@ internal sealed class AvalaraTokenProvider : IAvalaraTokenProvider
         }
     }
 
+    public async Task<CredentialTestOutcome> ProbeAsync(AvalaraOutboundSettings settings, CancellationToken ct = default)
+    {
+        string label = EnvironmentLabel(settings.Environment);
+        AvalaraResolvedCredential credential;
+        try
+        {
+            credential = await ResolveAsync(settings, ct);
+        }
+        catch (DispatchRejectedException ex)
+        {
+            // Sem URL, sem Client ID, sem o segredo no cofre: a credencial não está completa, e nenhuma requisição saiu.
+            return new CredentialTestOutcome(CredentialTestVerdict.Incomplete, ex.Reason);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new CredentialTestOutcome(CredentialTestVerdict.Unavailable,
+                "O cofre de segredos não respondeu agora, e o teste não chegou à plataforma. Tente de novo em instantes.");
+        }
+
+        CacheKey key = CacheKey.Of(credential);
+        SemaphoreSlim gate = _gates.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            // Sem o TryCached: nem o token em cache nem a recusa lembrada respondem pelo teste.
+            await FetchAsync(credential, key, ct);
+
+            // Funcionou: a recusa e os tokens do tenant são esquecidos, como no salvar do perfil. O token novo fica.
+            _cache.TryGetValue(key, out CachedToken? fresh);
+            Forget(credential.TenantId);
+            if (fresh is not null)
+            {
+                _cache[key] = fresh;
+            }
+
+            return new CredentialTestOutcome(CredentialTestVerdict.Worked, $"A plataforma emitiu um token novo para a credencial de {label}.");
+        }
+        catch (DispatchRejectedException ex)
+        {
+            // A recusa (400/401) já ficou lembrada para o envio pelo FetchAsync; o motivo já vem redigido.
+            return new CredentialTestOutcome(CredentialTestVerdict.Refused, ex.Reason);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is { } code)
+        {
+            // 400 e 401 já viraram recusa no FetchAsync. Dos outros, só 408, 429 e 5xx são indisponibilidade; um 404 ou 403
+            // é endereço ou ambiente errado.
+            int status = (int)code;
+            return status is 408 or 429 || status >= 500
+                ? new CredentialTestOutcome(CredentialTestVerdict.Unavailable,
+                    $"O endpoint de token de {label} não respondeu agora (HTTP {status}). Tente de novo em instantes.")
+                : new CredentialTestOutcome(CredentialTestVerdict.Refused,
+                    $"O endpoint de token de {label} respondeu HTTP {status}. Confira a URL base de {label}.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return NetworkFailure.Of(ex) == NetworkCause.HostNotFound
+                ? new CredentialTestOutcome(CredentialTestVerdict.Refused, $"O endereço da URL base de {label} não existe. Confira a URL.")
+                : new CredentialTestOutcome(CredentialTestVerdict.Unavailable,
+                    $"O endpoint de token de {label} não respondeu agora (sem resposta). Tente de novo em instantes.");
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return new CredentialTestOutcome(CredentialTestVerdict.Unavailable,
+                $"O endpoint de token de {label} não respondeu a tempo. Tente de novo em instantes.");
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private static string EnvironmentLabel(string environment) => environment switch
+    {
+        "sandbox" => "Sandbox",
+        "production" => "Produção",
+        _ => environment,
+    };
+
     // A credencial da seção e o segredo do cofre. Sem um ou outro, rejeição que aponta para a tela — e nenhum pedido.
     private async Task<AvalaraResolvedCredential> ResolveAsync(AvalaraOutboundSettings settings, CancellationToken ct)
     {

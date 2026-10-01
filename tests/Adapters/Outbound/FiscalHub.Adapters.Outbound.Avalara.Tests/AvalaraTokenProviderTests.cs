@@ -455,6 +455,168 @@ public class AvalaraTokenProviderTests
         Assert.False(cached.IsFresh);
     }
 
+    // ---------- ProbeAsync: o teste de credencial (change module-navigation-and-integration-panel, D10) ----------
+
+    [Fact]
+    public async Task Probe_asks_the_endpoint_even_with_a_valid_cached_token()
+    {
+        var h = new Harness();
+        await h.Provider.GetTokenAsync(h.Settings("tenant-a"));
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Worked, outcome.Verdict);
+        Assert.Equal(2, h.Endpoint.Calls);   // o cache não responde pelo teste
+    }
+
+    [Fact]
+    public async Task Probe_asks_the_endpoint_even_with_a_remembered_refusal_and_success_frees_the_dispatch()
+    {
+        var h = new Harness { Endpoint = { Status = HttpStatusCode.Unauthorized, Body = """{"error":"invalid_client"}""" } };
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-a")));
+        h.Endpoint.Status = HttpStatusCode.OK;   // a plataforma liberou o cliente
+        h.Endpoint.Body = null;
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+        AvalaraAccessToken dispatch = await h.Provider.GetTokenAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Worked, outcome.Verdict);
+        Assert.Equal(2, h.Endpoint.Calls);     // o envio seguinte não esperou o intervalo, e usou o token novo do teste
+        Assert.False(dispatch.IsFresh);
+    }
+
+    [Fact]
+    public async Task Successful_probe_forgets_the_refusals_of_the_tenant_in_every_environment()
+    {
+        var h = new Harness();
+        h.Endpoint.RefusedClientIds.Add("id-a-prod");
+        h.Secrets.Values["fh-tenant-a--outbound--production--clientsecret"] = "segredo-a-prod";
+        AvalaraOutboundSettings production = h.Settings("tenant-a", environment: "Production", clientId: "id-a-prod");
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(production));
+        h.Endpoint.RefusedClientIds.Clear();
+
+        await h.Provider.ProbeAsync(h.Settings("tenant-a"));   // o teste do Sandbox dá certo
+        await h.Provider.GetTokenAsync(production);
+
+        Assert.Equal(3, h.Endpoint.Calls);   // a recusa de Produção foi esquecida, como no salvar do perfil
+    }
+
+    [Fact]
+    public async Task Refused_probe_is_remembered_for_the_dispatch()
+    {
+        var h = new Harness { Endpoint = { Status = HttpStatusCode.BadRequest, Body = """{"error":"client_id invalid"}""" } };
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-a")));
+
+        Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
+        Assert.Contains("Confira o Client ID e o Client Secret", outcome.Reason);
+        Assert.Equal(1, h.Endpoint.Calls);   // o envio falhou com a recusa lembrada, sem pedir token
+    }
+
+    [Fact]
+    public async Task Probe_of_one_tenant_leaves_the_refusal_of_another()
+    {
+        var h = new Harness();
+        h.Endpoint.RefusedClientIds.Add("id-b");
+        h.Secrets.Values[SecretB] = "segredo-b";
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-b")));
+
+        await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-b")));
+
+        Assert.Equal(2, h.Endpoint.Calls);   // o tenant-b continua com a recusa lembrada
+    }
+
+    [Fact]
+    public async Task Refusal_that_echoes_the_secret_keeps_it_out_of_the_probe_reason()
+    {
+        var h = new Harness
+        {
+            Endpoint = { Status = HttpStatusCode.Unauthorized, Body = """{"error":"invalid_client","error_description":"client_secret segredo-a não confere"}""" },
+        };
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
+        Assert.DoesNotContain("segredo-a", outcome.Reason);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError, "HTTP 500")]
+    [InlineData(HttpStatusCode.TooManyRequests, "HTTP 429")]
+    public async Task Unavailable_endpoint_is_not_remembered(HttpStatusCode status, string expected)
+    {
+        var h = new Harness { Endpoint = { Status = status, Body = "fora do ar" } };
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+        await Assert.ThrowsAsync<HttpRequestException>(() => h.Provider.GetTokenAsync(h.Settings("tenant-a")));
+
+        Assert.Equal(CredentialTestVerdict.Unavailable, outcome.Verdict);
+        Assert.Contains(expected, outcome.Reason);
+        Assert.Equal(2, h.Endpoint.Calls);
+    }
+
+    // O endereço errado é ambiente inválido, e não indisponibilidade (prova manual, 2026-10-01).
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.MethodNotAllowed)]
+    public async Task Wrong_address_or_environment_is_refused(HttpStatusCode status)
+    {
+        var h = new Harness { Endpoint = { Status = status, Body = "nao encontrado" } };
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
+        Assert.Contains($"HTTP {(int)status}", outcome.Reason);
+    }
+
+    [Fact]
+    public async Task Host_that_does_not_exist_is_refused()
+    {
+        var h = new Harness { Endpoint = { Failure = new HttpRequestException(HttpRequestError.NameResolutionError, "No such host is known.") } };
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
+        Assert.Contains("não existe", outcome.Reason);
+    }
+
+    [Fact]
+    public async Task Connection_failure_is_unavailable()
+    {
+        var h = new Harness { Endpoint = { Failure = new HttpRequestException(HttpRequestError.ConnectionError, "Connection refused.") } };
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Unavailable, outcome.Verdict);
+    }
+
+    [Fact]
+    public async Task Success_without_a_token_is_refused()
+    {
+        var h = new Harness { Endpoint = { Body = """{"token_type":"Bearer","expires_in":3600}""" } };
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
+        Assert.Contains("respondeu sem token", outcome.Reason);
+    }
+
+    [Fact]
+    public async Task Missing_secret_is_incomplete_with_no_request()
+    {
+        var h = new Harness();
+        h.Secrets.Values.Remove(SecretA);
+
+        CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
+
+        Assert.Equal(CredentialTestVerdict.Incomplete, outcome.Verdict);
+        Assert.Contains("clientSecret", outcome.Reason);
+        Assert.Equal(0, h.Endpoint.Calls);
+    }
+
     // ---------- ToString ----------
 
     [Fact]
@@ -583,6 +745,9 @@ public class AvalaraTokenProviderTests
         /// <summary>Corpo fixo; sem ele, um token novo a cada pedido.</summary>
         public string? Body { get; set; }
 
+        /// <summary>Falha de transporte, lançada depois de registrar o pedido (ex.: host que não existe).</summary>
+        public Exception? Failure { get; set; }
+
         /// <summary>Clientes que o endpoint recusa com 401, qualquer que seja o <see cref="Status"/>.</summary>
         public HashSet<string> RefusedClientIds { get; } = [];
 
@@ -610,6 +775,11 @@ public class AvalaraTokenProviderTests
             if (Delay > TimeSpan.Zero)
             {
                 await Task.Delay(Delay, ct);
+            }
+
+            if (Failure is not null)
+            {
+                throw Failure;
             }
 
             if (recorded.Field("client_id") is { } clientId && RefusedClientIds.Contains(clientId))
