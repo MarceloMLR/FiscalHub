@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>FSCostCenterBR</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class FSCostCenterBR extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<CountryRegionCodes>BR</CountryRegionCodes>
+	<SubscriberAccessLevel>
+		<Read>Allow</Read>
+	</SubscriberAccessLevel>
+	<DataManagementEnabled>No</DataManagementEnabled>
+	<IsPublic>Yes</IsPublic>
+	<IsReadOnly>Yes</IsReadOnly>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>FSCostCenterBRs</PublicCollectionName>
+	<PublicEntityName>FSCostCenterBR</PublicEntityName>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CostCenterCode</Name>
+			<DataField>DimensionValue</DataField>
+			<DataSource>FinancialDimensionValueEntityView</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Description</Name>
+			<DataField>Description</DataField>
+			<DataSource>FinancialDimensionValueEntityView</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>CostCenterCode</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>BrazilParameters</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>BrazilParameters</Table>
+				<DataSources>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>DimensionAttribute</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>DimensionAttribute</Table>
+						<DataSources>
+							<AxQuerySimpleEmbeddedDataSource>
+								<Name>FinancialDimensionValueEntityView</Name>
+								<DynamicFields>Yes</DynamicFields>
+								<IsReadOnly>Yes</IsReadOnly>
+								<Table>FinancialDimensionValueEntityView</Table>
+								<DataSources />
+								<DerivedDataSources />
+								<Fields />
+								<Ranges />
+								<Relations>
+									<AxQuerySimpleDataSourceRelation>
+										<Name>QueryDataSourceRelation1</Name>
+										<Field>Name</Field>
+										<JoinDataSource>DimensionAttribute</JoinDataSource>
+										<RelatedField>DimensionAttribute</RelatedField>
+									</AxQuerySimpleDataSourceRelation>
+								</Relations>
+							</AxQuerySimpleEmbeddedDataSource>
+						</DataSources>
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>CostCenterDimensionAttribute</Field>
+								<JoinDataSource>BrazilParameters</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+				</DataSources>
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7f1a2c0-9d3e-4a6b-9e21-fiscalhub0d365",
     "name": "D365 F&O OData — FiscalHub",
-    "description": "Consulta de data entities do Dynamics 365 Finance & Operations via OData.\n\n- URL do ambiente em variável (`environmentUrl`).\n- Token do Entra ID (OAuth2 client_credentials) obtido AUTOMATICAMENTE por um pre-request script na collection e reaproveitado até expirar.\n- Requests prontos: $metadata, service document, query genérica por entidade, filtro por empresa (dataAreaId), $count, e exemplos das entidades do FiscalHub.\n\nAntes de usar: preencha `tenantId`, `clientId`, `clientSecret` e `environmentUrl` (no Environment 'FiscosysDev' ou nas variáveis da collection). Veja o README.md.",
+    "description": "Consulta de data entities do Dynamics 365 Finance & Operations via OData.\n\n- URL do ambiente em variável (`environmentUrl`).\n- Token do Entra ID (OAuth2 client_credentials) obtido AUTOMATICAMENTE por um pre-request script na collection e reaproveitado até expirar.\n- Pasta `OData`: requests genéricos ($metadata, service document, query por entidade, filtro por empresa, $count).\n- Pasta `FiscalHub — entidades (14)`: uma requisição por entidade custom do FiscalHub, com teste de HTTP 200 e formato OData. Rode a pasta inteira pelo Runner para o smoke test completo.\n- Pasta `FiscalHub — regressão`: testes de $count que travam defeitos já encontrados.\n- Pasta `FiscalHub — contábil (3)`: lançamentos, plano de contas e centro de custo, com teste de publicação e o aceite estrutural das junções.\n- Pasta `FiscalHub — inventário (3)`: saldo atual, movimentos e armazéns, com teste de publicação, aceite estrutural das junções e o saldo na data de corte por dois caminhos.\n\nAntes de usar: preencha `tenantId`, `clientId`, `clientSecret` e `environmentUrl` (no Environment 'FiscosysDev' ou nas variáveis da collection). Veja o README.md em d365/postman/.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -94,6 +94,14 @@
       "key": "company",
       "value": "brmf",
       "type": "string"
+    },
+    {
+      "key": "companySemCentroCusto",
+      "value": "usmf"
+    },
+    {
+      "key": "inventDataCorte",
+      "value": "2016-12-31"
     },
     {
       "key": "entityName",
@@ -188,7 +196,7 @@
           }
         }
       ],
-      "description": "Obtencao manual do token. Normalmente nao e necessario: o pre-request da collection ja faz automatico."
+      "description": "Obtenção manual do token. Normalmente não é necessário: o pre-request da collection já faz automático."
     },
     {
       "name": "OData",
@@ -351,11 +359,11 @@
           }
         }
       ],
-      "description": "Requests genericos do servico OData do F&O."
+      "description": "Requests genéricos do serviço OData do F&O."
     },
     {
       "name": "FiscalHub — entidades (14)",
-      "description": "Uma requisicao por entidade custom do FiscalHub. Cada uma valida HTTP 200 e formato OData, e loga a quantidade de linhas no console.\n\nRode a pasta inteira pelo Runner para ter o smoke test completo das 14 entidades.",
+      "description": "Uma requisição por entidade custom do pacote FiscalHubIntegration. Cada uma valida HTTP 200 e formato OData, e loga a quantidade de linhas no console.\n\nRode a pasta inteira pelo Runner (Run folder) para o smoke test completo das 14 entidades.",
       "item": [
         {
           "name": "FSFiscalDocumentBRs",
@@ -866,10 +874,10 @@
     },
     {
       "name": "FiscalHub — regressão",
-      "description": "Testes que travam defeitos ja encontrados. Se algum falhar, houve regressao na metadata da entidade.",
+      "description": "Testes que travam defeitos já encontrados. Se algum falhar, houve regressão na metadata da entidade.",
       "item": [
         {
-          "name": "Cabecalho nao pode vir vazio ($count > 0)",
+          "name": "Cabeçalho não pode vir vazio ($count > 0)",
           "request": {
             "method": "GET",
             "header": [
@@ -900,7 +908,7 @@
           "response": []
         },
         {
-          "name": "Linhas nao podem vir vazias ($count > 0)",
+          "name": "Linhas não podem vir vazias ($count > 0)",
           "request": {
             "method": "GET",
             "header": [
@@ -940,7 +948,7 @@
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "",
               "// $count volta texto puro e o F&O manda com BOM na frente",
-              "const bruto = String(pm.response.text()).replace(/^\\uFEFF/, '').trim();",
+              "const bruto = String(pm.response.text()).trim(); // trim() remove o BOM (U+FEFF conta como espaco no JS)",
               "const n = Number(bruto);",
               "console.log('[FiscalHub] ' + pm.info.requestName + ' -> $count = ' + bruto);",
               "",
@@ -951,6 +959,1836 @@
               "pm.test('Tem pelo menos 1 registro', function () {",
               "  pm.expect(n, 'entidade zerada - confira o JoinMode dos data sources aninhados na entidade').to.be.above(0);",
               "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FiscalHub — contábil (3)",
+      "description": "As tres entidades do modulo contabil (d365/04, Parte II): FSGeneralJournalLineBR, FSMainAccountBR e FSCostCenterBR.\n\nRode a pasta inteira pelo Runner, na ordem: os requests de contagem guardam variaveis usadas pelos de aceite.\n\n- Publicacao: as tres no service document.\n- Cada subpasta: smoke test (campos expostos) e o aceite estrutural do d365/04, secao 17 (contagem igual a raiz, chave unica, lancamento fecha, juncoes externas resolvem, arvore fechada, empresa sem parametro devolve 0).\n\nFiltro por empresa: DataArea nas entidades de lancamento e de plano de contas (tabelas compartilhadas), dataAreaId no centro de custo. As contagens de raiz usam entidades padrao da Microsoft (GeneralJournalAccountEntryBiEntities, Ledgers, MainAccounts, BrazilParameters, FinancialDimensionValues).",
+      "item": [
+        {
+          "name": "Publicação — as 3 estão no service document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data"
+              ]
+            },
+            "description": "Confere se as tres entidades contabeis aparecem na lista de entity sets do OData. Se faltar alguma, o build, o deploy ou o sync nao chegou ao ambiente: o sync sozinho nao publica entidade nova."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "const nomes = rows.map(r => r.name);",
+                  "['FSGeneralJournalLineBRs', 'FSMainAccountBRs', 'FSCostCenterBRs'].forEach(function (e) {",
+                  "  pm.test(e + ' publicada', () => pm.expect(nomes, e + ' nao esta no service document: faca build, deploy e sync do FiscalHubIntegration').to.include(e));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lançamentos",
+          "description": "FSGeneralJournalLineBR: linha de lancamento com o cabecalho achatado (GeneralJournalAccountEntry -> GeneralJournalEntry -> Ledger -> CompanyInfo). A empresa e o campo DataArea, nao dataAreaId.",
+          "item": [
+            {
+              "name": "FSGeneralJournalLineBRs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSGeneralJournalLineBRs?cross-company=true&$top={{top}}",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSGeneralJournalLineBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$top",
+                      "value": "{{top}}"
+                    }
+                  ]
+                },
+                "description": "Smoke test: responde, formato OData e os 12 campos da decisao (d365/04, 15.1)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                      "console.log('[Contabil] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                      "const esperados = [\"GeneralJournalAccountEntryRecId\",\"GeneralJournalEntryRecId\",\"JournalNumber\",\"SubledgerVoucher\",\"AccountingDate\",\"PostingLayer\",\"FiscalPeriodType\",\"IsAccountingClosing\",\"MainAccountId\",\"AccountingCurrencyAmount\",\"Description\",\"DataArea\"];",
+                      "pm.test('Campos expostos pela entidade', function () {",
+                      "  if (rows.length === 0) { console.warn('[Contabil] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                      "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                      "  pm.expect(faltando, 'campos ausentes (AccessModifier Private ou mapeamento errado): ' + faltando.join(', ')).to.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: entidade (todas as empresas)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSGeneralJournalLineBRs/$count?cross-company=true",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSGeneralJournalLineBRs",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    }
+                  ]
+                },
+                "description": "Guarda a contagem da entidade em todas as empresas para comparar com a tabela raiz no proximo request."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('contabilLinhasEntidade');",
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "pm.collectionVariables.set('contabilLinhasEntidade', String(n));",
+                      "console.log('[Contabil] FSGeneralJournalLineBRs $count = ' + n);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: raiz GeneralJournalAccountEntry (todas as empresas)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/GeneralJournalAccountEntryBiEntities/$count?cross-company=true",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "GeneralJournalAccountEntryBiEntities",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    }
+                  ]
+                },
+                "description": "A tabela raiz pela projecao padrao da Microsoft. A entidade tem de contar o mesmo: a mais, alguma juncao multiplicou linha; a menos, uma juncao interna (Ledger ou CompanyInfo) cortou linha."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "const ent = Number(pm.collectionVariables.get('contabilLinhasEntidade'));",
+                      "console.log('[Contabil] raiz = ' + n + ' | entidade = ' + ent);",
+                      "pm.test('Entidade conta o mesmo que a raiz', function () {",
+                      "  pm.expect(Number.isFinite(ent), 'a contagem da entidade nao veio: rode o request anterior e confira se a entidade esta publicada').to.be.true;",
+                      "  pm.expect(ent, ent > n ? 'entidade tem MAIS linhas: juncao multiplicando' : 'entidade tem MENOS linhas: juncao interna cortando').to.equal(n);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Aceite da empresa: chave, lançamento fecha, externas",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSGeneralJournalLineBRs?cross-company=true&$filter=DataArea eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSGeneralJournalLineBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "DataArea eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "Le todas as linhas da empresa e confere o que prova a juncao, valha o dado de teste o que valer: RecId unico, cada lancamento (GeneralJournalEntryRecId) soma zero, e as juncoes externas (conta e periodo) resolvem em todas as linhas."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('contabilContasUsadas');",
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize ou filtre por periodo').to.be.undefined);",
+                      "console.log('[Contabil] linhas da empresa ' + pm.variables.get('company') + ': ' + rows.length);",
+                      "pm.test('Empresa tem lancamento', () => pm.expect(rows.length, 'nenhuma linha para a empresa: confira a variavel company e o filtro DataArea').to.be.above(0));",
+                      "const ids = new Set(rows.map(r => r.GeneralJournalAccountEntryRecId));",
+                      "pm.test('Chave unica (GeneralJournalAccountEntryRecId)', () => pm.expect(ids.size, (rows.length - ids.size) + ' linhas repetidas: juncao multiplicando').to.equal(rows.length));",
+                      "const soma = {};",
+                      "rows.forEach(r => { soma[r.GeneralJournalEntryRecId] = (soma[r.GeneralJournalEntryRecId] || 0) + Number(r.AccountingCurrencyAmount); });",
+                      "const abertos = Object.keys(soma).filter(k => Math.abs(soma[k]) > 0.005);",
+                      "console.log('[Contabil] lancamentos (cabecalhos): ' + Object.keys(soma).length);",
+                      "pm.test('Cada lancamento soma zero', () => pm.expect(abertos, abertos.length + ' lancamentos desequilibrados (linha perdida ou duplicada): ' + abertos.slice(0, 5).join(', ')).to.be.empty);",
+                      "const semConta = rows.filter(r => !r.MainAccountId).length;",
+                      "const semPeriodo = rows.filter(r => !r.FiscalPeriodType).length;",
+                      "pm.test('Juncao com MainAccount resolve em todas as linhas', () => pm.expect(semConta, semConta + ' linhas sem MainAccountId').to.equal(0));",
+                      "pm.test('Juncao com FiscalCalendarPeriod resolve em todas as linhas', () => pm.expect(semPeriodo, semPeriodo + ' linhas sem FiscalPeriodType').to.equal(0));",
+                      "const dist = {};",
+                      "rows.forEach(r => { dist[r.FiscalPeriodType] = (dist[r.FiscalPeriodType] || 0) + 1; });",
+                      "console.log('[Contabil] FiscalPeriodType: ' + JSON.stringify(dist));",
+                      "pm.collectionVariables.set('contabilContasUsadas', JSON.stringify(Array.from(new Set(rows.map(r => r.MainAccountId)))));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Plano de contas",
+          "description": "FSMainAccountBR: plano de contas da empresa (MainAccount -> LedgerChartOfAccounts -> Ledger -> CompanyInfo), com a superior pela autojuncao ParentMainAccount. A empresa e o campo DataArea.",
+          "item": [
+            {
+              "name": "FSMainAccountBRs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSMainAccountBRs?cross-company=true&$top={{top}}",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSMainAccountBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$top",
+                      "value": "{{top}}"
+                    }
+                  ]
+                },
+                "description": "Smoke test: responde, formato OData e os 7 campos da decisao (d365/04, 15.2)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                      "console.log('[Contabil] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                      "const esperados = [\"MainAccountRecId\",\"MainAccountId\",\"Name\",\"MainAccountType\",\"ParentMainAccountId\",\"NatureCode\",\"DataArea\"];",
+                      "pm.test('Campos expostos pela entidade', function () {",
+                      "  if (rows.length === 0) { console.warn('[Contabil] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                      "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                      "  pm.expect(faltando, 'campos ausentes (AccessModifier Private ou mapeamento errado): ' + faltando.join(', ')).to.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Plano da empresa (Ledgers)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/Ledgers?$filter=LegalEntityId eq '{{company}}'&$select=LegalEntityId,ChartOfAccounts",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "Ledgers"
+                  ],
+                  "query": [
+                    {
+                      "key": "$filter",
+                      "value": "LegalEntityId eq '{{company}}'"
+                    },
+                    {
+                      "key": "$select",
+                      "value": "LegalEntityId,ChartOfAccounts"
+                    }
+                  ]
+                },
+                "description": "Descobre qual plano de contas o razao da empresa usa, para contar a raiz no proximo request."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('contabilPlanoDeContas');",
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Empresa tem um razao', () => pm.expect(rows.length, 'nenhum razao para a empresa').to.equal(1));",
+                      "const plano = rows.length ? rows[0].ChartOfAccounts : '';",
+                      "pm.collectionVariables.set('contabilPlanoDeContas', plano);",
+                      "console.log('[Contabil] plano de contas de ' + pm.variables.get('company') + ': ' + plano);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: raiz MainAccounts do plano",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/MainAccounts/$count?$filter=ChartOfAccounts eq '{{contabilPlanoDeContas}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "MainAccounts",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "$filter",
+                      "value": "ChartOfAccounts eq '{{contabilPlanoDeContas}}'"
+                    }
+                  ]
+                },
+                "description": "Contas do plano da empresa pela entidade padrao. A FSMainAccountBR filtrada pela empresa tem de dar o mesmo numero."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('contabilContasRaiz');",
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "pm.collectionVariables.set('contabilContasRaiz', String(n));",
+                      "console.log('[Contabil] MainAccounts do plano ' + pm.collectionVariables.get('contabilPlanoDeContas') + ' = ' + n);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Aceite da empresa: contagem, chave e árvore",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSMainAccountBRs?cross-company=true&$filter=DataArea eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSMainAccountBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "DataArea eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "A juncao conta -> plano -> razao -> empresa devolve exatamente o plano da empresa, sem repetir conta; toda superior existe no mesmo resultado; toda conta usada nos lancamentos existe no plano."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize ou filtre por periodo').to.be.undefined);",
+                      "const raiz = Number(pm.collectionVariables.get('contabilContasRaiz'));",
+                      "console.log('[Contabil] contas da empresa: ' + rows.length + ' | raiz: ' + raiz);",
+                      "pm.test('Conta o mesmo que o plano da empresa', function () {",
+                      "  pm.expect(Number.isFinite(raiz), 'a contagem da raiz nao veio: rode os requests anteriores da pasta').to.be.true;",
+                      "  pm.expect(rows.length, rows.length > raiz ? 'MAIS contas: juncao com o razao multiplicando' : 'MENOS contas: juncao interna cortando').to.equal(raiz);",
+                      "});",
+                      "const ids = new Set(rows.map(r => r.MainAccountId));",
+                      "pm.test('Chave unica na empresa (MainAccountId)', () => pm.expect(ids.size, (rows.length - ids.size) + ' contas repetidas').to.equal(rows.length));",
+                      "const orfas = rows.filter(r => r.ParentMainAccountId && !ids.has(r.ParentMainAccountId)).map(r => r.MainAccountId);",
+                      "console.log('[Contabil] contas com superior: ' + rows.filter(r => r.ParentMainAccountId).length);",
+                      "pm.test('Arvore fechada (toda superior existe)', () => pm.expect(orfas, 'superiores fora do resultado: ' + orfas.slice(0, 5).join(', ')).to.be.empty);",
+                      "const usadas = JSON.parse(pm.collectionVariables.get('contabilContasUsadas') || '[]');",
+                      "if (usadas.length === 0) { console.warn('[Contabil] rode antes a pasta Lancamentos para conferir as contas usadas'); }",
+                      "const fora = usadas.filter(c => !ids.has(c));",
+                      "pm.test('Contas dos lancamentos existem no plano', () => pm.expect(fora, 'contas usadas fora do plano: ' + fora.slice(0, 5).join(', ')).to.be.empty);"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Centro de custo",
+          "description": "FSCostCenterBR: valores da dimensao que a empresa declara como centro de custo nos Parametros do Brasil (BrazilParameters -> DimensionAttribute -> FinancialDimensionValueEntityView). A empresa e o campo dataAreaId.",
+          "item": [
+            {
+              "name": "FSCostCenterBRs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSCostCenterBRs?cross-company=true&$top={{top}}",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSCostCenterBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$top",
+                      "value": "{{top}}"
+                    }
+                  ]
+                },
+                "description": "Smoke test: responde, formato OData e os 2 campos da decisao (d365/04, 15.3)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                      "console.log('[Contabil] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                      "const esperados = [\"CostCenterCode\",\"Description\"];",
+                      "pm.test('Campos expostos pela entidade', function () {",
+                      "  if (rows.length === 0) { console.warn('[Contabil] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                      "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                      "  pm.expect(faltando, 'campos ausentes (AccessModifier Private ou mapeamento errado): ' + faltando.join(', ')).to.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Dimensão declarada (BrazilParameters)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/BrazilParameters?cross-company=true&$filter=dataAreaId eq '{{company}}'&$select=dataAreaId,FinancialDimensionForCostCenter",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "BrazilParameters"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    },
+                    {
+                      "key": "$select",
+                      "value": "dataAreaId,FinancialDimensionForCostCenter"
+                    }
+                  ]
+                },
+                "description": "Qual dimensao financeira a empresa declara como centro de custo."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('contabilDimensaoCentroCusto');",
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "const dim = rows.length ? (rows[0].FinancialDimensionForCostCenter || '') : '';",
+                      "pm.collectionVariables.set('contabilDimensaoCentroCusto', dim);",
+                      "console.log('[Contabil] dimensao de centro de custo de ' + pm.variables.get('company') + ': ' + (dim || '(vazia)'));",
+                      "pm.test('Empresa declara a dimensao de centro de custo', () => pm.expect(dim, 'Parametros do Brasil sem dimensao de centro de custo para ' + pm.variables.get('company') + '').to.not.be.empty);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: raiz valores da dimensão",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FinancialDimensionValues/$count?cross-company=true&$filter=FinancialDimension eq '{{contabilDimensaoCentroCusto}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FinancialDimensionValues",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "FinancialDimension eq '{{contabilDimensaoCentroCusto}}'"
+                    }
+                  ]
+                },
+                "description": "Valores da dimensao pela entidade padrao. A FSCostCenterBR da empresa tem de dar o mesmo numero."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('contabilCentrosRaiz');",
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "pm.collectionVariables.set('contabilCentrosRaiz', String(n));",
+                      "console.log('[Contabil] valores da dimensao = ' + n);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Aceite da empresa: contagem e chave",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSCostCenterBRs?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSCostCenterBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "A juncao parametro -> dimensao -> valores devolve os mesmos valores da entidade padrao, sem repetir codigo."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "const raiz = Number(pm.collectionVariables.get('contabilCentrosRaiz'));",
+                      "console.log('[Contabil] centros de custo da empresa: ' + rows.length + ' | raiz: ' + raiz);",
+                      "pm.test('Conta o mesmo que os valores da dimensao', function () {",
+                      "  pm.expect(Number.isFinite(raiz), 'a contagem da raiz nao veio: rode os requests anteriores da pasta').to.be.true;",
+                      "  pm.expect(rows.length).to.equal(raiz);",
+                      "});",
+                      "const cods = new Set(rows.map(r => r.CostCenterCode));",
+                      "pm.test('Chave unica (CostCenterCode)', () => pm.expect(cods.size, (rows.length - cods.size) + ' codigos repetidos').to.equal(rows.length));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Empresa sem dimensão declarada devolve 0",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSCostCenterBRs/$count?cross-company=true&$filter=dataAreaId eq '{{companySemCentroCusto}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSCostCenterBRs",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{companySemCentroCusto}}'"
+                    }
+                  ]
+                },
+                "description": "Empresa sem dimensao de centro de custo nos Parametros do Brasil nao tem centro de custo. Se vier valor, a juncao pelo parametro nao esta filtrando por empresa."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Contabil] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "console.log('[Contabil] centros de custo de ' + pm.variables.get('companySemCentroCusto') + ' = ' + n);",
+                      "pm.test('Nenhum centro de custo', () => pm.expect(n, 'a juncao pelos Parametros do Brasil nao filtrou por empresa').to.equal(0));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Vale para todos os requests desta pasta",
+              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscalHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
+              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FSFiscalHubIntegration com os privilegios contabeis').to.not.include(pm.response.code));",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "FiscalHub — inventário (3)",
+      "description": "As tres entidades do inventario (d365/04, Parte III): FSInventOnHandBR, FSInventTransBR e FSInventLocationBR, mais os dois campos novos da FSItemBR.\n\nRode a pasta inteira pelo Runner, na ordem: Armazens, Saldo atual e Movimentos guardam variaveis que os aceites seguintes usam.\n\n- Publicacao: as tres no service document.\n- Cada subpasta: smoke test (campos expostos) e o aceite estrutural do d365/04, secao 24 (contagem igual a raiz, chave unica, juncoes resolvem).\n- Saldo na data: saldo atual menos os movimentos depois de inventDataCorte tem de dar o mesmo que o historico ate a data, por site e item.\n\nFiltro por empresa: dataAreaId nas tres. As contagens de raiz usam entidades padrao da Microsoft (InventLocationBiEntities, InventoryOnHandForAI, InventTransBiEntities, InventTableBiEntities).",
+      "item": [
+        {
+          "name": "Publicação — as 3 estão no service document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data"
+              ]
+            },
+            "description": "Confere se as tres entidades de inventario aparecem na lista de entity sets do OData. Se faltar alguma, o build, o deploy ou o sync nao chegou ao ambiente: o sync sozinho nao publica entidade nova."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "const nomes = rows.map(r => r.name);",
+                  "['FSInventOnHandBRs', 'FSInventTransBRs', 'FSInventLocationBRs'].forEach(function (e) {",
+                  "  pm.test(e + ' publicada', () => pm.expect(nomes, e + ' nao esta no service document: faca build, deploy e sync do FiscalHubIntegration').to.include(e));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Armazéns",
+          "description": "FSInventLocationBR: armazem -> site -> estabelecimento fiscal (FiscalEstablishmentInventSite_BR, externa), mais a propriedade do estoque (InventCountingGroup) e o terceiro (CustAccount, VendAccount). Rode antes de Saldo atual e Movimentos: o aceite deles confere os armazens guardados aqui.",
+          "item": [
+            {
+              "name": "FSInventLocationBRs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventLocationBRs?cross-company=true&$top={{top}}",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventLocationBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$top",
+                      "value": "{{top}}"
+                    }
+                  ]
+                },
+                "description": "Smoke test: responde, formato OData e os 8 campos da decisao (d365/04, 22.3)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                      "console.log('[Inventario] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                      "const esperados = [\"InventLocationId\",\"Name\",\"InventSiteId\",\"InventLocationType\",\"FiscalEstablishmentId\",\"InventCountingGroup\",\"CustAccount\",\"VendAccount\"];",
+                      "pm.test('Campos expostos pela entidade', function () {",
+                      "  if (rows.length === 0) { console.warn('[Inventario] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                      "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                      "  pm.expect(faltando, 'campos ausentes (AccessModifier Private ou mapeamento errado): ' + faltando.join(', ')).to.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: entidade da empresa",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventLocationBRs/$count?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventLocationBRs",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "Guarda a contagem da entidade na empresa para comparar com a tabela raiz no proximo request."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('inventArmazensEntidade');",
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "pm.collectionVariables.set('inventArmazensEntidade', String(n));",
+                      "console.log('[Inventario] FSInventLocationBRs $count = ' + n);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: raiz InventLocation da empresa",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/InventLocationBiEntities/$count?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "InventLocationBiEntities",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "A tabela raiz pela projecao padrao da Microsoft. As duas juncoes sao externas: a entidade tem de contar o mesmo."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "const ent = Number(pm.collectionVariables.get('inventArmazensEntidade'));",
+                      "console.log('[Inventario] raiz = ' + n + ' | entidade = ' + ent);",
+                      "pm.test('Entidade conta o mesmo que a raiz', function () {",
+                      "  pm.expect(Number.isFinite(ent), 'a contagem da entidade nao veio: rode o request anterior e confira se a entidade esta publicada').to.be.true;",
+                      "  pm.expect(ent, ent > n ? 'entidade tem MAIS linhas: juncao multiplicando' : 'entidade tem MENOS linhas: juncao interna cortando').to.equal(n);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Aceite da empresa: chave, estabelecimento e propriedade",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventLocationBRs?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventLocationBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "Le os armazens da empresa: InventLocationId unico e todo armazem com estabelecimento fiscal. Guarda a lista para o aceite de Saldo atual e Movimentos."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('inventArmazens');",
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize').to.be.undefined);",
+                      "console.log('[Inventario] armazens da empresa ' + pm.variables.get('company') + ': ' + rows.length);",
+                      "pm.test('Empresa tem armazem', () => pm.expect(rows.length, 'nenhum armazem: confira a variavel company').to.be.above(0));",
+                      "const ids = new Set(rows.map(r => r.InventLocationId));",
+                      "pm.test('Chave unica (InventLocationId)', () => pm.expect(ids.size, (rows.length - ids.size) + ' linhas repetidas: juncao multiplicando').to.equal(rows.length));",
+                      "const semEstab = rows.filter(r => !r.FiscalEstablishmentId).map(r => r.InventLocationId);",
+                      "pm.test('Todo armazem tem estabelecimento fiscal', () => pm.expect(semEstab, 'armazem sem estabelecimento (site sem vinculo em Estabelecimentos fiscais): ' + semEstab.join(', ')).to.be.empty);",
+                      "const dist = {};",
+                      "rows.forEach(r => { const k = r.InventCountingGroup + (r.InventLocationType === 'Transit' ? ' (transito)' : ''); dist[k] = (dist[k] || 0) + 1; });",
+                      "console.log('[Inventario] propriedade dos armazens: ' + JSON.stringify(dist));",
+                      "rows.filter(r => r.CustAccount || r.VendAccount).forEach(r => console.log('[Inventario] armazem de terceiro: ' + r.InventLocationId + ' ' + r.InventCountingGroup + ' ' + (r.CustAccount || r.VendAccount)));",
+                      "pm.collectionVariables.set('inventArmazens', JSON.stringify(Array.from(ids)));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Saldo atual",
+          "description": "FSInventOnHandBR: a InventSum, sem juncao, com site e armazem desnormalizados. E o ponto de partida do saldo na data (d365/04, 22.1).",
+          "item": [
+            {
+              "name": "FSInventOnHandBRs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventOnHandBRs?cross-company=true&$top={{top}}",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventOnHandBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$top",
+                      "value": "{{top}}"
+                    }
+                  ]
+                },
+                "description": "Smoke test: responde, formato OData e os 12 campos da decisao (d365/04, 22.1)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                      "console.log('[Inventario] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                      "const esperados = [\"ItemId\",\"InventDimId\",\"InventSiteId\",\"InventLocationId\",\"PostedQty\",\"PostedValue\",\"Received\",\"Deducted\",\"Registered\",\"Picked\",\"PhysicalValue\",\"Closed\"];",
+                      "pm.test('Campos expostos pela entidade', function () {",
+                      "  if (rows.length === 0) { console.warn('[Inventario] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                      "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                      "  pm.expect(faltando, 'campos ausentes (AccessModifier Private ou mapeamento errado): ' + faltando.join(', ')).to.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: entidade da empresa",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventOnHandBRs/$count?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventOnHandBRs",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "Guarda a contagem da entidade na empresa para comparar com a tabela raiz no proximo request."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('inventSaldoEntidade');",
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "pm.collectionVariables.set('inventSaldoEntidade', String(n));",
+                      "console.log('[Inventario] FSInventOnHandBRs $count = ' + n);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: raiz InventSum da empresa",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/InventoryOnHandForAI/$count?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "InventoryOnHandForAI",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "A InventoryOnHandForAI e a InventSum sem filtro nem juncao. A entidade tem de contar o mesmo."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "const ent = Number(pm.collectionVariables.get('inventSaldoEntidade'));",
+                      "console.log('[Inventario] raiz = ' + n + ' | entidade = ' + ent);",
+                      "pm.test('Entidade conta o mesmo que a raiz', function () {",
+                      "  pm.expect(Number.isFinite(ent), 'a contagem da entidade nao veio: rode o request anterior e confira se a entidade esta publicada').to.be.true;",
+                      "  pm.expect(ent, ent > n ? 'entidade tem MAIS linhas: juncao multiplicando' : 'entidade tem MENOS linhas: juncao interna cortando').to.equal(n);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Aceite da empresa: chave, site e armazém",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventOnHandBRs?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventOnHandBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "Le o saldo atual da empresa: ItemId + InventDimId unico, toda linha com site e todo armazem cadastrado. Guarda o saldo financeiro por site e item, para o saldo na data, e o fisico por armazem e item, para comparar com a WarehousesOnHandV2."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('inventSaldoMapa');",
+                      "pm.collectionVariables.unset('inventFisicoArmazem');",
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize').to.be.undefined);",
+                      "console.log('[Inventario] linhas de saldo da empresa ' + pm.variables.get('company') + ': ' + rows.length);",
+                      "const chaves = new Set(rows.map(r => r.ItemId + '|' + r.InventDimId));",
+                      "pm.test('Chave unica (ItemId + InventDimId)', () => pm.expect(chaves.size, (rows.length - chaves.size) + ' linhas repetidas').to.equal(rows.length));",
+                      "const semSite = rows.filter(r => !r.InventSiteId).length;",
+                      "pm.test('Toda linha tem site', () => pm.expect(semSite, semSite + ' linhas sem site').to.equal(0));",
+                      "const armazens = JSON.parse(pm.collectionVariables.get('inventArmazens') || '[]');",
+                      "const fora = Array.from(new Set(rows.filter(r => r.InventLocationId && !armazens.includes(r.InventLocationId)).map(r => r.InventLocationId)));",
+                      "pm.test('Todo armazem do saldo esta na FSInventLocationBRs', function () {",
+                      "  pm.expect(armazens.length, 'a lista de armazens nao veio: rode a pasta Armazens antes').to.be.above(0);",
+                      "  pm.expect(fora, 'armazens fora da FSInventLocationBRs: ' + fora.join(', ')).to.be.empty;",
+                      "});",
+                      "const mapa = {}, fisico = {};",
+                      "rows.forEach(r => {",
+                      "  const k = r.InventSiteId + '|' + r.ItemId;",
+                      "  mapa[k] = mapa[k] || { q: 0, v: 0 }; mapa[k].q += Number(r.PostedQty); mapa[k].v += Number(r.PostedValue);",
+                      "  const a = r.InventLocationId + '|' + r.ItemId;",
+                      "  fisico[a] = (fisico[a] || 0) + Number(r.PostedQty) + Number(r.Received) - Number(r.Deducted) + Number(r.Registered) - Number(r.Picked);",
+                      "});",
+                      "pm.collectionVariables.set('inventSaldoMapa', JSON.stringify(mapa));",
+                      "pm.collectionVariables.set('inventFisicoArmazem', JSON.stringify(fisico));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Saldo de hoje bate com a WarehousesOnHandV2",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/WarehousesOnHandV2?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "WarehousesOnHandV2"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "A entidade padrao de estoque por armazem calcula a quantidade fisica da mesma InventSum. A soma PostedQty + Received - Deducted + Registered - Picked da FSInventOnHandBRs tem de bater em cada armazem e item."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize').to.be.undefined);",
+                      "const fisico = JSON.parse(pm.collectionVariables.get('inventFisicoArmazem') || '{}');",
+                      "const padrao = {};",
+                      "rows.forEach(r => { const k = r.InventoryWarehouseId + '|' + r.ItemNumber; padrao[k] = (padrao[k] || 0) + Number(r.OnHandQuantity); });",
+                      "const diverge = Object.keys(padrao).filter(k => Math.abs(padrao[k] - (fisico[k] || 0)) > 0.000001).map(k => k + ' padrao=' + padrao[k] + ' FS=' + (fisico[k] || 0));",
+                      "console.log('[Inventario] armazem x item na WarehousesOnHandV2: ' + Object.keys(padrao).length);",
+                      "pm.test('Quantidade fisica igual por armazem e item', function () {",
+                      "  pm.expect(Object.keys(fisico).length, 'o saldo da FSInventOnHandBRs nao veio: rode o aceite do Saldo atual antes').to.be.above(0);",
+                      "  pm.expect(diverge, 'divergencias: ' + diverge.slice(0, 5).join('; ')).to.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Movimentos",
+          "description": "FSInventTransBR: InventTrans -> InventDim (site e armazem) -> InventTransOrigin (referencia). A carga do hub le so os movimentos depois da data de corte e desfaz do saldo atual (d365/04, 22.2). A data vem no OData as 12:00Z: o filtro usa ge na data de corte e o script descarta o proprio dia.",
+          "item": [
+            {
+              "name": "FSInventTransBRs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventTransBRs?cross-company=true&$top={{top}}",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventTransBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$top",
+                      "value": "{{top}}"
+                    }
+                  ]
+                },
+                "description": "Smoke test: responde, formato OData e os 15 campos da decisao (d365/04, 22.2)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                      "console.log('[Inventario] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                      "const esperados = [\"InventTransRecId\",\"ItemId\",\"InventSiteId\",\"InventLocationId\",\"Qty\",\"StatusReceipt\",\"StatusIssue\",\"DatePhysical\",\"DateFinancial\",\"CostAmountPosted\",\"CostAmountAdjustment\",\"CostAmountPhysical\",\"PackingSlipReturned\",\"ReferenceCategory\",\"ReferenceId\"];",
+                      "pm.test('Campos expostos pela entidade', function () {",
+                      "  if (rows.length === 0) { console.warn('[Inventario] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                      "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                      "  pm.expect(faltando, 'campos ausentes (AccessModifier Private ou mapeamento errado): ' + faltando.join(', ')).to.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: entidade da empresa",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventTransBRs/$count?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventTransBRs",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "Guarda a contagem da entidade na empresa para comparar com a tabela raiz no proximo request."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('inventMovEntidade');",
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "pm.collectionVariables.set('inventMovEntidade', String(n));",
+                      "console.log('[Inventario] FSInventTransBRs $count = ' + n);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: raiz InventTrans da empresa",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/InventTransBiEntities/$count?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "InventTransBiEntities",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "A tabela raiz pela projecao padrao da Microsoft. As juncoes com InventDim e InventTransOrigin sao internas e obrigatorias: a entidade tem de contar o mesmo."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "const ent = Number(pm.collectionVariables.get('inventMovEntidade'));",
+                      "console.log('[Inventario] raiz = ' + n + ' | entidade = ' + ent);",
+                      "pm.test('Entidade conta o mesmo que a raiz', function () {",
+                      "  pm.expect(Number.isFinite(ent), 'a contagem da entidade nao veio: rode o request anterior e confira se a entidade esta publicada').to.be.true;",
+                      "  pm.expect(ent, ent > n ? 'entidade tem MAIS linhas: juncao multiplicando' : 'entidade tem MENOS linhas: juncao interna cortando').to.equal(n);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Aceite da empresa: chave, site, referência e histórico até o corte",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventTransBRs?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventTransBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "Le todos os movimentos da empresa: RecId unico, todo movimento com site e referencia, todo armazem cadastrado. Guarda a soma do historico financeiro ate a data de corte (inventDataCorte), por site e item: e o caminho de conferencia do saldo na data."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('inventHistorico');",
+                      "pm.collectionVariables.unset('inventDepoisDoCorte');",
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize').to.be.undefined);",
+                      "const corte = pm.variables.get('inventDataCorte');",
+                      "console.log('[Inventario] movimentos da empresa ' + pm.variables.get('company') + ': ' + rows.length);",
+                      "const ids = new Set(rows.map(r => r.InventTransRecId));",
+                      "pm.test('Chave unica (InventTransRecId)', () => pm.expect(ids.size, (rows.length - ids.size) + ' linhas repetidas: juncao multiplicando').to.equal(rows.length));",
+                      "const semSite = rows.filter(r => !r.InventSiteId).length;",
+                      "const semRef = rows.filter(r => !r.ReferenceCategory).length;",
+                      "pm.test('Juncao com InventDim traz o site', () => pm.expect(semSite, semSite + ' movimentos sem site').to.equal(0));",
+                      "pm.test('Juncao com InventTransOrigin traz a referencia', () => pm.expect(semRef, semRef + ' movimentos sem ReferenceCategory').to.equal(0));",
+                      "const armazens = JSON.parse(pm.collectionVariables.get('inventArmazens') || '[]');",
+                      "const fora = Array.from(new Set(rows.filter(r => r.InventLocationId && !armazens.includes(r.InventLocationId)).map(r => r.InventLocationId)));",
+                      "pm.test('Todo armazem dos movimentos esta na FSInventLocationBRs', () => pm.expect(fora, 'armazens fora da FSInventLocationBRs: ' + fora.join(', ')).to.be.empty);",
+                      "const hist = {}; let depois = 0;",
+                      "rows.forEach(r => {",
+                      "  const df = String(r.DateFinancial).slice(0, 10);",
+                      "  if (df <= '1900-01-01') return;",
+                      "  if (df > corte) { depois++; return; }",
+                      "  const k = r.InventSiteId + '|' + r.ItemId;",
+                      "  hist[k] = hist[k] || { q: 0, v: 0 }; hist[k].q += Number(r.Qty); hist[k].v += Number(r.CostAmountPosted) + Number(r.CostAmountAdjustment);",
+                      "});",
+                      "console.log('[Inventario] movimentos financeiros depois de ' + corte + ': ' + depois);",
+                      "pm.collectionVariables.set('inventHistorico', JSON.stringify(hist));",
+                      "pm.collectionVariables.set('inventDepoisDoCorte', String(depois));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Saldo na data de corte por dois caminhos",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSInventTransBRs?cross-company=true&$filter=dataAreaId eq '{{company}}' and (DateFinancial ge {{inventDataCorte}}T00:00:00Z or DatePhysical ge {{inventDataCorte}}T00:00:00Z)",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSInventTransBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}' and (DateFinancial ge {{inventDataCorte}}T00:00:00Z or DatePhysical ge {{inventDataCorte}}T00:00:00Z)"
+                    }
+                  ]
+                },
+                "description": "O filtro que a carga do hub usa: so os movimentos depois da data de corte. Saldo atual (FSInventOnHandBRs) menos esses movimentos tem de dar o mesmo que a soma do historico ate a data, em cada site e item. Os dois caminhos leem tabelas diferentes (InventSum e InventTrans)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize').to.be.undefined);",
+                      "const corte = pm.variables.get('inventDataCorte');",
+                      "const saldo = JSON.parse(pm.collectionVariables.get('inventSaldoMapa') || '{}');",
+                      "const hist = JSON.parse(pm.collectionVariables.get('inventHistorico') || '{}');",
+                      "const esperado = Number(pm.collectionVariables.get('inventDepoisDoCorte'));",
+                      "const depois = rows.filter(r => { const df = String(r.DateFinancial).slice(0, 10); return df > '1900-01-01' && df > corte; });",
+                      "pm.test('O filtro traz todos os movimentos financeiros depois do corte', function () {",
+                      "  pm.expect(Number.isFinite(esperado), 'rode o aceite de Movimentos antes').to.be.true;",
+                      "  pm.expect(depois.length, 'o filtro por data perdeu movimento (a data vem as 12:00Z)').to.equal(esperado);",
+                      "});",
+                      "const asof = {};",
+                      "Object.keys(saldo).forEach(k => { asof[k] = { q: saldo[k].q, v: saldo[k].v }; });",
+                      "depois.forEach(r => { const k = r.InventSiteId + '|' + r.ItemId; asof[k] = asof[k] || { q: 0, v: 0 }; asof[k].q -= Number(r.Qty); asof[k].v -= Number(r.CostAmountPosted) + Number(r.CostAmountAdjustment); });",
+                      "const chaves = Array.from(new Set(Object.keys(asof).concat(Object.keys(hist))));",
+                      "const z = { q: 0, v: 0 };",
+                      "const diverge = chaves.filter(k => { const a = asof[k] || z, h = hist[k] || z; return Math.abs(a.q - h.q) > 0.000001 || Math.abs(a.v - h.v) > 0.01; }).map(k => k + ' saldo-depois=' + JSON.stringify(asof[k] || z) + ' historico=' + JSON.stringify(hist[k] || z));",
+                      "pm.test('Saldo atual menos os movimentos depois da data = historico ate a data', function () {",
+                      "  pm.expect(Object.keys(saldo).length, 'o saldo atual nao veio: rode o aceite do Saldo atual antes').to.be.above(0);",
+                      "  pm.expect(diverge, diverge.length + ' posicoes divergentes: ' + diverge.slice(0, 5).join('; ')).to.be.empty;",
+                      "});",
+                      "const r2 = x => Math.round(x * 100) / 100;",
+                      "const pos = chaves.filter(k => asof[k] && asof[k].q > 0 && asof[k].v > 0);",
+                      "const porSite = {}; let total = 0;",
+                      "pos.forEach(k => { const s = k.split('|')[0]; porSite[s] = porSite[s] || { itens: 0, valor: 0 }; porSite[s].itens++; porSite[s].valor = r2(porSite[s].valor + asof[k].v); total += asof[k].v; });",
+                      "console.log('[Inventario] posicoes com saldo em ' + corte + ': ' + pos.length + ' | total ' + r2(total) + ' | por site ' + JSON.stringify(porSite));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Item (FSItemBR)",
+          "description": "Os dois campos que a FSItemBR ganhou para o inventario: InventUnitId (InventTableModule do modulo Invent) e ProductName (traducao no idioma do sistema). As juncoes novas sao externas e nao podem mudar a contagem.",
+          "item": [
+            {
+              "name": "FSItemBRs da empresa: unidade de estoque e nome",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Prefer",
+                    "value": "odata.maxpagesize=10000"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/FSItemBRs?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "FSItemBRs"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "ItemId unico, e InventUnitId e ProductName preenchidos em todo item."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.unset('inventItensEntidade');",
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "let j = {};",
+                      "try { j = pm.response.json(); } catch (e) {}",
+                      "const rows = Array.isArray(j.value) ? j.value : [];",
+                      "pm.test('Veio tudo numa pagina (sem @odata.nextLink)', () => pm.expect(j['@odata.nextLink'], 'resultado paginado: aumente o odata.maxpagesize').to.be.undefined);",
+                      "console.log('[Inventario] itens da empresa ' + pm.variables.get('company') + ': ' + rows.length);",
+                      "const ids = new Set(rows.map(r => r.ItemId));",
+                      "pm.test('Chave unica (ItemId)', () => pm.expect(ids.size, (rows.length - ids.size) + ' linhas repetidas: a juncao da traducao multiplicou').to.equal(rows.length));",
+                      "const semUnidade = rows.filter(r => !r.InventUnitId).map(r => r.ItemId);",
+                      "const semNome = rows.filter(r => !r.ProductName).map(r => r.ItemId);",
+                      "pm.test('Todo item tem unidade de estoque (InventUnitId)', () => pm.expect(semUnidade, 'itens sem InventUnitId: ' + semUnidade.join(', ')).to.be.empty);",
+                      "pm.test('Todo item tem nome no idioma do sistema (ProductName)', () => pm.expect(semNome, 'itens sem traducao no idioma do sistema: ' + semNome.join(', ')).to.be.empty);",
+                      "pm.collectionVariables.set('inventItensEntidade', String(rows.length));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Contagem: raiz InventTable da empresa",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/plain"
+                  }
+                ],
+                "url": {
+                  "raw": "{{environmentUrl}}/data/InventTableBiEntities/$count?cross-company=true&$filter=dataAreaId eq '{{company}}'",
+                  "host": [
+                    "{{environmentUrl}}"
+                  ],
+                  "path": [
+                    "data",
+                    "InventTableBiEntities",
+                    "$count"
+                  ],
+                  "query": [
+                    {
+                      "key": "cross-company",
+                      "value": "true"
+                    },
+                    {
+                      "key": "$filter",
+                      "value": "dataAreaId eq '{{company}}'"
+                    }
+                  ]
+                },
+                "description": "A tabela raiz pela projecao padrao da Microsoft. A FSItemBR tem de contar o mesmo depois das juncoes novas."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code !== 200) { console.warn('[Inventario] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                      "// $count volta texto puro, com BOM na frente; trim() remove o BOM (U+FEFF conta como espaco no JS)",
+                      "const bruto = String(pm.response.text()).trim();",
+                      "const n = Number(bruto);",
+                      "pm.test('Retornou um numero', () => pm.expect(Number.isFinite(n), 'resposta nao numerica: ' + bruto).to.be.true);",
+                      "const ent = Number(pm.collectionVariables.get('inventItensEntidade'));",
+                      "console.log('[Inventario] raiz = ' + n + ' | entidade = ' + ent);",
+                      "pm.test('Entidade conta o mesmo que a raiz', function () {",
+                      "  pm.expect(Number.isFinite(ent), 'a contagem da entidade nao veio: rode o request anterior e confira se a entidade esta publicada').to.be.true;",
+                      "  pm.expect(ent, ent > n ? 'entidade tem MAIS linhas: juncao multiplicando' : 'entidade tem MENOS linhas: juncao interna cortando').to.equal(n);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Vale para todos os requests desta pasta",
+              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscalHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
+              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FSFiscalHubIntegration com os privilegios de inventario').to.not.include(pm.response.code));",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));"
             ]
           }
         }
