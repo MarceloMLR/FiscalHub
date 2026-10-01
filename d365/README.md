@@ -30,6 +30,11 @@ Segurança: privilégio de leitura por entidade + a role `FSFiscalHubIntegration
 ("FiscalHub - integração (somente leitura)"), que precisa ser atribuída ao usuário da app
 registration no F&O.
 
+**Como conferir pelo hub.** O botão **Testar credencial** da aba do ERP, em Configurações, pede um token novo ao Entra ID
+e lê `/data/FSFiscalDocumentBRs?$top=1&$select=FiscalDocumentRecId&cross-company=true` (ADR-0031). Um 403 é a role ou
+o privilégio da entidade que falta. Um 401 é o app que não está cadastrado no F&O, em Aplicativos do Microsoft Entra
+ID. Uma leitura vazia não prova o acesso às empresas: entre empresas, a falta de acesso também devolve vazio.
+
 ## Guias
 
 | Doc | Assunto |
