@@ -228,6 +228,8 @@ continua anulável por causa delas e do caminho de XML.
     propriedade só como `Edm.String`, sem `MaxLength`, e o esquema CDM da Microsoft também não o traz. Os valores da
     `brmf` são `Matriz`, `SP-01` e `SAL-01`, com no máximo 6 caracteres. A migração usa 20, e a conferência no AOT fica
     em aberto.
+  - **Resultado da 1.1, fechado (2026-10-01):** no AOT, o EDT `FiscalEstablishmentId_BR` tem String Size 10. O
+    `nvarchar(20)` cabe com folga, e a migração fica.
   - **Risco:** alargar é inofensivo, e não perde dado.
 - **Filtros do dashboard:** nada muda na regra. A tela não tem regra de 8 dígitos, e o filtro da grade é por texto. A
   mudança é só de apresentação: a máscara de CNPJ (D6).

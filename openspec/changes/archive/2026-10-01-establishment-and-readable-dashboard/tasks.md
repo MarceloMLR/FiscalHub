@@ -14,7 +14,7 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 
 ## 1. O estabelecimento próprio e o dia fiscal, da montagem ao grupo (D1, D3, D5, `d365-document-assembly`, `document-grouping`)
 
-- [ ] 1.1 Fixtures e tamanho do código:
+- [x] 1.1 Fixtures e tamanho do código:
   - `tools/d365-fixtures/Record-D365Fixtures.ps1`: acrescentar `FiscalEstablishment` ao `$select` do cabeçalho da
     montagem, e `FiscalDocumentDate`, `FiscalEstablishmentCNPJCPF` e `FiscalEstablishment` ao da descoberta;
   - regravar contra o fiscosysdev (opt-in, `az login`) `notes/*`, `scope/*` e `snapshot/headers`, e refazer as
@@ -33,6 +33,13 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
     - não existem derivadas em arquivo, porque os testes as montam em memória. Não houve o que refazer.
   - **O que ficou aberto:** o tamanho do EDT. Ele não é publicado no `$metadata` do OData nem no CDM, e fica para uma
     conferência no AOT. A migração usa 20 (D5)
+
+  **Fechado (2026-10-01).**
+  - **O tamanho:** o usuário conferiu no AOT, no Application Explorer do Visual Studio, e o EDT
+    `FiscalEstablishmentId_BR` tem String Size 10.
+  - **O que isso quer dizer:** o `BranchCode` em `nvarchar(20)`, da migração `WidenBranchCode`, cabe com folga. O
+    tamanho antigo, de 10, também teria bastado. A migração fica, porque alargar é inofensivo e não perde dado.
+  - **Onde ficou anotado:** no D5 do design
 - [x] 1.2 Teste primeiro (`GoodsInvoiceMetadataExtractorTests`):
   - **com o estabelecimento:** empresa é o CNPJ de 14 dígitos, e filial é o código. Vale para nota de terceiro, com o
     fornecedor como emitente, e para nota própria;
@@ -345,7 +352,7 @@ ficou como conferência visual do usuário, sem linha de log.
   - **O que o banco mostrou depois:** as `InboundSettings` do tenant-a ficaram `{}`, sem URL, empresas, `auth` nem
     `poll`. Parece efeito de trocar o ERP na tela para um adapter que não varre e voltar, mas isso não está provado.
     Está registrado no STATUS, junto com o achado do `startFrom`.
-- [ ] 9.6 Criar um agendamento, deixá-lo disparar ou rodar uma execução ligada a ele, e excluí-lo pela tela,
+- [x] 9.6 Criar um agendamento, deixá-lo disparar ou rodar uma execução ligada a ele, e excluí-lo pela tela,
   confirmando. O agendamento some, e a execução continua na aba de execuções
 
   **Parcial (2026-09-29).**
@@ -356,4 +363,16 @@ ficou como conferência visual do usuário, sem linha de log.
     e não havia execução para continuar na aba. Que as execuções de um agendamento excluído ficam, com os dados delas,
     está provado só por teste
     (`SqlScheduleStoreTests.Executions_of_a_deleted_schedule_stay_in_the_history_with_their_own_data`).
+
+  **Fechado (2026-10-01, 14:40 local).** Sem log em arquivo; a evidência é do banco e da API.
+  - **O agendamento:** o usuário criou pela tela um agendamento "uma vez", para a Distribuidora Beta SA, Matriz
+    (`98765432`/`0001`), deixou-o disparar e o excluiu.
+  - **Ele sumiu:** o `/schedules` responde `[]`, a `ScheduledIntegrations` está vazia, e o `IDENT_CURRENT` é 1, ou seja,
+    o agendamento 1 foi criado e excluído.
+  - **A execução ficou:** o `/executions`, que a aba de execuções lê, traz a execução 2, com os dados dela:
+    - `ScheduledOnce`, com `ScheduleId` 1;
+    - `98765432`/`0001`, período 01/09;
+    - 14:40:15 local.
+  - **As notas descobertas:** zero, porque o catálogo de dev não tem nota nesse período. A tarefa prova o histórico, e
+    não a descoberta. A empresa veio do `companies.json` de dev, e a tela de Agendamento ainda não lê o 365 (STATUS).
 - [x] 9.7 Registrar a prova no STATUS, com as linhas do log e o que foi só conferência visual, como na change anterior

@@ -106,6 +106,12 @@ tem (d365/04 §2.5 e §3.3).
 - **Cabeçalho:** chave de acesso, modelo, série, número, data de emissão, valor total, valor das
   mercadorias (`TotalGoodsAmount`) e data de entrada/saída (`AccountingDate`). Se o F&O devolver a data
   vazia (`1900-01-01`), a data de entrada/saída fica ausente.
+- **Data fiscal:** o dia do `FiscalDocumentDate`, como veio, sem hora e sem conversão de fuso. Ela fica ao lado da data
+  de emissão, que continua sendo o instante (`FiscalDocumentDateTime`, ou o `FiscalDocumentDate` quando o F&O devolve a
+  data e hora vazia). É a data fiscal, e não a data de emissão em UTC, que define o dia da nota (`document-grouping`).
+- **Estabelecimento próprio:** o CNPJ (`FiscalEstablishmentCNPJCPF`, só com dígitos) e o código
+  (`FiscalEstablishment`, como veio), em qualquer direção e em qualquer emissão. É o estabelecimento que escritura a
+  nota, e é por ele que a nota é agrupada (`document-grouping`).
 - **Emissão própria ou de terceiros** pelo `FiscalDocumentIssuer`: `OwnEstablishment` é emissão própria, e
   `ThirdParty` é emissão de terceiros.
 - **Emitente e destinatário** pelo mesmo `FiscalDocumentIssuer`: com `OwnEstablishment`, o emitente é o
@@ -132,6 +138,17 @@ tem (d365/04 §2.5 e §3.3).
 - **WHEN** o cabeçalho tem o terceiro como emitente e `Direction = Incoming`
 - **THEN** o emitente é o terceiro e o destinatário é o estabelecimento
 - **AND** o documento é de emissão de terceiros
+
+#### Scenario: Estabelecimento próprio numa nota de terceiro
+- **WHEN** o cabeçalho tem `FiscalDocumentIssuer = ThirdParty`, `FiscalEstablishmentCNPJCPF = 442782250001-80` e
+  `FiscalEstablishment = Matriz`
+- **THEN** o documento tem o estabelecimento próprio com CNPJ `44278225000180` e código `Matriz`
+- **AND** esse CNPJ é o do destinatário, e não o do emitente
+
+#### Scenario: Data fiscal separada da emissão em UTC
+- **WHEN** o cabeçalho traz `FiscalDocumentDateTime = 2026-08-08T01:30:00Z` e
+  `FiscalDocumentDate = 2026-08-07T12:00:00Z`
+- **THEN** o documento tem data fiscal 2026-08-07, e data de emissão 2026-08-08T01:30:00Z
 
 #### Scenario: CFOP formatado
 - **WHEN** a linha traz CFOP `5.102`

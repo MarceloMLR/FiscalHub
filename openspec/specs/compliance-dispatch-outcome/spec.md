@@ -13,8 +13,11 @@ com a mesma clareza que uma rejeição do próprio hub.
 Quando a plataforma responde ao envio com HTTP 400 ou 422, o documento MUST ser registrado como rejeitado
 (`IntegrationError`), com as regras a seguir:
 
-- **Motivo:** é o texto da plataforma, identificado como vindo dela e extraído do corpo já redigido
-  (`platform-response-trace`). Quando houver omissões declaradas, elas vêm depois desse texto.
+- **Motivo:** é um resumo curto do texto da plataforma, identificado como vindo dela e extraído do corpo já redigido
+  (`platform-response-trace`). A lista completa, campo a campo, fica na foto da resposta, e é de lá que o detalhe do
+  documento a mostra.
+- **Omissões:** as omissões declaradas pelo hub MUST NOT entrar no motivo da rejeição. Elas ficam na foto da resposta
+  do envio (ver "Omissão visível no registro e no dashboard").
 - **Sem retentativa:** a mensagem da fila MUST ser concluída. Retentativa não conserta conteúdo.
 
 As respostas de autenticação no envio têm regra própria:
@@ -35,8 +38,11 @@ São elas: 5xx, 429 e falha de rede.
 
 Regras para extrair o motivo:
 
-- **Mensagens reconhecidas:** vale o texto das mensagens de erro do corpo, nos formatos comuns (lista de
-  mensagens, `ProblemDetails`).
+- **Mapa de erros por campo** (o `errors` do ProblemDetails): o motivo diz quantos campos a plataforma recusou e
+  nomeia os três primeiros, na ordem da resposta. Os demais aparecem como "e mais N". O `title` do ProblemDetails
+  MUST NOT entrar no motivo.
+- **Outras mensagens reconhecidas:** vale o texto das mensagens de erro do corpo, nos formatos comuns (lista de
+  mensagens, `ProblemDetails` sem mapa de campos).
 - **Sem formato reconhecido:** vale o corpo como texto.
 - **Corpo vazio:** o motivo cita o status HTTP.
 - **Tamanho:** o motivo tem tamanho máximo, e o texto é cortado nesse limite.
@@ -46,6 +52,24 @@ Regras para extrair o motivo:
 - **THEN** o documento é registrado como rejeitado, com motivo que identifica a plataforma e contém
   "codigoEmpresa não cadastrado"
 - **AND** foi feita uma única requisição de envio, e a mensagem não volta para a fila
+
+#### Scenario: Recusa por campo vira resumo
+- **WHEN** a plataforma responde ao envio com HTTP 400 e o ProblemDetails gravado do sandbox, com `errors` para
+  `operacao`, `tipoPagamento`, `parceiro.Codigo`, `itens[0].Item.TipoItem`, `itens[0].UnidadeMedida.Descricao` e
+  `itens[0].Item.UnidadeMedida.Descricao`
+- **THEN** o motivo identifica a plataforma e diz que ela recusou 6 campos: `operacao`, `tipoPagamento`,
+  `parceiro.Codigo` e mais 3
+- **AND** o motivo não contém "One or more validation errors occurred."
+
+#### Scenario: Muitos itens não cortam a lista
+- **WHEN** a plataforma recusa uma nota de três itens com 12 campos no mapa de erros
+- **THEN** o motivo diz 12 campos e nomeia três, e cabe no tamanho máximo
+- **AND** a foto da resposta do envio traz os 12 campos, com todas as mensagens
+
+#### Scenario: Recusa de nota com omissão
+- **WHEN** uma nota com o `IcmsDiff` do item 1 sem lugar no contrato é recusada pela plataforma no envio
+- **THEN** o motivo registrado não contém "Enviado sem"
+- **AND** a foto da resposta do envio traz a omissão do `IcmsDiff` do item 1
 
 #### Scenario: Indisponibilidade da plataforma
 - **WHEN** a plataforma responde ao envio com HTTP 503
@@ -94,6 +118,8 @@ consulta. Se a resposta não trouxer mensagem, o motivo MUST dizer que a platafo
 causa. O status nativo MUST continuar fora do registro: o que chega é o texto da plataforma, e o status
 fica normalizado (ADR-0003).
 
+As omissões declaradas no envio MUST NOT entrar no motivo da rejeição. Elas continuam na foto da resposta do envio.
+
 #### Scenario: Rejeição da Avalara registrada com o motivo dela
 - **WHEN** a consulta de status de um documento enviado devolve erro com a mensagem "CFOP 1556
   incompatível com a operação"
@@ -104,6 +130,12 @@ fica normalizado (ADR-0003).
 - **WHEN** a consulta de status devolve erro sem nenhuma mensagem
 - **THEN** o documento é registrado como rejeitado, com motivo que diz que a plataforma não informou a
   causa
+
+#### Scenario: Rejeição de nota enviada com omissão
+- **WHEN** uma nota enviada com a observação "Enviado sem: item 1: IcmsDiff não enviado (sem lugar no contrato)" é
+  rejeitada na consulta de status com a mensagem "CFOP 1556 incompatível com a operação"
+- **THEN** o motivo registrado é só o da plataforma, sem "Enviado sem"
+- **AND** a foto da resposta do envio continua trazendo a omissão
 
 ### Requirement: Impossibilidade do lado do conector
 
@@ -147,20 +179,25 @@ Depois de corrigida a causa, o reprocessamento manual do documento MUST enviá-l
 
 ### Requirement: Omissão visível no registro e no dashboard
 
-Quando um documento é enviado com omissões declaradas pelo adapter de saída, o registro MUST guardá-las:
+Quando um documento é enviado com omissões declaradas pelo adapter de saída, as omissões MUST ficar gravadas na foto
+da resposta do envio (`platform-response-trace`), em qualquer desfecho. No registro do documento, a omissão é ressalva
+de nota aceita, e não parte de um motivo de falha:
 
 - **Enviado:** o motivo do registro traz as omissões, abertas por "Enviado sem:".
 - **Confirmado:** a confirmação da plataforma MUST preservar esse texto.
-- **Rejeitado depois, na consulta:** o motivo da plataforma vem primeiro, e as omissões ficam depois dele.
+- **Rejeitado no envio, rejeitado depois na consulta, ou sem retorno:** o motivo é só o da falha. A omissão MUST NOT
+  entrar nele e continua na foto.
 
-O dashboard MUST mostrar o motivo de um documento que não falhou como aviso, e não como erro. Esse
-documento MUST NOT contar entre as falhas.
+No dashboard, uma nota aceita (enviada ou confirmada) com omissões MUST mostrar a marca discreta "Enviado com
+ressalvas". A marca abre o detalhe, que lista as omissões. Essa nota MUST NOT contar entre as falhas, e a ressalva
+MUST NOT aparecer como erro.
 
-Um documento enviado sem omissões continua com o motivo vazio.
+Um documento enviado sem omissões continua com o motivo vazio e sem a marca.
 
 #### Scenario: Enviado com omissão
 - **WHEN** uma nota é enviada sem o diferencial de alíquota do ICMS do item 1 e sem o encargo do item 2
 - **THEN** o registro fica como enviado, com motivo que começa por "Enviado sem:" e cita os dois
+- **AND** a foto da resposta do envio traz as duas omissões
 
 #### Scenario: Confirmação preserva a omissão
 - **WHEN** a plataforma confirma essa nota
@@ -168,16 +205,22 @@ Um documento enviado sem omissões continua com o motivo vazio.
 
 #### Scenario: Rejeição depois do envio com omissão
 - **WHEN** a plataforma rejeita essa nota na consulta de status com uma mensagem
-- **THEN** o motivo do registro traz primeiro a mensagem da plataforma, e depois as omissões
+- **THEN** o motivo do registro traz só a mensagem da plataforma, sem as omissões
+- **AND** a foto da resposta do envio continua trazendo as omissões
+
+#### Scenario: Sem retorno depois do envio com omissão
+- **WHEN** essa nota esgota as consultas de status sem desfecho
+- **THEN** o motivo do registro diz só que não houve retorno, sem as omissões
 
 #### Scenario: Aviso no dashboard
-- **WHEN** o usuário abre no dashboard um documento confirmado que tem omissões no motivo
-- **THEN** o motivo aparece como aviso, e não como erro
+- **WHEN** o usuário abre no dashboard um documento confirmado que tem omissões
+- **THEN** aparece a marca "Enviado com ressalvas", e não um banner de erro
+- **AND** abrir a marca mostra a lista das omissões
 - **AND** o documento não aparece no filtro de falhas
 
 #### Scenario: Enviado sem omissões
 - **WHEN** uma nota é enviada sem nenhuma omissão declarada
-- **THEN** o registro fica como enviado, com o motivo vazio
+- **THEN** o registro fica como enviado, com o motivo vazio e sem a marca
 
 ### Requirement: Aceite sem identificador não é reenviado
 
