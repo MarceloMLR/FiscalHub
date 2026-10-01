@@ -495,7 +495,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     (`/groups/{empresa}/{filial}/{dia}/documents`) é só pelos três primeiros.
   - **Prova:** um estabelecimento com uma NF-e e uma NFS-e ignorada no mesmo dia mostra, nas duas linhas, as duas notas.
   - **Sintoma:** o título do modal diz "1 nota", e a lista traz duas.
-- [ ] **O tamanho do código do estabelecimento no F&O.** (change `establishment-and-readable-dashboard`, tarefa 1.1)
+- [x] **O tamanho do código do estabelecimento no F&O.** (change `establishment-and-readable-dashboard`, tarefa 1.1)
   - **Falta:** conferir no AOT o tamanho do EDT do `FiscalEstablishmentId`. O `$metadata` do OData declara a
     propriedade só como `Edm.String`, sem `MaxLength`, e o CDM da Microsoft também não o traz. O `BranchCode` foi
     alargado para 20.
@@ -506,12 +506,21 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Prova:** o EDT com tamanho até 20, ou uma migração nova que o acompanhe.
   - **Sintoma:** um código de estabelecimento acima de 20 caracteres faz o `INSERT` falhar, e a nota vai para a
     dead-letter.
+  - **Fechado em 2026-10-01:** no AOT, o EDT `FiscalEstablishmentId_BR` tem String Size 10, conferido pelo usuário no
+    Visual Studio. O `nvarchar(20)` do `BranchCode` cabe com folga, e nenhum código do F&O passa de 10.
 - [ ] **O diretório de empresas com o CNPJ de 14 dígitos.** (quando houver descoberta por período com D365)
   - **Falta:** o `ICompanyDirectory` (`companies.json`) e a descoberta local são o caminho de XML de dev, com o
     código de 8 dígitos. Uma integração manual ou agendada do D365 vai precisar do mesmo código do grupo, que é o CNPJ
     de 14 dígitos.
   - **Prova:** a primeira descoberta por período do D365 filtra pela empresa de 14 dígitos.
   - **Sintoma:** o dropdown mostra uma empresa que não casa com nenhum grupo da tabela.
+  - **Visto na prova de 2026-10-01:** a tela de Agendamento, e a integração manual com ela, mostra as empresas
+    fictícias do `companies.json` (`12345678`, "Empresa Emitente LTDA", e `98765432`, "Distribuidora Beta SA"), e não as
+    do 365. A execução descobre pelo catálogo fixo da `LocalDocumentDiscovery`, os XMLs de exemplo do Blob. Só a
+    integração automática lê o 365 hoje.
+  - **Cuidado enquanto isso:** o tenant-a tem tradução de estabelecimento para o CNPJ de exemplo `12345678000190`.
+    Uma integração manual ou agendada para a Empresa Emitente LTDA manda a nota de exemplo ao sandbox da Avalara de
+    verdade.
 
 - [ ] **O que o chamado de suporte anexa quando quem o abre não pode ver as fotos cruas.** (change
   `establishment-and-readable-dashboard`, D11)
@@ -854,7 +863,8 @@ Também para a próxima fatia, do teste manual:
 - **Não exercitado:** o histórico de execução de um agendamento excluído, porque nenhum agendamento disparou. Só o teste
   o prova (tarefa 9.6, parcial).
 
-**Ficou aberto na change:** a 1.1 (o tamanho do código do estabelecimento no AOT) e a 9.6.
+**Ficou aberto na change:** a 1.1 (o tamanho do código do estabelecimento no AOT) e a 9.6. As duas fecharam em
+2026-10-01: o EDT tem String Size 10, e a execução de um agendamento excluído ficou no histórico (a sessão de 2026-10-01).
 
 **Achados:**
 
