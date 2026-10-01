@@ -7,6 +7,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import FormGroup from '@mui/material/FormGroup';
+import Checkbox from '@mui/material/Checkbox';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Alert from '@mui/material/Alert';
@@ -15,54 +17,35 @@ import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useConnector } from './useConnector';
+import { AutomaticIntegrationPanel } from './AutomaticIntegrationPanel';
+import { CredentialTestButton } from './CredentialTestButton';
 import {
   INBOUND_ADAPTERS,
   OUTBOUND_ADAPTERS,
   ENVIRONMENTS,
+  CREDENTIAL_TEST_ADAPTERS,
   SCANNING_INBOUND_ADAPTERS,
   type AdapterField,
 } from './adapterSchemas';
-import type { SecretStatus } from '../../types';
+import type { ModuleName, SecretStatus } from '../../types';
+import {
+  SECRET_MASK,
+  asObj,
+  buildConnectorPayload,
+  formFromProfile,
+  hasPendingEdit,
+  getPath,
+  parseObj,
+  setPath,
+  splitOutbound,
+  type ConnectorForm,
+  type Json,
+  type Typed,
+} from './connectorPayload';
+import { DEFAULT_MODULES, MODULE_VIEWS } from '../modules/modules';
 
-// Settings como vieram do servidor (sem segredos e sem referências). Os campos que a tela não mostra
-// (establishments, companies, poll…) ficam aqui e voltam intactos ao salvar. Da seção poll, a tela só mexe no
-// enabled, pelo interruptor "Integração automática".
-type Json = Record<string, unknown>;
-// Segredos digitados nesta edição, por caminho (`outbound.sandbox.clientSecret`). Nunca vêm do servidor.
-type Typed = Record<string, string>;
-
-function parseObj(json: string): Json {
-  try {
-    const value = JSON.parse(json || '{}') as unknown;
-    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};
-  } catch {
-    return {};
-  }
-}
-
-function asObj(value: unknown): Json {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Json) : {};
-}
-
-function getPath(obj: Json, path: string): string {
-  const value = path.split('.').reduce<unknown>((cur, k) => asObj(cur)[k], obj);
-  return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
-}
-
-function setPath(obj: Json, path: string, value: string): Json {
-  const [head, ...rest] = path.split('.');
-  if (rest.length === 0) {
-    return { ...obj, [head]: value };
-  }
-  return { ...obj, [head]: setPath(asObj(obj[head]), rest.join('.'), value) };
-}
-
-// Aplica os segredos digitados: só o que foi digitado vai; o resto o servidor mantém como estava.
-function withTyped(schema: AdapterField[], values: Json, prefix: string, typed: Typed): Json {
-  return schema
-    .filter((f) => f.secret && typed[prefix + f.key])
-    .reduce((acc, f) => setPath(acc, f.key, typed[prefix + f.key]), values);
-}
+// Os módulos que o Admin marca, na ordem da barra lateral (o Agendamento não é módulo: aparece sempre).
+const MODULE_CHOICES = MODULE_VIEWS.flatMap((m) => (m.module ? [{ module: m.module, label: m.label }] : []));
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -86,7 +69,8 @@ interface FieldsProps {
 }
 
 // Renderiza os campos de um adapter num grid. Segredo é campo de senha, sem preenchimento: mostra se
-// está configurado e quando, e só manda um valor novo quando digitado.
+// está configurado e quando, e só manda um valor novo quando digitado. A máscara do segredo configurado é PLACEHOLDER, e
+// nunca valor: o valor é só o digitado, e o payload só o leva quando não é vazio (connectorPayload, D3).
 function Fields({ schema, values, onChange, prefix, secrets, typed, onType }: FieldsProps) {
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
@@ -100,8 +84,18 @@ function Fields({ schema, values, onChange, prefix, secrets, typed, onType }: Fi
             autoComplete="new-password"
             value={typed[prefix + f.key] ?? ''}
             onChange={(e) => onType({ ...typed, [prefix + f.key]: e.target.value })}
-            placeholder={secrets[prefix + f.key]?.configured ? 'digite para trocar' : 'digite o valor'}
+            placeholder={secrets[prefix + f.key]?.configured ? SECRET_MASK : 'digite o valor'}
             helperText={secretHelp(secrets[prefix + f.key])}
+            // O MUI esconde o placeholder enquanto o rótulo está dentro do campo: sem isso, a máscara só aparece com o
+            // campo em foco, e o segredo gravado parece ter sumido (prova manual, 2026-10-01).
+            InputLabelProps={{ shrink: true }}
+            // A máscara de um segredo configurado tem a cara de campo preenchido, com a cor do texto e não a cinza do
+            // placeholder. Continua sendo placeholder: o valor do campo fica vazio, e o salvar sem digitar não a envia.
+            sx={
+              secrets[prefix + f.key]?.configured
+                ? { '& .MuiInputBase-input::placeholder': { color: 'text.primary', opacity: 1 } }
+                : undefined
+            }
           />
         ) : (
           <TextField
@@ -132,25 +126,35 @@ export function ConnectorsPage() {
   const [sandboxValues, setSandboxValues] = useState<Json>({});
   const [productionValues, setProductionValues] = useState<Json>({});
   const [typed, setTyped] = useState<Typed>({});
+  const [modules, setModules] = useState<ModuleName[]>(DEFAULT_MODULES);
 
   const loadOutbound = (json: string) => {
-    const { sandbox, production, ...rest } = parseObj(json);
+    const { outboundRest: rest, sandboxValues: sandbox, productionValues: production } = splitOutbound(json);
     setOutboundRest(rest);
-    setSandboxValues(asObj(sandbox));
-    setProductionValues(asObj(production));
+    setSandboxValues(sandbox);
+    setProductionValues(production);
   };
 
   useEffect(() => {
     if (!data) {
       return;
     }
-    setEnvironment(data.environment);
-    setInboundAdapter(data.inboundAdapter in INBOUND_ADAPTERS ? data.inboundAdapter : 'Dynamics365');
-    setOutboundAdapter(data.outboundAdapter in OUTBOUND_ADAPTERS ? data.outboundAdapter : 'Avalara');
-    setInboundValues(parseObj(data.inboundSettings));
-    loadOutbound(data.outboundSettings);
+    const loaded = formFromProfile(data);
+    setEnvironment(loaded.environment);
+    setInboundAdapter(loaded.inboundAdapter);
+    setOutboundAdapter(loaded.outboundAdapter);
+    setInboundValues(loaded.inboundValues);
+    setOutboundRest(loaded.outboundRest);
+    setSandboxValues(loaded.sandboxValues);
+    setProductionValues(loaded.productionValues);
     setTyped({});
+    setModules(loaded.modules);
   }, [data]);
+
+  // Marcar e desmarcar mantém a ordem da barra lateral. O último marcado não se desmarca: o servidor recusa a lista
+  // vazia, porque a ausência já quer dizer "só o Fiscal" (D2).
+  const toggleModule = (module: ModuleName, on: boolean) =>
+    setModules((current) => MODULE_CHOICES.map((c) => c.module).filter((m) => (m === module ? on : current.includes(m))));
 
   // Trocar de adapter começa de settings vazias: as do adapter anterior são de outro schema. Voltar ao
   // adapter gravado recupera as settings gravadas.
@@ -174,26 +178,24 @@ export function ConnectorsPage() {
     dropTyped('outbound.');
   };
 
+  const form: ConnectorForm = {
+    environment,
+    inboundAdapter,
+    inboundValues,
+    outboundAdapter,
+    outboundRest,
+    sandboxValues,
+    productionValues,
+    modules,
+  };
+
   const save = useMutation({
-    mutationFn: () => {
-      const inSchema = INBOUND_ADAPTERS[inboundAdapter] ?? [];
-      const outSchema = OUTBOUND_ADAPTERS[outboundAdapter] ?? [];
-      return api.saveConnector({
-        environment,
-        inboundAdapter,
-        inboundSettings: JSON.stringify(withTyped(inSchema, inboundValues, 'inbound.', typed)),
-        outboundAdapter,
-        outboundSettings: JSON.stringify({
-          ...outboundRest,
-          sandbox: withTyped(outSchema, sandboxValues, 'outbound.sandbox.', typed),
-          production: withTyped(outSchema, productionValues, 'outbound.production.', typed),
-        }),
-      });
-    },
+    mutationFn: () => api.saveConnector(buildConnectorPayload(form, typed)),
     onSuccess: () => {
       setTyped({}); // o valor digitado não fica na tela depois de gravado
       qc.invalidateQueries({ queryKey: ['connector'] });
       qc.invalidateQueries({ queryKey: ['info'] });
+      qc.invalidateQueries({ queryKey: ['automatic-panel'] });
     },
   });
 
@@ -213,6 +215,11 @@ export function ConnectorsPage() {
   }
 
   const outSchema = OUTBOUND_ADAPTERS[outboundAdapter] ?? [];
+  // As opções da integração automática aparecem assim que o interruptor é ligado na tela, sem esperar o salvar: ligar,
+  // salvar e só então ver o que ajustar seria contraintuitivo (revisão de 2026-10-01, D6).
+  const showPanel = scans && automatic;
+  // O teste usa a credencial gravada: com o formulário diferente do perfil carregado, o botão pede para salvar antes (D9).
+  const pending = hasPendingEdit(form, typed, data);
 
   return (
     <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
@@ -244,6 +251,7 @@ export function ConnectorsPage() {
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2.5 }}>
           <Tab label="Entrada (ERP)" />
           <Tab label="Saída (compliance)" />
+          <Tab label="Módulos" />
         </Tabs>
 
         {tab === 0 && (
@@ -270,11 +278,7 @@ export function ConnectorsPage() {
                 />
               )}
             </Box>
-            {scans && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: -1 }}>
-                Busca sozinha as notas novas no ERP. Desligada, a busca pausa e, religada, retoma de onde parou.
-              </Typography>
-            )}
+            {showPanel && <AutomaticIntegrationPanel />}
             <Fields
               schema={INBOUND_ADAPTERS[inboundAdapter] ?? []}
               values={inboundValues}
@@ -284,6 +288,7 @@ export function ConnectorsPage() {
               typed={typed}
               onType={setTyped}
             />
+            {CREDENTIAL_TEST_ADAPTERS.inbound.has(inboundAdapter) && <CredentialTestButton side="inbound" pending={pending} />}
           </Box>
         )}
 
@@ -316,6 +321,9 @@ export function ConnectorsPage() {
               typed={typed}
               onType={setTyped}
             />
+            {CREDENTIAL_TEST_ADAPTERS.outbound.has(outboundAdapter) && (
+              <CredentialTestButton side="outbound" environment="Sandbox" pending={pending} />
+            )}
 
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
               Produção
@@ -329,6 +337,35 @@ export function ConnectorsPage() {
               typed={typed}
               onType={setTyped}
             />
+            {CREDENTIAL_TEST_ADAPTERS.outbound.has(outboundAdapter) && (
+              <CredentialTestButton side="outbound" environment="Production" pending={pending} />
+            )}
+          </Box>
+        )}
+
+        {tab === 2 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              Escolha os módulos que aparecem no menu Integrações.
+            </Typography>
+            <FormGroup>
+              {MODULE_CHOICES.map((c) => {
+                const checked = modules.includes(c.module);
+                return (
+                  <FormControlLabel
+                    key={c.module}
+                    control={
+                      <Checkbox
+                        checked={checked}
+                        disabled={checked && modules.length === 1}
+                        onChange={(e) => toggleModule(c.module, e.target.checked)}
+                      />
+                    }
+                    label={c.label}
+                  />
+                );
+              })}
+            </FormGroup>
           </Box>
         )}
 
@@ -351,7 +388,7 @@ export function ConnectorsPage() {
         )}
         {save.isSuccess && (
           <Alert severity="success" sx={{ mt: 2 }}>
-            Perfil salvo. Novas integrações deste tenant já usam esta config.
+            Configurações salvas com sucesso
           </Alert>
         )}
       </Paper>

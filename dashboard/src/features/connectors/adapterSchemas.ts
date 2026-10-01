@@ -37,8 +37,8 @@ export const SCANNING_INBOUND_ADAPTERS: ReadonlySet<string> = new Set(['Dynamics
 // mostra (establishments…) são preservados ao salvar.
 export const OUTBOUND_ADAPTERS: Record<string, AdapterField[]> = {
   Avalara: [
+    // Sem a URL do token: o hub a monta pela URL base. Um tokenUrl já gravado continua valendo e volta intacto ao salvar.
     { key: 'baseUrl', label: 'URL base', placeholder: 'https://api.avalara.com/' },
-    { key: 'tokenUrl', label: 'URL do token (opcional)', placeholder: 'padrão: URL base + caminho do token' },
     { key: 'clientId', label: 'Client ID' },
     { key: 'clientSecret', label: 'Client Secret', secret: true },
   ],
@@ -46,3 +46,9 @@ export const OUTBOUND_ADAPTERS: Record<string, AdapterField[]> = {
 };
 
 export const ENVIRONMENTS = ['Sandbox', 'Production'] as const;
+
+// Adapters com teste de credencial no servidor (IConnectorCredentialTest): só eles ganham o botão "Testar credencial".
+export const CREDENTIAL_TEST_ADAPTERS = {
+  inbound: new Set(['Dynamics365']),
+  outbound: new Set(['Avalara']),
+} as const;

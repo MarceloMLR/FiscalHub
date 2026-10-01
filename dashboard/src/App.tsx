@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import BoltOutlinedIcon from '@mui/icons-material/BoltOutlined';
+import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
@@ -11,18 +13,35 @@ import { GroupsPage } from './features/groups/GroupsPage';
 import { IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { UsersPage } from './features/users/UsersPage';
+import { ReservedModulePage } from './features/modules/ReservedModulePage';
+import {
+  DEFAULT_MODULES,
+  entryView,
+  isModuleView,
+  visibleModuleViews,
+  type ModuleView,
+} from './features/modules/modules';
 import { LoginPage } from './features/auth/LoginPage';
 import { useAuth } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
 import { useThemeMode } from './theme/ThemeModeProvider';
 
-type View = 'documents' | 'integrations' | 'settings' | 'users';
+type View = ModuleView | 'settings' | 'users';
 
 const titles: Record<View, { title: string; subtitle: string }> = {
-  documents: { title: 'Documentos', subtitle: 'Notas integradas e seus status' },
-  integrations: { title: 'Integrações', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
+  documents: { title: 'Fiscal', subtitle: 'Notas fiscais integradas e seus status' },
+  accounting: { title: 'Contábil', subtitle: 'Módulo reservado' },
+  inventory: { title: 'Inventário', subtitle: 'Módulo reservado' },
+  integrations: { title: 'Agendamento', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
   settings: { title: 'Configurações', subtitle: 'Conector, adapters e ambiente deste tenant' },
   users: { title: 'Usuários', subtitle: 'Quem acessa este tenant e o cadastro do cliente' },
+};
+
+const moduleIcons: Record<ModuleView, ReactNode> = {
+  documents: <DescriptionOutlinedIcon sx={{ fontSize: 16 }} />,
+  accounting: <AccountBalanceOutlinedIcon sx={{ fontSize: 16 }} />,
+  inventory: <Inventory2OutlinedIcon sx={{ fontSize: 16 }} />,
+  integrations: <EventOutlinedIcon sx={{ fontSize: 16 }} />,
 };
 
 // Porteiro: enquanto restaura a sessão, mostra loading; sem usuário, o login; com usuário, o painel.
@@ -56,6 +75,11 @@ function Dashboard() {
   const scans = info?.inboundScans === true;
   const automatic = info?.automaticIntegration === true;
   const initials = (user?.name ?? '?').trim().charAt(0).toUpperCase();
+  // Os sub-blocos de "Integrações" pelos módulos do tenant. Enquanto o /info não chega, o que havia antes: só o Fiscal.
+  const modules = info?.modules ?? DEFAULT_MODULES;
+  const moduleViews = visibleModuleViews(modules);
+  // Um módulo que o tenant não tem (a tela de entrada, ou um que o Admin acabou de desmarcar) cai na tela de entrada.
+  const shown: View = isModuleView(view) && !moduleViews.some((m) => m.view === view) ? entryView(modules) : view;
 
   // Fecha o menu do usuário ao clicar fora.
   useEffect(() => {
@@ -67,7 +91,7 @@ function Dashboard() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [menuOpen]);
 
-  const current = titles[view];
+  const current = titles[shown];
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--page)' }}>
@@ -127,34 +151,25 @@ function Dashboard() {
 
         {/* Navegação */}
         <nav style={{ padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <NavSection>Operação</NavSection>
-          <NavItem
-            active={view === 'documents'}
-            icon={<DescriptionOutlinedIcon sx={{ fontSize: 16 }} />}
-            onClick={() => setView('documents')}
-          >
-            Documentos
-          </NavItem>
-          <NavItem
-            active={view === 'integrations'}
-            icon={<BoltOutlinedIcon sx={{ fontSize: 16 }} />}
-            onClick={() => setView('integrations')}
-          >
-            Integrações
-          </NavItem>
+          <NavSection>Integrações</NavSection>
+          {moduleViews.map((m) => (
+            <NavItem key={m.view} active={shown === m.view} icon={moduleIcons[m.view]} onClick={() => setView(m.view)}>
+              {m.label}
+            </NavItem>
+          ))}
 
           {isAdmin && (
             <>
               <NavSection style={{ paddingTop: 14 }}>Administração</NavSection>
               <NavItem
-                active={view === 'settings'}
+                active={shown === 'settings'}
                 icon={<SettingsOutlinedIcon sx={{ fontSize: 16 }} />}
                 onClick={() => setView('settings')}
               >
                 Configurações
               </NavItem>
               <NavItem
-                active={view === 'users'}
+                active={shown === 'users'}
                 icon={<GroupOutlinedIcon sx={{ fontSize: 16 }} />}
                 onClick={() => setView('users')}
               >
@@ -323,11 +338,15 @@ function Dashboard() {
         {/* Conteúdo — área rolável. A topbar fica fixa acima; Documentos preenche a altura
             (autoPageSize ajusta as linhas), as demais telas rolam aqui se passarem da altura. */}
         <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {view === 'integrations' ? (
+          {shown === 'integrations' ? (
             <IntegrationsPage />
-          ) : view === 'settings' && isAdmin ? (
+          ) : shown === 'accounting' ? (
+            <ReservedModulePage label="Contábil" />
+          ) : shown === 'inventory' ? (
+            <ReservedModulePage label="Inventário" />
+          ) : shown === 'settings' && isAdmin ? (
             <ConnectorsPage />
-          ) : view === 'users' && isAdmin ? (
+          ) : shown === 'users' && isAdmin ? (
             <UsersPage />
           ) : (
             <GroupsPage />
