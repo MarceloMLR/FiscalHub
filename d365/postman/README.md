@@ -23,6 +23,8 @@ No environment (ou nas variáveis da collection):
 | `clientId` | Application (client) ID do app registration | Entra ID → App registrations → seu app |
 | `clientSecret` | Secret do app registration | App registration → Certificates & secrets → New client secret |
 | `company` | Empresa (dataAreaId) pra filtrar | ex.: `brmf` |
+| `companySemCentroCusto` | Empresa sem dimensão de centro de custo nos Parâmetros do Brasil (teste do contábil) | ex.: `usmf` |
+| `inventDataCorte` | Data de corte do saldo na data (teste do inventário), no formato `aaaa-mm-dd` | ex.: `2016-12-31` |
 | `entityName` | Entity set pra query genérica (nome no **plural**) | ex.: `FSFiscalDocumentBRs` |
 
 ## Pré-requisito no lado do F&O (importante)
@@ -75,6 +77,69 @@ Dois testes de `$count` que travam um defeito real encontrado em **24/09/2026**:
 
 Se o teste do cabeçalho voltar a falhar, vá direto conferir o `JoinMode` dos data sources aninhados
 da entidade antes de procurar em outro lugar.
+
+## Pasta `FiscalHub — contábil (3)`
+
+As três entidades do módulo contábil (`d365/04`, Parte II), em subpastas:
+
+| Subpasta | Entidade | Filtro por empresa |
+|---|---|---|
+| `Lançamentos` | `FSGeneralJournalLineBRs` | `DataArea eq 'brmf'` |
+| `Plano de contas` | `FSMainAccountBRs` | `DataArea eq 'brmf'` |
+| `Centro de custo` | `FSCostCenterBRs` | `dataAreaId eq 'brmf'` |
+
+Lançamento e plano de contas saem de tabelas compartilhadas: a empresa vem do `CompanyInfo`, no campo `DataArea`. Com
+`PrimaryCompanyContext = DataArea`, o F&O também expõe `dataAreaId` nessas duas, com o mesmo valor, e filtrar por um ou
+pelo outro dá o mesmo resultado. A collection usa `DataArea`, o campo declarado na entidade.
+
+**Rode a pasta inteira pelo Runner, na ordem.** Os requests de contagem guardam variáveis que os de aceite usam.
+
+O que cada parte testa:
+
+- **Publicação:** as três aparecem no service document. Em toda a pasta, `404` falha com "entidade não publicada" e
+  `401`/`403` falha com "sem acesso". Se a entidade não responde, os testes de conteúdo são pulados, para a falha não se
+  espalhar.
+- **Smoke:** cada entidade responde e expõe os campos da decisão. Campo `Private` some em silêncio, e é aqui que aparece.
+- **Aceite estrutural (`d365/04`, seção 17):** prova a junção, valha o dado de teste o que valer.
+  - a contagem da entidade é igual à da tabela raiz, por uma entidade padrão da Microsoft (`GeneralJournalAccountEntryBiEntities`, `MainAccounts` do plano da empresa, `FinancialDimensionValues` da dimensão declarada);
+  - a chave é única;
+  - cada lançamento soma zero;
+  - as junções externas (conta e período) resolvem em todas as linhas;
+  - a árvore de contas é fechada, e toda conta usada nos lançamentos existe no plano;
+  - a empresa sem dimensão de centro de custo nos Parâmetros do Brasil (`companySemCentroCusto`, padrão `usmf`) devolve 0.
+
+Os valores em si não entram nos testes: o `fiscosysdev` é base de demonstração.
+
+## Pasta `FiscalHub — inventário (3)`
+
+As três entidades do inventário (`d365/04`, Parte III), em subpastas, mais os dois campos novos da `FSItemBR`:
+
+| Subpasta | Entidade | O que guarda para a próxima |
+|---|---|---|
+| `Armazéns` | `FSInventLocationBRs` | a lista de armazéns |
+| `Saldo atual` | `FSInventOnHandBRs` | o saldo financeiro por site e item, e o físico por armazém e item |
+| `Movimentos` | `FSInventTransBRs` | o histórico financeiro até `inventDataCorte` |
+| `Item (FSItemBR)` | `FSItemBRs` | — |
+
+Filtro por empresa: `dataAreaId eq 'brmf'` nas três. **Rode a pasta inteira pelo Runner, na ordem.**
+
+O que cada parte testa:
+
+- **Publicação, 404 e acesso:** igual ao contábil.
+- **Smoke:** cada entidade responde e expõe os campos da decisão.
+- **Aceite estrutural (`d365/04`, seção 24):**
+  - a contagem da entidade é igual à da tabela raiz (`InventLocationBiEntities`, `InventoryOnHandForAI`, `InventTransBiEntities`, `InventTableBiEntities`);
+  - a chave é única;
+  - todo armazém tem estabelecimento fiscal, e todo armazém do saldo e dos movimentos está na `FSInventLocationBRs`;
+  - a quantidade física do saldo atual bate com a `WarehousesOnHandV2` por armazém e item;
+  - todo item tem `InventUnitId` e `ProductName`.
+- **Saldo na data por dois caminhos:** o request usa o filtro que a carga do hub vai usar, só os movimentos depois de
+  `inventDataCorte`. O saldo atual menos esses movimentos tem de dar o mesmo que a soma do histórico até a data, em cada site e
+  item. Os dois caminhos leem tabelas diferentes (`InventSum` e `InventTrans`).
+
+**A data vem no OData às 12:00Z.** `DateFinancial` de 31/12 chega como `...-12-31T12:00:00Z`: um filtro `gt ...T00:00:00Z`
+traria o próprio dia. O request filtra com `ge` na data de corte e o script descarta o dia; o teste confere que nenhum movimento
+ficou de fora.
 
 ## Atalho pra teste rápido: token pela sua própria identidade
 
