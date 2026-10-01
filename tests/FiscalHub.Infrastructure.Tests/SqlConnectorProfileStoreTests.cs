@@ -40,6 +40,34 @@ public class SqlConnectorProfileStoreTests
         Assert.Empty(await h.Store.ListByInboundAdapterAsync("Xml"));
     }
 
+    [Fact]
+    public async Task Modules_go_and_come_back_and_null_stays_null()
+    {
+        using var h = NewStore();
+        await h.Store.UpsertAsync(Profile("Sandbox") with { Modules = ["Fiscal", "Inventario"] });
+        await h.Store.UpsertAsync(Profile("Sandbox") with { TenantId = "tenant-c" });
+
+        Assert.Equal(["Fiscal", "Inventario"], (await h.Store.GetAsync("tenant-a"))!.Modules);
+        Assert.Equal("[\"Fiscal\",\"Inventario\"]", (await h.Db.ConnectorProfiles.SingleAsync(p => p.TenantId == "tenant-a")).Modules);
+        Assert.Null((await h.Store.GetAsync("tenant-c"))!.Modules);   // nada gravado: vale o padrão, só o Fiscal
+        Assert.Equal(["Fiscal"], TenantModules.Of(await h.Store.GetAsync("tenant-c")));
+    }
+
+    [Theory]
+    [InlineData("não é json")]
+    [InlineData("[\"Fiscal\",\"Folha\"]")]
+    [InlineData("[]")]
+    public async Task Unreadable_modules_put_by_sql_fall_back_to_the_default(string column)
+    {
+        using var h = NewStore();
+        await h.Store.UpsertAsync(Profile("Sandbox"));
+        ConnectorProfileRow row = await h.Db.ConnectorProfiles.SingleAsync();
+        row.Modules = column;
+        await h.Db.SaveChangesAsync();
+
+        Assert.Equal(["Fiscal"], TenantModules.Of(await h.Store.GetAsync("tenant-a")));
+    }
+
     private static TenantConnectorProfile Profile(string environment) => new()
     {
         TenantId = "tenant-a",

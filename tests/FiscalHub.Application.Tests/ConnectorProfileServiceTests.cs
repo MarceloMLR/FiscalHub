@@ -84,6 +84,57 @@ public class ConnectorProfileServiceTests
         Assert.False(sandbox.ContainsKey("clientSecret"));
     }
 
+    // A máscara da tela é placeholder, e nunca valor. Se um cliente a mandar como valor, a gravação falha alto, e o
+    // segredo gravado não é destruído em silêncio (change module-navigation-and-integration-panel, D3).
+    [Theory]
+    [InlineData("••••••••")]
+    [InlineData("********")]
+    [InlineData("* * * *")]
+    [InlineData("●●●●")]
+    [InlineData("∗∗∗")]
+    public async Task Mask_as_the_value_of_a_write_field_is_refused_without_any_write(string mask)
+    {
+        var h = new Harness(stored: Profile(outbound: $$$$"""{"sandbox":{"clientId":"abc","clientSecretRef":"kv:{{{{SandboxSecretName}}}}"}}"""));
+        h.Secrets.Values[SandboxSecretName] = Secret;
+        TenantConnectorProfile before = h.Profiles.Stored!;
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(
+            Request(outbound: "{\"sandbox\":{\"clientId\":\"abc\",\"clientSecret\":\"" + mask + "\"}}"));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Invalid, result.Status);
+        Assert.Contains("OutboundSettings.sandbox.clientSecret", result.Message);
+        Assert.Contains("máscara", result.Message);
+        Assert.DoesNotContain(mask, result.Message);
+        Assert.Equal(0, h.Secrets.SetCount);
+        Assert.Equal(Secret, h.Secrets.Values[SandboxSecretName]);   // o segredo gravado continua o mesmo
+        Assert.Equal(0, h.Profiles.UpsertCount);
+        Assert.Same(before, h.Profiles.Stored);
+        Assert.Empty(h.Observer.Tenants);
+    }
+
+    [Fact]
+    public async Task Mask_in_the_inbound_settings_is_refused_too()
+    {
+        var h = new Harness();
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(inbound: """{"auth":{"clientSecret":"********"}}"""));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Invalid, result.Status);
+        Assert.Contains("InboundSettings.auth.clientSecret", result.Message);
+        Assert.Equal(0, h.Secrets.SetCount);
+    }
+
+    [Fact]
+    public async Task Secret_with_a_mask_character_among_others_is_accepted()
+    {
+        var h = new Harness();
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request(outbound: """{"sandbox":{"clientSecret":"ab*cd"}}"""));
+
+        Assert.Equal(ConnectorProfileSaveStatus.Saved, result.Status);
+        Assert.Equal("ab*cd", h.Secrets.Values[SandboxSecretName]);
+    }
+
     [Fact]
     public async Task Stored_reference_is_not_carried_to_another_adapter()
     {
@@ -360,6 +411,69 @@ public class ConnectorProfileServiceTests
 
         Assert.DoesNotContain(Secret, text);
         Assert.Contains("Avalara", text);
+    }
+
+    // ---- Módulos: apresentação, e não permissão (change module-navigation-and-integration-panel, D2) ----
+
+    [Fact]
+    public async Task Save_without_modules_keeps_the_stored_ones()
+    {
+        var h = new Harness(stored: Profile() with { Modules = ["Fiscal", "Contabil"] });
+
+        await h.Service.SaveAsync(Request(outbound: """{"sandbox":{"clientId":"abc"}}"""));
+
+        Assert.Equal(["Fiscal", "Contabil"], h.Profiles.Stored!.Modules);
+    }
+
+    [Fact]
+    public async Task Save_with_modules_stores_them_normalized()
+    {
+        var h = new Harness(stored: Profile());
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(Request() with { Modules = ["Inventario", "Fiscal", "Fiscal"] });
+
+        Assert.Equal(ConnectorProfileSaveStatus.Saved, result.Status);
+        Assert.Equal(["Fiscal", "Inventario"], h.Profiles.Stored!.Modules);
+    }
+
+    [Theory]
+    [InlineData(new[] { "Fiscal", "Folha" }, "'Folha'")]
+    [InlineData(new string[0], "pelo menos um módulo")]
+    public async Task Invalid_modules_are_refused_without_any_write(string[] modules, string expected)
+    {
+        var h = new Harness(stored: Profile() with { Modules = ["Fiscal", "Contabil"] });
+        TenantConnectorProfile before = h.Profiles.Stored!;
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(
+            Request(inbound: $$$$"""{"auth":{"clientSecret":"{{{{Secret}}}}"}}""") with { Modules = modules });
+
+        Assert.Equal(ConnectorProfileSaveStatus.Invalid, result.Status);
+        Assert.Contains(expected, result.Message);
+        Assert.Equal(0, h.Secrets.SetCount);
+        Assert.Equal(0, h.Profiles.UpsertCount);
+        Assert.Same(before, h.Profiles.Stored);
+        Assert.Empty(h.Observer.Tenants);
+    }
+
+    [Fact]
+    public async Task Read_returns_the_modules_and_only_fiscal_when_none_is_stored()
+    {
+        var withModules = new Harness(stored: Profile() with { Modules = ["Fiscal", "Inventario"] });
+        var without = new Harness(stored: Profile());
+
+        Assert.Equal(["Fiscal", "Inventario"], (await withModules.Service.GetAsync())!.Modules);
+        Assert.Equal(["Fiscal"], (await without.Service.GetAsync())!.Modules);
+    }
+
+    [Fact]
+    public void Put_body_with_modules_is_read()
+    {
+        ConnectorProfileRequest? request = JsonSerializer.Deserialize<ConnectorProfileRequest>("""
+            {"environment":"Sandbox","inboundAdapter":"Dynamics365","inboundSettings":"{}",
+             "outboundAdapter":"Avalara","outboundSettings":"{}","modules":["Fiscal","Contabil"]}
+            """, HostJson);
+
+        Assert.Equal(["Fiscal", "Contabil"], request!.Modules);
     }
 
     // ---- Leitura ----

@@ -21,4 +21,7 @@ internal sealed class ConnectorProfileRow
     public string? SupportAdapter { get; set; }
 
     public string? SupportSettings { get; set; }
+
+    /// <summary>Os módulos do tenant, em JSON (<c>["Fiscal","Inventario"]</c>). Nulo = só o Fiscal (<c>TenantModules</c>).</summary>
+    public string? Modules { get; set; }
 }

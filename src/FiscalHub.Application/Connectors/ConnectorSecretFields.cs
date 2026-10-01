@@ -26,6 +26,14 @@ public static class ConnectorSecretFields
         return normalized.Length > ReferenceSuffix.Length && normalized.EndsWith(ReferenceSuffix, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// O valor é só a máscara da tela (<c>*</c>, <c>•</c>, <c>●</c>, <c>∗</c>, com ou sem espaços)? A máscara é
+    /// placeholder, e nunca valor: se ela chegar como valor, gravá-la destruiria o segredo no cofre. Um segredo real feito
+    /// só desses caracteres também é recusado, e o custo é aceito (change module-navigation-and-integration-panel, D3).
+    /// </summary>
+    public static bool IsMask(string value)
+        => value.Any(c => !char.IsWhiteSpace(c)) && value.All(c => char.IsWhiteSpace(c) || c is '*' or '•' or '●' or '∗');
+
     /// <summary>O nome do campo sem maiúsculas, <c>_</c> e <c>-</c>: <c>CLIENT_SECRET</c> → <c>clientsecret</c>.</summary>
     public static string Normalize(string name) => new([.. name.ToLowerInvariant().Where(c => c is not ('_' or '-'))]);
 
