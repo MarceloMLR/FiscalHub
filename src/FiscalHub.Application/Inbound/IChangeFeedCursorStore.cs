@@ -25,6 +25,14 @@ public interface IChangeFeedCursorStore
     /// </summary>
     Task<bool> TryAdvanceWatermarkAsync(string tenantId, string origin, DateTimeOffset watermark, LeaseClaim lease, CancellationToken ct = default);
 
+    /// <summary>
+    /// Rebobina a marca para <paramref name="watermark"/> se ela for MENOR que a atual E se o lease ainda for de quem pede,
+    /// numa operação só: o mesmo fencing do avanço, com a comparação invertida. É o único caminho que faz a marca regredir,
+    /// e só o rebobinamento do Admin pela tela o usa (change module-navigation-and-integration-panel, D7). Não cria cursor,
+    /// não preenche marca ausente, e não mexe no diagnóstico do coletor. <c>false</c> = nada gravado.
+    /// </summary>
+    Task<bool> TryRewindWatermarkAsync(string tenantId, string origin, DateTimeOffset watermark, LeaseClaim lease, CancellationToken ct = default);
+
     /// <summary>Registra um poll bem-sucedido: último poll = agora, falhas zeradas, erro e throttling limpos.</summary>
     Task RecordSuccessAsync(string tenantId, string origin, DateTimeOffset polledAt, CancellationToken ct = default);
 

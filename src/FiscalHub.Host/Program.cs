@@ -78,6 +78,13 @@ builder.Services.AddSqlProcessingStore(cfg.GetConnectionString("Sql")!);
 builder.Services.AddKeyVaultSecretStore(cfg.GetSection("SecretStore").Get<KeyVaultSecretStoreSettings>() ?? new KeyVaultSecretStoreSettings());
 // Perfil de conector pela tela: o segredo vai para o cofre, o perfil guarda só a referência, e a leitura nunca o devolve.
 builder.Services.AddScoped<ConnectorProfileService>();
+builder.Services.AddScoped<AutomaticIntegrationPanelQuery>();   // o painel do coletor, só do tenant logado (D6)
+builder.Services.AddScoped<ChangeFeedRewind>();                 // o rebobinamento pela tela, sob o lease do coletor (D7)
+// O teste da credencial gravada, com o freio no endpoint (D9, D12). O freio é singleton, e esquece o tenant no salvar do perfil.
+builder.Services.AddSingleton(new CredentialTestOptions());
+builder.Services.AddSingleton<CredentialTestBrake>();
+builder.Services.AddSingleton<IConnectorProfileObserver>(sp => sp.GetRequiredService<CredentialTestBrake>());
+builder.Services.AddScoped<ConnectorCredentialTestService>();
 // Autenticado por padrão: URL e credencial vêm da seção do ambiente ativo do tenant, e o segredo, do cofre (ADR-0027).
 // A seção Avalara (opcional) só ajusta a forma da API — DocumentsPath, TokenPath, margens —, a mesma que a sonda lê.
 builder.Services.AddAvalaraComplianceDispatcher(options => cfg.GetSection("Avalara").Bind(options));
@@ -507,6 +514,8 @@ app.MapGet("/info", async (
         environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox",
         automaticIntegration = AutomaticIntegration.IsOn(profile, scanning),
         inboundScans = AutomaticIntegration.Scans(profile, scanning),
+        // Os módulos montam a barra lateral, para qualquer papel. Apresentação, e não permissão (D2).
+        modules = TenantModules.Of(profile),
     });
 });
 
@@ -525,6 +534,61 @@ app.MapPut("/connector", async (ConnectorProfileRequest req, ConnectorProfileSer
         ConnectorProfileSaveStatus.Saved => Results.NoContent(),
         ConnectorProfileSaveStatus.Invalid => Results.BadRequest(new { message = result.Message }),
         _ => Results.Json(new { message = result.Message }, statusCode: StatusCodes.Status502BadGateway),
+    };
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+// O painel da integração automática: o que o coletor registrou no cursor do tenant (a última verificação, as falhas, o
+// último erro, a marca, o throttling) e o startFrom, só como leitura. 404 = o adapter de entrada não varre (D6).
+app.MapGet("/connector/automatic", async (AutomaticIntegrationPanelQuery panels, CancellationToken ct) =>
+    await panels.GetAsync(ct) is { } panel
+        ? Results.Ok(new
+        {
+            cursor = panel.Cursor is { } c
+                ? new { c.LastPolledAt, c.ConsecutiveFailures, c.LastError, c.Watermark, c.NotBefore }
+                : null,
+            startFrom = panel.StartFrom,
+        })
+        : Results.NotFound())
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+// Testar a credencial GRAVADA de um lado (D9): a requisição não leva credencial, só o lado e, na saída, o ambiente. A
+// resposta tem só a mensagem curta da tela; o motivo detalhado (o código AADSTS, o status HTTP, o campo que falta) vai
+// para o log. Nunca o token nem o segredo.
+app.MapPost("/connector/test", async (
+    CredentialTestRequest req, ConnectorCredentialTestService tests, ITenantContext tenant, ILogger<ConnectorCredentialTestService> log,
+    CancellationToken ct) =>
+{
+    CredentialTestReply reply = await tests.TestAsync(req.Side ?? string.Empty, req.Environment, ct);
+    if (reply.Log is { } entry)
+    {
+        log.LogInformation("Teste de credencial do tenant {Tenant} ({Adapter} {Environment}): {Verdict}{Brake}. {Detail}",
+            tenant.TenantId, entry.Adapter, entry.Environment ?? "entrada", entry.Verdict, entry.FromBrake ? ", pelo freio" : string.Empty,
+            entry.Detail);
+    }
+
+    return reply.Result is { } result ? Results.Ok(result) : Results.BadRequest(new { message = reply.Problem });
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
+// Rebobinar a marca pela tela (D7): o mesmo lease do coletor, só para trás, e só num cursor com marca. A passada seguinte
+// relê do ERP as notas alteradas desde a data, e a regressão da marca zera o registro de publicações da réplica que faz o
+// poll. A idempotência por conteúdo continua barrando o reenvio do que foi enviado e não mudou.
+app.MapPost("/connector/automatic/rewind", async (
+    RewindRequest req, ChangeFeedRewind rewinds, ITenantContext tenant, ClaimsPrincipal principal,
+    ILogger<ChangeFeedRewind> log, CancellationToken ct) =>
+{
+    RewindResult result = await rewinds.RewindAsync(req.Watermark, ct);
+    if (result.Status == RewindStatus.Rewound)
+    {
+        log.LogInformation("Rebobinamento: {User} levou a marca do tenant {Tenant} de {From:o} para {To:o}.",
+            principal.FindFirstValue("email") ?? principal.FindFirstValue("sub"), tenant.TenantId, result.Previous, result.Watermark);
+    }
+
+    return result.Status switch
+    {
+        RewindStatus.Rewound => Results.Ok(new { watermark = result.Watermark, message = result.Message }),
+        RewindStatus.NotScanning => Results.NotFound(new { message = result.Message }),
+        RewindStatus.Invalid => Results.BadRequest(new { message = result.Message }),
+        _ => Results.Conflict(new { message = result.Message }),   // o coletor está lendo, ou não há marca
     };
 }).RequireAuthorization(policy => policy.RequireRole("Admin"));
 
@@ -633,6 +697,12 @@ public sealed record CreateUserRequest(string Email, string Name, string Role, s
 public sealed record UpdateUserRequest(string? Name, string? Role, bool? Active);
 public sealed record ResetUserPasswordRequest(string? NewPassword);
 public sealed record UpdateTenantRequest(string Name, string? Cnpj);
+
+// O instante para onde voltar a marca, com o fuso de quem escolheu (a tela manda o ISO do navegador).
+public sealed record RewindRequest(DateTimeOffset Watermark);
+
+// O lado ("inbound" ou "outbound") e, na saída, o ambiente. Nenhum campo de credencial: o teste usa a gravada.
+public sealed record CredentialTestRequest(string? Side, string? Environment);
 
 /// <summary>Corpo do POST /support/tickets/estimate — só as notas, pra estimar o tamanho dos logs.</summary>
 public sealed record EstimateTicketRequest(IReadOnlyList<string>? NaturalKeys);

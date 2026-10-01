@@ -701,6 +701,9 @@ public class AvalaraComplianceDispatcherTests
         public void Forget(string tenantId)
         {
         }
+
+        public Task<CredentialTestOutcome> ProbeAsync(AvalaraOutboundSettings settings, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 
     private sealed class RecordingTrace : IProcessingTrace

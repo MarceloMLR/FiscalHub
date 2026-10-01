@@ -89,6 +89,10 @@ namespace FiscalHub.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Modules")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("OutboundAdapter")
                         .IsRequired()
                         .HasMaxLength(50)

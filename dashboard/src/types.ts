@@ -120,6 +120,41 @@ export interface TenantInfo {
 // Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores. A leitura vem sem os
 // segredos e sem as referências: `secrets` diz, por caminho (`outbound.sandbox.clientSecret`), se o
 // segredo está no cofre e quando foi gravado (ADR-0027).
+// Os módulos do tenant (GET /info, GET /connector): montam a barra lateral. Apresentação, e não permissão.
+export type ModuleName = 'Fiscal' | 'Contabil' | 'Inventario';
+
+// GET /info — o que qualquer papel lê para montar a barra lateral e o selo.
+export interface InfoResponse {
+  environment: string;
+  // O adapter de entrada varre e o poll.enabled está ligado (derivado no servidor, ADR-0029).
+  automaticIntegration: boolean;
+  // O adapter de entrada varre: o selo aparece (verde ou vermelho) só quando é verdadeiro.
+  inboundScans: boolean;
+  modules: ModuleName[];
+}
+
+// GET /connector/automatic — o painel da integração automática (só Admin). Os instantes vêm em ISO (UTC).
+export interface AutomaticPanel {
+  // O que o coletor registrou; null = ele ainda não passou por este tenant.
+  cursor: {
+    lastPolledAt: string | null;
+    consecutiveFailures: number;
+    lastError: string | null;
+    // null = o cursor nasceu de uma falha, e a marca ainda não nasceu.
+    watermark: string | null;
+    notBefore: string | null;
+  } | null;
+  // O poll.startFrom gravado, só como leitura: sem marca, é dele que a primeira passada começa.
+  startFrom: string | null;
+}
+
+// POST /connector/test — só isto: se funcionou, o motivo e, com o freio, quando um novo teste é aceito (ISO).
+export interface CredentialTestResult {
+  worked: boolean;
+  reason: string;
+  retryAt: string | null;
+}
+
 export interface SecretStatus {
   configured: boolean;
   updatedOn: string | null;
@@ -135,6 +170,7 @@ export interface ConnectorProfile {
   supportAdapter: string | null;
   supportSettings: string;
   secrets: Record<string, SecretStatus>;
+  modules: ModuleName[];
 }
 
 export interface ConnectorProfileRequest {
@@ -143,6 +179,8 @@ export interface ConnectorProfileRequest {
   inboundSettings: string | null;
   outboundAdapter: string;
   outboundSettings: string | null;
+  // Ausente mantém os gravados.
+  modules?: ModuleName[];
 }
 
 // Modo de uma execução/agendamento (espelha IntegrationMode do backend).

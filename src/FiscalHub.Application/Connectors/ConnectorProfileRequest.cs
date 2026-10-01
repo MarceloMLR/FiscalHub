@@ -3,7 +3,8 @@ namespace FiscalHub.Application.Connectors;
 /// <summary>
 /// A gravação do perfil de conector (<c>PUT /connector</c>). O tenant vem do usuário logado, e não do corpo (ADR-0028).
 /// As settings podem trazer o valor de um segredo como campo de escrita (<see cref="ConnectorSecretFields"/>), que vai
-/// para o cofre (ADR-0027). Chamados ausentes (<c>null</c>) mantêm o adapter e as settings já gravados.
+/// para o cofre (ADR-0027). Chamados ausentes (<c>null</c>) mantêm o adapter e as settings já gravados, e módulos ausentes
+/// mantêm os gravados (<see cref="TenantModules"/>).
 /// </summary>
 public sealed record ConnectorProfileRequest(
     string Environment,
@@ -12,7 +13,8 @@ public sealed record ConnectorProfileRequest(
     string OutboundAdapter,
     string? OutboundSettings,
     string? SupportAdapter = null,
-    string? SupportSettings = null)
+    string? SupportSettings = null,
+    IReadOnlyList<string>? Modules = null)
 {
     // As settings podem carregar segredo: nunca entram no texto, que pode acabar num log.
     public override string ToString()
@@ -40,7 +42,7 @@ public sealed record ConnectorProfileSaveResult(ConnectorProfileSaveStatus Statu
 /// <summary>
 /// A leitura do perfil de conector (<c>GET /connector</c>): as settings sem os campos de referência e sem nenhum
 /// campo de escrita, e o mapa <see cref="Secrets"/> — caminho (<c>outbound.sandbox.clientSecret</c>) → configurado e
-/// quando. Nunca o valor, nem parte dele, nem a referência (ADR-0027).
+/// quando. Nunca o valor, nem parte dele, nem a referência (ADR-0027). Os <see cref="Modules"/> vêm com o padrão aplicado.
 /// </summary>
 public sealed record ConnectorProfileView(
     string TenantId,
@@ -51,7 +53,8 @@ public sealed record ConnectorProfileView(
     string OutboundSettings,
     string? SupportAdapter,
     string SupportSettings,
-    IReadOnlyDictionary<string, SecretStatus> Secrets);
+    IReadOnlyDictionary<string, SecretStatus> Secrets,
+    IReadOnlyList<string> Modules);
 
 /// <summary>Se o segredo está no cofre e a data da versão atual. Sem valor, sem referência.</summary>
 public sealed record SecretStatus(bool Configured, DateTimeOffset? UpdatedOn);

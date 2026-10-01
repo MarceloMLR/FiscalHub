@@ -29,10 +29,7 @@ internal sealed class ClientCredentialsD365TokenProvider : ID365TokenProvider
 
     public async Task<string> GetTokenAsync(D365Connection connection, CancellationToken ct = default)
     {
-        D365AuthSettings auth = connection.Auth
-            ?? throw new ConnectorSettingsException("Settings do tenant sem auth: o client credentials precisa de tenantId, clientId e clientSecretRef.");
-        (string entraTenant, string clientId, string secretRef) = auth.RequireComplete();
-        string secret = await ResolveAsync(connection.TenantId, secretRef, ct);
+        (string entraTenant, string clientId, string secret) = await ResolveCredentialAsync(connection, ct);
 
         // A impressão do segredo entra na chave: uma rotação no cofre gera credencial nova, sem guardar o segredo em claro como chave.
         string key = $"{entraTenant}|{clientId}|{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(secret)))}";
@@ -40,6 +37,30 @@ internal sealed class ClientCredentialsD365TokenProvider : ID365TokenProvider
 
         AccessToken token = await credential.GetTokenAsync(new TokenRequestContext([connection.Scope]), ct);
         return token.Token;
+    }
+
+    /// <summary>
+    /// Um token NOVO do Entra ID, para o teste de credencial (change module-navigation-and-integration-panel, D11). A
+    /// resolução da referência e do cofre é a mesma do coletor, mas a credencial é uma instância nova por chamada, que não
+    /// entra no cache de credenciais. O Azure.Identity guarda o token na instância: uma nova começa sem cache e vai ao
+    /// Entra ID. Um teste que reusasse o token do coletor passaria com um segredo já revogado. O <see cref="GetTokenAsync"/>
+    /// do coletor não muda.
+    /// </summary>
+    public async Task<string> GetFreshTokenAsync(D365Connection connection, CancellationToken ct = default)
+    {
+        (string entraTenant, string clientId, string secret) = await ResolveCredentialAsync(connection, ct);
+        TokenCredential credential = _createCredential(entraTenant, clientId, secret);
+        AccessToken token = await credential.GetTokenAsync(new TokenRequestContext([connection.Scope]), ct);
+        return token.Token;
+    }
+
+    // O auth completo e o segredo do cofre, pela referência do próprio tenant: a regra mora aqui, para o coletor e o teste.
+    private async Task<(string EntraTenant, string ClientId, string Secret)> ResolveCredentialAsync(D365Connection connection, CancellationToken ct)
+    {
+        D365AuthSettings auth = connection.Auth
+            ?? throw new ConnectorSettingsException("Settings do tenant sem auth: o client credentials precisa de tenantId, clientId e clientSecretRef.");
+        (string entraTenant, string clientId, string secretRef) = auth.RequireComplete();
+        return (entraTenant, clientId, await ResolveAsync(connection.TenantId, secretRef, ct));
     }
 
     // A referência tem de ser do próprio tenant: senão um tenant usaria a credencial de outro (ADR-0027).

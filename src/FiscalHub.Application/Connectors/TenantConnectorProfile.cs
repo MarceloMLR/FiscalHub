@@ -31,4 +31,10 @@ public sealed record TenantConnectorProfile
 
     /// <summary>Settings do adapter de chamados (JSON; domínio + credenciais por referência).</summary>
     public string SupportSettings { get; init; } = "{}";
+
+    /// <summary>
+    /// Os módulos que o tenant tem, na ordem da barra lateral (<see cref="TenantModules"/>). Nulo = nenhum gravado, e vale
+    /// o padrão (só o Fiscal). Apresentação, e não permissão.
+    /// </summary>
+    public IReadOnlyList<string>? Modules { get; init; }
 }

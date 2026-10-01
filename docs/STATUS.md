@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-09-29
+**Última atualização:** 2026-10-01
 
 ## Ferramentas da sessão
 
@@ -428,6 +428,17 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Direção:** avisar quando o cursor é criado do zero sem `startFrom`. O desenho é o do aviso de poll ausente que já
     existe (`PollNotConfiguredNotices`): avisa na primeira vez e diz o que fazer (`docs/RUNNING.md` §6). O aviso nomeia
     o tenant e o instante em que a marca nasceu.
+  - **O `startFrom` segue sem edição pela tela.** (registrado em 2026-09-29, no planejamento da change
+    `module-navigation-and-integration-panel`)
+    - **A causa:** foi a ausência dele que causou a investigação de 29/09: nenhum erro, a marca avançando e zero
+      documento.
+    - **O que a change trouxe (implementada em 2026-09-29; falta a prova manual, grupo 10):** o painel da integração
+      automática mostra a marca e o `startFrom`, como leitura. Com a marca ausente, o painel diz de onde a primeira
+      passada vai começar: do `startFrom`, ou do instante em que ela rodar, com o histórico de fora. O Admin rebobina a
+      marca pela tela. O aviso no log, que é a direção deste item, continua por fazer.
+    - **O que continua fora:** editar o `startFrom` continua exigindo SQL. Definir o ponto de partida é outra operação,
+      que não é rebobinar: o rebobinamento move a marca de um cursor que existe, e o `startFrom` decide onde nasce um
+      cursor que ainda não existe.
   - **Um segundo sintoma da mesma família, visto no banco em 2026-09-29, depois da prova:** as `InboundSettings` do
     tenant-a ficaram `{}`, sem URL, empresas, `auth` nem `poll`.
     - **A hipótese:** é o efeito de trocar o ERP na tela de conectores para um adapter que não varre (a tarefa 9.5 da
@@ -438,6 +449,34 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Prova:** apagar o `startFrom` e o cursor com o host de pé, e ver o aviso na passada seguinte. Trocar o ERP na tela
     e voltar, e conferir as settings no banco.
   - **Sintoma:** quem rebobina ou liga o coletor de um tenant novo vê a passada rodar limpa e nenhuma nota entrar.
+- [ ] **O rebobinamento pela tela com mais de uma réplica.** (ADR-0031; change `module-navigation-and-integration-panel`,
+  design, Risks)
+  - **O caso:** o registro de publicações é em memória, por réplica, e a regra que o zera compara a marca lida com a
+    última vista por aquela réplica. Uma réplica cuja última marca vista é anterior ao alvo do rebobinamento não vê a
+    regressão.
+  - **O efeito:** ela ainda pode suprimir os pares da faixa de sobreposição acima do alvo, e algumas notas dessa faixa não
+    voltam à fila. O rebobinamento por SQL tem o mesmo limite.
+  - **Hoje:** o host roda uma réplica, e o caso não acontece.
+  - **Direção:** uma geração do rebobinamento, persistida no cursor, que cada réplica compara no `BeginPull`.
+- [ ] **O freio do teste de credencial é em memória, por réplica.** (ADR-0031, D12)
+  - **O efeito:** com N réplicas, o limite vira N testes recusados por 5 minutos, por chave. É o mesmo desenho da recusa
+    lembrada da Avalara.
+  - **Hoje:** uma réplica. É aceito.
+- [ ] **A seção `poll` ilegível esconde o painel e o selo.** (change `module-navigation-and-integration-panel`, design,
+  Risks)
+  - **O caso:** o painel e o selo seguem o `/info`, que conta uma seção `poll` ilegível como desligada. O coletor,
+    enquanto isso, registra a falha no cursor.
+  - **Como se chega lá:** só por SQL. A gravação pela tela recusa um valor novo que o coletor não lê.
+  - **Direção:** mostrar o painel quando o adapter varre e a seção não se lê, com o erro de leitura.
+- [ ] **A restrição de acesso por módulo na API.** (ADR-0031 §5)
+  - **Hoje:** os módulos só montam a barra lateral. A API continua respondendo para um módulo escondido, com as regras de
+    papel e de tenant de sempre.
+  - **Direção:** uma fatia própria, se um cliente precisar de restrição de fato.
+- [ ] **As fatias de Contábil e de Inventário.** (ADR-0031 §5; design D1)
+  - **Hoje:** os dois são lugares reservados na barra lateral, com um painel vazio. Não são filtros do Fiscal.
+  - **O que cada uma precisa:** domínio, portas e adapters próprios.
+  - **O que já está decidido:** a carga é manual, pelo Agendamento. A integração automática continua só Fiscal, por
+    decisão de produto.
 - [ ] **Filtros dos cards.** (dashboard, `GroupsPage`; próximo passo da change `establishment-and-readable-dashboard`)
   - **Comportamento correto, e não defeito:** os cards contam as notas cuja data de referência é hoje.
     - **Qual data:** a data fiscal, no fuso de quem emitiu, sem conversão, com o mesmo critério para a nota montada e para
@@ -836,3 +875,62 @@ Também para a próxima fatia, do teste manual:
 - as duas `UnidadeMedida.Descricao`.
 
 O critério de saída é uma nota aceita.
+
+---
+
+## Sessão 2026-09-29 a 10-01 — Navegação por módulo e o painel da integração automática (change `module-navigation-and-integration-panel`)
+
+**Entregue (ADR-0031).**
+
+- **Os módulos:** o bloco Integrações da barra lateral tem Fiscal, Contábil, Inventário e Agendamento, montado pelos
+  módulos do tenant, que ficam gravados no perfil. É apresentação, e não permissão. Contábil e Inventário são lugares
+  reservados.
+- **O segredo:** aparece mascarado, com 32 bolinhas na cor do texto. A máscara é placeholder, e nunca valor, e o servidor
+  recusa um valor feito só de máscara.
+- **A situação da integração automática:** última busca, falhas consecutivas, último erro e "sincronizado até", e o
+  ponto de partida quando ainda não houve busca. Aparece assim que o interruptor é ligado.
+- **Buscar novamente desde uma data:** é o rebobinamento pela tela, sob o lease do coletor, pela mesma regra que zera o
+  registro de publicações.
+- **O teste de credencial:** cobre o D365 e a Avalara.
+  - **A credencial e o token:** usa a gravada, com um token novo a cada teste.
+  - **A tela:** mostra "Credenciais e conexão válidas" ou "Credenciais ou ambiente inválidos". O detalhe vai para o log
+    do host.
+  - **O freio:** fica no botão, por 5 minutos depois de uma recusa, e salvar o desfaz.
+- **A URL do token:** saiu da tela da Avalara.
+
+**Prova manual.** Não houve log em arquivo, porque o host rodou sem o `Tee-Object`. A evidência é do banco, da API e da
+conferência visual do usuário.
+
+- **Visto no banco e na API:**
+  - a migração `AddConnectorProfileModules` aplicada;
+  - os módulos gravados pela tela;
+  - o `/info` com os módulos, para o Admin e para o Viewer;
+  - o Viewer com 403 no painel, no teste e no rebobinamento, e 200 no `/groups`;
+  - o Client Secret do Sandbox intacto depois de um salvar sem digitar;
+  - as falhas do coletor zeradas, com o Tenant corrigido;
+  - buscar novamente desde 2015 trouxe de volta as 14 notas da `brmf`, com as 5 NF-e reenviadas ao sandbox (a recusa
+    conhecida) e as 9 NFS-e ignoradas.
+- **Conferência visual do usuário, sem linha de log:**
+  - os testes de credencial do D365 e da Avalara, certos e errados;
+  - a máscara;
+  - a aparência do painel.
+- **Aberto na change:** só o passo 5 do 10.2, o painel sem marca, provado só por teste.
+- **Não distinguível pela tela:** o "0 suprimidas" depois do rebobinamento. O host tinha reiniciado, e o registro de
+  publicações já estava vazio. A regra está provada pelo teste 5.5.
+
+**Achados:**
+
+- **As `InboundSettings` do tenant-a em `{}`, de novo:** o mesmo achado de 29/09. Sem URL nem `poll`, a tela não tinha
+  painel nem teste do D365. Foi refeito pela tela.
+- **O Tenant do Entra ID com um caractere a mais** (`…5cfa30778d93a`, 13 caracteres no último bloco, contra os 12 de um
+  GUID): com o segredo certo, o teste falhava. O coletor falhou 25 vezes seguidas, com o erro do Entra ID vazio, sem
+  código AADSTS. Daí veio a correção da classificação: só uma causa de rede é indisponibilidade (`NetworkFailure`).
+  - **Direção possível:** recusar no salvar um tenant com cara de GUID e tamanho errado. O tenant também pode ser um
+    domínio, então não dá para exigir GUID sempre.
+- **O host não reiniciado:** o `dotnet run` de 10:31 seguiu de pé, e a tela mostrava o texto antigo. Antes de concluir
+  que um ajuste não funcionou, conferir a hora em que o host subiu.
+- **O `vitest` 3.2.7:** trouxe um alerta moderado (GHSA-82fw-gwwq-j7x9) no redirect de mocks, que a suíte não usa. A
+  correção é o vitest 5, que pede um vite mais novo. É só dependência de desenvolvimento.
+
+**Próxima fatia:** continua a dos seis campos obrigatórios da recusa da Avalara, com uma nota aceita como critério de
+saída.

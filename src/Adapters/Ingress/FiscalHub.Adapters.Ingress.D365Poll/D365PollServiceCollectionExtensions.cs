@@ -42,6 +42,13 @@ public static class D365PollServiceCollectionExtensions
             sp.GetRequiredService<TimeProvider>(),
             sp.GetRequiredService<ILogger<D365ChangeFeed>>()));
 
+        // O teste da credencial gravada (D11): um provedor de client credentials próprio, porque o teste pede um token novo
+        // a cada vez. Nunca é o do coletor, cujo cache fica intacto, nem o Azure CLI do desenvolvimento.
+        services.TryAddSingleton(sp => new ClientCredentialsD365TokenProvider(sp.GetRequiredService<ISecretStore>()));
+        services.AddScoped<IConnectorCredentialTest>(sp => new D365CredentialTest(
+            sp.GetRequiredService<ClientCredentialsD365TokenProvider>(),
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName)));
+
         return services;
     }
 

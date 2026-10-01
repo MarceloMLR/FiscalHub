@@ -53,6 +53,20 @@ public sealed class ConnectorProfileService
             : Prepare(tenantId, ConnectorSettingsKind.Support, request.SupportSettings,
                 StoredFor(stored?.SupportAdapter, supportAdapter, stored?.SupportSettings), problems);
 
+        // Módulos ausentes mantêm os gravados, como o segredo ausente mantém a referência (D2).
+        IReadOnlyList<string>? modules = stored?.Modules;
+        if (request.Modules is not null)
+        {
+            if (TenantModules.TryNormalize(request.Modules, out IReadOnlyList<string> normalized, out string? moduleProblem))
+            {
+                modules = normalized;
+            }
+            else
+            {
+                problems.Add(moduleProblem);
+            }
+        }
+
         SecretWrite[] writes = [.. inbound.Writes, .. outbound.Writes, .. support.Writes];
         problems.AddRange(writes.GroupBy(w => w.Name).Where(g => g.Count() > 1)
             .Select(g => $"{string.Join(" e ", g.Select(w => w.Field))} caem no mesmo segredo do cofre: deixe um só."));
@@ -92,6 +106,7 @@ public sealed class ConnectorProfileService
                 OutboundSettings = outbound.Json,
                 SupportAdapter = supportAdapter,
                 SupportSettings = support.Json,
+                Modules = modules,
             }, ct);
             upserted = true;
 
@@ -132,7 +147,8 @@ public sealed class ConnectorProfileService
         }
 
         return new ConnectorProfileView(profile.TenantId, profile.Environment,
-            profile.InboundAdapter, inbound, profile.OutboundAdapter, outbound, profile.SupportAdapter, support, secrets);
+            profile.InboundAdapter, inbound, profile.OutboundAdapter, outbound, profile.SupportAdapter, support, secrets,
+            TenantModules.Of(profile));
     }
 
     // Só a referência do próprio tenant é descrita: a de outro tenant, ou malformada, é "não configurado" sem ir ao cofre.
@@ -257,6 +273,13 @@ public sealed class ConnectorProfileService
             if (secret.Length == 0)
             {
                 continue;   // vazio conta como ausente: mantém o que já estava configurado
+            }
+
+            // A máscara é placeholder da tela, e nunca valor: gravá-la destruiria o segredo no cofre (D3).
+            if (ConnectorSecretFields.IsMask(secret))
+            {
+                problems.Add($"{field} veio com a máscara da tela, e não com o segredo. Digite o segredo, ou deixe o campo vazio para manter o que está gravado.");
+                continue;
             }
 
             string secretName;

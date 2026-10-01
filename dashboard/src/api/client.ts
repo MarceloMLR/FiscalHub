@@ -1,5 +1,7 @@
 import type {
   AdminUser,
+  AutomaticPanel,
+  CredentialTestResult,
   AuthUser,
   Branch,
   Company,
@@ -11,6 +13,7 @@ import type {
   DocumentReading,
   DocumentSummary,
   ExecutionSummary,
+  InfoResponse,
   LoginResponse,
   ManualIntegrationRequest,
   ManualIntegrationResult,
@@ -149,9 +152,8 @@ export const api = {
   // A leitura do desfecho: a lista de campos da recusa e as omissões, para qualquer papel. 404 = sem fotos.
   reading: (tenantId: string, naturalKey: string) =>
     getJson<DocumentReading>(`/documents/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}/reading`),
-  // automaticIntegration: o adapter de entrada varre e o poll.enabled está ligado (derivado no servidor, ADR-0029).
-  // inboundScans: o adapter de entrada varre — o selo aparece (verde ou vermelho) só quando ele é verdadeiro.
-  info: () => getJson<{ environment: string; automaticIntegration: boolean; inboundScans: boolean }>('/info'),
+  // O ambiente, o selo e os módulos da barra lateral (ver InfoResponse).
+  info: () => getJson<InfoResponse>('/info'),
   // Download com Bearer: baixa como blob (um <a href> não mandaria o token).
   downloadTrace: async (tenantId: string, naturalKey: string): Promise<void> => {
     const res = await fetch(
@@ -256,6 +258,15 @@ export const api = {
     return (await res.json()) as { ticketId: string; url: string | null };
   },
   connector: () => getJson<ConnectorProfile>('/connector'),
+  // O painel da integração automática (só Admin). 404 = o adapter de entrada não varre.
+  automaticPanel: () => getJson<AutomaticPanel>('/connector/automatic'),
+  // Volta a marca para o instante (ISO). 400 = não é anterior à marca ou está no futuro; 409 = o coletor está lendo,
+  // ou não há marca. As mensagens vêm do servidor.
+  // Testa a credencial GRAVADA de um lado (na saída, de um ambiente). A requisição não leva credencial nenhuma.
+  testConnector: (side: 'inbound' | 'outbound', environment?: 'Sandbox' | 'Production') =>
+    sendAdmin<CredentialTestResult>('POST', '/connector/test', { side, environment }),
+  rewindAutomatic: (watermark: string) =>
+    sendAdmin<{ watermark: string; message: string }>('POST', '/connector/automatic/rewind', { watermark }),
   saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {
     const res = await fetch(`${BASE}/connector`, {
       method: 'PUT',

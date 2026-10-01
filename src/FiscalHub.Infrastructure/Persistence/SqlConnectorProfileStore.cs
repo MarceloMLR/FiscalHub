@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FiscalHub.Application.Connectors;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,6 +33,7 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
                 OutboundSettings = profile.OutboundSettings,
                 SupportAdapter = profile.SupportAdapter,
                 SupportSettings = profile.SupportSettings,
+                Modules = WriteModules(profile.Modules),
             });
         }
         else
@@ -43,6 +45,7 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
             row.OutboundSettings = profile.OutboundSettings;
             row.SupportAdapter = profile.SupportAdapter;
             row.SupportSettings = profile.SupportSettings;
+            row.Modules = WriteModules(profile.Modules);
         }
 
         await _db.SaveChangesAsync(ct);
@@ -68,5 +71,29 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
         OutboundSettings = r.OutboundSettings,
         SupportAdapter = r.SupportAdapter,
         SupportSettings = r.SupportSettings ?? "{}",
+        Modules = ReadModules(r.Modules),
     };
+
+    private static string? WriteModules(IReadOnlyList<string>? modules)
+        => modules is null ? null : JsonSerializer.Serialize(modules);
+
+    // A coluna é apresentação (D2): um valor ilegível ou fora dos aceitos, posto por SQL, cai no padrão em vez de derrubar a
+    // leitura do perfil. O próximo salvar pela tela regrava a lista normalizada.
+    private static IReadOnlyList<string>? ReadModules(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            string[]? values = JsonSerializer.Deserialize<string[]>(json);
+            return values is not null && TenantModules.TryNormalize(values, out IReadOnlyList<string> modules, out _) ? modules : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }

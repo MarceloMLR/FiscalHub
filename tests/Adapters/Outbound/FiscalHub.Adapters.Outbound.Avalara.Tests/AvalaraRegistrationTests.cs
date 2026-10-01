@@ -107,6 +107,9 @@ public class AvalaraRegistrationTests
         }
 
         public void Forget(string tenantId) => Forgotten.Add(tenantId);
+
+        public Task<CredentialTestOutcome> ProbeAsync(AvalaraOutboundSettings settings, CancellationToken ct = default)
+            => throw new NotSupportedException();
     }
 
     private sealed class InMemorySecrets : ISecretStore

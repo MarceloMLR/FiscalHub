@@ -7,7 +7,8 @@ namespace FiscalHub.Infrastructure.Persistence;
 /// <summary>
 /// Implementação de <see cref="IChangeFeedCursorStore"/> em EF Core. Instantes em ticks UTC (ADR-0017).
 /// O avanço da marca é uma instrução só, condicionada ao lease (<c>EXISTS</c> na tabela <c>Leases</c>) e
-/// monotônica — é o fencing do ADR-0024: réplica que perdeu o lease não grava, e nada faz a marca regredir.
+/// monotônica — é o fencing do ADR-0024: réplica que perdeu o lease não grava, e o coletor nunca faz a marca regredir. O
+/// único caminho que a faz regredir é o rebobinamento do Admin, sob o mesmo lease (<see cref="TryRewindWatermarkAsync"/>).
 /// </summary>
 internal sealed class SqlChangeFeedCursorStore : IChangeFeedCursorStore
 {
@@ -74,6 +75,26 @@ internal sealed class SqlChangeFeedCursorStore : IChangeFeedCursorStore
                 .SetProperty(c => c.WatermarkTicks, target)
                 .SetProperty(c => c.UpdatedAt, now), ct);
         return advanced == 1;
+    }
+
+    public async Task<bool> TryRewindWatermarkAsync(
+        string tenantId, string origin, DateTimeOffset watermark, LeaseClaim lease, CancellationToken ct = default)
+    {
+        long target = watermark.UtcTicks;
+        DateTimeOffset now = _clock.GetUtcNow();
+        long nowTicks = now.UtcTicks;
+
+        // O fencing do avanço, com a comparação invertida: UPDATE … WHERE marca > @w AND EXISTS (lease válido do dono).
+        // Marca nula não é maior que nada, então um cursor sem marca não é tocado: ela nasce do startFrom, e não daqui.
+        int rewound = await _db.ChangeFeedCursors
+            .Where(c => c.TenantId == tenantId
+                && c.Origin == origin
+                && c.WatermarkTicks > target
+                && _db.Leases.Any(l => l.Resource == lease.Resource && l.Owner == lease.Owner && l.ExpiresTicks > nowTicks))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.WatermarkTicks, target)
+                .SetProperty(c => c.UpdatedAt, now), ct);
+        return rewound == 1;
     }
 
     public async Task RecordSuccessAsync(string tenantId, string origin, DateTimeOffset polledAt, CancellationToken ct = default)

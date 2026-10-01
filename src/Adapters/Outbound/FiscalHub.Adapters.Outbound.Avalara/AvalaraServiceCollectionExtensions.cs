@@ -44,6 +44,7 @@ public static class AvalaraServiceCollectionExtensions
             sp.GetRequiredService<TimeProvider>(),
             sp.GetRequiredService<ILogger<AvalaraTokenProvider>>()));
         services.AddSingleton<IConnectorProfileObserver, AvalaraProfileObserver>();
+        services.AddSingleton<IConnectorCredentialTest, AvalaraCredentialTest>();   // o botão de testar a credencial (D10)
 
         services.AddHttpClient<IComplianceDispatcher<GoodsInvoice>, AvalaraComplianceDispatcher>().RedactLoggedHeaders(_ => true);
 

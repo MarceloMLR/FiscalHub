@@ -124,13 +124,15 @@ O que a tela mostra, e que parece defeito mas não é:
 ### O Client Secret, pela tela
 
 Todo envio leva o token da credencial do tenant, no ambiente ativo (ADR-0027). Não há modo "sem autenticação" no host.
-A credencial vem das `OutboundSettings` (`baseUrl`, `tokenUrl` opcional, `clientId`), e o **segredo é digitado na
-tela**, até contra o mock:
+A credencial vem das `OutboundSettings` (`baseUrl`, `clientId` e, fora da tela, o `tokenUrl` opcional), e o **segredo é
+digitado na tela**, até contra o mock:
 
 1. Abra o dashboard, entre como `admin@fiscalhub.local` e vá em **Configurações → Conectores → Saída (compliance)**.
 2. Na seção **Sandbox**, digite qualquer valor no **Client Secret** (o mock aceita qualquer um não vazio) e salve.
-3. O campo volta vazio, com "configurado em <data>". O valor foi para o cofre, e o perfil guarda só a referência
-   `kv:fh-tenant-a--outbound--sandbox--clientsecret`. O `GET /connector` nunca devolve o valor.
+3. O campo volta vazio, com a máscara (uma fileira de bolinhas) e "configurado em <data>". O valor foi para o cofre, e o perfil guarda
+   só a referência `kv:fh-tenant-a--outbound--sandbox--clientsecret`. O `GET /connector` nunca devolve o valor.
+   - **A máscara é placeholder, e não valor.** Salvar sem digitar no campo não manda o segredo, e o do cofre fica.
+   - **A defesa do servidor:** um valor feito só de `*`, `•`, `●` ou `∗` é recusado com 400, sem tocar o cofre.
 
 Sem isso, o envio é rejeitado com "Configuração do conector: o Client Secret do ambiente 'sandbox' do tenant 'tenant-a'
 não está configurado … Configure em Configurações → Conectores → Avalara → Sandbox → Client Secret." Depois de reiniciar
@@ -281,6 +283,19 @@ A barra lateral passa a mostrar **Integração automática ligada**. O selo vem 
 
 **3. Conferir o cursor.** A marca deve estar perto de agora: é o relógio do F&O no fim da leitura.
 
+**Pela tela:** em **Configurações → Entrada (ERP)**, sob o interruptor, fica o quadro **Situação**. Ele é só para Admin, e
+aparece assim que o interruptor é ligado na tela, antes de salvar. Ele se atualiza a cada 15 segundos e mostra:
+
+- a **última busca**;
+- as **falhas consecutivas**;
+- o **último erro**, quando há falha;
+- **sincronizado até**, que é a marca;
+- **aguardando o ERP até**, quando a origem pediu para esperar (throttling);
+- antes da primeira busca, de onde ela vai começar: do `startFrom`, ou do momento em que rodar, com o histórico de fora.
+  Com marca, o `startFrom` não aparece.
+
+**Pelo SQL,** a mesma leitura:
+
 ```powershell
 docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub `
   -Q "SELECT TenantId, Origin, DATEADD(SECOND, (WatermarkTicks - 621355968000000000) / 10000000, '1970-01-01') AS Marca, DATEADD(SECOND, (LastPolledTicks - 621355968000000000) / 10000000, '1970-01-01') AS UltimoPoll, ConsecutiveFailures, LastError FROM ChangeFeedCursors;"
@@ -289,10 +304,30 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
 **4. Segunda passada.** Um minuto depois, a próxima passada lê só a janela de sobreposição (5 minutos
 antes da marca) e não reenfileira nada antigo.
 
-**Rebobinar**, para repetir o teste. Apagar o cursor reprocessa com o processo de pé: a passada seguinte parte do
-`startFrom` e põe tudo de volta na fila de descoberta, com `0 suprimida(s)`. Quando o cursor não existe, ou existe sem
-marca, o poller esquece o registro de publicações do tenant antes da leitura (change `automatic-integration-switch`,
-design D5).
+**Rebobinar**, para repetir o teste.
+
+**Pela tela** (change `module-navigation-and-integration-panel`, ADR-0031):
+
+1. No quadro **Situação**, escolha em **Buscar novamente desde** a data e a hora, no fuso do navegador, e confirme.
+2. A confirmação diz o que acontece:
+   - as notas **alteradas** no ERP desde essa data serão lidas de novo (e não as emitidas);
+   - as já enviadas e sem alteração não serão reenviadas;
+   - as recusadas, com erro ou ignoradas serão processadas de novo;
+   - cada NF-e lida gera pelo menos 4 consultas ao F&O.
+3. O log registra `Rebobinamento: <usuário> levou a marca do tenant tenant-a de … para …`. A passada seguinte vem no
+   intervalo normal, até 60 segundos, e diz `0 suprimida(s)`.
+
+**As regras:**
+
+- **O lease:** o rebobinamento toma o mesmo lease do coletor. Com o coletor lendo, a tela responde "A integração
+  automática está buscando notas agora…", e é só tentar de novo.
+- **Só para trás:** uma data depois da marca, ou no futuro, é recusada.
+- **Só com marca:** sem cursor, ou com cursor sem marca, não há o que voltar. A primeira passada parte do `startFrom`, e
+  para mudar o ponto de partida vale o SQL abaixo.
+
+**Pelo SQL,** a alternativa. Apagar o cursor reprocessa com o processo de pé: a passada seguinte parte do `startFrom` e
+põe tudo de volta na fila de descoberta, com `0 suprimida(s)`. Quando o cursor não existe, ou existe sem marca, o poller
+esquece o registro de publicações do tenant antes da leitura (change `automatic-integration-switch`, design D5).
 
 ```powershell
 # apaga o cursor: o startFrom volta a valer na próxima passada
@@ -456,8 +491,8 @@ $antes | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 "$env:TEMP\connec
 ```
 
 b) **Salve pela tela.** Em **Configurações → Conectores → Saída**, na seção **Sandbox** do tenant-a: a URL base do
-   sandbox, a URL do token (se a documentação do sandbox der uma diferente de URL base + `oauth/token`), o Client ID e o
-   Client Secret.
+   sandbox, o Client ID e o Client Secret. A URL do token não está na tela: o hub a monta pela URL base mais
+   `oauth/token`. Se o sandbox exigir outra, ela vai no `tokenUrl` da seção, por SQL.
 
 c) **Faça o `GET` de novo e compare** o que tem de sobreviver:
 
@@ -490,6 +525,22 @@ d) **Confira o caminho do segredo:**
   `$depois`, o `secrets."outbound.sandbox.clientSecret"` tem `configured: true` e a data);
 - a linha do perfil no SQL tem só o `clientSecretRef` `kv:fh-tenant-a--outbound--sandbox--clientsecret`;
 - um `PUT /connector` feito à mão com `clientSecretRef` no corpo dá 400.
+
+e) **Teste a credencial pela tela.** Em **Configurações**, a seção **Sandbox** e a **Produção** da Avalara, e a aba do
+   ERP (`Dynamics365`), têm o botão **Testar credencial**.
+   - **O que ele testa:** a credencial **gravada**, lida do cofre no servidor. Com uma edição pendente, ele pede para
+     salvar antes.
+   - **O token é sempre novo,** nunca o do cache. Um teste que reusasse o cache passaria com um segredo já revogado.
+   - **Na Avalara:** para no token. A permissão só aparece no primeiro envio.
+   - **No D365:** pega um token do Entra ID e lê a `FSFiscalDocumentBRs` com `$top=1`, porque o token prova a
+     credencial, e não a permissão. A leitura vazia não prova o acesso às empresas.
+   - **A tela:** mostra só "Credenciais e conexão válidas" ou "Credenciais ou ambiente inválidos". Com a plataforma fora
+     do ar, mostra "Não foi possível conectar agora…". Nunca token nem segredo.
+   - **O motivo detalhado:** fica no log do host, na linha `Teste de credencial do tenant … (Dynamics365 entrada): Refused.
+     O Entra ID recusou a credencial (AADSTS7000215)…`. Ela traz o código AADSTS, o status HTTP ou o campo que falta.
+   - **O freio:** um teste recusado fica lembrado por 5 minutos, por tenant e por adapter, e na Avalara por ambiente.
+     Nesse intervalo, o clique devolve o motivo lembrado sem ir à plataforma. Salvar o perfil libera. Um teste da
+     Avalara que dá certo também libera o envio, sem esperar a recusa lembrada.
 
 **2. Verificar a premissa de autenticação.** O hub manda OAuth `client_credentials` com corpo JSON, na forma da coleção
 do Postman do cliente (ADR-0027 §3). O resto do contrato de token (os nomes da resposta, a validade, o caminho do endpoint)
