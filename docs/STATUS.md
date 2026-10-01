@@ -914,7 +914,8 @@ conferência visual do usuário.
   - os testes de credencial do D365 e da Avalara, certos e errados;
   - a máscara;
   - a aparência do painel.
-- **Aberto na change:** só o passo 5 do 10.2, o painel sem marca, provado só por teste.
+- **O painel sem marca (10.2, passo 5):** o cursor apagado foi recriado pela busca seguinte, com a marca nascendo no
+  instante dela, sem `startFrom`. Nada fica aberto na change.
 - **Não distinguível pela tela:** o "0 suprimidas" depois do rebobinamento. O host tinha reiniciado, e o registro de
   publicações já estava vazio. A regra está provada pelo teste 5.5.
 
