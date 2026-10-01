@@ -16,9 +16,6 @@
 			<Name>FSTaxTransBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
-			<Name>FSFiscalDocumentTaxTransBRView</Name>
-		</AxSecurityPrivilegeReference>
-		<AxSecurityPrivilegeReference>
 			<Name>FSMarkupTransBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
@@ -52,7 +49,28 @@
 			<Name>FSVendorBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
+			<Name>FSFiscalDocumentTaxTransBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
 			<Name>FSFiscalDocumentMiscChargeBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSGeneralJournalLineBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSMainAccountBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSCostCenterBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSInventOnHandBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSInventTransBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSInventLocationBRView</Name>
 		</AxSecurityPrivilegeReference>
 	</Privileges>
 	<SubRoles />

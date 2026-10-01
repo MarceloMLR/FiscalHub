@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
-	<Name>FSItemBR</Name>
+	<Name>FSInventTransBR</Name>
 	<SourceCode>
 		<Declaration><![CDATA[
-public class FSItemBR extends common
+public class FSInventTransBR extends common
 {
 }
 ]]></Declaration>
@@ -13,12 +13,13 @@ public class FSItemBR extends common
 	<SubscriberAccessLevel>
 		<Read>Allow</Read>
 	</SubscriberAccessLevel>
+	<DataManagementEnabled>No</DataManagementEnabled>
 	<IsPublic>Yes</IsPublic>
 	<IsReadOnly>Yes</IsReadOnly>
 	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
 	<PrimaryKey>EntityKey</PrimaryKey>
-	<PublicCollectionName>FSItemBRs</PublicCollectionName>
-	<PublicEntityName>FSItemBR</PublicEntityName>
+	<PublicCollectionName>FSInventTransBRs</PublicCollectionName>
+	<PublicEntityName>FSInventTransBR</PublicEntityName>
 	<DeleteActions />
 	<FieldGroups>
 		<AxTableFieldGroup>
@@ -46,102 +47,93 @@ public class FSItemBR extends common
 	<Fields>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
+			<Name>InventTransRecId</Name>
+			<DataField>RecId</DataField>
+			<DataSource>InventTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
 			<Name>ItemId</Name>
 			<DataField>ItemId</DataField>
-			<DataSource>InventTable</DataSource>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>NameAlias</Name>
-			<DataField>NameAlias</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>InventSiteId</Name>
+			<DataField>InventSiteId</DataField>
+			<DataSource>InventDim</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>ItemType</Name>
-			<DataField>ItemType</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>InventLocationId</Name>
+			<DataField>InventLocationId</DataField>
+			<DataSource>InventDim</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>BOMUnitId</Name>
-			<DataField>BOMUnitId</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>Qty</Name>
+			<DataField>Qty</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>TaxFiscalClassification</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>TaxFiscalClassification_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>StatusReceipt</Name>
+			<DataField>StatusReceipt</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>InventProductType</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>InventProductType_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>StatusIssue</Name>
+			<DataField>StatusIssue</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>TaxationOrigin</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>TaxationOrigin_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>DatePhysical</Name>
+			<DataField>DatePhysical</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>TaxServiceCode</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>TaxServiceCode_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>DateFinancial</Name>
+			<DataField>DateFinancial</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>ExceptionCode</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>ExceptionCode_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>CostAmountPosted</Name>
+			<DataField>CostAmountPosted</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>ApproxTaxValue</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>ApproxTaxValue_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>CostAmountAdjustment</Name>
+			<DataField>CostAmountAdjustment</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>ScaleIndicator</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>ScaleIndicator_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>CostAmountPhysical</Name>
+			<DataField>CostAmountPhysical</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>ICMSOnService</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>ICMSOnService_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>PackingSlipReturned</Name>
+			<DataField>PackingSlipReturned</DataField>
+			<DataSource>InventTrans</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>ManufacturerCNPJ</Name>
-			<CountryRegionCodes>BR</CountryRegionCodes>
-			<DataField>CNPJ_BR</DataField>
-			<DataSource>InventTable</DataSource>
+			<Name>ReferenceCategory</Name>
+			<DataField>ReferenceCategory</DataField>
+			<DataSource>InventTransOrigin</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
-			<Name>InventUnitId</Name>
-			<DataField>UnitId</DataField>
-			<DataSource>InventTableModuleInvent</DataSource>
-		</AxDataEntityViewField>
-		<AxDataEntityViewField xmlns=""
-			i:type="AxDataEntityViewMappedField">
-			<Name>ProductName</Name>
-			<DataField>Name</DataField>
-			<DataSource>EcoResProductTranslationToSystemLanguage</DataSource>
+			<Name>ReferenceId</Name>
+			<DataField>ReferenceId</DataField>
+			<DataSource>InventTransOrigin</DataSource>
 		</AxDataEntityViewField>
 	</Fields>
 	<Keys>
@@ -149,7 +141,7 @@ public class FSItemBR extends common
 			<Name>EntityKey</Name>
 			<Fields>
 				<AxDataEntityViewKeyField>
-					<DataField>ItemId</DataField>
+					<DataField>InventTransRecId</DataField>
 				</AxDataEntityViewKeyField>
 			</Fields>
 		</AxDataEntityViewKey>
@@ -175,75 +167,43 @@ public class Metadata extends QueryRun
 		</SourceCode>
 		<DataSources>
 			<AxQuerySimpleRootDataSource>
-				<Name>InventTable</Name>
+				<Name>InventTrans</Name>
 				<DynamicFields>Yes</DynamicFields>
-				<Table>InventTable</Table>
+				<Table>InventTrans</Table>
 				<DataSources>
 					<AxQuerySimpleEmbeddedDataSource>
-						<Name>InventTableModuleInvent</Name>
+						<Name>InventDim</Name>
 						<DynamicFields>Yes</DynamicFields>
 						<IsReadOnly>Yes</IsReadOnly>
-						<Table>InventTableModule</Table>
-						<DataSources />
-						<DerivedDataSources />
-						<Fields />
-						<Ranges>
-							<AxQuerySimpleDataSourceRange>
-								<Name>ModuleTypeInvent</Name>
-								<Field>ModuleType</Field>
-								<Value>Invent</Value>
-							</AxQuerySimpleDataSourceRange>
-						</Ranges>
-						<JoinMode>OuterJoin</JoinMode>
-						<UseRelations>Yes</UseRelations>
-						<Relations>
-							<AxQuerySimpleDataSourceRelation>
-								<Name>QueryDataSourceRelation1</Name>
-								<JoinRelationName>InventTable</JoinRelationName>
-							</AxQuerySimpleDataSourceRelation>
-						</Relations>
-					</AxQuerySimpleEmbeddedDataSource>
-					<AxQuerySimpleEmbeddedDataSource>
-						<Name>EcoResProductSystemLanguage</Name>
-						<DynamicFields>Yes</DynamicFields>
-						<IsReadOnly>Yes</IsReadOnly>
-						<Table>EcoResProductSystemLanguage</Table>
+						<Table>InventDim</Table>
 						<DataSources />
 						<DerivedDataSources />
 						<Fields />
 						<Ranges />
-						<JoinMode>OuterJoin</JoinMode>
 						<Relations>
 							<AxQuerySimpleDataSourceRelation>
 								<Name>QueryDataSourceRelation1</Name>
-								<Field>Product</Field>
-								<JoinDataSource>InventTable</JoinDataSource>
-								<RelatedField>Product</RelatedField>
+								<Field>inventDimId</Field>
+								<JoinDataSource>InventTrans</JoinDataSource>
+								<RelatedField>inventDimId</RelatedField>
 							</AxQuerySimpleDataSourceRelation>
 						</Relations>
 					</AxQuerySimpleEmbeddedDataSource>
 					<AxQuerySimpleEmbeddedDataSource>
-						<Name>EcoResProductTranslationToSystemLanguage</Name>
+						<Name>InventTransOrigin</Name>
 						<DynamicFields>Yes</DynamicFields>
 						<IsReadOnly>Yes</IsReadOnly>
-						<Table>EcoResProductTranslation</Table>
+						<Table>InventTransOrigin</Table>
 						<DataSources />
 						<DerivedDataSources />
 						<Fields />
 						<Ranges />
-						<JoinMode>OuterJoin</JoinMode>
 						<Relations>
 							<AxQuerySimpleDataSourceRelation>
 								<Name>QueryDataSourceRelation1</Name>
-								<Field>Product</Field>
-								<JoinDataSource>InventTable</JoinDataSource>
-								<RelatedField>Product</RelatedField>
-							</AxQuerySimpleDataSourceRelation>
-							<AxQuerySimpleDataSourceRelation>
-								<Name>QueryDataSourceRelation2</Name>
-								<Field>SystemLanguageId</Field>
-								<JoinDataSource>EcoResProductSystemLanguage</JoinDataSource>
-								<RelatedField>LanguageId</RelatedField>
+								<Field>InventTransOrigin</Field>
+								<JoinDataSource>InventTrans</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
 							</AxQuerySimpleDataSourceRelation>
 						</Relations>
 					</AxQuerySimpleEmbeddedDataSource>
