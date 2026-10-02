@@ -345,7 +345,7 @@ internal static class D365GoodsInvoiceAssembler
 
     private static Party Party(JsonElement header, string prefix, D365PartyPlace place) => new()
     {
-        TaxId = Digits(Str(header, $"{prefix}CNPJCPF")),
+        TaxId = D365HeaderValues.TaxId(Str(header, $"{prefix}CNPJCPF")),
         Name = Str(header, $"{prefix}Name"),
         StateRegistration = NullIfEmpty(Str(header, $"{prefix}IE")),
         MunicipalityCode = place.MunicipalityCode,
@@ -393,6 +393,7 @@ internal static class D365GoodsInvoiceAssembler
     private static DateTimeOffset Date(JsonElement row, string name)
         => DateTimeOffset.Parse(Str(row, name), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
+    // Só para o NCM e o CFOP, que são códigos numéricos. O CNPJ e o CPF vão pelo D365HeaderValues.TaxId.
     private static string Digits(string value) => D365HeaderValues.Digits(value);
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;

@@ -311,7 +311,7 @@ public class SqlProcessingStoreTests
     [Fact]
     public async Task Ignored_note_counts_in_the_day_total_and_not_as_error()
     {
-        using var h = NewStore();
+        using var h = NewStore(new StubClock(Executed));
         var sameDay = Discovered() with { DocumentModel = "55" };
         await h.Store.RecordMetadataAsync(Reference("brmf|NFE-1"), sameDay, Hash);
         await h.Store.RecordSubmissionAsync(Reference("brmf|NFE-1"), Receipt());
@@ -323,7 +323,7 @@ public class SqlProcessingStoreTests
 
         // Um grupo por tipo no mesmo dia do mesmo estabelecimento; somados, são o card "Documentos" do dia.
         Assert.Equal(2, groups.Count);
-        Assert.All(groups, g => Assert.Equal("2026-08-07", g.ReferenceDate));
+        Assert.All(groups, g => Assert.Equal("2026-10-02", g.ExecutedOn));   // o dia do processamento, e não o fiscal
         Assert.Equal(2, groups.Sum(g => g.Total));
         Assert.Equal(1, groups.Sum(g => g.Finalizadas));
         Assert.Equal(0, groups.Sum(g => g.ComErro));
@@ -353,12 +353,88 @@ public class SqlProcessingStoreTests
         old.CompanyCode = "12345678";
         old.BranchCode = "0001";
         old.ReferenceDate = "2026-07-23";
+        old.ExecutedOn = "2026-07-23";
         h.Db.ProcessedDocuments.Add(old);
         await h.Db.SaveChangesAsync();
 
         var queries = new SqlDocumentQueries(h.Db, new StubTenantContext("tenant-a"));
 
         Assert.Equal("Automatic", (await queries.ListGroupsAsync(50)).Single().Trigger);
+    }
+
+    // ---------- a execução que trouxe a nota (erp-company-directory-and-card-filters, D15) ----------
+
+    [Fact]
+    public async Task Reference_with_the_execution_records_the_day_in_brasilia_the_mode_and_the_period()
+    {
+        using var h = NewStore();
+
+        // 01:30 em UTC já é o dia 3, e em Brasília ainda é o dia 2: o dia da linha é o de Brasília.
+        await h.Store.RecordMetadataAsync(Run("nfe-1", new DateTimeOffset(2026, 10, 3, 1, 30, 0, TimeSpan.Zero)), Meta(), Hash);
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal("2026-10-02", row.ExecutedOn);
+        Assert.Equal("2016-09-01", row.PeriodStart);
+        Assert.Equal("2016-09-30", row.PeriodEnd);
+        Assert.Equal("Manual", row.Trigger);
+        Assert.Equal("2026-07-23", row.ReferenceDate);   // a data fiscal continua gravada
+    }
+
+    [Fact]
+    public async Task Ignored_note_of_an_execution_records_the_day_and_the_period()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordIgnoredAsync(Run("brmf|SE-1", Executed) with { Type = DocumentType.ServiceNfse, Metadata = Discovered() }, "ignorado");
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal("2026-10-02", row.ExecutedOn);
+        Assert.Equal("2016-09-01", row.PeriodStart);
+        Assert.Equal("2016-09-30", row.PeriodEnd);
+        Assert.Equal("Manual", row.Trigger);
+    }
+
+    [Fact]
+    public async Task Next_entry_moves_the_note_and_the_reprocess_does_not()
+    {
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Run("nfe-1", Executed), Meta(), Hash);
+        await h.Store.RecordSubmissionAsync(Run("nfe-1", Executed), Receipt());
+
+        // O coletor traz a nota alterada três dias depois: a linha passa a ser a da automática, sem período.
+        DocumentReference polled = Reference("nfe-1") with { ExecutedAt = Executed.AddDays(3) };
+        await h.Store.RecordMetadataAsync(polled, Meta(), "sha256-do-cru-2");
+        await h.Store.RecordSubmissionAsync(polled, Receipt());
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal("2026-10-05", row.ExecutedOn);
+        Assert.Equal("Automatic", row.Trigger);
+        Assert.Null(row.PeriodStart);
+        Assert.Null(row.PeriodEnd);
+
+        // O reprocesso, sem o instante, só reenvia: a nota fica na linha da última entrada.
+        DocumentReference reprocess = Reference("nfe-1") with { Trigger = IngestionTrigger.Manual };
+        await h.Store.RecordMetadataAsync(reprocess, Meta(), "sha256-do-cru-2");
+        await h.Store.RecordRejectionAsync(reprocess, "Plataforma de compliance recusou: X");
+
+        row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal("2026-10-05", row.ExecutedOn);
+        Assert.Equal("Automatic", row.Trigger);
+        Assert.Null(row.PeriodStart);
+    }
+
+    [Fact]
+    public async Task New_note_without_the_execution_is_born_on_the_processing_day_as_automatic_without_period()
+    {
+        using var h = NewStore(new StubClock(new DateTimeOffset(2026, 10, 3, 2, 0, 0, TimeSpan.Zero)));   // ainda o dia 2 em Brasília
+
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);   // o drop, o /ingest, a mensagem antiga
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal("2026-10-02", row.ExecutedOn);
+        Assert.Equal("Automatic", row.Trigger);
+        Assert.Null(row.PeriodStart);
+        Assert.Null(row.PeriodEnd);
     }
 
     // ---------- omissões do envio: observação visível no Reason (ADR-0026, design D11) ----------
@@ -446,17 +522,30 @@ public class SqlProcessingStoreTests
         Assert.Equal("Plataforma de compliance rejeitou: X", (await h.Db.ProcessedDocuments.SingleAsync()).Reason);
     }
 
-    private static Harness NewStore()
+    private static Harness NewStore(TimeProvider? clock = null)
     {
         var conn = new SqliteConnection("DataSource=:memory:");
         conn.Open();
         var options = new DbContextOptionsBuilder<ProcessingDbContext>().UseSqlite(conn).Options;
         var db = new ProcessingDbContext(options);
         db.Database.EnsureCreated();
-        return new Harness(db, conn, new SqlProcessingStore(db, TimeProvider.System));
+        return new Harness(db, conn, new SqlProcessingStore(db, clock ?? TimeProvider.System));
     }
 
     private const string Hash = "sha256-do-cru-1";
+
+    /// <summary>Meio-dia em Brasília de 2026-10-02.</summary>
+    private static readonly DateTimeOffset Executed = new(2026, 10, 2, 15, 0, 0, TimeSpan.Zero);
+
+    /// <summary>A referência que uma integração imediata de setembro de 2016 publicou.</summary>
+    private static DocumentReference Run(string key, DateTimeOffset executedAt) => Reference(key) with
+    {
+        SourceMode = "Manual",
+        Trigger = IngestionTrigger.Manual,
+        ExecutedAt = executedAt,
+        PeriodStart = new DateOnly(2016, 9, 1),
+        PeriodEnd = new DateOnly(2016, 9, 30),
+    };
 
     private static DocumentReference Reference(string key) => new()
     {

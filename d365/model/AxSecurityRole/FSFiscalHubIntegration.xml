@@ -72,6 +72,9 @@
 		<AxSecurityPrivilegeReference>
 			<Name>FSInventLocationBRView</Name>
 		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FiscalEstablishmentEntityView</Name>
+		</AxSecurityPrivilegeReference>
 	</Privileges>
 	<SubRoles />
 </AxSecurityRole>

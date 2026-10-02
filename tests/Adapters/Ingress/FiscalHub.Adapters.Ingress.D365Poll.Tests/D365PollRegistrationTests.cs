@@ -1,4 +1,5 @@
 using FiscalHub.Application.Connectors;
+using FiscalHub.Application.Directory;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Domain.Goods;
 using Microsoft.Extensions.Configuration;
@@ -46,6 +47,39 @@ public class D365PollRegistrationTests
         Assert.Equal(["Xml", "Dynamics365"], sources.Select(s => s.Origin));
         Assert.IsType<D365GoodsInvoiceSource>(sources[1]);
         Assert.Same(sp.GetRequiredService<D365ReferenceDataCache>(), sp.GetRequiredService<D365ReferenceDataCache>());   // cache singleton
+    }
+
+    [Fact]
+    public async Task Company_directory_of_the_d365_resolves_with_the_collector_token()
+    {
+        await using ServiceProvider sp = Build(services =>
+        {
+            services.AddD365ChangeFeed();
+            services.AddD365CompanyDirectory();
+        });
+        await using AsyncServiceScope scope = sp.CreateAsyncScope();
+
+        ICompanyDirectory directory = Assert.Single(scope.ServiceProvider.GetServices<ICompanyDirectory>());
+
+        Assert.Equal("Dynamics365", directory.Origin);   // casa com o adapter de entrada do perfil do tenant-a
+        Assert.IsType<D365CompanyDirectory>(directory);
+        Assert.IsType<ClientCredentialsD365TokenProvider>(sp.GetRequiredService<ID365TokenProvider>());
+    }
+
+    [Fact]
+    public async Task Period_discovery_of_the_d365_resolves_with_the_collector_token()
+    {
+        await using ServiceProvider sp = Build(services =>
+        {
+            services.AddD365ChangeFeed();
+            services.AddD365DocumentDiscovery();
+        });
+        await using AsyncServiceScope scope = sp.CreateAsyncScope();
+
+        IDocumentDiscovery discovery = Assert.Single(scope.ServiceProvider.GetServices<IDocumentDiscovery>());
+
+        Assert.Equal("Dynamics365", discovery.Origin);
+        Assert.IsType<D365DocumentDiscovery>(discovery);
     }
 
     [Fact]

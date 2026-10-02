@@ -41,6 +41,9 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         doc.Property(d => d.CompanyCode).HasMaxLength(20);
         doc.Property(d => d.BranchCode).HasMaxLength(20);
         doc.Property(d => d.ReferenceDate).HasMaxLength(10);
+        doc.Property(d => d.ExecutedOn).HasMaxLength(10);
+        doc.Property(d => d.PeriodStart).HasMaxLength(10);
+        doc.Property(d => d.PeriodEnd).HasMaxLength(10);
         doc.Property(d => d.DocumentNumber).HasMaxLength(20);
         doc.Property(d => d.DocumentModel).HasMaxLength(5);
         doc.Property(d => d.Trigger).HasMaxLength(20);

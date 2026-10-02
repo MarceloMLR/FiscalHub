@@ -41,11 +41,31 @@ public class AvalaraOutboundSettingsTests
         => Assert.Equal(new AvalaraCompanyCodes("PROD-EMP", "PROD-CTB"), Read(Complete, environment: "Production").CodesFor(Contoso));
 
     [Fact]
-    public void Formatted_cnpj_key_matches_by_digits()
+    public void Formatted_cnpj_key_matches_without_the_punctuation()
     {
         const string settings = """{"sandbox":{"establishments":{"44.278.225/0001-80":{"codigoEmpresa":"E","codigoContribuinte":"C"}}}}""";
 
         Assert.Equal(new AvalaraCompanyCodes("E", "C"), Read(settings).CodesFor(Contoso));
+    }
+
+    [Fact]
+    public void Alphanumeric_cnpj_key_matches_with_its_letters()
+    {
+        const string settings = """{"sandbox":{"establishments":{"12.ABC.345/01DE-35":{"codigoEmpresa":"E","codigoContribuinte":"C"}}}}""";
+
+        Assert.Equal(new AvalaraCompanyCodes("E", "C"), Read(settings).CodesFor("12ABC34501DE35"));
+    }
+
+    [Fact]
+    public void Two_alphanumeric_cnpjs_with_the_same_digits_do_not_share_the_codes()
+    {
+        // Pela regra de "só dígitos", os dois virariam 123450135, e a nota do segundo levaria os códigos do primeiro.
+        const string settings = """{"sandbox":{"establishments":{"12ABC34501DE35":{"codigoEmpresa":"E","codigoContribuinte":"C"}}}}""";
+
+        string reason = Rejection(() => Read(settings).CodesFor("12XYZ34501DE35"));
+
+        Assert.StartsWith("Configuração do conector:", reason);
+        Assert.Contains("12XYZ34501DE35", reason);
     }
 
     [Fact]
@@ -312,6 +332,17 @@ public class AvalaraOutboundSettingsTests
 
         Assert.Equal(expectedOwn, own.TaxId);
         Assert.NotEqual(expectedOwn, partner.TaxId);
+    }
+
+    [Fact]
+    public void Without_issuance_an_alphanumeric_cnpj_in_the_table_is_ours()
+    {
+        const string settings = """{"sandbox":{"establishments":{"12.ABC.345/01DE-35":{"codigoEmpresa":"E","codigoContribuinte":"C"}}}}""";
+
+        (Party own, Party partner) = Read(settings).PartiesOf(Invoice("72458488000106", "12ABC34501DE35"));
+
+        Assert.Equal("12ABC34501DE35", own.TaxId);
+        Assert.Equal("72458488000106", partner.TaxId);
     }
 
     [Fact]

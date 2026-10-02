@@ -8,7 +8,8 @@ namespace FiscalHub.Application.Inbound;
 /// origem e o poll ligado, vencido o intervalo, toma o lease, lê a marca d'água, puxa o delta com
 /// sobreposição, enfileira cada referência na fila de descoberta e avança a marca página a página.
 /// Falha não avança a marca; a próxima passada repete. O par (documento, carimbo) já publicado e assentado
-/// não é republicado na releitura da sobreposição (ADR-0025, design D16). Lógica pura — um
+/// não é republicado na releitura da sobreposição (ADR-0025, design D16). Cada referência leva o instante da passada, sem
+/// período: é o dia da linha da automática no dashboard (change erp-company-directory-and-card-filters, D15). Lógica pura — um
 /// BackgroundService só chama <see cref="RunOnceAsync"/> num timer.
 /// </summary>
 public sealed class ChangeFeedPoller
@@ -174,6 +175,8 @@ public sealed class ChangeFeedPoller
         // tudo de volta). E esquece o que a consulta "gt since" não devolve mais.
         _published.BeginPull(tenant, _feed.Origin, watermark, since);
 
+        DateTimeOffset executedAt = _clock.GetUtcNow();
+
         await foreach (ChangeFeedPage page in _feed.PullAsync(tenant, since, ct).WithCancellation(ct))
         {
             // Enfileira a página inteira ANTES de avançar a marca: uma falha aqui repete a página, nunca a pula.
@@ -190,7 +193,7 @@ public sealed class ChangeFeedPoller
                     continue;
                 }
 
-                await _queue.EnqueueAsync(item.Reference with { Trigger = IngestionTrigger.Event, Origin = _feed.Origin }, ct);
+                await _queue.EnqueueAsync(item.Reference with { Trigger = IngestionTrigger.Event, Origin = _feed.Origin, ExecutedAt = executedAt }, ct);
                 pass.ReferencesEnqueued++;
 
                 // Só o par assentado entra no registro: acima do horizonte, outra gravação ainda pode ganhar o

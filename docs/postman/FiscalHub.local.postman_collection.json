@@ -14,7 +14,7 @@
     { "key": "externalId", "value": "", "type": "string" },
     { "key": "companyCode", "value": "12345678", "type": "string" },
     { "key": "branchCode", "value": "0001", "type": "string" },
-    { "key": "referenceDate", "value": "2026-06-01", "type": "string" },
+    { "key": "executedOn", "value": "2026-10-02", "type": "string" },
     { "key": "periodStart", "value": "2026-06-01T00:00:00-03:00", "type": "string" },
     { "key": "periodEnd", "value": "2026-06-30T23:59:59-03:00", "type": "string" },
     { "key": "scheduleId", "value": "1", "type": "string" }
@@ -87,26 +87,26 @@
           "response": []
         },
         {
-          "name": "GET /groups (empresa/filial/dia)",
+          "name": "GET /groups (empresa/filial/dia da execucao/periodo)",
           "request": {
             "method": "GET",
             "header": [],
             "url": { "raw": "{{hostUrl}}/groups", "host": ["{{hostUrl}}"], "path": ["groups"] },
-            "description": "Grupos por empresa/filial/dia com contagens por status. Tela principal do dashboard."
+            "description": "Grupos por empresa/filial/dia da execucao/periodo integrado com contagens por status. Tela principal do dashboard. Com ?from=aaaa-mm-dd&to=aaaa-mm-dd (e &model=55, opcional), so os da janela, como os cards (ADR-0032 item 8)."
           },
           "response": []
         },
         {
-          "name": "GET /groups/{empresa}/{filial}/{dia}/documents",
+          "name": "GET /groups/{empresa}/{filial}/{dia da execucao}/documents",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{hostUrl}}/groups/{{companyCode}}/{{branchCode}}/{{referenceDate}}/documents",
+              "raw": "{{hostUrl}}/groups/{{companyCode}}/{{branchCode}}/{{executedOn}}/documents",
               "host": ["{{hostUrl}}"],
-              "path": ["groups", "{{companyCode}}", "{{branchCode}}", "{{referenceDate}}", "documents"]
+              "path": ["groups", "{{companyCode}}", "{{branchCode}}", "{{executedOn}}", "documents"]
             },
-            "description": "Notas de um grupo especifico. Ajuste companyCode/branchCode/referenceDate nas variaveis (o XML de exemplo usa empresa 12345678, filial 0001, data 2026-06-01)."
+            "description": "Notas de um grupo especifico. Ajuste companyCode/branchCode/executedOn nas variaveis (o dia da execucao que trouxe as notas, em Brasilia). Opcionais: type, model, trigger e period (none na automatica, ou aaaa-mm-dd_aaaa-mm-dd)."
           },
           "response": []
         },

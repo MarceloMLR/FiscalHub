@@ -10,6 +10,8 @@
 - **Change OpenSpec:** `openspec/changes/connect-avalara-sandbox` (parte 1, grupos 1 a 4), capacidade `tenant-boundary`.
 - **Validado no ambiente:** 2026-09-27, com o host e o mock locais, logado como tenant-a e como tenant-b (ver o fim do
   documento).
+- **Revisado por:** [ADR-0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md). Fecha a pendência "o diretório de empresas não é por tenant": a porta recebe o tenant de
+  quem está logado, a implementação é a do ERP do tenant, e o mock só existe em Development.
 
 ## Contexto
 

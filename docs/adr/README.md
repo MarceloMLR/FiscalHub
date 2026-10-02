@@ -20,8 +20,8 @@ substitui o anterior (em vez de reescrever a história).
 | [0010](0010-dead-letter-visivel-e-poll-resiliente.md) | Dead-letter visível e poll resiliente | Aceito |
 | [0011](0011-stack-do-dashboard.md) | Stack do dashboard (Vite + React + MUI + TanStack Query) | Aceito |
 | [0012](0012-ef-migrations.md) | Migrations de schema (EF Core) no lugar de EnsureCreated | Aceito |
-| [0013](0013-diretorio-de-empresas-como-porta.md) | Diretório de empresas/filiais como porta (JSON no dev, Avalara no cloud) | Aceito |
-| [0014](0014-integracao-manual-por-descoberta-pull.md) | Integração manual por descoberta pull (porta genérica, adapter local no dev) | Aceito |
+| [0013](0013-diretorio-de-empresas-como-porta.md) | Diretório de empresas/filiais como porta (JSON no dev, Avalara no cloud) | Aceito — revisado pelo 0032 |
+| [0014](0014-integracao-manual-por-descoberta-pull.md) | Integração manual por descoberta pull (porta genérica, adapter local no dev) | Aceito — revisado pelo 0032 |
 | [0015](0015-idempotencia-por-gatilho.md) | Idempotência por gatilho (evento dedupa, manual recarrega) | Aceito |
 | [0016](0016-idempotencia-por-conteudo.md) | Idempotência por conteúdo (nota de entrada pode ser corrigida) | Aceito |
 | [0017](0017-agendador-e-execucao-compartilhada.md) | Agendador in-process + execução compartilhada (runner) | Aceito |
@@ -35,10 +35,11 @@ substitui o anterior (em vez de reescrever a história).
 | [0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md) | Montagem do documento D365, origem na referência e supressão de republicação | Aceito — §6 revisado pelo 0026 |
 | [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito — §2 revisado pelo 0027; a omissão visível revisada pelo 0030 |
 | [0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md) | Credencial da plataforma por tenant, segredo pela tela no cofre, e a resposta como quarta foto | Aceito — §8 revisado pelo 0030 |
-| [0028](0028-limite-de-tenant.md) | Limite de tenant: o tenant vem de quem está logado, nunca da requisição; o locator mora em quem o lê | Aceito |
+| [0028](0028-limite-de-tenant.md) | Limite de tenant: o tenant vem de quem está logado, nunca da requisição; o locator mora em quem o lê | Aceito — revisado pelo 0032 |
 | [0029](0029-integracao-automatica-e-o-poll.md) | Integração automática é o `poll.enabled`; o perfil perde o flag de tempo real | Aceito |
-| [0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md) | O grupo da nota vem do estabelecimento próprio e do dia fiscal; a tela lê o motivo pela foto | Aceito |
+| [0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md) | O grupo da nota vem do estabelecimento próprio e do dia fiscal; a tela lê o motivo pela foto | Aceito — revisado pelo 0032 |
 | [0031](0031-painel-do-coletor-rebobinar-pela-tela-e-teste-de-credencial.md) | O painel do coletor, rebobinar pela tela sob o lease, o teste de credencial com token novo e o freio no botão, e os módulos como apresentação | Aceito |
+| [0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md) | O diretório vem do ERP do tenant, a descoberta por período lê o D365 na fila do coletor, o CNPJ guarda as letras, e os cards contam por período e modelo no servidor | Aceito |
 
 ## Planejados
 

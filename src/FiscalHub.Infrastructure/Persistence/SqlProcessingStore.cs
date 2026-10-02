@@ -1,4 +1,5 @@
 using FiscalHub.Application.Inbound;
+using FiscalHub.Application.Integrations;
 using FiscalHub.Application.Metadata;
 using FiscalHub.Application.Outbound;
 using FiscalHub.Application.Pipeline;
@@ -55,7 +56,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
 
         if (row is null)
         {
-            _db.ProcessedDocuments.Add(new ProcessedDocument
+            row = new ProcessedDocument
             {
                 TenantId = reference.TenantId,
                 NaturalKey = reference.NaturalKey,
@@ -70,7 +71,9 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 ContentHash = contentHash,
                 CreatedAt = now,
                 UpdatedAt = now,
-            });
+            };
+            ApplyExecution(row, reference, isNew: true, now);
+            _db.ProcessedDocuments.Add(row);
         }
         else
         {
@@ -85,6 +88,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
             }
             row.ContentHash = contentHash;   // correção reintegrando: grava o hash do cru novo
             row.UpdatedAt = now;
+            ApplyExecution(row, reference, isNew: false, now);
         }
 
         await _db.SaveChangesAsync(ct);
@@ -148,6 +152,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
                 CreatedAt = now,
                 UpdatedAt = now,
             };
+            ApplyExecution(row, reference, isNew: true, now);
             _db.ProcessedDocuments.Add(row);
         }
         else
@@ -157,6 +162,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
             row.Reason = reason;
             row.Attempts = 0;   // (re)submissão reinicia a contagem de consultas
             row.UpdatedAt = now;
+            ApplyExecution(row, reference, isNew: false, now);   // a ignorada de outra execução também muda de linha
         }
 
         // O grupo visto na descoberta, para a nota que não chega à montagem (design D4). O da montagem, já gravado pelo
@@ -168,6 +174,29 @@ internal sealed class SqlProcessingStore : IProcessingStore
 
         await _db.SaveChangesAsync(ct);
     }
+
+    /// <summary>
+    /// A execução que trouxe a nota (change erp-company-directory-and-card-filters, D15). A referência com o instante da
+    /// execução move a nota para ela, que é a última entrada: o dia, o modo e o período passam a ser os dela. Sem o instante
+    /// (o reprocesso, o drop, o /ingest, a mensagem antiga), a linha que já existe não muda, e a nova nasce no dia do
+    /// processamento, como automática e sem período.
+    /// </summary>
+    private static void ApplyExecution(ProcessedDocument row, DocumentReference reference, bool isNew, DateTimeOffset now)
+    {
+        if (reference.ExecutedAt is { } executedAt)
+        {
+            row.ExecutedOn = Day(ExecutionDay.Of(executedAt));
+            row.PeriodStart = reference.PeriodStart is { } start ? Day(start) : null;
+            row.PeriodEnd = reference.PeriodEnd is { } end ? Day(end) : null;
+            row.Trigger = reference.SourceMode ?? AutomaticMode;
+        }
+        else if (isNew)
+        {
+            row.ExecutedOn = Day(ExecutionDay.Of(now));
+        }
+    }
+
+    private static string Day(DateOnly day) => day.ToString("yyyy-MM-dd");
 
     private static void ApplyGroup(ProcessedDocument row, DocumentMetadata metadata)
     {

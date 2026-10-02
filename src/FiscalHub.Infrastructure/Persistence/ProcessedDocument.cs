@@ -41,11 +41,26 @@ internal sealed class ProcessedDocument
     /// <summary>Modo/gatilho da integração (Automatic · Manual · ScheduledDaily · ScheduledOnce) — rótulo do dashboard. Automatic = entrou sem ação humana (coletor, drop, evento).</summary>
     public string? Trigger { get; set; }
 
+    /// <summary>
+    /// O dia (aaaa-mm-dd, em Brasília) da execução que trouxe a nota por último: o da integração, ou o da busca do coletor. É o
+    /// dia da linha no dashboard, e não a data fiscal (<see cref="ReferenceDate"/>) (change erp-company-directory-and-card-filters, D15).
+    /// </summary>
+    public string? ExecutedOn { get; set; }
+
+    /// <summary>O primeiro dia (aaaa-mm-dd) do período integrado pela mesma execução; nulo na automática.</summary>
+    public string? PeriodStart { get; set; }
+
+    /// <summary>O último dia (aaaa-mm-dd) do período integrado, inclusive.</summary>
+    public string? PeriodEnd { get; set; }
+
     /// <summary>Impressão (SHA-256) do conteúdo cru já processado — chave da idempotência por conteúdo.</summary>
     public string? ContentHash { get; set; }
 
     /// <summary>Quantas vezes o status já foi consultado (para o limite do 204 eterno).</summary>
     public int Attempts { get; set; }
+
+    /// <summary>Quantas vezes o reprocesso foi aceito para esta nota. Não zera no reenvio, ao contrário do <see cref="Attempts"/>.</summary>
+    public int ReprocessCount { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 

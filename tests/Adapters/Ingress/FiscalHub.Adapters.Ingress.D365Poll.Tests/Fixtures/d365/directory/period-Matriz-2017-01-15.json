@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentBRs(dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,FiscalDocumentDate,FiscalEstablishmentCNPJCPF,FiscalEstablishment,SysModifiedDateTime,FiscalDocumentRecId)","value":[
+    {
+      "@odata.etag":"W/\"JzAsMzU2MzcxNTY1ODUn\"","dataAreaId":"brmf","Voucher":"BRMF06-110000030","Model":"01","Direction":"Incoming","Status":"Cancelled","FiscalDocumentNumber":"000033","FiscalDocumentSeries":"01","FiscalDocumentDate":"2017-01-15T12:00:00Z","FiscalEstablishmentCNPJCPF":"442782250001-80","FiscalEstablishment":"Matriz","SysModifiedDateTime":"2017-01-21T21:23:19Z","FiscalDocumentRecId":35637156585
+    }
+  ]
+}

@@ -2,13 +2,14 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { useCompanies, useBranches } from '../manual/useDirectory';
 import { useSchedules, useExecutions } from '../schedules/useScheduling';
 import { StatusChip } from '../../components/StatusChip';
 import { FhDataGrid } from '../../components/FhDataGrid';
+import { NativeSelect, Segmented } from '../../components/Controls';
+import { formatCompany } from '../groups/companyCode';
 import type { GridColDef } from '@mui/x-data-grid';
 import type { CreateScheduleRequest, ExecutionSummary, IntegrationModeName, Schedule } from '../../types';
 
@@ -165,6 +166,7 @@ export function IntegrationsPage() {
   const pending = runNow.isPending || createSchedule.isPending || updateSchedule.isPending;
   const canSubmit =
     company !== '' &&
+    !companies.isError &&
     !pending &&
     (mode === 'now'
       ? periodOk && (scope === 'period' || documentNumber.trim() !== '')
@@ -215,7 +217,7 @@ export function IntegrationsPage() {
 
   const scheduleColumns: GridColDef<Schedule>[] = [
     { field: 'mode', headerName: 'Tipo', width: 130, headerClassName: 'fhFirstCol', cellClassName: 'fhFirstCol', valueGetter: (_v, row) => MODE_LABEL[row.mode] },
-    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120 },
+    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 140, valueGetter: (_v, row) => formatCompany(row.companyCode) },
     { field: 'branchCode', headerName: 'Filial', width: 90, valueGetter: (_v, row) => row.branchCode ?? 'Todas' },
     { field: 'nextRunAt', headerName: 'Próximo disparo', width: 170, valueGetter: (_v, row) => dateTime(row.nextRunAt) },
     {
@@ -257,7 +259,7 @@ export function IntegrationsPage() {
 
   const executionColumns: GridColDef<ExecutionSummary>[] = [
     { field: 'mode', headerName: 'Modo', width: 130, headerClassName: 'fhFirstCol', cellClassName: 'fhFirstCol', valueGetter: (_v, row) => MODE_LABEL[row.mode] },
-    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 120 },
+    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 140, valueGetter: (_v, row) => formatCompany(row.companyCode) },
     { field: 'branchCode', headerName: 'Filial', width: 90, valueGetter: (_v, row) => row.branchCode ?? 'Todas' },
     { field: 'periodo', headerName: 'Período', flex: 1, minWidth: 150, sortable: false, valueGetter: (_v, row) => `${row.periodStart} → ${row.periodEnd}` },
     { field: 'discoveredCount', headerName: 'Notas', width: 90, align: 'right', headerAlign: 'right', type: 'number' },
@@ -350,20 +352,28 @@ export function IntegrationsPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(200px, 1fr))', gap: 14 }}>
                 <Field label="Empresa">
-                  <NativeSelect value={company} onChange={(v) => { setCompany(v); setBranch(ALL_BRANCHES); }} disabled={companies.isLoading}>
-                    <option value="" disabled>Selecione…</option>
-                    {(companies.data ?? []).map((c) => (
-                      <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
-                    ))}
-                  </NativeSelect>
+                  {companies.isError ? (
+                    <DirectoryProblem message={(companies.error as Error).message} />
+                  ) : (
+                    <NativeSelect value={company} onChange={(v) => { setCompany(v); setBranch(ALL_BRANCHES); }} disabled={companies.isLoading}>
+                      <option value="" disabled>Selecione…</option>
+                      {(companies.data ?? []).map((c) => (
+                        <option key={c.code} value={c.code}>{formatCompany(c.code)} — {c.name}</option>
+                      ))}
+                    </NativeSelect>
+                  )}
                 </Field>
                 <Field label="Filial">
-                  <NativeSelect value={branch} onChange={setBranch} disabled={company === '' || branches.isLoading}>
-                    <option value={ALL_BRANCHES}>Todas as filiais</option>
-                    {(branches.data ?? []).map((b) => (
-                      <option key={b.code} value={b.code}>{b.code} — {b.name}</option>
-                    ))}
-                  </NativeSelect>
+                  {branches.isError ? (
+                    <DirectoryProblem message={(branches.error as Error).message} />
+                  ) : (
+                    <NativeSelect value={branch} onChange={setBranch} disabled={company === '' || branches.isLoading}>
+                      <option value={ALL_BRANCHES}>Todas as filiais</option>
+                      {(branches.data ?? []).map((b) => (
+                        <option key={b.code} value={b.code}>{b.code} — {b.name}</option>
+                      ))}
+                    </NativeSelect>
+                  )}
                 </Field>
 
                 {mode === 'now' && (
@@ -455,40 +465,20 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
+// O motivo do servidor no lugar do dropdown: o ERP do tenant sem diretório (404), ou a leitura da origem em falha (502).
+function DirectoryProblem({ message }: { message: string }) {
+  return (
+    <div style={{ border: '1px solid var(--error-border)', background: 'var(--error-bg)', color: 'var(--error-text)', borderRadius: 7, padding: '7px 11px', fontSize: 12.5, lineHeight: 1.45 }}>
+      {message}
+    </div>
+  );
+}
+
 function Field({ label, span2, children }: { label: string; span2?: boolean; children: ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: span2 ? 'span 2' : undefined }}>
       <label style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{label}</label>
       {children}
-    </div>
-  );
-}
-
-function NativeSelect({ value, onChange, disabled, children }: { value: string; onChange: (v: string) => void; disabled?: boolean; children: ReactNode }) {
-  return (
-    <div style={{ position: 'relative' }}>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          height: 32,
-          padding: '0 28px 0 11px',
-          fontSize: 13,
-          color: 'var(--ink)',
-          background: 'var(--surface)',
-          border: '1px solid var(--border-strong)',
-          borderRadius: 7,
-          outline: 'none',
-          width: '100%',
-          boxSizing: 'border-box',
-          appearance: 'none',
-          cursor: disabled ? 'default' : 'pointer',
-        }}
-      >
-        {children}
-      </select>
-      <KeyboardArrowDownIcon sx={{ fontSize: 16, position: 'absolute', right: 8, top: 8, color: 'var(--muted)', pointerEvents: 'none' }} />
     </div>
   );
 }
@@ -572,36 +562,5 @@ function PrefixInput({
       </div>
       {note && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>{note}</div>}
     </>
-  );
-}
-
-function Segmented({ value, onChange, options }: { value: Mode; onChange: (v: Mode) => void; options: { value: Mode; label: string }[] }) {
-  return (
-    <div style={{ display: 'inline-flex', padding: 3, background: 'var(--surface-sunken)', borderRadius: 8, alignSelf: 'flex-start' }}>
-      {options.map((o) => {
-        const active = value === o.value;
-        return (
-          <div
-            key={o.value}
-            onClick={() => onChange(o.value)}
-            onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--ink)'; }}
-            onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-secondary)'; }}
-            style={{
-              fontSize: 12.5,
-              fontWeight: active ? 600 : 500,
-              padding: '6px 13px',
-              borderRadius: 6,
-              background: active ? 'var(--surface)' : 'transparent',
-              color: active ? 'var(--ink)' : 'var(--text-secondary)',
-              boxShadow: active ? 'var(--shadow-card)' : undefined,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {o.label}
-          </div>
-        );
-      })}
-    </div>
   );
 }

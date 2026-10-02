@@ -23,6 +23,31 @@ public class GoodsInvoiceMetadataExtractorTests
         Assert.Equal("55", meta.DocumentModel);
     }
 
+    [Theory]
+    [InlineData("12.345.678/0002-90", "12345678", "0002")]   // o XML com máscara dá o mesmo de hoje
+    [InlineData("12ABC34501DE35", "12ABC345", "01DE")]       // CNPJ alfanumérico: os caracteres, e não só os dígitos
+    public void Xml_derivation_reads_the_normalized_cnpj_of_the_issuer(string issuer, string company, string branch)
+    {
+        DocumentMetadata meta = new GoodsInvoiceMetadataExtractor().Extract(Invoice(issuer, recipient: "98765432000110"));
+
+        Assert.Equal(company, meta.CompanyCode);
+        Assert.Equal(branch, meta.BranchCode);
+    }
+
+    [Fact]
+    public void Own_establishment_with_an_alphanumeric_cnpj_is_the_company_as_it_came()
+    {
+        var invoice = Invoice(issuer: "12ABC34501DE35", recipient: "72458488000106") with
+        {
+            Establishment = new Establishment { TaxId = "12ABC34501DE35", Code = "SP-02" },
+        };
+
+        DocumentMetadata meta = new GoodsInvoiceMetadataExtractor().Extract(invoice);
+
+        Assert.Equal("12ABC34501DE35", meta.CompanyCode);
+        Assert.Equal("SP-02", meta.BranchCode);
+    }
+
     [Fact]
     public void Third_party_note_is_grouped_by_the_own_establishment_and_not_the_supplier()
     {

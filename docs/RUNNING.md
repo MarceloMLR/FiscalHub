@@ -94,16 +94,24 @@ da mudança continua rodando o pacote antigo.
 
 O que a tela mostra, e que parece defeito mas não é:
 
-- **Os cards contam a data fiscal de hoje.**
-  - **Qual data:** a data de referência é a data fiscal, no fuso de quem emitiu, sem conversão, na nota processada e na
-    ignorada.
-  - **Qual "hoje":** o do navegador.
-  - **O efeito no fiscosysdev:** as notas são de 2015, 2016 e agosto de 2026, então os cards mostram 0. Elas aparecem na
-    tabela, nas datas fiscais delas, e as NFS-e ignoradas também.
+- **Os cards e a tabela contam pelo dia da execução, na janela e no modelo escolhidos** (ADR-0032 §8).
+  - **Qual data:** o dia em que a integração rodou, em Brasília: o da imediata, da diária ou da agendada, ou o da busca do
+    coletor. A data fiscal continua gravada, mas não é a data da linha.
+  - **O período integrado:** a coluna "Período integrado" mostra o período da imediata, da diária e da agendada. A
+    automática mostra "—".
+  - **A janela:** o dia (o padrão), os últimos 7, 15 ou 30 dias (hoje e os N−1 anteriores, pelo dia do navegador), ou o
+    personalizado, de uma data a outra.
+  - **O modelo:** todos, ou um modelo. A NFS-e ignorada conta em "Documentos", e não em "Com erro".
+  - **A contagem é do servidor** (`GET /groups/totals`), sobre todas as notas da janela, e a tabela (`GET /groups`) segue o
+    mesmo filtro. O modal de uma linha lista só as notas dela.
+  - **A nota fica na linha da última entrada:** outra integração, ou o coletor de novo, a move. O reprocesso não a move, e
+    só soma na coluna "Reprocessos" do modal. A integração agendada que a idempotência pula também não.
+  - **O efeito no fiscosysdev:** as notas de 2016 que a integração imediata de hoje trouxe aparecem hoje, com o período de
+    2016 ao lado. As que o banco já tinha ficam no dia em que foram gravadas pela primeira vez.
 - **A empresa é o CNPJ do estabelecimento próprio.**
-  - **Nas notas do D365:** o CNPJ de 14 dígitos, com máscara, e a filial é o código do estabelecimento (`Matriz`,
-    `SP-01`, `SAL-01` na `brmf`).
-  - **No caminho de XML de dev:** continuam os 8 dígitos do emitente.
+  - **Nas notas do D365:** o CNPJ sem a pontuação e com as letras, mascarado na tela pelo tamanho (14 caracteres, o
+    alfanumérico também), e a filial é o código do estabelecimento (`Matriz`, `SP-01`, `SAL-01` na `brmf`).
+  - **No caminho de XML de dev:** continuam os 8 primeiros caracteres do CNPJ do emitente.
 - **O selo da barra lateral:**
   - **Quando aparece:** só para o adapter de entrada que varre (hoje, o `Dynamics365`);
   - **As cores:** verde é "ligada", e vermelho é "desligada".
@@ -151,6 +159,11 @@ O seed de um banco novo já traz, no `sandbox` do tenant-a:
 - `12345678000190`, o tenant-a dos XMLs de exemplo.
 
 Os dois apontam para `20247332000182`, a empresa do JSON real do ambiente Avalara de teste.
+
+**O diretório do ERP não semeia esta tabela** (ADR-0032 §7). Os códigos são da plataforma, e o diretório só daria a
+chave. Uma integração manual da `SAL-01` ou do `RJ-01` que traga NF-e 55 é rejeitada com "não tem tradução para o
+estabelecimento …", que é o desfecho certo. A tabela continua sem tela: entra pelo seed ou pelo SQL abaixo. A tela da
+tradução, com uma linha por estabelecimento do diretório, está no STATUS como próximo passo.
 
 **Num banco criado antes desta mudança,** o seed não roda de novo. Aplique à mão, pelo mesmo padrão de SQL por
 arquivo das `InboundSettings` (seção 6). As referências seguem o nome que o servidor deriva (`fh-{tenant}--…`, ADR-0027),
@@ -466,6 +479,37 @@ tela** (mesmo sem mudar nada) esquece a recusa na hora, e a próxima nota pede t
 `avalara.response.status.json`, ao lado das outras três, no `/trace`, no zip e na aba **Resposta** do detalhe do
 documento. É um envelope com o status, a URL sem query, alguns cabeçalhos e o corpo, já redigido: sem token, sem
 segredo e sem `Bearer` com valor. O campo `redactions` conta o que foi redigido.
+
+### A integração manual e o agendamento contra o D365 (ADR-0032)
+
+A tela **Agendamento** (a integração manual e os agendamentos) lê o ERP do tenant, e não mais o `companies.json`.
+
+- **O dropdown de empresas** é o cadastro de estabelecimentos do F&O (`FiscalEstablishments`, a entidade padrão da
+  Microsoft), filtrado pelas `companies` do perfil. Na `brmf`, são quatro, cada um com a filial dele:
+
+  | Empresa | Filial |
+  |---|---|
+  | `44.278.225/0001-80` | `Matriz` |
+  | `44.278.225/0002-60` | `SP-01` |
+  | `44.278.225/0003-41` | `SAL-01` |
+  | `44.278.225/0034-48` | `RJ-01`, que não tem nota |
+
+- **O deploy da role vem antes.** A role `FSFiscalHubIntegration` precisa do privilégio padrão
+  `FiscalEstablishmentEntityView`, com build e deploy do modelo (sem sync). Sem ele, o dropdown mostra o motivo do 403: "O
+  F&O negou a leitura do cadastro de estabelecimentos (HTTP 403). A role FSFiscalHubIntegration precisa do privilégio
+  FiscalEstablishmentEntityView…".
+- **A descoberta** lê a `FSFiscalDocumentBRs` pelo **dia fiscal** do período e pelo estabelecimento escolhido. O
+  agendamento diário (D-1) traz as notas com data fiscal de ontem. Todos os modelos entram, e a NFS-e e o CT-e viram
+  "ignorado" no roteamento, como no coletor.
+- **A fila é a do coletor** (`documents-discovered`). A nota descoberta pelo agendamento cai no mesmo registro e no mesmo
+  grupo que o coletor produz, sem linha duplicada. A NFS-e ignorada mantém o modo `Automatic` de quando o coletor a
+  registrou.
+- **O reprocesso** de uma nota do D365 com falha (o botão "Reprocessar" do detalhe) acha a nota pela chave
+  (`brmf|<voucher>`) e a reenfileira com o gatilho manual. É envio real à plataforma.
+- **Em Development, o tenant cujo ERP não tem diretório** (o tenant-b, do `iScala`) continua vendo o `companies.json` e o
+  catálogo dos XMLs de exemplo, e a nota de exemplo continua reprocessável. Isso entra pelo código, sob `IsDevelopment()`,
+  sem passo manual. O tenant-a, do `Dynamics365`, nunca vê o mock. Fora de Development, o mock não existe: o ERP sem
+  diretório responde "não tem diretório de empresas no hub".
 
 ## 8. Sandbox da plataforma (ADR-0027)
 

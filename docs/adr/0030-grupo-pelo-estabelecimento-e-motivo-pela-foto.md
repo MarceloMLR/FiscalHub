@@ -7,6 +7,10 @@
     gravada na foto da resposta do envio.
   - **ADR-0027 §8:** o corpo da quarta foto perde o ruído do `ProblemDetails` quando traz o mapa de erros por campo, e o
     envelope do envio passa a levar as omissões do pedido.
+- **Revisado por:** [ADR-0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md). A empresa do grupo é o CNPJ do estabelecimento sem a pontuação e com as letras, como
+  texto, e não o "CNPJ de 14 dígitos": o CNPJ alfanumérico perdia as letras em silêncio. E o dia da linha no dashboard
+  passa a ser o da execução que trouxe a nota, em Brasília (§8 do ADR-0032). A data fiscal do item 2 continua gravada e é
+  o critério da descoberta por período, mas não é mais o dia dos cards nem o da tabela.
 - **Change OpenSpec:** `openspec/changes/establishment-and-readable-dashboard`. As capacidades são `document-grouping`,
   `integration-schedules`, `compliance-dispatch-outcome`, `platform-response-trace`, `automatic-integration`,
   `d365-change-feed`, `d365-document-assembly` e `discovery-queue-consumer`.

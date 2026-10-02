@@ -115,6 +115,9 @@ O conector do ERP é um **hook fino e genérico**, propositalmente burro:
     dela.
   - **6 do contábil e do inventário** (Partes II e III do `04`): o hub ainda não as lê. Contábil e Inventário são
     fatias próprias (ADR-0031).
+- **Uma entidade padrão da Microsoft:** o hub também lê a `FiscalEstablishments` (o cadastro de estabelecimentos), para o
+  diretório de empresas e a descoberta por período (ADR-0032). Não é `FS*`: a Microsoft a publica com nome fixo. A role
+  `FSFiscalHubIntegration` referencia o privilégio padrão dela, o `FiscalEstablishmentEntityView`.
 - **Descoberta por polling** sobre a `FSFiscalDocumentBR` é a **garantia** (ADR-0023). O hub
   pergunta o que mudou; o ERP não precisa avisar.
 - **Business event** + **CoC** continuam previstos como **otimizador de latência opcional**, não

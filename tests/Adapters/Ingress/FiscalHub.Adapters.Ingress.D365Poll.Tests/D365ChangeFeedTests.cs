@@ -292,7 +292,7 @@ public class D365ChangeFeedTests
         Assert.Equal(
             new DocumentMetadata
             {
-                CompanyCode = "44278225000260",   // o CNPJ do estabelecimento, só com dígitos
+                CompanyCode = "44278225000260",   // o CNPJ do estabelecimento, sem a pontuação
                 BranchCode = "SP-01",
                 ReferenceDate = new DateOnly(2026, 8, 7),   // o dia do FiscalDocumentDate, sem conversão de fuso
                 DocumentNumber = "000002",
@@ -324,6 +324,38 @@ public class D365ChangeFeedTests
         Assert.Equal(reference.Metadata.ReferenceDate, assembled.ReferenceDate);
         Assert.Equal(reference.Metadata.CompanyCode, assembled.CompanyCode);
         Assert.Equal(reference.Metadata.BranchCode, assembled.BranchCode);
+    }
+
+    [Fact]
+    public async Task Group_keeps_the_letters_of_an_alphanumeric_cnpj()
+    {
+        var h = new Harness();
+        h.Http.Respond(Rows(Row("BRMF21-10000040", "2026-08-07T18:14:01Z", 8, establishmentCnpj: "12.ABC.345/01DE-35", establishment: "SP-02")));
+
+        DocumentReference reference = (await h.PullAllAsync(Since2015)).Single().Items.Single().Reference;
+
+        Assert.Equal("12ABC34501DE35", reference.Metadata!.CompanyCode);   // e não 123450135, a regra de "só dígitos"
+        Assert.Equal("SP-02", reference.Metadata.BranchCode);
+    }
+
+    [Fact]
+    public async Task Discovery_and_assembly_give_the_same_alphanumeric_company()
+    {
+        // Derivada: o cabeçalho gravado da nota de saída, com o CNPJ do estabelecimento trocado por um alfanumérico.
+        JsonObject header = D365Fixtures.Editable(D365Fixtures.Rows(D365Fixtures.Note(D365Fixtures.OutgoingNote, "header")).Single());
+        header["FiscalEstablishmentCNPJCPF"] = "12.ABC.345/01DE-35";
+        header["SysModifiedDateTime"] = "2016-03-01T12:00:00Z";   // o carimbo do feed, que a fixture da montagem não traz
+
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Response(header));
+        DocumentReference reference = (await h.PullAllAsync(Since2015)).Single().Items.Single().Reference;
+
+        var rows = new D365DocumentRows(D365Fixtures.ToElement(header), [], [], [], []);
+        DocumentMetadata assembled = new GoodsInvoiceMetadataExtractor().Extract(
+            D365GoodsInvoiceAssembler.Assemble(rows, new D365PartyReferenceData(D365PartyPlace.None, D365PartyPlace.None)));
+
+        Assert.Equal("12ABC34501DE35", reference.Metadata!.CompanyCode);
+        Assert.Equal(reference.Metadata.CompanyCode, assembled.CompanyCode);
     }
 
     [Fact]

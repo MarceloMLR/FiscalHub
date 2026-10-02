@@ -63,6 +63,9 @@ public class GoodsInvoiceToAvalaraTests
 
     [Theory]
     [InlineData("72458488000106", "72458488000106", null)]
+    [InlineData("72.458.488/0001-06", "72458488000106", null)]
+    [InlineData("12ABC34501DE35", "12ABC34501DE35", null)]       // CNPJ alfanumérico: 14 caracteres, não vai sem documento
+    [InlineData("12.ABC.345/01DE-35", "12ABC34501DE35", null)]
     [InlineData("12345678901", null, "12345678901")]
     [InlineData("", null, null)]   // fornecedor estrangeiro: sem CNPJ nem CPF
     public void Partner_document_goes_by_its_length(string taxId, string? cnpj, string? cpf)

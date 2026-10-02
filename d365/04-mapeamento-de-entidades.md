@@ -430,8 +430,31 @@ resolve, saem do escopo.
 
 **`TaxServiceCodeEntities`** — a query devolve o valor que o código já tinha. Provável descarte.
 
-**`FiscalEstablishments`** — dados desnormalizados no cabeçalho (2.5). Pode sair, exceto para resolver o
-`DataAreaId` a partir do CNPJ na configuração do tenant.
+**`FiscalEstablishments`** — a entidade padrão da Microsoft sobre o cadastro de estabelecimentos fiscais. **O hub a lê
+desde 2026-10-02** (ADR-0032, change `erp-company-directory-and-card-filters`), para duas coisas:
+
+- **o diretório de empresas e filiais** da integração manual e do agendamento: a empresa é o CNPJ sem a pontuação, e a
+  filial é o código. Um estabelecimento sem nota aparece, e é para isso que se lê o cadastro, e não as notas;
+- **a descoberta por período:** resolve a empresa e a filial pedidas no par (`dataAreaId`, `FiscalEstablishmentId`), que
+  filtra a `FSFiscalDocumentBRs` de forma exata. O CNPJ do documento fica só numa guarda, porque ele vem formatado como o
+  F&O formata (`442782250002-60`).
+
+Os dados do cabeçalho continuam desnormalizados (2.5): a montagem não consulta este cadastro.
+
+| Campo | Para quê |
+|---|---|
+| `dataAreaId` | a empresa do F&O do estabelecimento, no filtro da descoberta, e as `companies` do perfil |
+| `FiscalEstablishmentId` | a filial do hub (`Matriz`, `SP-01`, `SAL-01`, `RJ-01`) |
+| `CNPJ` (← `CNPJCPFNum_BR`) | a empresa do hub, sem a pontuação e com as letras |
+| `Name` | o nome no dropdown |
+
+- **Por que a da Microsoft, e não uma `FS*`:** as nossas existem porque a Microsoft não publica entidade sobre a
+  `FiscalDocument_BR` (ADR-0022). Esta ela publica, pública e com nome fixo, verificada contra o fiscosysdev em
+  2026-10-01. Uma `FS*` por cima seria um contrato a mais, sem ganho.
+- **A segurança:** a role `FSFiscalHubIntegration` referencia o privilégio padrão `FiscalEstablishmentEntityView` (Read).
+  Ele exige build e deploy, e não sync: nenhuma tabela nem entidade nossa mudou.
+- **O que ficou fora de propósito (`07`, passo 5):** `IE`, `CCM` e `FiscalEstablishmentGroup`. Nada no hub os usa, e
+  campo lido é contrato.
 
 ---
 

@@ -491,6 +491,22 @@ public class ChangeFeedPollerTests
         Assert.Equal(IngestionTrigger.Event, enqueued.Trigger);
     }
 
+    [Fact]
+    public async Task References_carry_the_instant_of_the_pass_and_no_period()
+    {
+        // O dia da linha da automática no dashboard é o da busca (erp-company-directory-and-card-filters, D15).
+        var h = new Harness().WithTenant("tenant-a", Enabled);
+        h.Cursors.Seed("tenant-a", At(12, 0));
+        h.Feed.Read("tenant-a", Page(At(12, 1), "A", "B"));
+
+        await h.RunAsync();
+
+        Assert.Equal(2, h.Queue.Items.Count);
+        Assert.All(h.Queue.Items, r => Assert.Equal(Now, r.ExecutedAt));
+        Assert.All(h.Queue.Items, r => Assert.Null(r.PeriodStart));
+        Assert.All(h.Queue.Items, r => Assert.Null(r.PeriodEnd));
+    }
+
     // ---------- supressão de republicação (design D16) ----------
 
     [Fact]

@@ -87,7 +87,8 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
       )}
       {reprocess.isError && (
         <Banner tone="error" icon={<ErrorOutlineIcon sx={{ fontSize: 16, color: 'var(--error-text)' }} />}>
-          Não foi possível reprocessar: {(reprocess.error as Error)?.message}.
+          {/* O motivo vem do servidor (a nota fora da origem, ou a leitura da origem em falha), já com o ponto final. */}
+          Não foi possível reprocessar: {(reprocess.error as Error)?.message.replace(/\.$/, '')}.
         </Banner>
       )}
 

@@ -17,6 +17,7 @@ import type {
   LoginResponse,
   ManualIntegrationRequest,
   ManualIntegrationResult,
+  ModelTotals,
   Schedule,
   TenantInfo,
   TraceResponse,
@@ -86,6 +87,21 @@ async function sendJson<T>(method: 'POST' | 'PUT', path: string, body: unknown):
   return (await res.json()) as T;
 }
 
+// Como getJson, mas o erro leva a mensagem do backend ({ message }): o diretório responde 404 quando o ERP do tenant não
+// tem diretório e 502 quando a leitura da origem falhou, e a tela mostra o motivo no lugar da lista.
+async function getJsonWithMessage<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
+  if (res.status === 401) {
+    handleUnauthorized();
+    throw new Error('Sessão expirada.');
+  }
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(data.message ?? `${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as T;
+}
+
 const postJson = <T>(path: string, body: unknown) => sendJson<T>('POST', path, body);
 const putJson = <T>(path: string, body: unknown) => sendJson<T>('PUT', path, body);
 
@@ -140,11 +156,28 @@ export const api = {
     }
     return { message: data.message ?? 'Senha redefinida.' };
   },
-  groups: () => getJson<DocumentGroup[]>('/groups'),
-  groupDocuments: (company: string, branch: string, date: string) =>
-    getJson<DocumentSummary[]>(
-      `/groups/${encodeURIComponent(company)}/${encodeURIComponent(branch)}/${encodeURIComponent(date)}/documents`,
-    ),
+  // A tabela, com a mesma janela de dias da execução (aaaa-mm-dd, inclusive) e o mesmo modelo dos cards (D15).
+  groups: (from: string, to: string, model: string | null) => {
+    const query = new URLSearchParams({ from, to });
+    if (model) {
+      query.set('model', model);
+    }
+    return getJson<DocumentGroup[]>(`/groups?${query}`);
+  },
+  // As contagens dos cards por modelo, na janela de dias da execução (aaaa-mm-dd), inclusive.
+  groupTotals: (from: string, to: string) =>
+    getJson<ModelTotals[]>(`/groups/totals?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  // As notas da linha inteira: empresa, filial e dia da execução na rota, e o tipo, o modelo, o modo e o período na query
+  // (period = none na automática, ou aaaa-mm-dd_aaaa-mm-dd).
+  groupDocuments: (group: Pick<DocumentGroup, 'companyCode' | 'branchCode' | 'executedOn' | 'type' | 'model' | 'trigger'>, period: string) => {
+    const query = new URLSearchParams({ type: group.type, trigger: group.trigger, period });
+    if (group.model) {
+      query.set('model', group.model);
+    }
+    return getJson<DocumentSummary[]>(
+      `/groups/${encodeURIComponent(group.companyCode)}/${encodeURIComponent(group.branchCode)}/${encodeURIComponent(group.executedOn)}/documents?${query}`,
+    );
+  },
   documents: () => getJson<DocumentSummary[]>('/documents'),
   // As fotos cruas: só para os papéis que as veem (403 para os demais). Usado pelo modal do JSON.
   trace: (tenantId: string, naturalKey: string) =>
@@ -175,10 +208,13 @@ export const api = {
     a.click();
     URL.revokeObjectURL(url);
   },
-  companies: () => getJson<Company[]>('/companies'),
-  branches: (code: string) => getJson<Branch[]>(`/companies/${encodeURIComponent(code)}/branches`),
+  // O diretório do tenant logado. 404 = o ERP do tenant não tem diretório; 502 = a leitura da origem falhou. O erro leva o
+  // motivo do servidor.
+  companies: () => getJsonWithMessage<Company[]>('/companies'),
+  branches: (code: string) => getJsonWithMessage<Branch[]>(`/companies/${encodeURIComponent(code)}/branches`),
+  // 409 = o ERP do tenant não tem descoberta por período; 502 = a leitura da origem falhou. O erro leva o motivo.
   runManualIntegration: (body: ManualIntegrationRequest) =>
-    postJson<ManualIntegrationResult>('/integrations/manual', body),
+    sendAdmin<ManualIntegrationResult>('POST', '/integrations/manual', body),
   executions: () => getJson<ExecutionSummary[]>('/executions'),
   schedules: () => getJson<Schedule[]>('/schedules'),
   createSchedule: (body: CreateScheduleRequest) => postJson<{ id: number }>('/schedules', body),
@@ -211,6 +247,7 @@ export const api = {
       throw new Error(`${res.status} ${res.statusText}`);
     }
   },
+  // 404 = a nota não está mais na origem; 502 = a leitura da origem falhou. O erro leva o motivo do servidor.
   reprocess: async (tenantId: string, naturalKey: string): Promise<void> => {
     const res = await fetch(
       `${BASE}/documents/${encodeURIComponent(tenantId)}/${encodeURIComponent(naturalKey)}/reprocess`,
@@ -220,7 +257,8 @@ export const api = {
       handleUnauthorized();
     }
     if (!res.ok) {
-      throw new Error(`${res.status} ${res.statusText}`);
+      const data = (await res.json().catch(() => ({}))) as { message?: string };
+      throw new Error(data.message ?? `${res.status} ${res.statusText}`);
     }
   },
   // ---- Administração de usuários / tenant (Admin). Erros carregam a mensagem do backend. ----

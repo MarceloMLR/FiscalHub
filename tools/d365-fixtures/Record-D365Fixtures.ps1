@@ -14,6 +14,12 @@
       snapshot/               base inteira da empresa: cabeçalhos, linhas, impostos, encargos e a
                               contábil dos vouchers fiscais (em blocos — a FSTaxTransBRs inteira tem
                               centenas de milhares de linhas de todas as empresas).
+      directory/              o cadastro de estabelecimentos da empresa (FiscalEstablishments, a entidade
+                              padrão da Microsoft) e, por estabelecimento com nota, a consulta da descoberta
+                              por período no dia fiscal mais recente dele (change
+                              erp-company-directory-and-card-filters, D1 e D4).
+
+    Com -DirectoryOnly, grava só o directory/, sem regravar o resto.
 
     As respostas são salvas como vieram (Invoke-WebRequest -OutFile), sem reformatar. O $select de
     cada consulta de nota é o do design D5: o mesmo que o source do D365 pede, e o que entra no hash.
@@ -26,7 +32,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$EnvironmentUrl,
     [Parameter(Mandatory = $true)][string]$Company,
-    [string]$OutputDir = (Join-Path $PSScriptRoot '..\..\tests\Adapters\Ingress\FiscalHub.Adapters.Ingress.D365Poll.Tests\Fixtures\d365')
+    [string]$OutputDir = (Join-Path $PSScriptRoot '..\..\tests\Adapters\Ingress\FiscalHub.Adapters.Ingress.D365Poll.Tests\Fixtures\d365'),
+    [switch]$DirectoryOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,6 +48,10 @@ $ChargeSelect = 'FiscalDocumentMiscChargeRecId,FiscalDocumentLineRecId,ChargeNum
 $TaxTransSelect = 'TaxTransRecId,Voucher,TaxType,TaxBaseAmount,TaxValue,TaxAmount'
 $PostalAddressSelect = 'PostalAddressRecId,CityRecId,Street,StreetNumber,DistrictName,ZipCode'
 $CitySelect = 'AddressCityRecId,IBGECode'
+# O $select da descoberta (D365ChangeFeed.Select), que a descoberta por período reusa, e o do cadastro de estabelecimentos
+# (change erp-company-directory-and-card-filters, D1). Precisam bater com o adapter.
+$FeedSelect = 'dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,FiscalDocumentDate,FiscalEstablishmentCNPJCPF,FiscalEstablishment,SysModifiedDateTime,FiscalDocumentRecId'
+$EstablishmentSelect = 'dataAreaId,FiscalEstablishmentId,CNPJ,Name'
 
 $base = $EnvironmentUrl.TrimEnd('/')
 $token = az account get-access-token --resource $base --query accessToken -o tsv
@@ -76,10 +87,42 @@ function Get-Rows([string]$Path) { @((Read-Json $Path).value) }
 
 function Escape-OData([string]$Value) { $Value.Replace("'", "''") }
 
+# O dia (aaaa-mm-dd) de um campo de data do OData, como veio (12:00Z). O PowerShell 7 converte o texto em DateTime.
+function Get-Day($Value) {
+    if ($Value -is [datetime]) { $Value.ToUniversalTime().ToString('yyyy-MM-dd') } else { ([string]$Value).Substring(0, 10) }
+}
+
+# O cadastro de estabelecimentos e a consulta da descoberta por período (change erp-company-directory-and-card-filters,
+# D1 e D4). O dia de cada estabelecimento é o dia fiscal mais recente dele nos cabeçalhos do snapshot/, já gravado.
+function Save-Directory([string]$CompanyFilter) {
+    Write-Host 'Diretorio e descoberta por periodo'
+    Save-OData 'FiscalEstablishments' (Get-Query $EstablishmentSelect $CompanyFilter) 'directory/establishments.json'
+    # Nao chamar de $headers: o Save-OData le os cabecalhos HTTP por esse nome.
+    $documents = Get-Rows 'snapshot/headers.json'
+    foreach ($establishment in Get-Rows 'directory/establishments.json') {
+        $id = $establishment.FiscalEstablishmentId
+        $mine = @($documents | Where-Object { $_.FiscalEstablishment -eq $id })
+        if ($mine.Count -eq 0) {
+            Write-Host "  $id sem nota: sem consulta por periodo"
+            continue
+        }
+
+        $day = $mine | ForEach-Object { Get-Day $_.FiscalDocumentDate } | Sort-Object -Descending | Select-Object -First 1
+        $filter = "FiscalDocumentDate ge $($day)T00:00:00Z and FiscalDocumentDate le $($day)T23:59:59Z and $CompanyFilter and FiscalEstablishment eq '$(Escape-OData $id)'"
+        $query = "cross-company=true&`$select=$([Uri]::EscapeDataString($FeedSelect))&`$orderby=FiscalDocumentRecId&`$top=500&`$filter=$([Uri]::EscapeDataString($filter))"
+        Save-OData 'FSFiscalDocumentBRs' $query "directory/period-$id-$day.json"
+    }
+}
+
 New-Item -ItemType Directory -Force $OutputDir | Out-Null
 Push-Location $OutputDir
 try {
     $companyFilter = "dataAreaId eq '$(Escape-OData $Company)'"
+
+    if ($DirectoryOnly) {
+        Save-Directory $companyFilter
+        return
+    }
 
     Write-Host "Snapshot da empresa $Company"
     Save-OData 'FSFiscalDocumentBRs' (Get-Query "$HeaderSelect,SysModifiedDateTime" $companyFilter) 'snapshot/headers.json'
@@ -133,6 +176,8 @@ try {
         Save-OData 'FSFiscalDocumentBRs' (Get-Query $HeaderSelect "FiscalDocumentRecId eq $rec") "scope/$rec/header.json"
         Save-OData 'FSFiscalDocumentLineBRs' (Get-Query $LineSelect "FiscalDocumentRecId eq $rec") "scope/$rec/lines.json"
     }
+
+    Save-Directory $companyFilter
 }
 finally {
     Pop-Location

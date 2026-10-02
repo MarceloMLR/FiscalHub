@@ -7,7 +7,7 @@ namespace FiscalHub.Domain.Goods;
 /// </summary>
 public sealed record Establishment
 {
-    /// <summary>CNPJ completo do estabelecimento, só com dígitos.</summary>
+    /// <summary>CNPJ completo do estabelecimento, sem a pontuação e com as letras (<see cref="TaxIdentifiers"/>).</summary>
     public required string TaxId { get; init; }
 
     /// <summary>Código do estabelecimento na origem, como veio (ex.: "Matriz" no D365). Pode vir vazio.</summary>

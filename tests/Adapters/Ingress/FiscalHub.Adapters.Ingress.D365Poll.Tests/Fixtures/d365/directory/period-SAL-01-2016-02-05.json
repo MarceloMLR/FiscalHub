@@ -1,0 +1,7 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentBRs(dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,FiscalDocumentDate,FiscalEstablishmentCNPJCPF,FiscalEstablishment,SysModifiedDateTime,FiscalDocumentRecId)","value":[
+    {
+      "@odata.etag":"W/\"JzAsNTYzNzE1NTgyOCc=\"","dataAreaId":"brmf","Voucher":"BRMF28-14021","Model":"01","Direction":"Incoming","Status":"Approved","FiscalDocumentNumber":"000031","FiscalDocumentSeries":"01","FiscalDocumentDate":"2016-02-05T12:00:00Z","FiscalEstablishmentCNPJCPF":"442782250003-41","FiscalEstablishment":"SAL-01","SysModifiedDateTime":"2016-11-28T20:58:29Z","FiscalDocumentRecId":5637155828
+    }
+  ]
+}

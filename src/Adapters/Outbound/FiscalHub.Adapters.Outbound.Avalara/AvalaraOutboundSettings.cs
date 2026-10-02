@@ -58,7 +58,7 @@ internal sealed class AvalaraOutboundSettings
             _establishments = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (JsonProperty entry in table.EnumerateObject())
             {
-                _establishments[Digits(entry.Name)] = entry.Value.Clone();
+                _establishments[TaxIdentifiers.Normalize(entry.Name)] = entry.Value.Clone();
             }
         }
         else
@@ -172,7 +172,7 @@ internal sealed class AvalaraOutboundSettings
     public AvalaraCompanyCodes CodesFor(string establishmentTaxId)
     {
         Dictionary<string, JsonElement> table = Table();
-        string cnpj = Digits(establishmentTaxId);
+        string cnpj = TaxIdentifiers.Normalize(establishmentTaxId);
         string where = $"OutboundSettings.{Environment}.establishments";
 
         if (!table.TryGetValue(cnpj, out JsonElement entry))
@@ -210,7 +210,7 @@ internal sealed class AvalaraOutboundSettings
         }
 
         Dictionary<string, JsonElement> table = Table();
-        string issuer = Digits(invoice.Issuer.TaxId), recipient = Digits(invoice.Recipient.TaxId);
+        string issuer = TaxIdentifiers.Normalize(invoice.Issuer.TaxId), recipient = TaxIdentifiers.Normalize(invoice.Recipient.TaxId);
         bool issuerIsOurs = table.ContainsKey(issuer), recipientIsOurs = table.ContainsKey(recipient);
 
         return (issuerIsOurs, recipientIsOurs) switch
@@ -359,5 +359,4 @@ internal sealed class AvalaraOutboundSettings
             ? s
             : null;
 
-    private static string Digits(string value) => new([.. value.Where(char.IsAsciiDigit)]);
 }

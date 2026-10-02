@@ -31,6 +31,12 @@ C:\CustomXppMetadata*\FiscalHubIntegration\XppMetadata\FiscalHubIntegration\AxDa
 Quem escreve ali e o build: sao stubs gerados a partir do item 2. As tres entidades contabeis foram gravadas so nos
 dois primeiros lugares e ganharam o stub no primeiro build (2026-10-01).
 
+**Role e privilegio nao tem o terceiro lugar.** O XppMetadata so guarda o que o build gera a
+partir de X++ (AxDataEntityView, AxTable, AxQuery, AxView, AxClass, AxMap, AxForm,
+AxAggregateDataEntity, AxCompositeDataEntityView). Nao existe AxSecurityRole nem
+AxSecurityPrivilege ali. Para esses, sao dois lugares: o repositorio e o modelo no UDE.
+Verificado em 2026-10-01, ao acrescentar o FiscalEstablishmentEntityView na role.
+
 O sufixo da pasta `CustomXppMetadata*` muda por maquina. Descubra com:
 
 ```powershell

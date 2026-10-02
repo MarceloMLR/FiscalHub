@@ -2,6 +2,9 @@
 
 - **Status:** Aceito
 - **Data:** 2026-07-24
+- **Revisado por:** [ADR-0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md). A descoberta é a do adapter de entrada do perfil, e o D365 ganha a dele, pelo dia fiscal e
+  pelo estabelecimento. O catálogo local passa a ser o fallback de desenvolvimento, só em Development. A execução e o
+  reprocesso publicam na fila de descoberta, a do coletor, e não mais na de entrada.
 
 ## Contexto
 

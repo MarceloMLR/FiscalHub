@@ -16,11 +16,12 @@ payload. O que ele não tem fica fora. O que ele tem e o contrato não leva é d
   documento.
 - **O que não vale:** eles MUST NOT vir do ERP, mesmo quando o documento traz um valor parecido, como o
   próprio CNPJ do estabelecimento.
-- **Comparação da chave:** é feita só pelos dígitos do CNPJ.
+- **Comparação da chave:** é feita pelo CNPJ normalizado dos dois lados (`tax-identifier-normalization`): sem
+  pontuação, com as letras e a caixa como vieram.
 
 Se faltar o perfil, a seção do ambiente, a entrada do estabelecimento ou qualquer um dos dois campos, o
 envio MUST ser rejeitado antes de qualquer requisição à plataforma. O motivo MUST citar o tenant, o
-ambiente, o CNPJ e cada campo que falta.
+ambiente, o CNPJ normalizado e cada campo que falta.
 
 #### Scenario: Os códigos saem da configuração, e não do ERP
 - **WHEN** o estabelecimento próprio da nota tem CNPJ `44278225000180`, e a tabela do ambiente ativo
@@ -42,21 +43,31 @@ ambiente, o CNPJ e cada campo que falta.
 - **WHEN** a entrada do estabelecimento tem `codigoEmpresa` e não tem `codigoContribuinte`
 - **THEN** o envio é rejeitado com motivo que nomeia `codigoContribuinte`
 
+#### Scenario: Chave com CNPJ alfanumérico
+- **WHEN** a tabela do ambiente ativo tem a chave `12.ABC.345/01DE-35`, e o estabelecimento próprio da nota é
+  `12ABC34501DE35`
+- **THEN** os códigos dessa entrada vão no payload
+
+#### Scenario: Dois CNPJs alfanuméricos com os mesmos dígitos
+- **WHEN** a tabela tem só a chave `12ABC34501DE35`, e o estabelecimento próprio da nota é `12XYZ34501DE35`
+- **THEN** o envio é rejeitado por falta de tradução, com motivo que cita `12XYZ34501DE35`
+- **AND** os códigos de `12ABC34501DE35` não são usados
+
 ### Requirement: Estabelecimento próprio e parceiro
 
 O estabelecimento próprio do documento MUST ser determinado assim:
 
 - **A nota diz se é de emissão própria ou de terceiros:** o estabelecimento próprio é o emitente na
   emissão própria, e o destinatário na emissão de terceiros.
-- **A nota não diz:** o estabelecimento próprio é a única parte cujo CNPJ está na tabela do ambiente
+- **A nota não diz:** o estabelecimento próprio é a única parte cujo CNPJ normalizado está na tabela do ambiente
   ativo. Se nenhuma parte ou as duas estiverem na tabela, o envio MUST ser rejeitado antes de qualquer
   requisição à plataforma, com motivo que cita os CNPJs das duas partes.
 
 O `parceiro` do payload MUST ser a outra parte. Ele leva:
 
 - **`nome`;**
-- **documento:** o CNPJ em `cnpj` quando tem 14 dígitos, o CPF em `cpf` quando tem 11, e nenhum dos dois
-  em qualquer outro caso;
+- **documento:** o documento normalizado (`tax-identifier-normalization`). Ele vai em `cnpj` quando tem 14 caracteres,
+  sejam dígitos ou letras, e em `cpf` quando tem 11. Em qualquer outro caso, não vai nenhum dos dois;
 - **endereço:** `endereco`, `numero`, `bairro` e `cep`, só os que o documento tiver. O `cep` vai só com
   dígitos.
 
@@ -81,6 +92,10 @@ O `parceiro` do payload MUST ser a outra parte. Ele leva:
 #### Scenario: Parceiro estrangeiro sem documento brasileiro
 - **WHEN** a contraparte da nota de importação não tem CNPJ nem CPF
 - **THEN** o parceiro vai sem `cnpj` e sem `cpf`, com o nome e o endereço que houver
+
+#### Scenario: Parceiro com CNPJ alfanumérico
+- **WHEN** o parceiro da nota tem o CNPJ `12.ABC.345/01DE-35`
+- **THEN** o parceiro do payload leva `cnpj = 12ABC34501DE35`, e não vai sem documento
 
 ### Requirement: Cabeçalho do documento
 

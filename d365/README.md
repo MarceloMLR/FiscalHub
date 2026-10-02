@@ -32,6 +32,12 @@ Segurança: privilégio de leitura por entidade + a role `FSFiscalHubIntegration
 ("FiscalHub - integração (somente leitura)"), que precisa ser atribuída ao usuário da app
 registration no F&O.
 
+**A entidade padrão que o hub também lê.** O diretório de empresas e a descoberta por período (ADR-0032) leem a
+`FiscalEstablishments`, a entidade padrão da Microsoft sobre o cadastro de estabelecimentos fiscais, e não uma `FS*`: a
+Microsoft a publica com nome fixo, e a razão das nossas (ADR-0022) não vale para ela. A role referencia o privilégio
+padrão dela, o `FiscalEstablishmentEntityView` (Read). Sem o deploy dele, o dropdown de empresas da integração manual
+mostra o 403 com o nome da role e do privilégio. O que o hub lê dela está no `04`, §7.
+
 **Como conferir pelo hub.** O botão **Testar credencial** da aba do ERP, em Configurações, pede um token novo ao Entra ID
 e lê `/data/FSFiscalDocumentBRs?$top=1&$select=FiscalDocumentRecId&cross-company=true` (ADR-0031). Um 403 é a role ou
 o privilégio da entidade que falta. Um 401 é o app que não está cadastrado no F&O, em Aplicativos do Microsoft Entra
@@ -83,7 +89,8 @@ forma, em vez de misturar documentos em uma pasta comum.
 
 A antiga fase 2 (CoC + business event disparando no status) **saiu do roadmap**. Dois motivos:
 não cobre todos os caminhos de escrita, então nunca poderia ser a garantia (ADR-0023); e exige X++
-no pacote, que hoje é **metadado puro** — 22 entidades, 22 privilégios, uma role, zero código.
+no pacote, que hoje é **metadado puro** — 22 entidades, 22 privilégios, uma role (que referencia também o
+privilégio padrão `FiscalEstablishmentEntityView`), zero código.
 
 Evento só compra **latência**, e com poll de 10s a detecção fica em 5s na média. Para despachar nota
 já aprovada, isso não é gargalo.

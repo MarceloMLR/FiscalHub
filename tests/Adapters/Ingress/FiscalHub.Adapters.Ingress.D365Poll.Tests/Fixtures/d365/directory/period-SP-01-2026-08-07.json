@@ -1,0 +1,9 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FSFiscalDocumentBRs(dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,FiscalDocumentDate,FiscalEstablishmentCNPJCPF,FiscalEstablishment,SysModifiedDateTime,FiscalDocumentRecId)","value":[
+    {
+      "@odata.etag":"W/\"JzEsNjg3MTk0Nzc5NjYn\"","dataAreaId":"brmf","Voucher":"BRMF06-110000034","Model":"SE","Direction":"Incoming","Status":"Approved","FiscalDocumentNumber":"125","FiscalDocumentSeries":"1","FiscalDocumentDate":"2026-08-07T12:00:00Z","FiscalEstablishmentCNPJCPF":"442782250002-60","FiscalEstablishment":"SP-01","SysModifiedDateTime":"2026-08-07T18:14:02Z","FiscalDocumentRecId":68719477966
+    },{
+      "@odata.etag":"W/\"JzEsNjg3MTk0Nzg3MTYn\"","dataAreaId":"brmf","Voucher":"BRMF06-110000035","Model":"SE","Direction":"Incoming","Status":"Approved","FiscalDocumentNumber":"652","FiscalDocumentSeries":"1","FiscalDocumentDate":"2026-08-07T12:00:00Z","FiscalEstablishmentCNPJCPF":"442782250002-60","FiscalEstablishment":"SP-01","SysModifiedDateTime":"2026-08-07T18:47:00Z","FiscalDocumentRecId":68719478716
+    }
+  ]
+}

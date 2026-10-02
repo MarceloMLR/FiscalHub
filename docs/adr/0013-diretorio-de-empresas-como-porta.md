@@ -2,6 +2,9 @@
 
 - **Status:** Aceito
 - **Data:** 2026-07-24
+- **Revisado por:** [ADR-0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md). A porta recebe o tenant e ganha a origem, e a implementação é a do adapter de entrada do
+  perfil. A primeira fonte real é o cadastro do ERP (a `FiscalEstablishments` do D365), e não a Avalara. O
+  `companies.json` passa a ser o fallback de desenvolvimento, registrado só em Development.
 
 ## Contexto
 
