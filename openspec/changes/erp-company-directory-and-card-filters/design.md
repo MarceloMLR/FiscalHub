@@ -300,13 +300,17 @@ pela descoberta.
   `from` depois de `to`, dá 400.
 - **Por que por modelo numa resposta só, e não `?model=`:**
   - trocar o modelo na tela é imediato;
-  - as opções do filtro saem da mesma resposta, que são os modelos do período.
+  - os modelos do período, que entram nas opções do filtro, saem da mesma resposta.
 - **Por que não somar no navegador:** é o truncamento dos 200 grupos (Context).
 - **Na tela:**
   - **a janela:** sai de uma função pura `periodWindow(days, today)`, testada no `vitest`;
-  - **os seletores:** o de período (Dia, 7, 15 e 30 dias, com o Dia como padrão) e o de modelo (Todos e os modelos da
-    resposta, mais o escolhido, se ele sumir);
-  - **a nota de cada card:** "no dia de hoje", ou "nos últimos N dias";
+  - **os seletores:** o de período (Dia, 7, 15 e 30 dias, com o Dia como padrão, e o personalizado, D11) e o de modelo;
+  - **as opções de modelo:** os que o hub conhece, que são os do mapa padrão do ERP (`55` NF-e, `57` CT-e e `SE` NFS-e),
+    mais os da resposta, mais o escolhido, se ele sumir. Na primeira versão, eram só os da resposta, e a conferência na tela
+    (2026-10-02) achou o dropdown vazio: num banco sem nota, ou num dia sem nota, não sobrava nenhum;
+  - **a nota de cada card:** "no dia de hoje", "nos últimos N dias", ou "no período escolhido";
+  - **sem texto da janela ao lado dos filtros:** a primeira versão repetia a janela ("2026-10-02, pela data fiscal"), e a
+    conferência na tela pediu para tirar;
   - **a atualização:** a cada 5 segundos, como os grupos.
 
 ### D10. O grupo ganha o modelo, e o modal filtra pela linha
@@ -328,6 +332,14 @@ pela descoberta.
 Os últimos N dias são hoje e os N−1 anteriores, inclusive. O "Dia" é N = 1.
 
 - **Por que não [hoje − N, hoje]:** o "Dia" viraria dois dias.
+- **O personalizado** (pedido da conferência na tela, 2026-10-02):
+  - **o que é:** duas datas, de e até, inclusive, mandadas como estão ao `GET /groups/totals`, que já aceita qualquer
+    janela;
+  - **como começa:** preenchido com a janela que estava escolhida;
+  - **o que a tela recusa:** com uma das datas vazia, ou a inicial depois da final, a tela diz o problema e não pede a
+    contagem;
+  - **o que ele resolve na prova:** alcança as notas de 2015 a 2026-08-07, o que nenhuma janela fixa alcança em
+    2026-10-02, e com isso o filtro por modelo contra o modal (10.6) fica provável na tela.
 - **Na prova:** a conta do STATUS (Context) erra por um dia nesta regra. O cenário da spec usa 2026-09-05, em que a
   janela de 30 dias começa em 2026-08-07.
 - **Em 2026-10-01:** nenhuma janela alcança 2026-08-07. A prova manual do "30 dias entra" precisa de uma nota com data

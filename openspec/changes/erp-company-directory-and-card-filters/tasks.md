@@ -336,3 +336,25 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 - [ ] 10.9 O fallback: em Development, o tenant-b vê o mock, e o tenant-a não o vê.
 - [ ] 10.10 Registrar a prova no STATUS (9.4), com as linhas do log, e o que foi só conferência visual do usuário, sem
   linha de log.
+
+## 11. Os ajustes da conferência na tela (2026-10-02)
+
+Pedidos do usuário ao abrir a tela, com o host novo: o texto da janela ao lado dos filtros sai, o período ganha uma opção
+personalizada, e o dropdown de modelo vinha vazio. O design (D9 e D11) e a spec (`document-grouping`) foram atualizados
+junto.
+
+- [x] 11.1 Tirar o texto da janela ao lado dos filtros ("2026-10-02, pela data fiscal").
+- [x] 11.2 Teste primeiro (`vitest`), o problema do período personalizado:
+  - uma das datas vazia;
+  - a inicial depois da final;
+  - o intervalo válido, inclusive o de um dia só.
+- [x] 11.3 O período personalizado na `GroupsPage`:
+  - a opção "Personalizado", ao lado do dia, 7, 15 e 30 dias;
+  - as duas datas, começando preenchidas com a janela que estava escolhida;
+  - o problema dito na tela, sem pedir a contagem;
+  - a nota dos cards: "no período escolhido".
+- [x] 11.4 Teste primeiro (`vitest`), as opções de modelo: trazem sempre `55`, `57` e `SE`, mesmo sem nota, mais os modelos
+  da janela e o escolhido, sem repetir.
+- [x] 11.5 As opções na tela, com o nome do documento: "55 · NF-e", "57 · CT-e" e "SE · NFS-e". O modelo que o hub não
+  conhece aparece só com o código.
+- [x] 11.6 `npm test` e `npm run build` verdes.

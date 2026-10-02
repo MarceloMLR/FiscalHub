@@ -6,9 +6,10 @@ export function useGroups() {
   return useQuery({ queryKey: ['groups'], queryFn: api.groups, refetchInterval: 5000 });
 }
 
-// As contagens dos cards por modelo na janela de dias fiscais, no ritmo da tabela.
-export function useGroupTotals(from: string, to: string) {
-  return useQuery({ queryKey: ['groupTotals', from, to], queryFn: () => api.groupTotals(from, to), refetchInterval: 5000 });
+// As contagens dos cards por modelo na janela de dias fiscais, no ritmo da tabela. Desligada enquanto o período
+// personalizado tem um problema (uma data vazia, ou a inicial depois da final).
+export function useGroupTotals(from: string, to: string, enabled = true) {
+  return useQuery({ queryKey: ['groupTotals', from, to], queryFn: () => api.groupTotals(from, to), refetchInterval: 5000, enabled });
 }
 
 // As notas da linha inteira: empresa, filial, dia, tipo, modelo e modo (o modal conta o mesmo que o título).

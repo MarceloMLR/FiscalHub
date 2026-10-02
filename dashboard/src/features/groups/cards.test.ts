@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cardSums, modelOptions } from './cards';
+import { cardSums, modelLabel, modelOptions } from './cards';
 import type { ModelTotals } from '../../types';
 
 const nfe: ModelTotals = { model: '55', total: 5, finalizadas: 0, emProcessamento: 0, comErro: 5 };
@@ -27,15 +27,20 @@ describe('os cards', () => {
 });
 
 describe('as opções de modelo', () => {
-  it('são os modelos que o período tem, em ordem, sem o nulo', () => {
-    expect(modelOptions([nfse, nfe, { ...nfe, model: null }], null)).toEqual(['55', 'SE']);
+  it('trazem sempre os modelos que o hub conhece, mesmo sem nenhuma nota', () => {
+    expect(modelOptions([], null)).toEqual(['55', '57', 'SE']);
   });
 
-  it('guardam o escolhido quando o período novo não o tem', () => {
-    expect(modelOptions([nfe], 'SE')).toEqual(['55', 'SE']);
+  it('acrescentam os modelos da janela que o hub não conhece, sem repetir os conhecidos', () => {
+    expect(modelOptions([nfse, nfe, { ...nfe, model: '65' }, { ...nfe, model: null }], null)).toEqual(['55', '57', 'SE', '65']);
   });
 
-  it('não repetem o escolhido que o período tem', () => {
-    expect(modelOptions([nfe, nfse], 'SE')).toEqual(['55', 'SE']);
+  it('guardam o escolhido quando a janela nova não o tem', () => {
+    expect(modelOptions([nfe], '65')).toEqual(['55', '57', 'SE', '65']);
+    expect(modelOptions([], 'SE')).toEqual(['55', '57', 'SE']);
+  });
+
+  it('o rótulo diz o documento do modelo conhecido, e o outro fica só com o código', () => {
+    expect(['55', '57', 'SE', '65'].map(modelLabel)).toEqual(['55 · NF-e', '57 · CT-e', 'SE · NFS-e', '65']);
   });
 });

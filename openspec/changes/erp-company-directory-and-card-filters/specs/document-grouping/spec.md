@@ -40,10 +40,18 @@ normalizado:
 Os cards do dashboard MUST contar as notas do tenant cuja data de referência está no período escolhido, e que são do
 modelo escolhido.
 
-- **O período:** o dia de hoje, que é o padrão, ou os últimos 7, 15 ou 30 dias. Os últimos N dias são hoje e os N−1 dias
-  anteriores, inclusive. "Hoje" é o dia no relógio de quem está vendo o dashboard.
-- **O modelo:** todos, que é o padrão, ou um modelo só. As opções são os modelos que as notas do período têm. O modelo
-  escolhido continua na lista quando o período muda e não o tem, e os cards mostram 0.
+- **O período:** o dia de hoje, que é o padrão, os últimos 7, 15 ou 30 dias, ou um período personalizado.
+  - **Os últimos N dias:** são hoje e os N−1 dias anteriores, inclusive. "Hoje" é o dia no relógio de quem está vendo o
+    dashboard.
+  - **O personalizado:** vai de uma data a outra, inclusive, escolhidas por quem vê. Ele começa preenchido com a janela que
+    estava escolhida. Com a data inicial depois da final, ou com uma das duas vazia, a tela MUST dizer o problema e MUST NOT
+    contar.
+- **O modelo:** todos, que é o padrão, ou um modelo só.
+  - **As opções:** MUST trazer sempre os modelos que o hub conhece, que são os do mapa padrão do ERP (`55` NF-e, `57` CT-e e
+    `SE` NFS-e), mesmo sem nenhuma nota. Os modelos que as notas do período trazem também entram.
+  - **O modelo escolhido:** continua na lista quando o período muda e não o tem, e os cards mostram 0.
+
+A tela MUST NOT repetir a janela em texto ao lado dos filtros: os filtros mostram a escolha.
 - **A contagem:** MUST ser feita sobre todas as notas do período, e não sobre uma parte dos grupos.
 
 Os cards contam:
@@ -89,6 +97,19 @@ ou modo diferentes MUST aparecer como linhas distintas, sem erro na tela.
 - **THEN** com o filtro `SE`, o card "Documentos" mostra 9 e o "Com erro" mostra 0
 - **AND** com o filtro `55`, o card "Documentos" mostra 5 e o "Com erro" mostra 5
 - **AND** com todos os modelos, o card "Documentos" mostra 14
+
+#### Scenario: Período personalizado alcança as notas antigas
+- **WHEN** o filtro é personalizado, de 2015-01-01 a 2026-10-02, e o tenant tem as notas da `brmf` de 2015 a 2026-08-07
+- **THEN** todas elas entram nos cards
+- **AND** com o personalizado de 2026-08-07 a 2026-08-07, entram só as notas daquele dia
+
+#### Scenario: Período personalizado invertido
+- **WHEN** o filtro é personalizado, com a data inicial 2026-08-08 e a final 2026-08-07
+- **THEN** a tela diz que a data inicial é depois da final, e nenhuma contagem é pedida
+
+#### Scenario: Os modelos sem nenhuma nota
+- **WHEN** o tenant não tem nenhuma nota na janela escolhida
+- **THEN** o filtro de modelo oferece todos, `55`, `57` e `SE`
 
 #### Scenario: O modelo escolhido sai do período
 - **WHEN** o filtro é `SE`, e o usuário troca para um período que não tem nenhuma NFS-e

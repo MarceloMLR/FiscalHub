@@ -43,6 +43,39 @@ export function Segmented<T extends string | number>({
   );
 }
 
+// A data nativa (aaaa-mm-dd), com a mesma caixa do select.
+export function DateInput({
+  value,
+  onChange,
+  label,
+  invalid,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  invalid?: boolean;
+}) {
+  return (
+    <input
+      type="date"
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        height: 32,
+        padding: '0 9px',
+        fontSize: 13,
+        color: 'var(--ink)',
+        background: 'var(--surface)',
+        border: `1px solid ${invalid ? 'var(--error-border)' : 'var(--border-strong)'}`,
+        borderRadius: 7,
+        outline: 'none',
+        boxSizing: 'border-box',
+      }}
+    />
+  );
+}
+
 // O select nativo, com a seta do tema.
 export function NativeSelect({
   value,

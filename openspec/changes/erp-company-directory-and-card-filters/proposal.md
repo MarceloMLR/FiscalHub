@@ -48,8 +48,9 @@ montagem e no adapter da Avalara. `12ABC34501DE35` vira `123450135`, e a nota ca
   - **A tela:** a máscara passa a ser pelo tamanho (14 caracteres), e não pelo tipo do caractere.
 - **Os filtros dos cards.**
   - **O período:** o dia, que é o padrão, ou 7, 15 e 30 dias, pelo relógio do navegador. N dias são hoje e os N−1
-    anteriores.
-  - **O modelo:** todos, ou um dos modelos que o período tem.
+    anteriores. Há também um período personalizado, de uma data a outra (pedido da conferência na tela, 2026-10-02).
+  - **O modelo:** todos, ou um modelo. As opções trazem sempre os modelos que o hub conhece (`55`, `57` e `SE`), mais os
+    que as notas do período trazem.
   - **A contagem vai para o servidor:** `GET /groups/totals?from&to` devolve as contagens por modelo. Os cards deixam de
     somar no navegador os 200 grupos mais recentes, que numa janela de 30 dias truncariam.
   - **O grupo ganha o modelo**, com a coluna "Modelo" na tabela.
@@ -116,7 +117,6 @@ montagem e no adapter da Avalara. `12ABC34501DE35` vira `123450135`, e a nota ca
 - **A tela da tradução `establishments`.** Ela fica para o próximo passo, com as linhas vindas do diretório. Esta fatia só
   decide e documenta.
 - **Filtrar a tabela de grupos pelo período ou pelo modelo.** A tabela continua o histórico completo.
-- **Um período livre, ou "tudo", nos cards.** Os períodos são só o dia, 7, 15 e 30 dias.
 - **Um diretório ou uma descoberta por período para a Avalara ou para o iScala.** A porta permite, mas nenhum entra
   aqui.
 - **O teste de credencial lendo a `FiscalEstablishments`.** A prova da role é o próprio dropdown carregando com a

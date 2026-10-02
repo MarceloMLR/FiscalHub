@@ -26,3 +26,12 @@ export function periodWindow(days: number, today: Date): { from: string; to: str
   const first = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (days - 1));
   return { from: iso(first), to: iso(today) };
 }
+
+// O período personalizado (pedido da conferência na tela, 2026-10-02): de uma data a outra, inclusive, no formato do
+// <input type="date">. O problema é dito na tela, e a contagem não é pedida. As datas aaaa-mm-dd se comparam como texto.
+export function customRangeProblem(from: string, to: string): string | null {
+  if (from === '' || to === '') {
+    return 'Informe as duas datas do período.';
+  }
+  return from > to ? 'A data inicial é depois da final.' : null;
+}

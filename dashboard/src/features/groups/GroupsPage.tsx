@@ -2,13 +2,13 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import Paper from '@mui/material/Paper';
 import { type GridColDef } from '@mui/x-data-grid';
 import { FhDataGrid } from '../../components/FhDataGrid';
-import { NativeSelect, Segmented } from '../../components/Controls';
+import { DateInput, NativeSelect, Segmented } from '../../components/Controls';
 import { useGroups, useGroupTotals } from './useGroups';
 import { groupStatus, GroupStatusChip } from './GroupStatusChip';
 import { GroupModal } from './GroupModal';
 import { formatCompany } from './companyCode';
-import { PERIODS, periodWindow } from './period';
-import { cardSums, modelOptions } from './cards';
+import { PERIODS, customRangeProblem, periodWindow } from './period';
+import { cardSums, modelLabel, modelOptions } from './cards';
 import type { DocumentGroup } from '../../types';
 
 const cardStyle: CSSProperties = {
@@ -29,6 +29,10 @@ const triggerLabel = (t: string) => TRIGGER_LABEL[t] ?? 'Automática';
 
 // O valor do filtro "todos os modelos" no select (o modelo nulo é o filtro desligado).
 const ALL_MODELS = '__all__';
+
+// A opção do período personalizado, ao lado das janelas fixas (conferência na tela, 2026-10-02).
+const CUSTOM = 'custom';
+type PeriodChoice = number | typeof CUSTOM;
 
 // O grupo é (empresa, filial, dia, tipo, modelo, modo): no mesmo dia, a NF-e e a NFS-e ignorada do mesmo estabelecimento são
 // linhas distintas.
@@ -104,15 +108,25 @@ export function GroupsPage() {
 
   // Os cards contam as notas cuja data de referência está na janela escolhida, e do modelo escolhido. É de propósito: a
   // data de referência é a data fiscal, no fuso de quem emitiu, sem conversão, e a janela é a dos últimos N dias pelo dia
-  // do navegador (hoje e os N−1 anteriores). A nota processada hoje com data fiscal fora da janela fica fora: as de 2016 do
-  // fiscosysdev ficam fora, e isso é o correto, e não defeito. A ignorada conta em "Documentos", e não em "Com erro" (spec
-  // document-grouping). A contagem vem do servidor, sobre todas as notas da janela, e não dos 200 grupos da tabela, que
-  // segue mostrando o histórico completo, sem os filtros dos cards.
-  const [days, setDays] = useState(PERIODS[0].days);
+  // do navegador (hoje e os N−1 anteriores), ou o período personalizado, de uma data a outra. A nota processada hoje com
+  // data fiscal fora da janela fica fora: as de 2016 do fiscosysdev ficam fora das janelas fixas, e isso é o correto, e não
+  // defeito. A ignorada conta em "Documentos", e não em "Com erro" (spec document-grouping). A contagem vem do servidor,
+  // sobre todas as notas da janela, e não dos 200 grupos da tabela, que segue mostrando o histórico completo, sem os filtros
+  // dos cards.
+  const [choice, setChoice] = useState<PeriodChoice>(PERIODS[0].days);
+  const [custom, setCustom] = useState(() => periodWindow(PERIODS[0].days, new Date()));
   const [model, setModel] = useState<string | null>(null);
-  const period = PERIODS.find((p) => p.days === days) ?? PERIODS[0];
-  const range = periodWindow(days, new Date());
-  const totals = useGroupTotals(range.from, range.to);
+  const preset = choice === CUSTOM ? null : (PERIODS.find((p) => p.days === choice) ?? PERIODS[0]);
+  const range = preset ? periodWindow(preset.days, new Date()) : custom;
+  const problem = preset ? null : customRangeProblem(custom.from, custom.to);
+  const totals = useGroupTotals(range.from, range.to, problem === null);
+  // O personalizado começa com a janela que estava escolhida, para a troca não zerar as datas.
+  const choosePeriod = (next: PeriodChoice) => {
+    if (next === CUSTOM && preset) {
+      setCustom(periodWindow(preset.days, new Date()));
+    }
+    setChoice(next);
+  };
   const counts = cardSums(totals.data ?? [], model);
   const models = modelOptions(totals.data ?? [], model);
   const pct = counts.total > 0 ? ((counts.finalizadas / counts.total) * 100).toFixed(1).replace('.', ',') : '0,0';
@@ -130,25 +144,34 @@ export function GroupsPage() {
         </div>
       )}
 
-      {/* Os filtros dos cards: o período (o dia, por padrão) e o modelo. A tabela abaixo não os segue. */}
+      {/* Os filtros dos cards: o período (o dia, por padrão, ou o personalizado) e o modelo. A tabela abaixo não os segue. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <Segmented value={days} onChange={setDays} options={PERIODS.map((p) => ({ value: p.days, label: p.label }))} />
-        <div style={{ width: 170 }}>
+        <Segmented<PeriodChoice>
+          value={choice}
+          onChange={choosePeriod}
+          options={[...PERIODS.map((p) => ({ value: p.days as PeriodChoice, label: p.label })), { value: CUSTOM, label: 'Personalizado' }]}
+        />
+        {choice === CUSTOM && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <DateInput label="De" value={custom.from} onChange={(from) => setCustom((c) => ({ ...c, from }))} invalid={problem !== null} />
+            <span style={{ color: 'var(--muted)', fontSize: 13 }}>até</span>
+            <DateInput label="Até" value={custom.to} onChange={(to) => setCustom((c) => ({ ...c, to }))} invalid={problem !== null} />
+          </div>
+        )}
+        <div style={{ width: 180 }}>
           <NativeSelect value={model ?? ALL_MODELS} onChange={(v) => setModel(v === ALL_MODELS ? null : v)}>
             <option value={ALL_MODELS}>Todos os modelos</option>
             {models.map((m) => (
-              <option key={m} value={m}>Modelo {m}</option>
+              <option key={m} value={m}>{modelLabel(m)}</option>
             ))}
           </NativeSelect>
         </div>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-          {range.from === range.to ? range.from : `${range.from} a ${range.to}`}, pela data fiscal
-        </span>
+        {problem && <span style={{ fontSize: 12.5, color: 'var(--error-text)' }}>{problem}</span>}
       </div>
 
       {/* KPIs — a janela e o modelo escolhidos */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        <Kpi label="Documentos" value={counts.total} color="var(--ink)" note={period.note} />
+        <Kpi label="Documentos" value={counts.total} color="var(--ink)" note={preset ? preset.note : 'no período escolhido'} />
         <div style={{ ...cardStyle, padding: '16px 18px' }}>
           <div className="fh-label" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>Finalizados</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 7 }}>
