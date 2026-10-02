@@ -15,7 +15,7 @@ describe('a janela do período', () => {
     expect(periodWindow(15, today)).toEqual({ from: '2026-08-22', to: '2026-09-05' });
   });
 
-  it('30 dias a partir de 2026-09-05 começam em 2026-08-07, e alcançam as NFS-e daquele dia', () => {
+  it('30 dias a partir de 2026-09-05 começam em 2026-08-07', () => {
     expect(periodWindow(30, today)).toEqual({ from: '2026-08-07', to: '2026-09-05' });
   });
 

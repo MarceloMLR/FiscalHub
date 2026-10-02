@@ -321,13 +321,21 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
     não entra com o dia.
   - **Sem ela:** a tarefa fica aberta, anotada como não exercitada no ambiente, com os testes 7.1 e 8.2 como prova.
   - **Com o filtro no dia:** nem as notas de 2026-08-07 nem as de 2016 entram, por conferência visual.
+  - **Substituída pelo D15 (2026-10-02):** os cards e a tabela contam pelo dia da execução, e não pela data fiscal. A prova
+    nova é a do grupo 13 (13.9).
 - [ ] 10.5 Agendar `44278225000260`/`SP-01`, único, com o período cobrindo 2026-08-07, e rodar:
   - **no log:** as referências descobertas, publicadas na fila de descoberta;
   - **no banco:** um registro por chave natural, sem linha nova;
   - **na tabela:** as notas na mesma linha que o coletor produziu, com o modo `Automatic` mantido nas ignoradas.
+  - **Revisto pelo D15 (2026-10-02):** com a última entrada, as ignoradas que o agendamento registra de novo passam para a
+    linha dele (dia da execução, `Agendada` e o período). A NF-e já integrada com o mesmo conteúdo é pulada pela
+    idempotência e fica na linha do coletor. Continua valendo: um registro por chave natural, sem linha nova no banco.
 - [ ] 10.6 O filtro por modelo bate com o modal, com as ignoradas. Depende da nota recente do 10.4, porque as notas de
   2026-08-07 não cabem em nenhuma janela. Sem ela, a tarefa fica aberta, anotada, com os testes 7.1 e 8.2 como prova.
   Em qualquer caso, conferir na tela que o modal de cada linha lista só as notas dela, e com o mesmo número do título.
+  - **Substituída pelo D15 (2026-10-02) na parte da data fiscal:** com o dia da execução, as notas que o coletor trouxe
+    hoje entram no filtro do dia, e a prova não depende mais de uma nota recente no ERP. Continua aberta como conferência
+    na tela (13.9).
 - [ ] 10.7 O CNPJ alfanumérico. A prova é pelos testes 2.8 e 7.1. Manualmente, só se o fiscosysdev aceitar um
   estabelecimento com CNPJ alfanumérico. Senão, a tarefa fica anotada como não exercitada no ambiente.
 - [ ] 10.8 O reprocesso de uma NF-e 55 do D365 com falha:
@@ -376,3 +384,65 @@ o requisito.
 - [x] 12.5 Dashboard: a coluna "Reprocessos" no modal, ao lado de "Consultas".
 - [x] 12.6 `dotnet build` com 0 warnings, `dotnet test`, `npm test` e `npm run build` verdes, e o host reiniciado com a
   migração aplicada.
+
+## 13. A data da execução e o período integrado (conferência na tela, 2026-10-02, D15)
+
+Pedido do usuário: o filtro vale também para a tabela, e a data do dashboard é a da execução, e não a fiscal. Decidido com
+ele: os cards e a tabela filtram pela data da execução, e a nota fica na linha da última entrada, sem o reprocesso movê-la. A
+spec `document-grouping` foi refeita nesse ponto (o requisito da data fiscal sai, entram os da execução), e o design ganhou o
+D15. As provas 10.4 e 10.6, pela data fiscal, deixam de valer.
+
+- [x] 13.1 Teste primeiro (Infrastructure, SQLite), o registro:
+  - a referência com `ExecutedAt` grava o dia (em Brasília), o modo e o período, na montagem e na ignorada;
+  - a entrada seguinte move a nota, e a sem `ExecutedAt` (o reprocesso) não move;
+  - a nota nova sem `ExecutedAt` nasce no dia do processamento, como automática e sem período.
+  - **Feito:** quatro testes novos no `SqlProcessingStoreTests`
+    (`Reference_with_the_execution_records_the_day_in_brasilia_the_mode_and_the_period`, com 01:30 UTC caindo no dia
+    anterior; `Ignored_note_of_an_execution_records_the_day_and_the_period`; `Next_entry_moves_the_note_and_the_reprocess_does_not`;
+    `New_note_without_the_execution_is_born_on_the_processing_day_as_automatic_without_period`).
+- [x] 13.2 Teste primeiro (Infrastructure, SQLite), as leituras:
+  - os cards e a tabela pela janela da execução e pelo modelo;
+  - o período na chave do grupo;
+  - o modal pela linha inteira, com o período e sem ele;
+  - e a tradução para o SQL Server.
+  - **Feito:** o `SqlDocumentQueriesTests` reescrito pelo dia da execução, com a data fiscal num dia que nenhum teste pede.
+    Novos: `Cards_and_table_count_by_the_execution_day_and_not_by_the_fiscal_date`,
+    `Table_follows_the_window_and_the_model_of_the_cards`, `Period_is_part_of_the_row_and_the_automatic_has_none` e
+    `Modal_with_the_period_lists_only_that_execution_and_none_lists_the_automatic`. A tradução confere o `[ExecutedOn] >=`
+    e o `[PeriodStart]`.
+- [x] 13.3 Teste primeiro (Application): o runner põe o instante e o período nas referências, e o coletor põe o instante sem
+  período.
+  - **Feito:** `IntegrationRunnerTests.Each_reference_carries_the_instant_of_the_run_and_the_period_in_brasilia_days` (o
+    fim 23:59:59 de Brasília fica no dia 30, e não no 1º em UTC) e
+    `ChangeFeedPollerTests.References_carry_the_instant_of_the_pass_and_no_period`.
+- [x] 13.4 A `DocumentReference` com `ExecutedAt`, `PeriodStart` e `PeriodEnd`. O `ProcessedDocument` com `ExecutedOn`,
+  `PeriodStart` e `PeriodEnd`, e a migração `AddProcessedDocumentExecution`, que preenche o registro antigo pelo
+  `CreatedAt`.
+  - **Feito:** `20261002144726_AddProcessedDocumentExecution`, com o `UPDATE` do registro antigo por
+    `SWITCHOFFSET([CreatedAt], '-03:00')`, conferido antes num `SELECT` no banco local.
+- [x] 13.5 O `SqlProcessingStore` com a última entrada. O runner e o coletor com o instante e o período. As consultas e o
+  host com a janela e o modelo no `/groups`, e o período no modal.
+  - **Feito:** o runner recebe o `TimeProvider`. O `/groups` sem `from` e `to` responde como antes, e com um só, 400. O
+    modal aceita `period=none` ou `aaaa-mm-dd_aaaa-mm-dd`, e 400 no resto.
+- [x] 13.6 Dashboard:
+  - a tabela pelo mesmo filtro dos cards;
+  - a coluna "Data" com o dia da execução, em dd/mm/aaaa;
+  - a coluna "Período integrado", com "—" na automática;
+  - o modal com o período.
+  - **Feito:** `groupRow.ts` (o dia e o período em dd/mm/aaaa sem passar pelo `Date`, o `period` do modal e a chave da
+    linha), com o `groupRow.test.ts`. A grade filtra pelo texto mostrado e ordena pela data.
+- [x] 13.7 ADR-0032 (o item novo e a revisão do ADR-0030), RUNNING e STATUS.
+  - **Feito:** o item 8 do ADR-0032, com três alternativas descartadas; a linha de revisão no ADR-0030; o RUNNING; o
+    STATUS (os itens dos filtros e do modal); o Migration Plan do design; e a coleção do Postman.
+- [x] 13.8 `dotnet build` com 0 warnings, `dotnet test`, `npm test` e `npm run build` verdes, e o host reiniciado com a
+  migração aplicada.
+  - **Feito (2026-10-02):** 0 warnings; 1001 testes .NET verdes (3 pulados, os de sempre); 40 do dashboard; o build do
+    Vite. O `host-erp-directory-3.log` (fora do git) mostra `Applying migration '20261002144726_AddProcessedDocumentExecution'`
+    (linha 35). No banco, as 14 notas ganharam o dia 2026-10-02, sem nenhuma sem dia.
+  - **A fumaça da API:** o `/groups` do dia traz 4 linhas, e o de 2016-09-02, que é a data fiscal, nenhuma. O modal de
+    cada linha devolve o mesmo número do total dela. Período, `from` sozinho e janela invertida dão 400 com o motivo.
+- [ ] 13.9 A conferência na tela, pelo usuário: uma integração imediata ou agendada de um período de 2016, feita hoje,
+  aparece com a data de hoje e o período ao lado; a automática com "—"; o filtro do dia e o do modelo valem para a tabela;
+  e o reprocesso não move a linha. A linha `Agendada` que já estava no banco ficou sem período, porque foi gravada antes da
+  mudança, como o D15 prevê.
+

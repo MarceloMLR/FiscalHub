@@ -35,90 +35,34 @@ normalizado:
 - **WHEN** uma NF-e chega pelo caminho de XML, com emitente `12345678000190`
 - **THEN** o registro do documento tem empresa `12345678` e filial `0001`
 
-### Requirement: Os cards e a tabela contam pela data fiscal
+### Requirement: O dia da nota é a data fiscal, no fuso de quem emitiu
 
-Os cards do dashboard MUST contar as notas do tenant cuja data de referência está no período escolhido, e que são do
-modelo escolhido.
+O dia de uma nota, que é a data de referência gravada no registro e o critério da descoberta por período
+(`period-discovery`), MUST ser a data que o próprio documento registra, no fuso de quem o emitiu, sem conversão. O hub
+MUST NOT converter essa data para UTC nem para um fuso fixo. Ele não é o dia da tabela nem o dos cards, que é o da execução
+(`Os cards e a tabela contam pela data da execução`).
 
-- **O período:** o dia de hoje, que é o padrão, os últimos 7, 15 ou 30 dias, ou um período personalizado.
-  - **Os últimos N dias:** são hoje e os N−1 dias anteriores, inclusive. "Hoje" é o dia no relógio de quem está vendo o
-    dashboard.
-  - **O personalizado:** vai de uma data a outra, inclusive, escolhidas por quem vê. Ele começa preenchido com a janela que
-    estava escolhida. Com a data inicial depois da final, ou com uma das duas vazia, a tela MUST dizer o problema e MUST NOT
-    contar.
-- **O modelo:** todos, que é o padrão, ou um modelo só.
-  - **As opções:** MUST trazer sempre os modelos que o hub conhece, que são os do mapa padrão do ERP (`55` NF-e, `57` CT-e e
-    `SE` NFS-e), mesmo sem nenhuma nota. Os modelos que as notas do período trazem também entram.
-  - **O modelo escolhido:** continua na lista quando o período muda e não o tem, e os cards mostram 0.
+- **D365:** o `FiscalDocumentDate`, um dia sem hora e sem fuso, tomado como veio. Vale na nota montada e na nota que
+  não chega à montagem (ignorada, na dead-letter). A data e hora de emissão (`FiscalDocumentDateTime`), que o F&O
+  guarda em UTC, MUST NOT definir o dia.
+- **XML:** a data do `dhEmi` no fuso que ele próprio traz.
 
-A tela MUST NOT repetir a janela em texto ao lado dos filtros: os filtros mostram a escolha.
-- **A contagem:** MUST ser feita sobre todas as notas do período, e não sobre uma parte dos grupos.
+O mesmo documento MUST cair no mesmo dia qualquer que seja o desfecho: processado, rejeitado, ignorado ou na
+dead-letter.
 
-Os cards contam:
+#### Scenario: Nota emitida depois das 21h de Brasília
+- **WHEN** uma NF-e 55 do D365 tem `FiscalDocumentDateTime = 2026-08-08T01:30:00Z` (22:30 de 2026-08-07 em Brasília)
+  e `FiscalDocumentDate = 2026-08-07`, e é montada e rejeitada pela plataforma
+- **THEN** o registro tem data de referência 2026-08-07
 
-- **Documentos:** toda nota, a ignorada inclusive.
-- **Finalizados:** as confirmadas pela plataforma.
-- **Em processamento:** as pendentes e as enviadas.
-- **Com erro:** as rejeitadas, as sem retorno e as da dead-letter.
+#### Scenario: Duas notas da mesma noite, uma processada e uma ignorada
+- **WHEN** na mesma noite, depois das 21h de Brasília, o estabelecimento emite uma NF-e 55, que é montada, e uma
+  NFS-e, que é ignorada, as duas com `FiscalDocumentDate = 2026-08-07`
+- **THEN** as duas ficam com data de referência 2026-08-07
 
-A nota ignorada MUST NOT contar como erro.
-
-O critério é a data fiscal, com o recorte do período, e é intencional:
-
-- a nota processada hoje com data fiscal fora do período MUST NOT entrar nos cards;
-- ela aparece na tabela de grupos, no dia da data fiscal dela.
-
-A tabela de grupos MUST listar os grupos de todas as datas e de todos os modelos, a nota ignorada inclusive, sem os
-filtros dos cards. A tabela MUST mostrar o modelo de cada grupo. Grupos da mesma empresa, filial e data com tipo, modelo
-ou modo diferentes MUST aparecer como linhas distintas, sem erro na tela.
-
-#### Scenario: Ignorada conta no dia dela
-- **WHEN** o tenant tem, com data fiscal de hoje, uma NF-e confirmada e uma NFS-e ignorada, e o filtro é o dia
-- **THEN** o card "Documentos" mostra 2, o "Finalizados" mostra 1, e o "Com erro" mostra 0
-
-#### Scenario: Notas de 2016 ficam fora dos cards
-- **WHEN** a passada contra o fiscosysdev processa hoje as 14 notas da `brmf`, todas com data fiscal entre 2015 e
-  2026-08-07, e o filtro é o dia
-- **THEN** os cards mostram 0
-- **AND** a tabela de grupos mostra as 14 notas, as 9 ignoradas incluídas, nas datas fiscais delas
-
-#### Scenario: Os últimos 30 dias
-- **WHEN** hoje é 2026-09-05, o filtro é de 30 dias, e o tenant tem NFS-e da `brmf` com data fiscal 2026-08-07 e notas
-  com data fiscal de 2016
-- **THEN** as NFS-e de 2026-08-07 entram nos cards, porque a janela vai de 2026-08-07 a 2026-09-05
-- **AND** as notas de 2016 não entram
-
-#### Scenario: O dia exclui as duas
-- **WHEN** hoje é 2026-09-05, o filtro é o dia, e o tenant tem as mesmas notas
-- **THEN** nem as NFS-e de 2026-08-07 nem as notas de 2016 entram nos cards
-
-#### Scenario: O filtro por modelo
-- **WHEN** o período tem 5 NF-e de modelo `55` rejeitadas e 9 NFS-e de modelo `SE` ignoradas
-- **THEN** com o filtro `SE`, o card "Documentos" mostra 9 e o "Com erro" mostra 0
-- **AND** com o filtro `55`, o card "Documentos" mostra 5 e o "Com erro" mostra 5
-- **AND** com todos os modelos, o card "Documentos" mostra 14
-
-#### Scenario: Período personalizado alcança as notas antigas
-- **WHEN** o filtro é personalizado, de 2015-01-01 a 2026-10-02, e o tenant tem as notas da `brmf` de 2015 a 2026-08-07
-- **THEN** todas elas entram nos cards
-- **AND** com o personalizado de 2026-08-07 a 2026-08-07, entram só as notas daquele dia
-
-#### Scenario: Período personalizado invertido
-- **WHEN** o filtro é personalizado, com a data inicial 2026-08-08 e a final 2026-08-07
-- **THEN** a tela diz que a data inicial é depois da final, e nenhuma contagem é pedida
-
-#### Scenario: Os modelos sem nenhuma nota
-- **WHEN** o tenant não tem nenhuma nota na janela escolhida
-- **THEN** o filtro de modelo oferece todos, `55`, `57` e `SE`
-
-#### Scenario: O modelo escolhido sai do período
-- **WHEN** o filtro é `SE`, e o usuário troca para um período que não tem nenhuma NFS-e
-- **THEN** os cards mostram 0, e `SE` continua escolhido e na lista
-
-#### Scenario: Mesmo dia, tipos diferentes
-- **WHEN** o estabelecimento tem, na mesma data, uma NF-e 55 e uma NFS-e ignorada
-- **THEN** a tabela mostra duas linhas para essa data, uma com o modelo `55` e outra com o modelo `SE`, e a tela não
-  acusa linha repetida
+#### Scenario: XML no fuso de quem emitiu
+- **WHEN** uma NF-e chega pelo caminho de XML com `dhEmi = 2026-06-01T23:30:00-04:00`
+- **THEN** o registro tem data de referência 2026-06-01, e não 2026-06-02
 
 ### Requirement: CNPJ formatado na tela
 
@@ -150,14 +94,124 @@ sem máscara.
 
 ## ADDED Requirements
 
+### Requirement: A execução que trouxe a nota
+
+O registro do documento MUST guardar a execução que trouxe a nota por último (pedido da conferência na tela,
+2026-10-02):
+
+- **O dia da execução:** o dia, em Brasília, em que a integração rodou. Na imediata, na diária (D-1) e na agendada, é o
+  dia da execução. Na automática, é o dia em que o coletor buscou a nota.
+- **O período integrado:** o período da integração imediata, da diária e da agendada, de uma data a outra. A automática
+  MUST NOT ter período.
+- **O modo:** o da mesma execução.
+
+A nota é registrada uma vez só, na linha da última entrada:
+
+- **Outra integração, ou o coletor de novo:** a nota passa para o dia, o modo e o período dessa entrada.
+- **O reprocesso:** MUST NOT mover a nota. Ele só soma na contagem de reprocessos.
+- **A integração agendada que pula a nota pela idempotência,** porque ela já foi integrada com o mesmo conteúdo, MUST NOT
+  movê-la: nada foi integrado.
+- **A nota gravada antes desta mudança:** fica no dia em que foi gravada pela primeira vez, sem período.
+
+#### Scenario: Integração imediata de um período antigo
+- **WHEN** em 2026-10-02 o usuário dispara uma integração imediata da Matriz para 2016-09-01 a 2016-09-03, e a nota número
+  1, de data fiscal 2016-09-02, é integrada
+- **THEN** a linha da nota tem a data 2026-10-02, o modo "Imediata" e o período integrado de 2016-09-01 a 2016-09-03
+
+#### Scenario: Nota da integração automática
+- **WHEN** o coletor busca em 2026-10-02 uma NFS-e de data fiscal 2026-08-07
+- **THEN** a linha da nota tem a data 2026-10-02, o modo "Automática", e nenhum período integrado
+
+#### Scenario: A última entrada move a nota
+- **WHEN** o coletor registrou a NFS-e `brmf|BRMF06-110000034` em 2026-10-01, e um agendamento da `SP-01` a ignora de novo
+  em 2026-10-02
+- **THEN** o registro continua um só, agora na data 2026-10-02, com o modo "Agendada" e o período do agendamento
+
+#### Scenario: O reprocesso não move a nota
+- **WHEN** a NF-e integrada em 2026-10-01 por uma integração imediata é reprocessada em 2026-10-02
+- **THEN** a linha continua com a data 2026-10-01, o modo "Imediata" e o mesmo período, e a contagem de reprocessos sobe
+
+### Requirement: Os cards e a tabela contam pela data da execução
+
+Os cards e a tabela de grupos do dashboard MUST mostrar as notas do tenant cuja data da execução
+(`A execução que trouxe a nota`) está no período escolhido, e que são do modelo escolhido. O mesmo filtro vale para os
+dois (pedido da conferência na tela, 2026-10-02).
+
+- **O período:** o dia de hoje, que é o padrão, os últimos 7, 15 ou 30 dias, ou um período personalizado.
+  - **Os últimos N dias:** são hoje e os N−1 dias anteriores, inclusive. "Hoje" é o dia no relógio de quem está vendo o
+    dashboard.
+  - **O personalizado:** vai de uma data a outra, inclusive, escolhidas por quem vê. Ele começa preenchido com a janela que
+    estava escolhida. Com a data inicial depois da final, ou com uma das duas vazia, a tela MUST dizer o problema e MUST NOT
+    contar nem listar.
+- **O modelo:** todos, que é o padrão, ou um modelo só.
+  - **As opções:** MUST trazer sempre os modelos que o hub conhece, que são os do mapa padrão do ERP (`55` NF-e, `57` CT-e e
+    `SE` NFS-e), mesmo sem nenhuma nota. Os modelos que as notas do período trazem também entram.
+  - **O modelo escolhido:** continua na lista quando o período muda e não o tem, e os cards mostram 0.
+- **A contagem dos cards:** MUST ser feita sobre todas as notas do período, e não sobre uma parte dos grupos.
+
+A tela MUST NOT repetir a janela em texto ao lado dos filtros: os filtros mostram a escolha.
+
+Os cards contam:
+
+- **Documentos:** toda nota, a ignorada inclusive.
+- **Finalizados:** as confirmadas pela plataforma.
+- **Em processamento:** as pendentes e as enviadas.
+- **Com erro:** as rejeitadas, as sem retorno e as da dead-letter.
+
+A nota ignorada MUST NOT contar como erro.
+
+A tabela de grupos MUST mostrar, por linha, a data da execução, o modelo, o modo e o período integrado ("—" na
+automática). Grupos da mesma empresa e filial com data da execução, período, tipo, modelo ou modo diferentes MUST aparecer
+como linhas distintas, sem erro na tela.
+
+#### Scenario: Notas de 2016 integradas hoje
+- **WHEN** o coletor processa hoje as notas da `brmf`, todas com data fiscal entre 2015 e 2026-08-07, e o filtro é o dia
+- **THEN** os cards contam essas notas, e a tabela as mostra com a data de hoje
+
+#### Scenario: A integração imediata de hoje entra no dia
+- **WHEN** a integração imediata da Matriz para 2016-09-01 a 2016-09-03 roda hoje, e o filtro é o dia
+- **THEN** a nota número 1 entra nos cards e na tabela, com a data de hoje e o período integrado de 01/09/2016 a 03/09/2016
+
+#### Scenario: Ignorada conta no dia dela
+- **WHEN** o tenant tem, com data da execução de hoje, uma NF-e confirmada e uma NFS-e ignorada, e o filtro é o dia
+- **THEN** o card "Documentos" mostra 2, o "Finalizados" mostra 1, e o "Com erro" mostra 0
+
+#### Scenario: O filtro vale para a tabela
+- **WHEN** o tenant tem notas executadas hoje e em 2026-09-20, e o filtro é o dia
+- **THEN** a tabela mostra só as linhas de hoje
+- **AND** com o personalizado de 2026-09-20 a 2026-09-20, a tabela mostra só as de 2026-09-20
+
+#### Scenario: O filtro por modelo
+- **WHEN** o período tem 5 NF-e de modelo `55` rejeitadas e 9 NFS-e de modelo `SE` ignoradas
+- **THEN** com o filtro `SE`, o card "Documentos" mostra 9, o "Com erro" mostra 0, e a tabela mostra só as linhas `SE`
+- **AND** com o filtro `55`, o card "Documentos" mostra 5 e o "Com erro" mostra 5
+- **AND** com todos os modelos, o card "Documentos" mostra 14
+
+#### Scenario: Período personalizado invertido
+- **WHEN** o filtro é personalizado, com a data inicial 2026-08-08 e a final 2026-08-07
+- **THEN** a tela diz que a data inicial é depois da final, e nenhuma contagem nem lista é pedida
+
+#### Scenario: Os modelos sem nenhuma nota
+- **WHEN** o tenant não tem nenhuma nota na janela escolhida
+- **THEN** o filtro de modelo oferece todos, `55`, `57` e `SE`
+
+#### Scenario: O modelo escolhido sai do período
+- **WHEN** o filtro é `SE`, e o usuário troca para um período que não tem nenhuma NFS-e
+- **THEN** os cards mostram 0, e `SE` continua escolhido e na lista
+
+#### Scenario: Mesmo dia, tipos diferentes
+- **WHEN** o estabelecimento tem, na mesma data da execução, uma NF-e 55 e uma NFS-e ignorada
+- **THEN** a tabela mostra duas linhas para essa data, uma com o modelo `55` e outra com o modelo `SE`, e a tela não
+  acusa linha repetida
+
 ### Requirement: O modal lista as notas da linha
 
-O modal de um grupo MUST listar exatamente as notas da linha da tabela: a mesma empresa, filial, data, tipo, modelo e
-modo. O número de notas do título MUST ser o total da linha, e o mesmo número de notas da lista. A nota ignorada da linha
-entra.
+O modal de um grupo MUST listar exatamente as notas da linha da tabela: a mesma empresa, filial, data da execução, período
+integrado, tipo, modelo e modo. O número de notas do título MUST ser o total da linha, e o mesmo número de notas da lista. A
+nota ignorada da linha entra.
 
 #### Scenario: NF-e e NFS-e no mesmo dia
-- **WHEN** o estabelecimento tem, no mesmo dia, uma NF-e 55 rejeitada e uma NFS-e ignorada
+- **WHEN** o estabelecimento tem, no mesmo dia da execução, uma NF-e 55 rejeitada e uma NFS-e ignorada
 - **THEN** o modal da linha da NF-e lista só a NF-e, com "1 nota"
 - **AND** o modal da linha da NFS-e lista só a NFS-e, com "1 nota"
 
@@ -165,6 +219,22 @@ entra.
 - **WHEN** o estabelecimento tem, no mesmo dia e no mesmo modelo, uma nota de modo `Automatic` e uma de modo `Manual`
 - **THEN** o modal de cada linha lista só a nota daquele modo
 
+#### Scenario: Mesmo dia, períodos diferentes
+- **WHEN** duas integrações imediatas rodam hoje para o mesmo estabelecimento, uma de 2016-09-01 a 2016-09-03 e outra de
+  2016-03-01 a 2016-03-01
+- **THEN** a tabela mostra uma linha para cada período, e o modal de cada uma lista só as notas dela
+
 #### Scenario: O modal bate com o card
 - **WHEN** o período do card tem uma linha só do modelo `SE`, com 3 notas, uma delas ignorada, e o filtro do card é `SE`
 - **THEN** o card "Documentos" mostra 3, e o modal dessa linha lista as 3
+
+## REMOVED Requirements
+
+### Requirement: Os cards e a tabela contam pela data fiscal
+
+**Reason**: a conferência na tela (2026-10-02) pediu que os cards e a tabela mostrem quando a integração rodou, com o
+período integrado à parte. Uma integração imediata de hoje, para 2016, aparecia em 02/09/2016, e não hoje. O requisito
+novo é "Os cards e a tabela contam pela data da execução".
+
+**Migration**: a data fiscal continua gravada no registro (a data de referência) e é o critério da descoberta por período.
+O registro gravado antes da mudança recebe, como data da execução, o dia em que foi gravado pela primeira vez, sem período.

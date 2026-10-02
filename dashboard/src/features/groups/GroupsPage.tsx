@@ -9,6 +9,7 @@ import { GroupModal } from './GroupModal';
 import { formatCompany } from './companyCode';
 import { PERIODS, customRangeProblem, periodWindow } from './period';
 import { cardSums, modelLabel, modelOptions } from './cards';
+import { compareShownDays, formatDay, formatPeriod, rowId } from './groupRow';
 import type { DocumentGroup } from '../../types';
 
 const cardStyle: CSSProperties = {
@@ -34,9 +35,8 @@ const ALL_MODELS = '__all__';
 const CUSTOM = 'custom';
 type PeriodChoice = number | typeof CUSTOM;
 
-// O grupo é (empresa, filial, dia, tipo, modelo, modo): no mesmo dia, a NF-e e a NFS-e ignorada do mesmo estabelecimento são
-// linhas distintas.
-const rowId = (g: DocumentGroup) => `${g.companyCode}:${g.branchCode}:${g.referenceDate}:${g.type}:${g.model ?? ''}:${g.trigger}`;
+// O grupo é (empresa, filial, dia da execução, período, tipo, modelo, modo): no mesmo dia, a NF-e e a NFS-e ignorada do
+// mesmo estabelecimento são linhas distintas, e duas integrações de períodos diferentes também (rowId, em groupRow).
 
 const columns: GridColDef<DocumentGroup>[] = [
   {
@@ -50,19 +50,29 @@ const columns: GridColDef<DocumentGroup>[] = [
     valueGetter: (_v, row) => formatCompany(row.companyCode),
   },
   { field: 'branchCode', headerName: 'Filial', width: 90 },
-  { field: 'referenceDate', headerName: 'Data', width: 120 },
+  // O dia da execução que trouxe as notas, e não a data fiscal delas (D15). A grade filtra pelo texto mostrado, e ordena
+  // pela data.
+  {
+    field: 'executedOn',
+    headerName: 'Data',
+    width: 120,
+    valueGetter: (_v, row) => formatDay(row.executedOn),
+    sortComparator: compareShownDays,
+  },
   { field: 'model', headerName: 'Modelo', width: 90, valueGetter: (_v, row) => row.model ?? '—' },
   // "Tipo" = modo/gatilho da integração do grupo (não o tipo do documento).
   { field: 'trigger', headerName: 'Tipo', width: 130, valueGetter: (_v, row) => triggerLabel(row.trigger) },
+  // O período que a integração imediata, a diária ou a agendada integrou; a automática não tem período.
   {
     field: 'periodo',
-    headerName: 'Período',
+    headerName: 'Período integrado',
     flex: 1,
-    minWidth: 130,
-    sortable: false,
-    filterable: false,
-    valueGetter: () => '—',
-    renderCell: () => <span style={{ color: 'var(--faint)' }}>—</span>,
+    minWidth: 190,
+    valueGetter: (_v, row) => formatPeriod(row),
+    sortComparator: compareShownDays,
+    renderCell: (p) => (
+      <span style={{ color: p.row.periodStart ? undefined : 'var(--faint)', fontVariantNumeric: 'tabular-nums' }}>{formatPeriod(p.row)}</span>
+    ),
   },
   {
     field: 'processadas',
@@ -102,17 +112,13 @@ function Kpi({ label, value, color, note }: { label: string; value: number; colo
 }
 
 export function GroupsPage() {
-  const { data, isLoading, isError, error } = useGroups();
   const [group, setGroup] = useState<DocumentGroup | null>(null);
-  const groups = useMemo(() => data ?? [], [data]);
 
-  // Os cards contam as notas cuja data de referência está na janela escolhida, e do modelo escolhido. É de propósito: a
-  // data de referência é a data fiscal, no fuso de quem emitiu, sem conversão, e a janela é a dos últimos N dias pelo dia
-  // do navegador (hoje e os N−1 anteriores), ou o período personalizado, de uma data a outra. A nota processada hoje com
-  // data fiscal fora da janela fica fora: as de 2016 do fiscosysdev ficam fora das janelas fixas, e isso é o correto, e não
-  // defeito. A ignorada conta em "Documentos", e não em "Com erro" (spec document-grouping). A contagem vem do servidor,
-  // sobre todas as notas da janela, e não dos 200 grupos da tabela, que segue mostrando o histórico completo, sem os filtros
-  // dos cards.
+  // Os cards e a tabela contam as notas pelo dia da execução que as trouxe, na janela escolhida, e do modelo escolhido
+  // (change erp-company-directory-and-card-filters, D15). A janela é a dos últimos N dias pelo dia do navegador (hoje e os
+  // N−1 anteriores), ou o período personalizado, de uma data a outra. A integração imediata de hoje, para 2016, conta hoje,
+  // e o período dela fica na coluna "Período integrado". A ignorada conta em "Documentos", e não em "Com erro" (spec
+  // document-grouping). A contagem dos cards vem do servidor, sobre todas as notas da janela, e não dos 200 grupos da tabela.
   const [choice, setChoice] = useState<PeriodChoice>(PERIODS[0].days);
   const [custom, setCustom] = useState(() => periodWindow(PERIODS[0].days, new Date()));
   const [model, setModel] = useState<string | null>(null);
@@ -120,6 +126,8 @@ export function GroupsPage() {
   const range = preset ? periodWindow(preset.days, new Date()) : custom;
   const problem = preset ? null : customRangeProblem(custom.from, custom.to);
   const totals = useGroupTotals(range.from, range.to, problem === null);
+  const { data, isLoading, isError, error } = useGroups(range.from, range.to, model, problem === null);
+  const groups = useMemo(() => (problem === null ? (data ?? []) : []), [data, problem]);
   // O personalizado começa com a janela que estava escolhida, para a troca não zerar as datas.
   const choosePeriod = (next: PeriodChoice) => {
     if (next === CUSTOM && preset) {
@@ -144,7 +152,7 @@ export function GroupsPage() {
         </div>
       )}
 
-      {/* Os filtros dos cards: o período (o dia, por padrão, ou o personalizado) e o modelo. A tabela abaixo não os segue. */}
+      {/* Os filtros dos cards e da tabela: o período (o dia, por padrão, ou o personalizado) e o modelo. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <Segmented<PeriodChoice>
           value={choice}
@@ -184,7 +192,7 @@ export function GroupsPage() {
         <Kpi label="Com erro" value={counts.comErro} color="var(--error-text)" note="rejeitados, sem retorno ou falha" />
       </div>
 
-      {/* Histórico — filtro/ordenação nativos por coluna; paginação se ajusta à altura (autoPageSize) */}
+      {/* As linhas da janela e do modelo — filtro/ordenação nativos por coluna; paginação se ajusta à altura (autoPageSize) */}
       <Paper elevation={0} sx={{ ...cardStyle, borderRadius: '10px', flex: 1, minHeight: 320, overflow: 'hidden' }}>
         <FhDataGrid
           rows={groups}

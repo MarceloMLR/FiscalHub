@@ -94,15 +94,20 @@ da mudança continua rodando o pacote antigo.
 
 O que a tela mostra, e que parece defeito mas não é:
 
-- **Os cards contam pela data fiscal, na janela e no modelo escolhidos** (ADR-0032).
-  - **Qual data:** a data de referência é a data fiscal, no fuso de quem emitiu, sem conversão, na nota processada e na
-    ignorada.
-  - **A janela:** o dia (o padrão), ou os últimos 7, 15 ou 30 dias: hoje e os N−1 anteriores, pelo dia do navegador.
-  - **O modelo:** todos, ou um dos modelos da janela. A NFS-e ignorada conta em "Documentos", e não em "Com erro".
-  - **A contagem é do servidor** (`GET /groups/totals`), sobre todas as notas da janela. A tabela não segue os filtros:
-    ela mostra o histórico completo, com a coluna "Modelo", e o modal de uma linha lista só as notas dela.
-  - **O efeito no fiscosysdev:** a nota mais recente da `brmf` tem data fiscal 2026-08-07. Em 2026-10-02, nenhuma janela a
-    alcança, e os cards mostram 0 em todos os períodos. As notas aparecem na tabela, nas datas fiscais delas.
+- **Os cards e a tabela contam pelo dia da execução, na janela e no modelo escolhidos** (ADR-0032 §8).
+  - **Qual data:** o dia em que a integração rodou, em Brasília: o da imediata, da diária ou da agendada, ou o da busca do
+    coletor. A data fiscal continua gravada, mas não é a data da linha.
+  - **O período integrado:** a coluna "Período integrado" mostra o período da imediata, da diária e da agendada. A
+    automática mostra "—".
+  - **A janela:** o dia (o padrão), os últimos 7, 15 ou 30 dias (hoje e os N−1 anteriores, pelo dia do navegador), ou o
+    personalizado, de uma data a outra.
+  - **O modelo:** todos, ou um modelo. A NFS-e ignorada conta em "Documentos", e não em "Com erro".
+  - **A contagem é do servidor** (`GET /groups/totals`), sobre todas as notas da janela, e a tabela (`GET /groups`) segue o
+    mesmo filtro. O modal de uma linha lista só as notas dela.
+  - **A nota fica na linha da última entrada:** outra integração, ou o coletor de novo, a move. O reprocesso não a move, e
+    só soma na coluna "Reprocessos" do modal. A integração agendada que a idempotência pula também não.
+  - **O efeito no fiscosysdev:** as notas de 2016 que a integração imediata de hoje trouxe aparecem hoje, com o período de
+    2016 ao lado. As que o banco já tinha ficam no dia em que foram gravadas pela primeira vez.
 - **A empresa é o CNPJ do estabelecimento próprio.**
   - **Nas notas do D365:** o CNPJ sem a pontuação e com as letras, mascarado na tela pelo tamanho (14 caracteres, o
     alfanumérico também), e a filial é o código do estabelecimento (`Matriz`, `SP-01`, `SAL-01` na `brmf`).

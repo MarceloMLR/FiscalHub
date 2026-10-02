@@ -51,4 +51,18 @@ public sealed record DocumentReference
     /// origem não o informa na descoberta (XML) ou a mensagem é anterior ao campo.
     /// </summary>
     public DocumentMetadata? Metadata { get; init; }
+
+    /// <summary>
+    /// O instante da execução que trouxe a nota: a integração imediata, a diária, a agendada, ou a passada do coletor
+    /// (change erp-company-directory-and-card-filters, D15). É dela o dia da linha no dashboard, e a referência com o campo
+    /// move a nota para essa execução (a última entrada). <c>null</c> = o reprocesso, o drop, o <c>/ingest</c> ou a mensagem
+    /// anterior ao campo: a linha que já existe não muda, e a nova nasce no dia do processamento.
+    /// </summary>
+    public DateTimeOffset? ExecutedAt { get; init; }
+
+    /// <summary>O primeiro dia do período integrado, na imediata, na diária e na agendada. A automática não tem período.</summary>
+    public DateOnly? PeriodStart { get; init; }
+
+    /// <summary>O último dia do período integrado, inclusive.</summary>
+    public DateOnly? PeriodEnd { get; init; }
 }

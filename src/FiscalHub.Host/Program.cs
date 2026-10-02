@@ -148,7 +148,8 @@ builder.Services.AddScoped(sp => new DocumentDiscoveryResolver(
 builder.Services.AddScoped<IIntegrationRunner>(sp => new IntegrationRunner(
     sp.GetRequiredService<DocumentDiscoveryResolver>(),
     sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
-    sp.GetRequiredService<IExecutionStore>()));
+    sp.GetRequiredService<IExecutionStore>(),
+    sp.GetRequiredService<TimeProvider>()));
 builder.Services.AddScoped(sp => new DocumentReprocess(
     sp.GetRequiredService<DocumentDiscoveryResolver>(),
     sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
@@ -513,31 +514,49 @@ app.MapGet("/documents/{tenantId}/{naturalKey}/reading", async (string tenantId,
 app.MapGet("/documents", async (IDocumentQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListRecentAsync(100, ct)));
 
-// Dashboard: grupos (empresa/filial/dia) com contagens, e os documentos de um grupo.
-app.MapGet("/groups", async (IDocumentQueries queries, CancellationToken ct) =>
-    Results.Ok(await queries.ListGroupsAsync(200, ct)));
-
-// Os cards: as contagens por modelo das notas cuja data fiscal está na janela, inclusive, sobre todas as notas do período, e
-// não sobre os 200 grupos da tabela. A janela vem da tela, pelo dia do navegador (change erp-company-directory-and-card-filters,
-// D9 e D11).
-app.MapGet("/groups/totals", async (string? from, string? to, IDocumentQueries queries, CancellationToken ct) =>
+// Dashboard: os grupos (empresa/filial/dia da execução/período) com contagens. Com from e to, só os da janela e do modelo:
+// o mesmo filtro dos cards (change erp-company-directory-and-card-filters, D15). Sem eles, os 200 mais recentes, como antes.
+app.MapGet("/groups", async (string? from, string? to, string? model, IDocumentQueries queries, CancellationToken ct) =>
 {
-    if (!TryDay(from, out DateOnly first) || !TryDay(to, out DateOnly last))
+    GroupWindow? window = null;
+    if (from is not null || to is not null)
     {
-        return Results.BadRequest(new { message = "Informe from e to no formato aaaa-mm-dd." });
+        if (DayWindowProblem(from, to, out DateOnly first, out DateOnly last) is { } problem)
+        {
+            return Results.BadRequest(new { message = problem });
+        }
+
+        window = new GroupWindow(first, last, string.IsNullOrEmpty(model) ? null : model);
     }
 
-    return first > last
-        ? Results.BadRequest(new { message = "from não pode ser depois de to." })
-        : Results.Ok(await queries.CountByModelAsync(first, last, ct));
+    return Results.Ok(await queries.ListGroupsAsync(200, window, ct));
 });
+
+// Os cards: as contagens por modelo das notas cujo dia da execução está na janela, inclusive, sobre todas as notas do período,
+// e não sobre os 200 grupos da tabela. A janela vem da tela, pelo dia do navegador (D9, D11 e D15).
+app.MapGet("/groups/totals", async (string? from, string? to, IDocumentQueries queries, CancellationToken ct) =>
+    DayWindowProblem(from, to, out DateOnly first, out DateOnly last) is { } problem
+        ? Results.BadRequest(new { message = problem })
+        : Results.Ok(await queries.CountByModelAsync(first, last, ct)));
+
+static string? DayWindowProblem(string? from, string? to, out DateOnly first, out DateOnly last)
+{
+    last = default;
+    if (!TryDay(from, out first) || !TryDay(to, out last))
+    {
+        return "Informe from e to no formato aaaa-mm-dd.";
+    }
+
+    return first > last ? "from não pode ser depois de to." : null;
+}
 
 static bool TryDay(string? value, out DateOnly day)
     => DateOnly.TryParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out day);
 
-// O modal: as notas da linha inteira, com o tipo, o modelo e o modo dela (D10). Sem eles, o dia do estabelecimento, como antes.
-app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
-    async (string companyCode, string branchCode, string referenceDate, string? type, string? model, string? trigger,
+// O modal: as notas da linha inteira, com o tipo, o modelo, o modo e o período dela (D10 e D15). O período vem como
+// period=none (a automática) ou period=aaaa-mm-dd_aaaa-mm-dd; sem ele, o modal não filtra por período.
+app.MapGet("/groups/{companyCode}/{branchCode}/{executedOn}/documents",
+    async (string companyCode, string branchCode, string executedOn, string? type, string? model, string? trigger, string? period,
         IDocumentQueries queries, CancellationToken ct) =>
     {
         DocumentType? documentType = null;
@@ -551,9 +570,34 @@ app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
             documentType = parsed;
         }
 
-        return Results.Ok(await queries.ListByGroupAsync(
-            companyCode, branchCode, referenceDate, documentType,
-            string.IsNullOrEmpty(model) ? null : model, string.IsNullOrEmpty(trigger) ? null : trigger, ct));
+        var group = new GroupKey
+        {
+            CompanyCode = companyCode,
+            BranchCode = branchCode,
+            ExecutedOn = executedOn,
+            Type = documentType,
+            Model = string.IsNullOrEmpty(model) ? null : model,
+            Trigger = string.IsNullOrEmpty(trigger) ? null : trigger,
+        };
+
+        if (!string.IsNullOrEmpty(period))
+        {
+            string[] days = period.Split('_');
+            if (period == "none")
+            {
+                group = group with { MatchPeriod = true };
+            }
+            else if (days.Length == 2 && TryDay(days[0], out _) && TryDay(days[1], out _))
+            {
+                group = group with { MatchPeriod = true, PeriodStart = days[0], PeriodEnd = days[1] };
+            }
+            else
+            {
+                return Results.BadRequest(new { message = "Informe period como none ou aaaa-mm-dd_aaaa-mm-dd." });
+            }
+        }
+
+        return Results.Ok(await queries.ListByGroupAsync(group, ct));
     });
 
 // Reprocessar uma nota com falha: entrega o id às descobertas do tenant (a do ERP primeiro, o catálogo de exemplo depois,

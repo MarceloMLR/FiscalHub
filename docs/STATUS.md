@@ -507,6 +507,15 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
       teste usa 2026-09-05, em que ela começa em 2026-08-07.
     - **A prova manual não fecha com o dado de hoje:** a nota mais recente da `brmf` é de 2026-08-07, a 55 dias de
       2026-10-02, fora de qualquer janela. Ela precisa de uma nota com data fiscal recente, lançada no fiscosysdev.
+    - **Revisto na conferência na tela (2026-10-02, D15 da change, ADR-0032 §8):** os cards e a tabela passam a contar
+      pelo dia da execução que trouxe a nota, e não pela data fiscal.
+      - **O que deixa de valer:** a regra acima, "não corrigir para a data de processamento", por pedido do usuário. A
+        integração imediata de hoje, para 2016, aparecia em 02/09/2016. As provas pela data fiscal (10.4 e 10.6 da
+        change) também deixam de valer.
+      - **O que continua:** a data fiscal continua gravada, e é o critério da descoberta por período.
+      - **A tabela:** segue o mesmo filtro dos cards, e mostra o período integrado ("—" na automática).
+      - **A prova manual nova:** a do grupo 13 da change. Com o dia da execução, as notas que o coletor trouxe hoje entram
+        no filtro do dia.
 - [ ] **O modal do grupo não filtra pelo tipo e pelo modo.** (dashboard, `GroupModal`; risco do design da change
   `establishment-and-readable-dashboard`)
   - **Falta:** a linha da tabela é por empresa, filial, dia, tipo e modo, e a consulta do modal
@@ -520,6 +529,8 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
       nulo do registro antigo.
     - **A prova por teste:** `SqlDocumentQueriesTests` (`Modal_lists_only_the_notes_of_the_row_type_and_model` e
       `Modal_count_matches_the_row_total`).
+    - **O período (D15):** a linha ganha o período integrado, e o modal o recebe (`period=none` na automática, ou
+      `aaaa-mm-dd_aaaa-mm-dd`). A prova por teste: `Modal_with_the_period_lists_only_that_execution_and_none_lists_the_automatic`.
 - [x] **O tamanho do código do estabelecimento no F&O.** (change `establishment-and-readable-dashboard`, tarefa 1.1)
   - **Falta:** conferir no AOT o tamanho do EDT do `FiscalEstablishmentId`. O `$metadata` do OData declara a
     propriedade só como `Edm.String`, sem `MaxLength`, e o CDM da Microsoft também não o traz. O `BranchCode` foi

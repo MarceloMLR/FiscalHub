@@ -8,7 +8,8 @@
   - **ADR-0014:** a integração manual e a agendada descobrem pela implementação do adapter de entrada do perfil. O D365
     ganha a dele, e o catálogo local passa a existir só em Development. As referências vão para a fila de descoberta.
   - **ADR-0028:** fecha o item "o diretório de empresas não é por tenant".
-  - **ADR-0030:** a empresa do grupo é o CNPJ sem a pontuação e com as letras, e não o "CNPJ de 14 dígitos".
+  - **ADR-0030:** a empresa do grupo é o CNPJ sem a pontuação e com as letras, e não o "CNPJ de 14 dígitos". O dia da
+    linha no dashboard passa a ser o da execução que trouxe a nota, e não a data fiscal (8).
 - **Change OpenSpec:** `openspec/changes/erp-company-directory-and-card-filters`. As capacidades são `company-directory`,
   `period-discovery`, `tax-identifier-normalization`, `document-grouping`, `d365-change-feed`, `d365-document-assembly`,
   `avalara-document-contract` e `inbound-source-resolution`.
@@ -30,12 +31,15 @@ A integração manual e o agendamento ofereciam empresas que não existem, e des
 - **Os cards:** só contavam o dia de hoje, somando no navegador os 200 grupos mais recentes.
 - **A fila:** a descoberta por período publicava na fila de entrada, e o coletor na de descoberta. Cada fila consome uma
   mensagem por vez, mas cada uma por conta própria.
+- **A data da linha (conferência na tela, 2026-10-02):** os cards e a tabela contavam pela data fiscal. Uma integração
+  imediata de hoje, para setembro de 2016, aparecia em 02/09/2016, e o período que ela integrou não aparecia.
 
 ## Decisão
 
 **O diretório e a descoberta por período são os do ERP do tenant, escolhidos pelo adapter de entrada do perfil, e o mock
 só existe em Development. O CNPJ é o mesmo texto em todo o hub, sem a pontuação e com as letras. Os cards contam no
-servidor, pela janela e pelo modelo.**
+servidor, pela janela e pelo modelo, e a tabela segue o mesmo filtro. O dia da linha é o da execução que trouxe a
+nota.**
 
 1. **O diretório lê a entidade padrão da Microsoft.**
    - **A fonte:** a `FiscalEstablishments`, entre empresas e filtrada pelas `companies` do perfil, com o token e as
@@ -76,17 +80,29 @@ servidor, pela janela e pelo modelo.**
    - **A tela:** a máscara é pelo tamanho (14 caracteres). O NCM, o CFOP e o CEP continuam só com dígitos.
 6. **Os cards contam no servidor, pela janela e pelo modelo.**
    - **A janela:** os últimos N dias são hoje e os N−1 anteriores, pelo dia do navegador. O "Dia" é o padrão, e há 7, 15
-     e 30 dias.
+     e 30 dias, e o período personalizado, de uma data a outra.
    - **O modelo:** todos, ou um dos modelos da janela.
    - **A contagem:** o `GET /groups/totals` conta por modelo, sobre todas as notas da janela.
-   - **A tabela:** o grupo ganha o modelo, e o modal lista exatamente a linha (tipo, modelo e modo). A tabela continua o
-     histórico completo, sem os filtros dos cards.
+   - **A tabela:** o grupo ganha o modelo, e o modal lista exatamente a linha (tipo, modelo e modo). A tabela segue a
+     mesma janela e o mesmo modelo (8).
 7. **O `establishments` continua configuração digitada, e não é semeado pelo diretório.**
    - **Onde ele está:** não está na tela, só no seed e por SQL.
    - **Por que não semear:** os códigos são da plataforma e nunca vêm do ERP (ADR-0026 §3). O diretório daria só a chave,
      e uma entrada sem os códigos é rejeitada do mesmo jeito. Semear faria o hub escrever configuração que o Admin não
      digitou.
    - **O próximo passo:** a tela da tradução, com as linhas vindas do diretório.
+8. **O dia da linha é o da execução que trouxe a nota, e o período integrado fica à parte.** (conferência na tela,
+   2026-10-02)
+   - **O dia:** o da integração imediata, da diária ou da agendada, ou o da busca do coletor, em Brasília, como o
+     agendador. A data fiscal continua gravada, e segue como o critério da descoberta por período (4).
+   - **O período:** o que a imediata, a diária e a agendada integraram, numa coluna própria. A automática não tem período.
+   - **A última entrada:** a nota é uma só, na linha da execução que a trouxe por último. O reprocesso não a move, e só
+     soma na contagem de reprocessos. A nota que a idempotência pula não é gravada, e fica onde estava.
+   - **Como chega lá:** a referência leva o instante da execução e o período. O reprocesso, o drop e o `/ingest` não os
+     levam, e a nota nova sem eles nasce no dia do processamento, como automática.
+   - **O registro antigo:** a migração dá a ele o dia da primeira gravação, em Brasília, sem período.
+   - **O mesmo filtro:** o `/groups` aceita a janela e o modelo do `/groups/totals`, e o grupo ganha o período. O modal
+     recebe o período da linha.
 
 ## Alternativas consideradas
 
@@ -104,12 +120,21 @@ servidor, pela janela e pelo modelo.**
 - **Somar os cards no navegador, com um limite maior de grupos.** Descartada. Qualquer limite trunca em silêncio num
   tenant grande.
 - **Semear o `establishments` pelo diretório.** Descartada (7).
+- **Contar pela data fiscal, como no ADR-0030.** Descartada na conferência na tela: quem olha o dashboard procura quando a
+  integração rodou, e a integração de hoje para 2016 aparecia em 2016.
+- **Uma linha por execução, com a nota em todas as que a trouxeram.** Descartada. Pede um registro de entradas por nota, e
+  a mesma nota contaria em mais de um dia. A última entrada responde a pergunta da tela.
+- **O reprocesso move a nota para o dia dele.** Descartada com o usuário: a contagem de reprocessos já mostra que ele
+  aconteceu, e a nota continua sendo da execução que a trouxe.
 
 ## Consequências
 
 - **Na tela:** o dropdown mostra o cadastro do ERP do tenant, com o CNPJ mascarado e o nome, e o agendamento acha as notas
-  do 365. Os cards respondem a semana e o modelo.
+  do 365. Os cards e a tabela respondem ao período e ao modelo, pelo dia em que a integração rodou, com o período
+  integrado ao lado.
 - **A nota do D365 é reprocessável,** e o reprocesso é envio real, como o do XML.
+- **Duas migrações, aplicadas na subida do host:** a contagem de reprocessos (`AddProcessedDocumentReprocessCount`) e a
+  execução (`AddProcessedDocumentExecution`), que preenche o dia do registro antigo. As colunas são aditivas.
 - **O CNPJ alfanumérico** atravessa o hub com o mesmo valor. A caixa preservada faz `12abc…` não casar com `12ABC…`: é
   uma rejeição visível, e não uma junção silenciosa.
 - **Limites conhecidos, no STATUS:**

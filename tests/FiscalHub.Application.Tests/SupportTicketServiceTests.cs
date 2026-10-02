@@ -156,8 +156,8 @@ public class SupportTicketServiceTests
             => Task.FromResult<IReadOnlyList<DocumentSummary>>(notes.Where(n => naturalKeys.Contains(n.NaturalKey)).ToList());
 
         public Task<IReadOnlyList<DocumentSummary>> ListRecentAsync(int limit, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<IReadOnlyList<DocumentGroup>> ListGroupsAsync(int limit, CancellationToken ct = default) => throw new NotImplementedException();
-        public Task<IReadOnlyList<DocumentSummary>> ListByGroupAsync(string c, string b, string d, DocumentType? type, string? model, string? trigger, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<IReadOnlyList<DocumentGroup>> ListGroupsAsync(int limit, GroupWindow? window = null, CancellationToken ct = default) => throw new NotImplementedException();
+        public Task<IReadOnlyList<DocumentSummary>> ListByGroupAsync(GroupKey group, CancellationToken ct = default) => throw new NotImplementedException();
         public Task<IReadOnlyList<ModelTotals>> CountByModelAsync(DateOnly from, DateOnly to, CancellationToken ct = default) => throw new NotImplementedException();
     }
 

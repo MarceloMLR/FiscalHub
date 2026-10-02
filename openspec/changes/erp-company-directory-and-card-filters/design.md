@@ -392,6 +392,30 @@ digitados pelo Admin.
 - **O 409 da execução sem descoberta,** e o 502 de uma falha da origem durante a execução, aparecem no banner da tela,
   como a mensagem de sucesso aparece hoje.
 
+### D15. A data do dashboard é a da execução, e o período integrado à parte (conferência na tela, 2026-10-02)
+
+**Revisa o D9 e o D11, e o ADR-0030 na parte do dia do grupo.** Os cards e a tabela passam a usar o dia em que a integração
+rodou, e o mesmo filtro vale para os dois. Na conferência, uma integração imediata de hoje, para setembro de 2016, aparecia
+em 02/09/2016.
+
+- **O que a referência leva:** a `DocumentReference` ganha o instante da execução (`ExecutedAt`) e o período integrado
+  (`PeriodStart` e `PeriodEnd`).
+  - **O runner:** põe o instante da execução e o período, em dias, como a descoberta o lê.
+  - **O coletor:** põe o instante da passada, sem período.
+  - **O reprocesso, o drop e o `/ingest`:** não põem nada. A mensagem antiga, sem os campos, é lida como antes.
+- **O que o registro guarda:** o dia da execução (`ExecutedOn`, em Brasília, como o agendador) e o período, ao lado da data
+  fiscal, que continua gravada (a data de referência).
+- **A última entrada:** a referência com `ExecutedAt` move a nota: o dia, o modo e o período passam a ser os dela, na
+  montagem e também na ignorada. Sem `ExecutedAt`, a linha existente não muda, e a nova nasce no dia do processamento, como
+  automática. Assim o reprocesso não move a nota, e só soma na contagem. A nota que o agendamento pula pela idempotência não é
+  gravada, e não muda de linha.
+- **O grupo:** passa a ser (empresa, filial, dia da execução, período, tipo, modelo, modo). O `/groups` aceita a mesma janela
+  e o mesmo modelo do `/groups/totals`, e a tabela segue o filtro. O modal recebe o período da linha.
+- **O registro antigo:** a migração dá, como dia da execução, o dia em que ele foi gravado pela primeira vez (`CreatedAt`, em
+  Brasília), sem período.
+- **O que deixa de valer:** a regra do STATUS "não corrigir para a data de processamento", e as provas 10.4 e 10.6, que
+  contavam pela data fiscal.
+
 ## Risks / Trade-offs
 
 - **[O filtro de data do OData é premissa]** → A tarefa 1.1 o confere no fiscosysdev antes do código. Se o literal for
@@ -417,5 +441,8 @@ digitados pelo Admin.
 
 1. **No D365 (o Marcelo):** build e deploy do modelo com a role, sem sync. A ordem com o hub não importa. Sem o
    privilégio, o dropdown mostra o motivo do 403, e o resto do hub não muda.
-2. **No hub:** não há migração de banco. Front e back sobem juntos.
-3. **Rollback:** reverter o commit. O privilégio na role pode ficar, porque é só leitura.
+2. **No hub:** duas migrações, aplicadas na subida do host. A `AddProcessedDocumentReprocessCount` traz a contagem de
+   reprocessos, e a `AddProcessedDocumentExecution` (D15) traz o dia da execução e o período, preenchendo o dia do registro
+   antigo pelo `CreatedAt`. Front e back sobem juntos, porque o `/groups` e a rota do modal mudaram.
+3. **Rollback:** reverter o commit. As colunas novas são aditivas, e o código antigo as ignora. O privilégio na role pode
+   ficar, porque é só leitura.

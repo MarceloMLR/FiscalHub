@@ -18,7 +18,7 @@ public class IntegrationRunnerTests
         var discovery = new FakeDiscovery("Dynamics365", 2);
         var queue = new FakeQueue();
         var store = new FakeExecutionStore();
-        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), queue, store);
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), queue, store, Clock);
 
         int count = await runner.RunAsync(Request(IntegrationMode.Manual));
 
@@ -35,12 +35,35 @@ public class IntegrationRunnerTests
         var discovery = new FakeDiscovery("Dynamics365", 1);
         var queue = new FakeQueue();
         var store = new FakeExecutionStore();
-        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), queue, store);
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), queue, store, Clock);
 
         await runner.RunAsync(Request(IntegrationMode.ScheduledDaily));
 
         Assert.All(queue.Enqueued, r => Assert.Equal(IngestionTrigger.Event, r.Trigger)); // agendado dedupa
         Assert.Equal(IntegrationMode.ScheduledDaily, store.Recorded!.Mode);
+    }
+
+    [Fact]
+    public async Task Each_reference_carries_the_instant_of_the_run_and_the_period_in_brasilia_days()
+    {
+        // O período como o agendador o monta: dia cheio em Brasília. Em UTC, o fim já seria o dia seguinte.
+        var queue = new FakeQueue();
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [new FakeDiscovery("Dynamics365", 2)]), queue, new FakeExecutionStore(), Clock);
+
+        await runner.RunAsync(Request(IntegrationMode.ScheduledOnce) with
+        {
+            PeriodStart = new DateTimeOffset(2016, 9, 1, 0, 0, 0, TimeSpan.FromHours(-3)),
+            PeriodEnd = new DateTimeOffset(2016, 9, 30, 23, 59, 59, TimeSpan.FromHours(-3)),
+        });
+
+        Assert.Equal(2, queue.Enqueued.Count);
+        Assert.All(queue.Enqueued, r =>
+        {
+            Assert.Equal(Clock.GetUtcNow(), r.ExecutedAt);
+            Assert.Equal(new DateOnly(2016, 9, 1), r.PeriodStart);
+            Assert.Equal(new DateOnly(2016, 9, 30), r.PeriodEnd);
+            Assert.Equal("ScheduledOnce", r.SourceMode);
+        });
     }
 
     // ---------- a escolha da descoberta ----------
@@ -50,7 +73,7 @@ public class IntegrationRunnerTests
     {
         var d365 = new FakeDiscovery("Dynamics365", 1);
         var fallback = new FakeDiscovery("Local", 5);
-        var runner = new IntegrationRunner(Resolver("Dynamics365", [d365], fallback), new FakeQueue(), new FakeExecutionStore());
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [d365], fallback), new FakeQueue(), new FakeExecutionStore(), Clock);
 
         int count = await runner.RunAsync(Request(IntegrationMode.Manual));
 
@@ -65,7 +88,7 @@ public class IntegrationRunnerTests
     public async Task Erp_without_discovery_gets_the_fallback_when_it_is_registered()
     {
         var fallback = new FakeDiscovery("Local", 2);
-        var runner = new IntegrationRunner(Resolver("iScala", [new FakeDiscovery("Dynamics365", 1)], fallback), new FakeQueue(), new FakeExecutionStore());
+        var runner = new IntegrationRunner(Resolver("iScala", [new FakeDiscovery("Dynamics365", 1)], fallback), new FakeQueue(), new FakeExecutionStore(), Clock);
 
         Assert.Equal(2, await runner.RunAsync(Request(IntegrationMode.Manual)));
     }
@@ -75,7 +98,7 @@ public class IntegrationRunnerTests
     {
         var queue = new FakeQueue();
         var store = new FakeExecutionStore();
-        var runner = new IntegrationRunner(Resolver("iScala", [new FakeDiscovery("Dynamics365", 1)]), queue, store);
+        var runner = new IntegrationRunner(Resolver("iScala", [new FakeDiscovery("Dynamics365", 1)]), queue, store, Clock);
 
         var ex = await Assert.ThrowsAsync<DocumentDiscoveryNotFoundException>(() => runner.RunAsync(Request(IntegrationMode.Manual)));
 
@@ -89,7 +112,7 @@ public class IntegrationRunnerTests
     public async Task Tenant_without_profile_fails_naming_the_tenant()
     {
         var runner = new IntegrationRunner(
-            new DocumentDiscoveryResolver([new FakeDiscovery("Dynamics365", 1)], new Profiles(null)), new FakeQueue(), new FakeExecutionStore());
+            new DocumentDiscoveryResolver([new FakeDiscovery("Dynamics365", 1)], new Profiles(null)), new FakeQueue(), new FakeExecutionStore(), Clock);
 
         var ex = await Assert.ThrowsAsync<DocumentDiscoveryNotFoundException>(() => runner.RunAsync(Request(IntegrationMode.Manual)));
 
@@ -98,6 +121,8 @@ public class IntegrationRunnerTests
     }
 
     // ---------- apoio ----------
+
+    private static readonly TimeProvider Clock = new StubClock(new DateTimeOffset(2026, 10, 2, 15, 0, 0, TimeSpan.Zero));
 
     internal static DocumentDiscoveryResolver Resolver(string inboundAdapter, IEnumerable<IDocumentDiscovery> discoveries, IDocumentDiscovery? fallback = null)
         => new(discoveries, new Profiles(new TenantConnectorProfile
@@ -181,6 +206,11 @@ public class IntegrationRunnerTests
             Recorded = execution;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class StubClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 
     private sealed class Profiles(TenantConnectorProfile? profile) : IConnectorProfileStore

@@ -223,11 +223,14 @@ export interface CreateScheduleRequest {
   periodEnd?: string | null;
 }
 
-// Grupo (empresa/filial/dia) com contagens — a linha principal do dashboard.
+// Grupo (empresa/filial/dia da execução/período/tipo/modelo/modo) com contagens — a linha principal do dashboard. O dia é o
+// da execução que trouxe as notas, e não a data fiscal delas (change erp-company-directory-and-card-filters, D15).
 export interface DocumentGroup {
   companyCode: string;
   branchCode: string;
-  referenceDate: string;
+  executedOn: string; // aaaa-mm-dd, em Brasília: o dia da integração, ou o da busca do coletor
+  periodStart: string | null; // o período integrado (aaaa-mm-dd); nulo na automática
+  periodEnd: string | null;
   type: string;
   model: string | null; // o modelo do documento (55, SE…); nulo só em registro antigo
   trigger: string; // modo da integração: Automatic | Manual | ScheduledDaily | ScheduledOnce

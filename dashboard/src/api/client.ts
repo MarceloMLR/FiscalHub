@@ -156,18 +156,26 @@ export const api = {
     }
     return { message: data.message ?? 'Senha redefinida.' };
   },
-  groups: () => getJson<DocumentGroup[]>('/groups'),
-  // As contagens dos cards por modelo, na janela de dias fiscais (aaaa-mm-dd), inclusive.
+  // A tabela, com a mesma janela de dias da execução (aaaa-mm-dd, inclusive) e o mesmo modelo dos cards (D15).
+  groups: (from: string, to: string, model: string | null) => {
+    const query = new URLSearchParams({ from, to });
+    if (model) {
+      query.set('model', model);
+    }
+    return getJson<DocumentGroup[]>(`/groups?${query}`);
+  },
+  // As contagens dos cards por modelo, na janela de dias da execução (aaaa-mm-dd), inclusive.
   groupTotals: (from: string, to: string) =>
     getJson<ModelTotals[]>(`/groups/totals?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
-  // As notas da linha inteira: empresa, filial e dia na rota, e o tipo, o modelo e o modo dela na query.
-  groupDocuments: (group: Pick<DocumentGroup, 'companyCode' | 'branchCode' | 'referenceDate' | 'type' | 'model' | 'trigger'>) => {
-    const query = new URLSearchParams({ type: group.type, trigger: group.trigger });
+  // As notas da linha inteira: empresa, filial e dia da execução na rota, e o tipo, o modelo, o modo e o período na query
+  // (period = none na automática, ou aaaa-mm-dd_aaaa-mm-dd).
+  groupDocuments: (group: Pick<DocumentGroup, 'companyCode' | 'branchCode' | 'executedOn' | 'type' | 'model' | 'trigger'>, period: string) => {
+    const query = new URLSearchParams({ type: group.type, trigger: group.trigger, period });
     if (group.model) {
       query.set('model', group.model);
     }
     return getJson<DocumentSummary[]>(
-      `/groups/${encodeURIComponent(group.companyCode)}/${encodeURIComponent(group.branchCode)}/${encodeURIComponent(group.referenceDate)}/documents?${query}`,
+      `/groups/${encodeURIComponent(group.companyCode)}/${encodeURIComponent(group.branchCode)}/${encodeURIComponent(group.executedOn)}/documents?${query}`,
     );
   },
   documents: () => getJson<DocumentSummary[]>('/documents'),
