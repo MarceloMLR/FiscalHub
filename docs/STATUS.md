@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-10-01
+**Última atualização:** 2026-10-02
 
 ## Ferramentas da sessão
 
@@ -279,6 +279,13 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Falta:** a porta `ICompanyDirectory` não recebe tenant, e o adapter JSON de dev devolve a mesma lista a todos.
   - **Prova:** o adapter real (ERP ou Avalara) escopado pelo tenant do login, e a porta ganha o tenant.
   - **Sintoma (vazamento):** o dropdown da integração manual mostra empresas de outro cliente.
+  - **Implementado (2026-10-02, change `erp-company-directory-and-card-filters`, ADR-0032); falta a prova manual (grupo
+    10 da change).**
+    - **A porta:** recebe o tenant de quem está logado, e a implementação é a do adapter de entrada do perfil.
+    - **O D365:** lê o cadastro de estabelecimentos do próprio tenant (`FiscalEstablishments`).
+    - **O mock:** o `companies.json` só existe em Development, como fallback do tenant cujo ERP não tem diretório. Fora
+      de Development, o ERP sem diretório responde "não tem diretório de empresas no hub".
+    - **A prova por teste:** `CompanyDirectoryQueryTests`, `JsonCompanyDirectoryTests` e `D365CompanyDirectoryTests`.
 - [ ] **O `/ingest` deve existir em produção?** (ADR-0028)
   - **Falta:** decisão de escopo. O gatilho real é o drop, o feed e o Event Grid, e o `/ingest` é conveniência
     manual. A correção do locator vale de qualquer forma.
@@ -489,12 +496,30 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Prova:** com o filtro de 30 dias, as NFS-e de 2026-08-07 da `brmf` entram nos cards de 2026-09-06, e as de 2016
     não.
   - **Sintoma:** hoje, quem quer ver as notas da semana só tem a tabela.
+  - **Implementado (2026-10-02, change `erp-company-directory-and-card-filters`, ADR-0032); falta a prova manual (grupo
+    10 da change).**
+    - **A janela:** o dia, 7, 15 e 30 dias. Os últimos N dias são hoje e os N−1 anteriores, pelo dia do navegador.
+    - **O modelo:** todos, ou um dos modelos da janela.
+    - **A contagem vai para o servidor** (`GET /groups/totals`), sobre todas as notas da janela. Antes, o navegador somava
+      os 200 grupos mais recentes, o que numa janela de 30 dias truncaria.
+    - **A prova por teste:** `SqlDocumentQueriesTests`, e o `period.test.ts` e o `cards.test.ts` do dashboard.
+    - **A conta da prova acima erra por um dia nesta regra:** em 2026-09-06, a janela de 30 dias vai de 08-08 a 09-06. O
+      teste usa 2026-09-05, em que ela começa em 2026-08-07.
+    - **A prova manual não fecha com o dado de hoje:** a nota mais recente da `brmf` é de 2026-08-07, a 55 dias de
+      2026-10-02, fora de qualquer janela. Ela precisa de uma nota com data fiscal recente, lançada no fiscosysdev.
 - [ ] **O modal do grupo não filtra pelo tipo e pelo modo.** (dashboard, `GroupModal`; risco do design da change
   `establishment-and-readable-dashboard`)
   - **Falta:** a linha da tabela é por empresa, filial, dia, tipo e modo, e a consulta do modal
     (`/groups/{empresa}/{filial}/{dia}/documents`) é só pelos três primeiros.
   - **Prova:** um estabelecimento com uma NF-e e uma NFS-e ignorada no mesmo dia mostra, nas duas linhas, as duas notas.
   - **Sintoma:** o título do modal diz "1 nota", e a lista traz duas.
+  - **Implementado (2026-10-02, change `erp-company-directory-and-card-filters`, ADR-0032); falta a prova manual (grupo
+    10 da change).**
+    - **O grupo:** ganha o modelo, e a tabela ganha a coluna "Modelo".
+    - **O modal:** consulta a linha inteira, com o tipo, o modelo e o modo dela. O modo `Automatic` casa também o modo
+      nulo do registro antigo.
+    - **A prova por teste:** `SqlDocumentQueriesTests` (`Modal_lists_only_the_notes_of_the_row_type_and_model` e
+      `Modal_count_matches_the_row_total`).
 - [x] **O tamanho do código do estabelecimento no F&O.** (change `establishment-and-readable-dashboard`, tarefa 1.1)
   - **Falta:** conferir no AOT o tamanho do EDT do `FiscalEstablishmentId`. O `$metadata` do OData declara a
     propriedade só como `Edm.String`, sem `MaxLength`, e o CDM da Microsoft também não o traz. O `BranchCode` foi
@@ -521,6 +546,17 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Cuidado enquanto isso:** o tenant-a tem tradução de estabelecimento para o CNPJ de exemplo `12345678000190`.
     Uma integração manual ou agendada para a Empresa Emitente LTDA manda a nota de exemplo ao sandbox da Avalara de
     verdade.
+  - **Implementado (2026-10-02, change `erp-company-directory-and-card-filters`, ADR-0032); falta a prova manual (grupo
+    10 da change).**
+    - **A chave:** a empresa é o CNPJ do estabelecimento sem a pontuação e com as letras (o CNPJ alfanumérico), como
+      texto, e não "14 dígitos". A filial é o código.
+    - **O diretório do D365:** é o cadastro de estabelecimentos (`FiscalEstablishments`), com o RJ-01, que não tem nota.
+    - **A descoberta por período do D365:** lê pelo dia fiscal e pelo estabelecimento, com a mesma referência do coletor,
+      e publica na fila de descoberta.
+    - **O que isso faz com a ressalva acima:** a "Empresa Emitente LTDA" sai do dropdown do tenant-a, pelo caminho da
+      tela. A tradução do `12345678000190` fica no seed, para o `/ingest` e o `/drop`.
+    - **A prova por teste:** `D365DocumentDiscoveryTests`, `IntegrationRunnerTests`, `DocumentReprocessTests` e
+      `TaxIdentifiersTests`. O CNPJ alfanumérico de ponta a ponta está no `DispatchToMockTests`.
 
 - [ ] **O que o chamado de suporte anexa quando quem o abre não pode ver as fotos cruas.** (change
   `establishment-and-readable-dashboard`, D11)
@@ -529,6 +565,37 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Prova:** abrir um chamado como Viewer e conferir, no portal de chamados, se o solicitante vê os anexos.
   - **Sintoma:** se o portal mostrar os anexos ao solicitante, o Viewer baixa por lá as fotos que a tela e a API lhe
     negam.
+- [ ] **A tela da tradução de estabelecimentos.** (ADR-0032 §7; change `erp-company-directory-and-card-filters`, D12)
+  - **Hoje:** o `establishments` das `OutboundSettings` não tem tela. Entra pelo seed e por SQL, e a tela o preserva ao
+    salvar.
+  - **O que foi decidido:** ele não é semeado pelo diretório. Os códigos são da plataforma e nunca vêm do ERP
+    (ADR-0026 §3), e o diretório só daria a chave.
+  - **Direção:** uma tela com uma linha por estabelecimento do diretório e os dois códigos digitados pelo Admin.
+  - **Sintoma:** com o diretório do ERP, a integração manual da `SAL-01` ou do `RJ-01` com NF-e 55 é rejeitada por "não
+    tem tradução para o estabelecimento …". É o desfecho certo, e só se corrige por SQL.
+- [ ] **O estabelecimento removido do cadastro não é achado pela descoberta por período.** (ADR-0032; change
+  `erp-company-directory-and-card-filters`, design, Risks)
+  - **O caso:** a descoberta resolve a empresa e a filial pelo cadastro. As notas de um estabelecimento que saiu do
+    cadastro não entram na integração manual nem na agendada.
+  - **Hoje:** o coletor continua achando as alterações delas.
+  - **Prova:** remover um estabelecimento com nota no fiscosysdev e agendar o período dela.
+- [ ] **O agendamento de um tenant sem descoberta retenta a cada passada.** (ADR-0032; change
+  `erp-company-directory-and-card-filters`, design, Risks)
+  - **O caso:** o agendador captura a falha e não avança o próximo disparo, como em qualquer falha. Um agendamento de um
+    tenant cujo ERP não tem descoberta, fora de Development, tenta de novo a cada passada.
+  - **Hoje:** a tela não deixa criar um, porque sem diretório não há empresa.
+  - **Direção:** registrar a execução com o motivo, e desativar o agendamento.
+- [ ] **O CNPJ alfanumérico em minúsculas não casa com a chave em maiúsculas.** (ADR-0032 §5)
+  - **O caso:** a normalização preserva a caixa, como o pedido diz. `12abc…` vindo do ERP não acha uma chave `12ABC…` no
+    `establishments`.
+  - **O efeito:** uma rejeição visível por falta de tradução, e não uma junção silenciosa. As letras do CNPJ são
+    maiúsculas pela regra da Receita.
+  - **Prova:** quando houver CNPJ alfanumérico em base de cliente, conferir a caixa que o F&O devolve.
+- [ ] **O teste de credencial não lê a `FiscalEstablishments`.** (ADR-0032; change `erp-company-directory-and-card-filters`,
+  Non-goals)
+  - **O caso:** o teste do D365 lê a `FSFiscalDocumentBRs`. O privilégio do cadastro, o `FiscalEstablishmentEntityView`,
+    só aparece faltando no dropdown de empresas, com o 403.
+  - **Direção:** o teste ler as duas entidades, se a falta do privilégio padrão aparecer em cliente.
 
 ### Operação
 
@@ -945,3 +1012,34 @@ conferência visual do usuário.
 
 **Próxima fatia:** continua a dos seis campos obrigatórios da recusa da Avalara, com uma nota aceita como critério de
 saída.
+
+## Sessão 2026-10-01/02 — O diretório do ERP e os filtros dos cards (change `erp-company-directory-and-card-filters`)
+
+**Entregue (ADR-0032). A prova manual está pendente** (grupo 10 da change).
+
+- **O diretório:** a integração manual e o agendamento oferecem os estabelecimentos do cadastro do D365 do tenant
+  (`FiscalEstablishments`, a entidade padrão da Microsoft). A empresa é o CNPJ e a filial é o código, a mesma chave dos
+  grupos. O mock só existe em Development, para o tenant cujo ERP não tem diretório.
+- **A descoberta por período do D365:** pelo dia fiscal e pelo estabelecimento, com a mesma referência do coletor. Ela, a
+  execução manual, a agendada e o reprocesso publicam na fila de descoberta. A nota do D365 passa a ser reprocessável.
+- **O CNPJ:** sem a pontuação e com as letras, numa função do Domain, em todo lugar que o lê. A máscara da tela é pelo
+  tamanho.
+- **Os cards:** período (dia, 7, 15 e 30 dias) e modelo, contados no servidor. O grupo ganha o modelo, e o modal lista a
+  linha inteira.
+- **A role:** a `FSFiscalHubIntegration` referencia o privilégio padrão `FiscalEstablishmentEntityView`, que precisa de
+  build e deploy, sem sync.
+
+**Verificado contra o fiscosysdev em 2026-10-01, com a sessão do Azure CLI:**
+
+- **O cadastro:** a `FiscalEstablishments` da `brmf` tem quatro estabelecimentos: `Matriz`, `SP-01`, `SAL-01` e `RJ-01`.
+- **O filtro por dia fiscal:** com 2026-08-07 e `SP-01`, a consulta deu HTTP 200, com as duas NFS-e daquele dia
+  (`BRMF06-110000034` e `BRMF06-110000035`).
+- **As fixtures:** a pasta `directory/` foi gravada pelo `Record-D365Fixtures.ps1 -DirectoryOnly`.
+
+**Achados:**
+
+- **Duas provas da fatia não fecham com o dado de hoje:** a do "30 dias" e a do "modelo bate com o modal". A nota mais
+  recente da `brmf` é de 2026-08-07, a 55 dias, fora de qualquer janela.
+- **O host da prova anterior seguia de pé** (desde 2026-10-01 11:52) e travava o `bin` do host. O `dotnet build` da
+  solução falhava ao copiar as DLLs. A verificação foi o host compilado em outra saída, mais cada projeto de teste com o
+  próprio `dotnet test`.

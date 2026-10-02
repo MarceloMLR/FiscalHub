@@ -37,7 +37,10 @@ context: |
   d365/README.md). As 6 do contábil e do inventário (FSGeneralJournalLineBR, FSMainAccountBR,
   FSCostCenterBR, FSInventOnHandBR, FSInventTransBR, FSInventLocationBR) o hub ainda não lê.
   Entity set = nome no plural (/data/FSFiscalDocumentBRs). Todas públicas, somente leitura, sem Data
-  Management e sem staging.
+  Management e sem staging. O hub também lê UMA entidade padrão da Microsoft, a FiscalEstablishments
+  (cadastro de estabelecimentos), para o diretório de empresas e a descoberta por período (ADR-0032); a
+  role referencia o privilégio padrão dela, FiscalEstablishmentEntityView. A empresa do hub é o CNPJ do
+  estabelecimento SEM a pontuação e COM as letras (CNPJ alfanumérico), nunca "só dígitos".
   CAPTURA (ADR-0023): a garantia é DESCOBERTA POR POLLING sobre a FSFiscalDocumentBR, não evento.
   Não existe hook de código que cubra todos os caminhos de escrita; a convergência está no DADO.
   O business event/CoC SAIU DO ROADMAP — não propor, não implementar.
