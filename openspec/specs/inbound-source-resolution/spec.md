@@ -29,8 +29,10 @@ Todo gatilho que publica referência para um XML no Blob MUST preencher a origem
 
 - a ingestão por drop;
 - o endpoint de ingestão;
-- a descoberta local por período, que atende a integração manual e a agendada;
-- a busca por chave, usada no reprocesso.
+- a descoberta local por período. Ela só existe em Development, e lá atende a integração manual e a agendada do tenant
+  cujo ERP não tem descoberta própria (`period-discovery`);
+- a busca por chave do catálogo local, usada no reprocesso em Development quando a descoberta do ERP do tenant não acha
+  a nota.
 
 #### Scenario: Drop no Blob
 - **WHEN** um XML é solto na zona de drop do tenant-a
@@ -41,8 +43,13 @@ Todo gatilho que publica referência para um XML no Blob MUST preencher a origem
 - **THEN** a referência publicada tem origem `Xml`
 
 #### Scenario: Reprocesso de nota do catálogo local
-- **WHEN** o usuário pede o reprocesso da nota 123 do tenant-a
+- **WHEN** o usuário pede, em Development, o reprocesso da nota 123 do tenant-a, cujo ERP é o `Dynamics365`
 - **THEN** a referência reenfileirada tem origem `Xml` e gatilho `Manual`
+
+#### Scenario: Integração manual pelo catálogo local
+- **WHEN** o tenant-b, cujo ERP `iScala` não tem descoberta própria, dispara em Development uma integração manual que o
+  catálogo local atende
+- **THEN** cada referência publicada tem origem `Xml`
 
 ### Requirement: Resolução do adapter pela origem
 

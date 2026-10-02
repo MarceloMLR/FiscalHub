@@ -109,7 +109,7 @@ tem (d365/04 §2.5 e §3.3).
 - **Data fiscal:** o dia do `FiscalDocumentDate`, como veio, sem hora e sem conversão de fuso. Ela fica ao lado da data
   de emissão, que continua sendo o instante (`FiscalDocumentDateTime`, ou o `FiscalDocumentDate` quando o F&O devolve a
   data e hora vazia). É a data fiscal, e não a data de emissão em UTC, que define o dia da nota (`document-grouping`).
-- **Estabelecimento próprio:** o CNPJ (`FiscalEstablishmentCNPJCPF`, só com dígitos) e o código
+- **Estabelecimento próprio:** o CNPJ (`FiscalEstablishmentCNPJCPF`, normalizado) e o código
   (`FiscalEstablishment`, como veio), em qualquer direção e em qualquer emissão. É o estabelecimento que escritura a
   nota, e é por ele que a nota é agrupada (`document-grouping`).
 - **Emissão própria ou de terceiros** pelo `FiscalDocumentIssuer`: `OwnEstablishment` é emissão própria, e
@@ -126,7 +126,10 @@ tem (d365/04 §2.5 e §3.3).
 
   Unidade vazia fica ausente. Origem cujo valor não tem tradução para essa tabela fica ausente, e nunca
   vira `0`.
-- **Formato:** CNPJ/CPF, NCM e CFOP MUST ir só com dígitos, como o XML da NF-e os entrega.
+- **Formato:**
+  - o CNPJ e o CPF, das partes e do estabelecimento, MUST ir normalizados (`tax-identifier-normalization`): sem
+    pontuação, com as letras e a caixa como vieram, como o XML da NF-e entrega o CNPJ alfanumérico;
+  - o NCM e o CFOP MUST ir só com dígitos.
 - **Linha fracionária:** um `LineNum` fracionário MUST falhar a montagem.
 
 #### Scenario: Nota de saída própria
@@ -144,6 +147,10 @@ tem (d365/04 §2.5 e §3.3).
   `FiscalEstablishment = Matriz`
 - **THEN** o documento tem o estabelecimento próprio com CNPJ `44278225000180` e código `Matriz`
 - **AND** esse CNPJ é o do destinatário, e não o do emitente
+
+#### Scenario: Estabelecimento com CNPJ alfanumérico
+- **WHEN** o cabeçalho tem `FiscalEstablishmentCNPJCPF = 12.ABC.345/01DE-35`, e a nota é de emissão própria
+- **THEN** o estabelecimento próprio e o emitente têm o CNPJ `12ABC34501DE35`
 
 #### Scenario: Data fiscal separada da emissão em UTC
 - **WHEN** o cabeçalho traz `FiscalDocumentDateTime = 2026-08-08T01:30:00Z` e
