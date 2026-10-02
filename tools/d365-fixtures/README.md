@@ -42,6 +42,32 @@ têm três estabelecimentos:
 | `SP-01` | `442782250002-60` | 7 |
 | `SAL-01` | `442782250003-41` | 15 |
 
-O CNPJ vem formatado (`NNNNNNNNNNNN-NN`), e o hub o reduz a dígitos. O código vem preenchido em todos. O tamanho máximo
+O CNPJ vem formatado (`NNNNNNNNNNNN-NN`). O hub tira a pontuação e preserva as letras do CNPJ alfanumérico (change
+`erp-company-directory-and-card-filters`, `tax-identifier-normalization`). O código vem preenchido em todos. O tamanho máximo
 do campo não aparece no `$metadata` do OData (a propriedade é só `Edm.String`) nem no esquema CDM da Microsoft. Conferir
 no AOT (EDT do `FiscalEstablishmentId`, tabela `FiscalEstablishment_BR`).
+
+## O diretório e a descoberta por período
+
+Gravados em 2026-10-01 (change `erp-company-directory-and-card-filters`, design D1 e D4), com `-DirectoryOnly`, que grava só
+a pasta `directory/` e não regrava o resto:
+
+```powershell
+./tools/d365-fixtures/Record-D365Fixtures.ps1 -EnvironmentUrl https://fiscosysdev.operations.dynamics.com -Company brmf -DirectoryOnly
+```
+
+- **`directory/establishments.json`:** a `FiscalEstablishments`, a entidade padrão da Microsoft, com os quatro campos que o
+  hub lê (`dataAreaId`, `FiscalEstablishmentId`, `CNPJ`, `Name`). A `brmf` tem quatro estabelecimentos. O `RJ-01`
+  (`442782250034-48`, "Filial Rio de Janeiro") não tem nenhum cabeçalho: é o que prova que o diretório vem do cadastro, e
+  não das notas.
+- **`directory/period-<estabelecimento>-<dia>.json`:** a consulta da descoberta por período de cada estabelecimento com
+  nota, no dia fiscal mais recente dele nos cabeçalhos do `snapshot/`. O `$select` é o do feed, com
+  `$orderby=FiscalDocumentRecId` e `$top=500`, e o filtro vai de `T00:00:00Z` a `T23:59:59Z` do dia.
+
+| Arquivo | Notas |
+|---|---|
+| `period-Matriz-2017-01-15.json` | 1 nota de modelo `01` (`BRMF06-110000030`), fora do mapa de modelos padrão |
+| `period-SP-01-2026-08-07.json` | 2 NFS-e (`BRMF06-110000034` e `BRMF06-110000035`) |
+| `period-SAL-01-2016-02-05.json` | 1 nota de modelo `01` (`BRMF28-14021`), fora do mapa de modelos padrão |
+
+**Em 2026-10-01, a data fiscal mais recente da `brmf` é 2026-08-07.** Nenhuma nota cabe na janela de 30 dias dos cards.

@@ -123,6 +123,24 @@
       "key": "token_expires_at",
       "value": "0",
       "type": "string"
+    },
+    {
+      "key": "periodoInicio",
+      "value": "2026-08-07",
+      "type": "string",
+      "description": "Primeiro dia fiscal da descoberta por periodo (aaaa-mm-dd)."
+    },
+    {
+      "key": "periodoFim",
+      "value": "2026-08-07",
+      "type": "string",
+      "description": "Ultimo dia fiscal da descoberta por periodo (aaaa-mm-dd), inclusive."
+    },
+    {
+      "key": "estabelecimento",
+      "value": "SP-01",
+      "type": "string",
+      "description": "Codigo do estabelecimento (FiscalEstablishmentId) da descoberta por periodo."
     }
   ],
   "item": [
@@ -2791,6 +2809,151 @@
               "pm.test('Status 200', () => pm.response.to.have.status(200));"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "FiscalHub — diretório e descoberta por período",
+      "description": "O que o hub le do D365 para a integracao manual e o agendamento (change erp-company-directory-and-card-filters):\n\n- FiscalEstablishments: o diretorio de empresas e filiais, pela entidade padrao da Microsoft. Exige o privilegio FiscalEstablishmentEntityView na role FSFiscalHubIntegration.\n- Descoberta por periodo: as notas de um estabelecimento pelo dia fiscal (FiscalDocumentDate), com as variaveis periodoInicio, periodoFim e estabelecimento.",
+      "item": [
+        {
+          "name": "FiscalEstablishments (diretorio)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FiscalEstablishments?cross-company=true&$select=dataAreaId,FiscalEstablishmentId,CNPJ,Name&$filter=dataAreaId eq '{{company}}'",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FiscalEstablishments"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$select",
+                  "value": "dataAreaId,FiscalEstablishmentId,CNPJ,Name"
+                },
+                {
+                  "key": "$filter",
+                  "value": "dataAreaId eq '{{company}}'"
+                }
+              ]
+            },
+            "description": "A leitura do diretorio de empresas (change erp-company-directory-and-card-filters, design D1): a entidade padrao da Microsoft, com os quatro campos. A empresa do hub e o CNPJ sem pontuacao, e a filial e o FiscalEstablishmentId. Um 403 aqui e o privilegio FiscalEstablishmentEntityView que falta na role FSFiscalHubIntegration, ou a role que nao esta atribuida ao app."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 403) { console.warn('[Diretorio] 403: a role FSFiscalHubIntegration precisa do privilegio FiscalEstablishmentEntityView, com deploy, e a role precisa estar atribuida ao app.'); }",
+                  "if (pm.response.code !== 200) { console.warn('[Diretorio] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Diretorio] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | estabelecimentos: ' + rows.length);",
+                  "pm.test('Os quatro campos do diretorio', function () {",
+                  "  if (rows.length === 0) { console.warn('[Diretorio] 0 linhas, campos nao conferidos'); return; }",
+                  "  const faltando = ['dataAreaId', 'FiscalEstablishmentId', 'CNPJ', 'Name'].filter(c => !(c in rows[0]));",
+                  "  pm.expect(faltando, 'campos ausentes: ' + faltando.join(', ')).to.be.empty;",
+                  "});",
+                  "pm.test('Todo estabelecimento tem CNPJ e codigo (senao o hub o deixa fora do diretorio)', function () {",
+                  "  const sem = rows.filter(r => !r.CNPJ || !r.FiscalEstablishmentId).map(r => r.dataAreaId + '/' + r.FiscalEstablishmentId);",
+                  "  pm.expect(sem, 'sem CNPJ ou sem codigo: ' + sem.join(', ')).to.be.empty;",
+                  "});",
+                  "// A empresa como o hub a grava: sem ponto, barra, hifen e espaco, com as letras (tax-identifier-normalization).",
+                  "rows.forEach(r => console.log('[Diretorio] ' + r.dataAreaId + ' ' + r.FiscalEstablishmentId + ' -> empresa ' + String(r.CNPJ || '').replace(/[./ -]/g, '') + ' (' + r.Name + ')'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Descoberta por periodo (FSFiscalDocumentBRs pelo dia fiscal)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentBRs?cross-company=true&$select=dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,FiscalDocumentDate,FiscalEstablishmentCNPJCPF,FiscalEstablishment,SysModifiedDateTime,FiscalDocumentRecId&$orderby=FiscalDocumentRecId&$top=500&$filter=FiscalDocumentDate ge {{periodoInicio}}T00:00:00Z and FiscalDocumentDate le {{periodoFim}}T23:59:59Z and dataAreaId eq '{{company}}' and FiscalEstablishment eq '{{estabelecimento}}'",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$select",
+                  "value": "dataAreaId,Voucher,Model,Direction,Status,FiscalDocumentNumber,FiscalDocumentSeries,FiscalDocumentDate,FiscalEstablishmentCNPJCPF,FiscalEstablishment,SysModifiedDateTime,FiscalDocumentRecId"
+                },
+                {
+                  "key": "$orderby",
+                  "value": "FiscalDocumentRecId"
+                },
+                {
+                  "key": "$top",
+                  "value": "500"
+                },
+                {
+                  "key": "$filter",
+                  "value": "FiscalDocumentDate ge {{periodoInicio}}T00:00:00Z and FiscalDocumentDate le {{periodoFim}}T23:59:59Z and dataAreaId eq '{{company}}' and FiscalEstablishment eq '{{estabelecimento}}'"
+                }
+              ]
+            },
+            "description": "A consulta da descoberta por periodo do hub (design D4): o dia fiscal entre periodoInicio e periodoFim, inclusive, e o estabelecimento, com o $select do coletor e o keyset por FiscalDocumentRecId. Verificada em 2026-10-01: com 2026-08-07 e SP-01, HTTP 200 com BRMF06-110000034 e BRMF06-110000035 (SE)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Periodo] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "const inicio = pm.variables.get('periodoInicio'), fim = pm.variables.get('periodoFim'), estab = pm.variables.get('estabelecimento');",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Periodo] ' + inicio + ' a ' + fim + ', ' + estab + ' -> HTTP ' + pm.response.code + ' | notas: ' + rows.length);",
+                  "pm.test('O dia fiscal de toda nota esta no periodo', function () {",
+                  "  const fora = rows.filter(r => { const d = String(r.FiscalDocumentDate || '').substring(0, 10); return d < inicio || d > fim; }).map(r => r.Voucher);",
+                  "  pm.expect(fora, 'fora do periodo: ' + fora.join(', ')).to.be.empty;",
+                  "});",
+                  "pm.test('Toda nota e do estabelecimento pedido', function () {",
+                  "  const outras = rows.filter(r => r.FiscalEstablishment !== estab).map(r => r.Voucher);",
+                  "  pm.expect(outras, 'de outro estabelecimento: ' + outras.join(', ')).to.be.empty;",
+                  "});",
+                  "pm.test('Ordenado pelo RecId (o keyset do hub)', function () {",
+                  "  for (let i = 1; i < rows.length; i++) { pm.expect(rows[i].FiscalDocumentRecId, 'ordem quebrada no indice ' + i).to.be.above(rows[i - 1].FiscalDocumentRecId); }",
+                  "});",
+                  "rows.forEach(r => console.log('[Periodo] ' + r.Voucher + ' ' + r.Model + ' ' + String(r.FiscalDocumentDate).substring(0, 10) + ' ' + r.FiscalEstablishment + ' RecId ' + r.FiscalDocumentRecId));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

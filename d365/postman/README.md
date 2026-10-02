@@ -26,6 +26,9 @@ No environment (ou nas variáveis da collection):
 | `companySemCentroCusto` | Empresa sem dimensão de centro de custo nos Parâmetros do Brasil (teste do contábil) | ex.: `usmf` |
 | `inventDataCorte` | Data de corte do saldo na data (teste do inventário), no formato `aaaa-mm-dd` | ex.: `2016-12-31` |
 | `entityName` | Entity set pra query genérica (nome no **plural**) | ex.: `FSFiscalDocumentBRs` |
+| `periodoInicio` | Primeiro dia fiscal da descoberta por período, no formato `aaaa-mm-dd` | ex.: `2026-08-07` |
+| `periodoFim` | Último dia fiscal da descoberta por período, inclusive | ex.: `2026-08-07` |
+| `estabelecimento` | Código do estabelecimento (`FiscalEstablishmentId`) da descoberta por período | ex.: `SP-01` |
 
 ## Pré-requisito no lado do F&O (importante)
 
@@ -140,6 +143,23 @@ O que cada parte testa:
 **A data vem no OData às 12:00Z.** `DateFinancial` de 31/12 chega como `...-12-31T12:00:00Z`: um filtro `gt ...T00:00:00Z`
 traria o próprio dia. O request filtra com `ge` na data de corte e o script descarta o dia; o teste confere que nenhum movimento
 ficou de fora.
+
+## Pasta `FiscalHub — diretório e descoberta por período`
+
+O que o hub lê do D365 para a integração manual e o agendamento (change `erp-company-directory-and-card-filters`):
+
+| Request | Entidade | O que confere |
+|---|---|---|
+| `FiscalEstablishments (diretorio)` | `FiscalEstablishments`, a entidade **padrão da Microsoft** | os quatro campos (`dataAreaId`, `FiscalEstablishmentId`, `CNPJ`, `Name`) e que todo estabelecimento tem CNPJ e código |
+| `Descoberta por periodo (FSFiscalDocumentBRs pelo dia fiscal)` | `FSFiscalDocumentBRs` | que toda nota tem o dia fiscal entre `periodoInicio` e `periodoFim`, é do `estabelecimento`, e vem na ordem do `FiscalDocumentRecId` |
+
+- **O diretório não é entidade do pacote.** A role `FSFiscalHubIntegration` referencia o privilégio padrão
+  `FiscalEstablishmentEntityView`. Um `403` no primeiro request é esse privilégio sem deploy, ou a role não atribuída ao
+  app. O console diz isso.
+- **A empresa do hub** é o `CNPJ` sem ponto, barra, hífen e espaço, com as letras. O console mostra cada uma.
+- **O filtro de data** usa os limites `T00:00:00Z` e `T23:59:59Z`, que cobrem o `FiscalDocumentDate` às 12:00Z.
+  Verificado em 2026-10-01: com `2026-08-07` e `SP-01`, o request traz `BRMF06-110000034` e `BRMF06-110000035`, as duas
+  NFS-e daquele dia.
 
 ## Atalho pra teste rápido: token pela sua própria identidade
 

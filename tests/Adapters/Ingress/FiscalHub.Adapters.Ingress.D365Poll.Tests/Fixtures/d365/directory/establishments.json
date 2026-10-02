@@ -1,0 +1,13 @@
+{
+  "@odata.context":"https://fiscosysdev.operations.dynamics.com/data/$metadata#FiscalEstablishments(dataAreaId,FiscalEstablishmentId,CNPJ,Name)","value":[
+    {
+      "@odata.etag":"W/\"Jzk3MTQ0MzE0LDU2MzcxNDQ1NzYn\"","dataAreaId":"brmf","FiscalEstablishmentId":"Matriz","CNPJ":"442782250001-80","Name":"Contoso Entertainment System Brazil"
+    },{
+      "@odata.etag":"W/\"JzUxMzUyNjczNSw1NjM3MTQ0NTc3Jw==\"","dataAreaId":"brmf","FiscalEstablishmentId":"SP-01","CNPJ":"442782250002-60","Name":"Filial de servi\u00e7os"
+    },{
+      "@odata.etag":"W/\"JzEwNzUxNzk3NDUsNTYzNzE0NDU3OCc=\"","dataAreaId":"brmf","FiscalEstablishmentId":"SAL-01","CNPJ":"442782250003-41","Name":"Filial Salvador"
+    },{
+      "@odata.etag":"W/\"JzQxNTM2NzM5Miw2ODcxOTQ3NjczOSc=\"","dataAreaId":"brmf","FiscalEstablishmentId":"RJ-01","CNPJ":"442782250034-48","Name":"Filial Rio de Janeiro"
+    }
+  ]
+}
