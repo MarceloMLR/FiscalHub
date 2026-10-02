@@ -15,7 +15,8 @@ function dateTime(iso: string): string {
 }
 
 export function GroupModal({ group, onClose }: { group: DocumentGroup | null; onClose: () => void }) {
-  const { data: docs } = useGroupDocuments(group?.companyCode, group?.branchCode, group?.referenceDate);
+  // A linha inteira (tipo, modelo e modo inclusos): o título conta o total da linha, e a lista traz as mesmas notas.
+  const { data: docs } = useGroupDocuments(group);
   const [note, setNote] = useState<DocumentSummary | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [ticketOpen, setTicketOpen] = useState(false);
@@ -36,7 +37,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
     <>
       <Modal
         title={<>Empresa {formatCompany(group.companyCode)} · Filial {group.branchCode}</>}
-        subtitle={`${group.referenceDate} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
+        subtitle={`${group.referenceDate}${group.model ? ` · Modelo ${group.model}` : ''} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
         onClose={onClose}
         maxWidth={780}
         footer={

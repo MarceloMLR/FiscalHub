@@ -228,7 +228,17 @@ export interface DocumentGroup {
   branchCode: string;
   referenceDate: string;
   type: string;
+  model: string | null; // o modelo do documento (55, SE…); nulo só em registro antigo
   trigger: string; // modo da integração: Automatic | Manual | ScheduledDaily | ScheduledOnce
+  total: number;
+  finalizadas: number;
+  emProcessamento: number;
+  comErro: number;
+}
+
+// As contagens dos cards de um modelo num período (GET /groups/totals): as mesmas faixas do grupo.
+export interface ModelTotals {
+  model: string | null;
   total: number;
   finalizadas: number;
   emProcessamento: number;
