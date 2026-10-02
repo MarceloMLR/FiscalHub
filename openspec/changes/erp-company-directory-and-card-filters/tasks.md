@@ -302,16 +302,25 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 
 ## 10. Prova manual do critério de saída
 
-- [ ] 10.1 Preparar:
+- [x] 10.1 Preparar:
   - `scripts/up.ps1`;
   - o deploy da role pelo Marcelo, com build e deploy e sem sync, com a data registrada;
   - o host com `| Tee-Object`;
   - o perfil do tenant-a com o `auth` completo e o segredo no cofre, para o client credentials, e não o Azure CLI;
   - o dashboard de pé.
-- [ ] 10.2 A role com a credencial do conector:
+  - **Feito (2026-10-02):** o deploy da role confirmado pelo Marcelo em 2026-10-02. A infra local, o host com o
+    `host-erp-directory-3.log` (fora do git) e o dashboard de pé. O client credentials está no 10.2.
+- [x] 10.2 A role com a credencial do conector:
   - a linha do `D365DevelopmentTokenProvider` mostra que o tenant-a autenticou pelo app do perfil;
   - o dropdown carrega;
   - se a ordem permitir, antes do deploy: o texto do 403 no lugar do dropdown.
+  - **Feito (2026-10-02), no `host-erp-directory-3.log`:**
+    - linha 145: "o tenant tenant-a autentica no F&O com a credencial do próprio tenant (client credentials: app
+      88e5c98e-…)";
+    - linha 16389: o `GET /data/FiscalEstablishments` responde 200;
+    - o dropdown carrega, por conferência visual do usuário ("já funciona").
+    - **O texto do 403 não foi exercitado:** o deploy veio antes da prova. Ele fica coberto pelo teste do motivo do 403
+      no adapter.
 - [ ] 10.3 O dropdown lista os quatro estabelecimentos, com o `RJ-01`:
   - a conferência visual do usuário;
   - o banco com 0 registros de documento para a filial `RJ-01`, que é a prova de que a lista vem do cadastro.
@@ -426,11 +435,14 @@ D15. As provas 10.4 e 10.6, pela data fiscal, deixam de valer.
     modal aceita `period=none` ou `aaaa-mm-dd_aaaa-mm-dd`, e 400 no resto.
 - [x] 13.6 Dashboard:
   - a tabela pelo mesmo filtro dos cards;
-  - a coluna "Data" com o dia da execução, em dd/mm/aaaa;
+  - a coluna "Data" com o dia da execução, em aaaa-mm-dd;
   - a coluna "Período integrado", com "—" na automática;
   - o modal com o período.
-  - **Feito:** `groupRow.ts` (o dia e o período em dd/mm/aaaa sem passar pelo `Date`, o `period` do modal e a chave da
-    linha), com o `groupRow.test.ts`. A grade filtra pelo texto mostrado e ordena pela data.
+  - **Feito:** `groupRow.ts` (o período, o `period` do modal e a chave da linha), com o `groupRow.test.ts`. Os dias não
+    passam pelo `Date`, para o fuso do navegador não trocar o dia.
+  - **Revisto na conferência na tela (2026-10-02):** o primeiro formato, `01/09/2016 a 02/10/2016`, não se lia bem. O
+    usuário pediu só as datas, em aaaa-mm-dd, separadas por um traço: `2016-09-01 – 2016-10-02`. A "Data" segue o mesmo
+    formato, e o texto ordena como a data, sem comparador próprio.
 - [x] 13.7 ADR-0032 (o item novo e a revisão do ADR-0030), RUNNING e STATUS.
   - **Feito:** o item 8 do ADR-0032, com três alternativas descartadas; a linha de revisão no ADR-0030; o RUNNING; o
     STATUS (os itens dos filtros e do modal); o Migration Plan do design; e a coleção do Postman.

@@ -6,7 +6,7 @@ import { StatusChip } from '../documents/StatusChip';
 import { NoteDialog } from './NoteDialog';
 import { TicketModal } from '../support/TicketModal';
 import { formatCompany } from './companyCode';
-import { formatDay, formatPeriod } from './groupRow';
+import { formatPeriod } from './groupRow';
 import type { DocumentGroup, DocumentSummary } from '../../types';
 
 // A contagem de reprocessos fica ao lado das consultas de status (conferência na tela, 2026-10-02). As consultas zeram a
@@ -40,7 +40,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
     <>
       <Modal
         title={<>Empresa {formatCompany(group.companyCode)} · Filial {group.branchCode}</>}
-        subtitle={`${formatDay(group.executedOn)}${group.periodStart ? ` · Período ${formatPeriod(group)}` : ''}${group.model ? ` · Modelo ${group.model}` : ''} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
+        subtitle={`${group.executedOn}${group.periodStart ? ` · Período ${formatPeriod(group)}` : ''}${group.model ? ` · Modelo ${group.model}` : ''} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
         onClose={onClose}
         maxWidth={880}
         footer={

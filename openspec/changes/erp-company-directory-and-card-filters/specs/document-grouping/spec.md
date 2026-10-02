@@ -161,7 +161,8 @@ Os cards contam:
 A nota ignorada MUST NOT contar como erro.
 
 A tabela de grupos MUST mostrar, por linha, a data da execução, o modelo, o modo e o período integrado ("—" na
-automática). Grupos da mesma empresa e filial com data da execução, período, tipo, modelo ou modo diferentes MUST aparecer
+automática). As datas aparecem como aaaa-mm-dd, e o período como as duas datas separadas por um traço
+(`2016-09-01 – 2016-10-02`), ou uma só quando o período é de um dia. Grupos da mesma empresa e filial com data da execução, período, tipo, modelo ou modo diferentes MUST aparecer
 como linhas distintas, sem erro na tela.
 
 #### Scenario: Notas de 2016 integradas hoje
@@ -170,7 +171,7 @@ como linhas distintas, sem erro na tela.
 
 #### Scenario: A integração imediata de hoje entra no dia
 - **WHEN** a integração imediata da Matriz para 2016-09-01 a 2016-09-03 roda hoje, e o filtro é o dia
-- **THEN** a nota número 1 entra nos cards e na tabela, com a data de hoje e o período integrado de 01/09/2016 a 03/09/2016
+- **THEN** a nota número 1 entra nos cards e na tabela, com a data de hoje e o período integrado `2016-09-01 – 2016-09-03`
 
 #### Scenario: Ignorada conta no dia dela
 - **WHEN** o tenant tem, com data da execução de hoje, uma NF-e confirmada e uma NFS-e ignorada, e o filtro é o dia

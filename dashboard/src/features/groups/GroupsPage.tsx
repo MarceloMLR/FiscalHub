@@ -9,7 +9,7 @@ import { GroupModal } from './GroupModal';
 import { formatCompany } from './companyCode';
 import { PERIODS, customRangeProblem, periodWindow } from './period';
 import { cardSums, modelLabel, modelOptions } from './cards';
-import { compareShownDays, formatDay, formatPeriod, rowId } from './groupRow';
+import { formatPeriod, rowId } from './groupRow';
 import type { DocumentGroup } from '../../types';
 
 const cardStyle: CSSProperties = {
@@ -50,15 +50,8 @@ const columns: GridColDef<DocumentGroup>[] = [
     valueGetter: (_v, row) => formatCompany(row.companyCode),
   },
   { field: 'branchCode', headerName: 'Filial', width: 90 },
-  // O dia da execução que trouxe as notas, e não a data fiscal delas (D15). A grade filtra pelo texto mostrado, e ordena
-  // pela data.
-  {
-    field: 'executedOn',
-    headerName: 'Data',
-    width: 120,
-    valueGetter: (_v, row) => formatDay(row.executedOn),
-    sortComparator: compareShownDays,
-  },
+  // O dia da execução que trouxe as notas, e não a data fiscal delas (D15), em aaaa-mm-dd, que ordena como a data.
+  { field: 'executedOn', headerName: 'Data', width: 120 },
   { field: 'model', headerName: 'Modelo', width: 90, valueGetter: (_v, row) => row.model ?? '—' },
   // "Tipo" = modo/gatilho da integração do grupo (não o tipo do documento).
   { field: 'trigger', headerName: 'Tipo', width: 130, valueGetter: (_v, row) => triggerLabel(row.trigger) },
@@ -69,7 +62,6 @@ const columns: GridColDef<DocumentGroup>[] = [
     flex: 1,
     minWidth: 190,
     valueGetter: (_v, row) => formatPeriod(row),
-    sortComparator: compareShownDays,
     renderCell: (p) => (
       <span style={{ color: p.row.periodStart ? undefined : 'var(--faint)', fontVariantNumeric: 'tabular-nums' }}>{formatPeriod(p.row)}</span>
     ),
