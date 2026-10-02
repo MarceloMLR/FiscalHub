@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FiscalHub.Adapters.Ingress.D365Poll;
 using FiscalHub.Adapters.Outbound.Avalara;
 using FiscalHub.Application.Auth;
@@ -297,6 +298,37 @@ public class DispatchToMockTests
         Assert.All(trace.Responses.Values, photo => Assert.DoesNotContain("Bearer", photo));
     }
 
+    // ---------- o CNPJ alfanumérico (tax-identifier-normalization) ----------
+
+    [Fact]
+    public async Task Alphanumeric_cnpj_crosses_discovery_assembly_and_dispatch_with_the_same_value()
+    {
+        // Derivada: a nota de saída gravada, com o CNPJ do estabelecimento e o do cliente trocados por alfanuméricos. A
+        // tradução da Avalara tem a chave com a máscara, como alguém a digitaria.
+        var trace = new RecordingTrace();
+        using Harness h = await Harness.CreateAsync(
+            trace: trace, establishments: """{"12.ABC.345/01DE-35":{"codigoEmpresa":"ALFA-EMP","codigoContribuinte":"ALFA-CTB"}}""");
+        JsonObject header = JsonNode.Parse(Fixture(Path.Combine("d365", "notes", "35637156582", "header.json")))!["value"]![0]!.AsObject();
+        header["FiscalEstablishmentCNPJCPF"] = "12.ABC.345/01DE-35";
+        header["ThirdPartyCNPJCPF"] = "98.XYZ.765/0001-32";
+
+        DocumentReference discovered = await h.DiscoverAsync(header);   // o feed real, sobre o mesmo cabeçalho
+        h.ServeNote("35637156582", header, "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+        await h.ProcessAsync(discovered);
+
+        Assert.Equal("12ABC34501DE35", discovered.Metadata!.CompanyCode);           // o grupo da referência, e não 123450135
+        using JsonDocument domain = JsonDocument.Parse(trace.Domain[OutgoingKey]);
+        Assert.Equal("12ABC34501DE35", domain.RootElement.GetProperty("establishment").GetProperty("taxId").GetString());
+        Assert.Equal("12ABC34501DE35", h.Store.Metadata[OutgoingKey].CompanyCode);  // o registro e o card
+
+        StoredRow row = h.Store.Rows[OutgoingKey];
+        Assert.Equal(IntegrationStatus.Submitted, row.Status);
+        using JsonDocument payload = await h.SentPayloadAsync(row.Receipt!.ExternalId);
+        Assert.Equal("ALFA-EMP", payload.RootElement.GetProperty("codigoEmpresa").GetString());           // a tradução achou a chave
+        Assert.Equal("ALFA-CTB", payload.RootElement.GetProperty("codigoContribuinte").GetString());
+        Assert.Equal("98XYZ765000132", payload.RootElement.GetProperty("parceiro").GetProperty("cnpj").GetString());
+    }
+
     // ---------- apoio ----------
 
     private static string Fixture(string relative) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", relative));
@@ -313,10 +345,15 @@ public class DispatchToMockTests
     {
         public const string Secret = "segredo-de-teste";
 
+        // A Contoso traduzida para a empresa do JSON real.
+        private const string ContosoEstablishments = """{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}""";
+
         private readonly WebApplicationFactory<Program> _mock = new();
         private readonly CountingHandler _toMock;
         private ServiceProvider _services = null!;
+        private InMemoryProfiles _profiles = null!;
         private ConnectorProfileService _profileService = null!;
+        private string _establishments = ContosoEstablishments;
         private DocumentPipeline<GoodsInvoice> _pipeline = null!;
         private StatusPoller<GoodsInvoice> _poller = null!;
 
@@ -336,11 +373,14 @@ public class DispatchToMockTests
 
         /// <summary>O host em memória, com o perfil do tenant-a gravado pelo caso de uso da tela (o segredo vai ao cofre).</summary>
         public static async Task<Harness> CreateAsync(
-            string? clientSecret = Secret, IProcessingTrace? trace = null, string documentsPath = "documents", (int Status, string Body)? recordedSubmit = null)
+            string? clientSecret = Secret, IProcessingTrace? trace = null, string documentsPath = "documents", (int Status, string Body)? recordedSubmit = null,
+            string? establishments = null)
         {
             var h = new Harness();
             h._toMock.RecordedSubmit = recordedSubmit;
+            h._establishments = establishments ?? ContosoEstablishments;
             var profiles = new InMemoryProfiles();
+            h._profiles = profiles;
             trace ??= new NoTrace();
 
             var services = new ServiceCollection();
@@ -377,11 +417,49 @@ public class DispatchToMockTests
                 "Dynamics365",
                 """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]}""",
                 "Avalara",
-                // O mock em memória em loopback. A Contoso traduzida para a empresa do JSON real.
-                $$$$$"""{"sandbox":{"baseUrl":"http://localhost/","clientId":"mock-client"{{{{{secret}}}}},"establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}}}"""));
+                // O mock em memória em loopback, com a tradução de estabelecimentos do teste.
+                $$$"""{"sandbox":{"baseUrl":"http://localhost/","clientId":"mock-client"{{{secret}}},"establishments":{{{_establishments}}}}}"""));
         }
 
         public void ServeNote(string recId, params string[] reference) => ServeNote(recId, withAccounting: false, reference);
+
+        /// <summary>A nota gravada com um cabeçalho derivado no lugar do gravado; o resto, como gravado.</summary>
+        public void ServeNote(string recId, JsonObject header, params string[] reference)
+        {
+            Http.Respond(new JsonObject { ["value"] = new JsonArray(header.DeepClone()) }.ToJsonString());
+            foreach (string file in new[] { "lines", "taxes", "charges" })
+            {
+                Http.Respond(Fixture(Path.Combine("d365", "notes", recId, $"{file}.json")));
+            }
+
+            foreach (string file in reference)
+            {
+                Http.Respond(Fixture(Path.Combine("d365", "reference", $"{file}.json")));
+            }
+        }
+
+        /// <summary>
+        /// A referência que o feed real do D365 monta para o cabeçalho, com a origem que o poller põe ao publicar. O feed lê
+        /// o $select dele do mesmo cabeçalho, mais o carimbo de alteração, que a fixture da montagem não traz.
+        /// </summary>
+        public async Task<DocumentReference> DiscoverAsync(JsonObject header)
+        {
+            JsonObject row = header.DeepClone().AsObject();
+            row["SysModifiedDateTime"] = "2026-08-08T01:31:00Z";
+            var http = new SequencedHttp();
+            http.Respond(new JsonObject { ["value"] = new JsonArray(row) }.ToJsonString());
+            var feed = new D365ChangeFeed(
+                new HttpClient(http), _profiles, new FakeTokens(), new D365ChangeFeedOptions(), TimeProvider.System,
+                NullLogger<D365ChangeFeed>.Instance);
+
+            var items = new List<ChangeFeedItem>();
+            await foreach (ChangeFeedPage page in feed.PullAsync("tenant-a", DateTimeOffset.UnixEpoch))
+            {
+                items.AddRange(page.Items);
+            }
+
+            return Assert.Single(items).Reference with { Origin = feed.Origin };
+        }
 
         public void ServeNote(string recId, bool withAccounting, params string[] reference)
         {
@@ -402,16 +480,19 @@ public class DispatchToMockTests
         }
 
         public Task ProcessAsync(string naturalKey, string recId)
+            => ProcessAsync(new DocumentReference
+            {
+                TenantId = "tenant-a",
+                Type = DocumentType.GoodsInvoice55,
+                NaturalKey = naturalKey,
+                Locator = $"d365/brmf/{recId}",
+                Origin = "Dynamics365",
+            });
+
+        public Task ProcessAsync(DocumentReference reference)
             => _pipeline.ProcessAsync(
-                new DocumentReference
-                {
-                    TenantId = "tenant-a",
-                    Type = DocumentType.GoodsInvoice55,
-                    NaturalKey = naturalKey,
-                    Locator = $"d365/brmf/{recId}",
-                    Origin = "Dynamics365",
-                },
-                new DispatchContext { TenantId = "tenant-a", NaturalKey = naturalKey, CorrelationId = "corr-1", Operation = DocumentStatus.Issued });
+                reference,
+                new DispatchContext { TenantId = "tenant-a", NaturalKey = reference.NaturalKey, CorrelationId = "corr-1", Operation = DocumentStatus.Issued });
 
         public Task<int> PollAsync() => _poller.PollOnceAsync();
 
@@ -548,11 +629,16 @@ public class DispatchToMockTests
 
         public Dictionary<string, (IntegrationStatus Status, string? Reason)> Polled { get; } = [];
 
+        public Dictionary<string, DocumentMetadata> Metadata { get; } = [];
+
         public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default)
             => Task.FromResult(false);
 
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            Metadata[reference.NaturalKey] = metadata;
+            return Task.CompletedTask;
+        }
 
         public Task RecordSubmissionAsync(DocumentReference reference, IntegrationReceipt receipt, CancellationToken ct = default)
         {
@@ -595,14 +681,20 @@ public class DispatchToMockTests
         public Task SaveResponseAsync(string tenantId, string naturalKey, string destination, string exchange, string json, CancellationToken ct = default) => Task.CompletedTask;
     }
 
-    /// <summary>Guarda a última foto de resposta de cada (documento, troca).</summary>
+    /// <summary>Guarda a foto do domínio de cada documento e a última foto de resposta de cada (documento, troca).</summary>
     private sealed class RecordingTrace : IProcessingTrace
     {
         public Dictionary<(string Key, string Exchange), string> Responses { get; } = [];
 
+        public Dictionary<string, string> Domain { get; } = [];
+
         public Task SaveSourceAsync(string tenantId, string naturalKey, string content, string format, CancellationToken ct = default) => Task.CompletedTask;
 
-        public Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default) => Task.CompletedTask;
+        public Task SaveDomainAsync(string tenantId, string naturalKey, string json, CancellationToken ct = default)
+        {
+            Domain[naturalKey] = json;
+            return Task.CompletedTask;
+        }
 
         public Task SaveOutboundAsync(string tenantId, string naturalKey, string destination, string json, CancellationToken ct = default) => Task.CompletedTask;
 

@@ -1,4 +1,5 @@
 using FiscalHub.Application.Connectors;
+using FiscalHub.Application.Directory;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Tracing;
 using FiscalHub.Domain.Goods;
@@ -77,6 +78,48 @@ public static class D365PollServiceCollectionExtensions
             sp.GetRequiredService<IProcessingTrace>(),
             sp.GetRequiredService<TimeProvider>(),
             sp.GetRequiredService<ILogger<D365GoodsInvoiceSource>>()));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registra o <c>ICompanyDirectory</c> do D365 (origem <c>Dynamics365</c>, scoped: lê o perfil do tenant), sobre o cadastro
+    /// de estabelecimentos (change erp-company-directory-and-card-filters, D1 e D2). Usa o token do coletor e as opções de
+    /// throttling do feed, quando registradas. Requer o <c>ISecretStore</c> e o <c>IConnectorProfileStore</c>.
+    /// </summary>
+    public static IServiceCollection AddD365CompanyDirectory(this IServiceCollection services)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+        AddShared(services);
+
+        services.AddScoped<ICompanyDirectory>(sp => new D365CompanyDirectory(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName),
+            sp.GetRequiredService<IConnectorProfileStore>(),
+            sp.GetRequiredService<ID365TokenProvider>(),
+            sp.GetService<D365ChangeFeedOptions>() ?? new D365ChangeFeedOptions(),
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ILogger<D365CompanyDirectory>>()));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registra o <c>IDocumentDiscovery</c> do D365 (origem <c>Dynamics365</c>, scoped: lê o perfil do tenant), a descoberta por
+    /// período da integração manual e da agendada (change erp-company-directory-and-card-filters, D4). Usa o token do coletor
+    /// e as opções de throttling do feed, quando registradas. Requer o <c>ISecretStore</c> e o <c>IConnectorProfileStore</c>.
+    /// </summary>
+    public static IServiceCollection AddD365DocumentDiscovery(this IServiceCollection services)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+        AddShared(services);
+
+        services.AddScoped<IDocumentDiscovery>(sp => new D365DocumentDiscovery(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName),
+            sp.GetRequiredService<IConnectorProfileStore>(),
+            sp.GetRequiredService<ID365TokenProvider>(),
+            sp.GetService<D365ChangeFeedOptions>() ?? new D365ChangeFeedOptions(),
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ILogger<D365DocumentDiscovery>>()));
 
         return services;
     }

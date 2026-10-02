@@ -62,7 +62,8 @@ internal static class GoodsInvoiceToAvalara
 
     private static AvalaraParceiro Partner(Party party)
     {
-        string taxId = Digits(party.TaxId);
+        // Sem a pontuação e com as letras: o CNPJ alfanumérico tem 14 caracteres e vai em cnpj (tax-identifier-normalization).
+        string taxId = TaxIdentifiers.Normalize(party.TaxId);
         return new AvalaraParceiro
         {
             Nome = party.Name,
@@ -266,6 +267,7 @@ internal static class GoodsInvoiceToAvalara
     private static int? Number(string value)
         => value.Length > 0 && int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int n) ? n : null;
 
+    // Só para o CEP. O CNPJ e o CPF vão pela TaxIdentifiers.Normalize.
     private static string Digits(string value) => new([.. value.Where(char.IsAsciiDigit)]);
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;

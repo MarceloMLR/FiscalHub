@@ -114,17 +114,45 @@ builder.Services.AddServiceBusDocumentQueue(options =>
 // No cloud, este watcher é trocado por Event Grid.
 builder.Services.AddBlobDropIngress();
 
-// Diretório de empresas/filiais (dev local, via JSON) — alimenta os dropdowns da integração manual.
-builder.Services.AddJsonCompanyDirectory(o =>
-    o.FilePath = Path.Combine(builder.Environment.ContentRootPath, "companies.json"));
+// Diretório de empresas/filiais — alimenta os dropdowns da integração manual e do agendamento. A implementação é a do
+// adapter de entrada do perfil do tenant (o D365 lê o cadastro de estabelecimentos). O companies.json é só o fallback de
+// desenvolvimento, para o tenant cujo ERP não tem diretório: fora de Development, o mock nunca chega a um tenant (ADR-0028).
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.UseJsonCompanyDirectoryAsDevelopmentFallback(o =>
+        o.FilePath = Path.Combine(builder.Environment.ContentRootPath, "companies.json"));
+}
 
-// Descoberta pull (dev local): busca as notas de um período na "origem". No cloud, vira um adapter
-// que consulta a Avalara/ERP — a porta e o endpoint de integração manual não mudam.
-builder.Services.AddLocalDocumentDiscovery();
+builder.Services.AddScoped(sp => new CompanyDirectoryQuery(
+    sp.GetServices<ICompanyDirectory>(),
+    sp.GetRequiredService<IConnectorProfileStore>(),
+    sp.GetRequiredService<ITenantContext>(),
+    sp.GetKeyedService<ICompanyDirectory>(InboundAdapterChoice.DevelopmentFallbackKey)));
 
-// Runner de integração: descobre → enfileira → registra a execução. Compartilhado pela integração
-// manual e pelo agendador.
-builder.Services.AddScoped<IIntegrationRunner, IntegrationRunner>();
+// Descoberta por período (pull): as notas de um período na origem do tenant, pela do adapter de entrada do perfil (o D365
+// lê pelo dia fiscal e pelo estabelecimento). O catálogo dos XMLs de exemplo é só o fallback de desenvolvimento, para o
+// tenant cujo ERP não tem descoberta própria, e para o reprocesso da nota de exemplo.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.UseLocalDocumentDiscoveryAsDevelopmentFallback();
+}
+
+builder.Services.AddScoped(sp => new DocumentDiscoveryResolver(
+    sp.GetServices<IDocumentDiscovery>(),
+    sp.GetRequiredService<IConnectorProfileStore>(),
+    sp.GetKeyedService<IDocumentDiscovery>(InboundAdapterChoice.DevelopmentFallbackKey)));
+
+// Runner de integração: descobre → enfileira → registra a execução. Compartilhado pela integração manual e pelo agendador.
+// Ele e o reprocesso publicam na fila de DESCOBERTA, a mesma do coletor: as duas filas consomem uma mensagem por vez, mas
+// cada uma por conta própria, e duas cópias da mesma nota em filas diferentes passariam juntas pela idempotência.
+builder.Services.AddScoped<IIntegrationRunner>(sp => new IntegrationRunner(
+    sp.GetRequiredService<DocumentDiscoveryResolver>(),
+    sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
+    sp.GetRequiredService<IExecutionStore>()));
+builder.Services.AddScoped(sp => new DocumentReprocess(
+    sp.GetRequiredService<DocumentDiscoveryResolver>(),
+    sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
+    sp.GetRequiredService<ITenantContext>()));
 
 // Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).
 builder.Services.AddSingleton(new StatusPollerOptions());
@@ -142,6 +170,8 @@ builder.Services.AddHostedService<SchedulerHostedService>();
 builder.Services.AddServiceBusDiscoveryQueue(o => o.QueueName = cfg["ServiceBus:DiscoveryQueue"] ?? "documents-discovered");
 builder.Services.AddD365ChangeFeed();
 builder.Services.AddD365GoodsInvoiceSource();   // ao lado do source XML; a esteira escolhe pela origem da referência
+builder.Services.AddD365CompanyDirectory();     // o diretório do tenant do D365: o cadastro de estabelecimentos do F&O
+builder.Services.AddD365DocumentDiscovery();    // a descoberta por período do D365, para a integração manual e a agendada
 if (builder.Environment.IsDevelopment())
 {
     // Só em dev: o perfil com credencial própria (auth completo e o segredo no cofre) usa a do tenant; sem ela, cai na
@@ -254,21 +284,37 @@ app.MapPost("/ingest", async (IngestRequest req, ManualIngestion ingestion, ITen
 
 // Integração manual (modo pull): o cliente escolhe empresa/filial/período; a descoberta lista as
 // notas daquele recorte na origem e o conector enfileira cada referência no padrão claim-check.
-// Reprocessar o mesmo período é idempotente — a mesma chave de acesso cai na regra por estado.
+// Reprocessar o mesmo período é idempotente — a mesma chave de acesso cai na regra por estado. O ERP do tenant sem
+// descoberta por período é 409 com o motivo; a leitura da origem em falha, 502 com o motivo seguro. Nada é enfileirado.
 app.MapPost("/integrations/manual", async (ManualIntegrationRequest req, IIntegrationRunner runner, ITenantContext tenant, CancellationToken ct) =>
 {
-    int discovered = await runner.RunAsync(new RunRequest
+    try
     {
-        Mode = IntegrationMode.Manual,
-        TenantId = tenant.TenantId,   // do usuário logado, não do body
-        CompanyCode = req.CompanyCode,
-        BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
-        DocumentNumber = string.IsNullOrWhiteSpace(req.DocumentNumber) ? null : req.DocumentNumber,
-        PeriodStart = req.PeriodStart,
-        PeriodEnd = req.PeriodEnd,
-    }, ct);
+        int discovered = await runner.RunAsync(new RunRequest
+        {
+            Mode = IntegrationMode.Manual,
+            TenantId = tenant.TenantId,   // do usuário logado, não do body
+            CompanyCode = req.CompanyCode,
+            BranchCode = string.IsNullOrWhiteSpace(req.BranchCode) ? null : req.BranchCode,
+            DocumentNumber = string.IsNullOrWhiteSpace(req.DocumentNumber) ? null : req.DocumentNumber,
+            PeriodStart = req.PeriodStart,
+            PeriodEnd = req.PeriodEnd,
+        }, ct);
 
-    return Results.Accepted("/documents", new { discovered });
+        return Results.Accepted("/documents", new { discovered });
+    }
+    catch (DocumentDiscoveryNotFoundException ex)
+    {
+        return Results.Conflict(new { message = ex.Message });
+    }
+    catch (OriginUnavailableException ex)
+    {
+        return Results.Json(new { message = ex.Message }, statusCode: StatusCodes.Status502BadGateway);
+    }
+    catch (ConnectorSettingsException ex)
+    {
+        return Results.Json(new { message = $"Configuração do ERP: {ex.Message}" }, statusCode: StatusCodes.Status502BadGateway);
+    }
 });
 
 // Execuções recentes (manuais/agendadas) pro painel: modo, empresa/filial, período e nº de notas.
@@ -470,36 +516,84 @@ app.MapGet("/documents", async (IDocumentQueries queries, CancellationToken ct) 
 app.MapGet("/groups", async (IDocumentQueries queries, CancellationToken ct) =>
     Results.Ok(await queries.ListGroupsAsync(200, ct)));
 
-app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
-    async (string companyCode, string branchCode, string referenceDate, IDocumentQueries queries, CancellationToken ct) =>
-        Results.Ok(await queries.ListByGroupAsync(companyCode, branchCode, referenceDate, ct)));
-
-// Reprocessar uma nota com falha: entrega o id ao adapter de entrada, que rebusca na origem e
-// reenfileira. É intenção explícita do usuário → trigger Manual (fura a idempotência, ADR-0016).
-app.MapPost("/documents/{tenantId}/{naturalKey}/reprocess",
-    async (string tenantId, string naturalKey, IDocumentDiscovery discovery, IDocumentQueue queue, ITenantContext tenant, CancellationToken ct) =>
+// Os cards: as contagens por modelo das notas cuja data fiscal está na janela, inclusive, sobre todas as notas do período, e
+// não sobre os 200 grupos da tabela. A janela vem da tela, pelo dia do navegador (change erp-company-directory-and-card-filters,
+// D9 e D11).
+app.MapGet("/groups/totals", async (string? from, string? to, IDocumentQueries queries, CancellationToken ct) =>
+{
+    if (!TryDay(from, out DateOnly first) || !TryDay(to, out DateOnly last))
     {
-        if (!string.Equals(tenantId, tenant.TenantId, StringComparison.Ordinal))
+        return Results.BadRequest(new { message = "Informe from e to no formato aaaa-mm-dd." });
+    }
+
+    return first > last
+        ? Results.BadRequest(new { message = "from não pode ser depois de to." })
+        : Results.Ok(await queries.CountByModelAsync(first, last, ct));
+});
+
+static bool TryDay(string? value, out DateOnly day)
+    => DateOnly.TryParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out day);
+
+// O modal: as notas da linha inteira, com o tipo, o modelo e o modo dela (D10). Sem eles, o dia do estabelecimento, como antes.
+app.MapGet("/groups/{companyCode}/{branchCode}/{referenceDate}/documents",
+    async (string companyCode, string branchCode, string referenceDate, string? type, string? model, string? trigger,
+        IDocumentQueries queries, CancellationToken ct) =>
+    {
+        DocumentType? documentType = null;
+        if (!string.IsNullOrEmpty(type))
         {
-            return Results.NotFound();   // não confirma existência de nota de outro tenant
+            if (!Enum.TryParse(type, out DocumentType parsed) || !Enum.IsDefined(parsed))
+            {
+                return Results.BadRequest(new { message = $"Tipo de documento desconhecido: '{type}'." });
+            }
+
+            documentType = parsed;
         }
 
-        DocumentReference? reference = await discovery.FindByKeyAsync(tenantId, naturalKey, ct);
-        if (reference is null)
-        {
-            return Results.NotFound(new { message = "Nota não encontrada na origem para reprocessar." });
-        }
-
-        await queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Manual }, ct);
-        return Results.Accepted();
+        return Results.Ok(await queries.ListByGroupAsync(
+            companyCode, branchCode, referenceDate, documentType,
+            string.IsNullOrEmpty(model) ? null : model, string.IsNullOrEmpty(trigger) ? null : trigger, ct));
     });
 
-// Diretório de empresas e filiais (dropdowns da integração manual).
-app.MapGet("/companies", async (ICompanyDirectory dir, CancellationToken ct) =>
-    Results.Ok(await dir.ListCompaniesAsync(ct)));
+// Reprocessar uma nota com falha: entrega o id às descobertas do tenant (a do ERP primeiro, o catálogo de exemplo depois,
+// em dev), e a que acha a nota a reenfileira na fila de descoberta. É intenção explícita do usuário → trigger Manual (fura
+// a idempotência, ADR-0016).
+app.MapPost("/documents/{tenantId}/{naturalKey}/reprocess",
+    async (string tenantId, string naturalKey, DocumentReprocess reprocess, CancellationToken ct) =>
+    {
+        try
+        {
+            return await reprocess.ReprocessAsync(tenantId, naturalKey, ct) switch
+            {
+                ReprocessStatus.Queued => Results.Accepted(),
+                ReprocessStatus.OtherTenant => Results.NotFound(),   // não confirma existência de nota de outro tenant
+                _ => Results.NotFound(new { message = "Nota não encontrada na origem para reprocessar." }),
+            };
+        }
+        catch (OriginUnavailableException ex)
+        {
+            return Results.Json(new { message = ex.Message }, statusCode: StatusCodes.Status502BadGateway);
+        }
+        catch (ConnectorSettingsException ex)
+        {
+            return Results.Json(new { message = $"Configuração do ERP: {ex.Message}" }, statusCode: StatusCodes.Status502BadGateway);
+        }
+    });
 
-app.MapGet("/companies/{code}/branches", async (string code, ICompanyDirectory dir, CancellationToken ct) =>
-    Results.Ok(await dir.ListBranchesAsync(code, ct)));
+// Diretório de empresas e filiais (dropdowns da integração manual e do agendamento), do tenant logado. Sem diretório para
+// o ERP do tenant, 404 com o motivo; com a leitura da origem em falha, 502 com o motivo seguro, e nunca uma lista vazia.
+static IResult DirectoryResponse<T>(CompanyDirectoryResult<T> result) => result.Status switch
+{
+    CompanyDirectoryStatus.Listed => Results.Ok(result.Items),
+    CompanyDirectoryStatus.NoDirectory => Results.NotFound(new { message = result.Message }),
+    _ => Results.Json(new { message = result.Message }, statusCode: StatusCodes.Status502BadGateway),
+};
+
+app.MapGet("/companies", async (CompanyDirectoryQuery directory, CancellationToken ct) =>
+    DirectoryResponse(await directory.ListCompaniesAsync(ct)));
+
+app.MapGet("/companies/{code}/branches", async (string code, CompanyDirectoryQuery directory, CancellationToken ct) =>
+    DirectoryResponse(await directory.ListBranchesAsync(code, ct)));
 
 // Ambiente do conector e integração automática do tenant logado. A integração automática não é campo gravado: é
 // derivada do perfil (adapter que varre e poll.enabled), com as origens dos feeds registrados, as mesmas que o poller

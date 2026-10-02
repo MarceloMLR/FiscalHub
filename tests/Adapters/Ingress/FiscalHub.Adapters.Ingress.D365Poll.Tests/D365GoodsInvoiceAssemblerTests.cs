@@ -32,7 +32,7 @@ public class D365GoodsInvoiceAssemblerTests
         Assert.Equal(new DateTimeOffset(2016, 3, 1, 12, 0, 0, TimeSpan.Zero), invoice.EntryExitDate); // AccountingDate
         Assert.Equal(Issuance.Own, invoice.Issuance);                                                 // FiscalDocumentIssuer = OwnEstablishment
 
-        // Saída própria: o estabelecimento emite, o terceiro recebe. CNPJ só com dígitos.
+        // Saída própria: o estabelecimento emite, o terceiro recebe. CNPJ sem a pontuação.
         Assert.Equal(new Party { TaxId = "44278225000180", Name = "Contoso Entertainment System Brazil", StateRegistration = "652128379113", MunicipalityCode = "3550308" }, invoice.Issuer);
         Assert.Equal(new Party { TaxId = "72458488000106", Name = "Southridge Video Brasil Ltda", StateRegistration = "55166625", MunicipalityCode = "3304557" }, invoice.Recipient);
         Assert.Null(invoice.IbsCbsTaxableMunicipality);
@@ -105,6 +105,24 @@ public class D365GoodsInvoiceAssemblerTests
         Assert.Equal(new Establishment { TaxId = "44278225000180", Code = "Matriz" }, invoice.Establishment);
         Assert.Equal(invoice.Recipient.TaxId, invoice.Establishment!.TaxId);   // na nota de terceiro, o próprio é o destinatário
         Assert.NotEqual(invoice.Issuer.TaxId, invoice.Establishment.TaxId);
+    }
+
+    [Fact]
+    public void Alphanumeric_cnpj_keeps_its_letters_in_the_establishment_and_the_parties()
+    {
+        // Derivada: a nota de saída gravada, com o CNPJ do estabelecimento e o do terceiro trocados por alfanuméricos.
+        D365DocumentRows rows = Note(OutgoingNote);
+        JsonObject header = Editable(rows.Header);
+        header["FiscalEstablishmentCNPJCPF"] = "12.ABC.345/01DE-35";
+        header["ThirdPartyCNPJCPF"] = "98.XYZ.765/0001-32";
+
+        GoodsInvoice invoice = D365GoodsInvoiceAssembler.Assemble(rows with { Header = ToElement(header) }, NoReferenceData);
+
+        Assert.Equal(new Establishment { TaxId = "12ABC34501DE35", Code = "Matriz" }, invoice.Establishment);
+        Assert.Equal("12ABC34501DE35", invoice.Issuer.TaxId);      // saída própria: o estabelecimento emite
+        Assert.Equal("98XYZ765000132", invoice.Recipient.TaxId);
+        Assert.Equal("85182200", invoice.Items[0].Ncm);            // o NCM e o CFOP continuam só com dígitos
+        Assert.Equal("6101", invoice.Items[0].Cfop);
     }
 
     [Fact]

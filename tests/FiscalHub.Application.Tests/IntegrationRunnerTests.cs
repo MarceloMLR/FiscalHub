@@ -1,3 +1,4 @@
+using FiscalHub.Application.Connectors;
 using FiscalHub.Application.Inbound;
 using FiscalHub.Application.Integrations;
 using FiscalHub.Domain.Envelope;
@@ -5,18 +6,19 @@ using FiscalHub.Domain.Envelope;
 namespace FiscalHub.Application.Tests;
 
 /// <summary>
-/// Especifica o runner compartilhado: descobre, enfileira com o gatilho do modo e registra a
-/// execução. Manual fura a idempotência; agendado dedupa por conteúdo.
+/// Especifica o runner compartilhado: descobre, enfileira com o gatilho do modo e registra a execução. Manual fura a
+/// idempotência; agendado dedupa por conteúdo. A descoberta é a do adapter de entrada do perfil do tenant, e o fallback de
+/// desenvolvimento só responde quando ela falta (spec period-discovery, design D2 e D3).
 /// </summary>
 public class IntegrationRunnerTests
 {
     [Fact]
     public async Task Manual_run_forces_reprocess_and_records_execution()
     {
-        var discovery = new FakeDiscovery(2);
+        var discovery = new FakeDiscovery("Dynamics365", 2);
         var queue = new FakeQueue();
         var store = new FakeExecutionStore();
-        var runner = new IntegrationRunner(discovery, queue, store);
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), queue, store);
 
         int count = await runner.RunAsync(Request(IntegrationMode.Manual));
 
@@ -30,10 +32,10 @@ public class IntegrationRunnerTests
     [Fact]
     public async Task Scheduled_run_dedupes_by_content()
     {
-        var discovery = new FakeDiscovery(1);
+        var discovery = new FakeDiscovery("Dynamics365", 1);
         var queue = new FakeQueue();
         var store = new FakeExecutionStore();
-        var runner = new IntegrationRunner(discovery, queue, store);
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), queue, store);
 
         await runner.RunAsync(Request(IntegrationMode.ScheduledDaily));
 
@@ -41,22 +43,98 @@ public class IntegrationRunnerTests
         Assert.Equal(IntegrationMode.ScheduledDaily, store.Recorded!.Mode);
     }
 
+    // ---------- a escolha da descoberta ----------
+
+    [Fact]
+    public async Task Run_uses_the_discovery_of_the_inbound_adapter_and_never_the_fallback()
+    {
+        var d365 = new FakeDiscovery("Dynamics365", 1);
+        var fallback = new FakeDiscovery("Local", 5);
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [d365], fallback), new FakeQueue(), new FakeExecutionStore());
+
+        int count = await runner.RunAsync(Request(IntegrationMode.Manual));
+
+        Assert.Equal(1, count);
+        Assert.Equal(1, d365.Calls);
+        Assert.Equal(0, fallback.Calls);
+        Assert.Equal("44278225000260", d365.Criteria!.Company);   // o critério chega como a tela o pediu
+        Assert.Equal("SP-01", d365.Criteria.Establishment);
+    }
+
+    [Fact]
+    public async Task Erp_without_discovery_gets_the_fallback_when_it_is_registered()
+    {
+        var fallback = new FakeDiscovery("Local", 2);
+        var runner = new IntegrationRunner(Resolver("iScala", [new FakeDiscovery("Dynamics365", 1)], fallback), new FakeQueue(), new FakeExecutionStore());
+
+        Assert.Equal(2, await runner.RunAsync(Request(IntegrationMode.Manual)));
+    }
+
+    [Fact]
+    public async Task Erp_without_discovery_and_without_fallback_fails_naming_the_adapter_and_the_tenant_with_nothing_queued()
+    {
+        var queue = new FakeQueue();
+        var store = new FakeExecutionStore();
+        var runner = new IntegrationRunner(Resolver("iScala", [new FakeDiscovery("Dynamics365", 1)]), queue, store);
+
+        var ex = await Assert.ThrowsAsync<DocumentDiscoveryNotFoundException>(() => runner.RunAsync(Request(IntegrationMode.Manual)));
+
+        Assert.Contains("iScala", ex.Message);
+        Assert.Contains("tenant-a", ex.Message);
+        Assert.Empty(queue.Enqueued);
+        Assert.Null(store.Recorded);   // nenhuma execução registrada
+    }
+
+    [Fact]
+    public async Task Tenant_without_profile_fails_naming_the_tenant()
+    {
+        var runner = new IntegrationRunner(
+            new DocumentDiscoveryResolver([new FakeDiscovery("Dynamics365", 1)], new Profiles(null)), new FakeQueue(), new FakeExecutionStore());
+
+        var ex = await Assert.ThrowsAsync<DocumentDiscoveryNotFoundException>(() => runner.RunAsync(Request(IntegrationMode.Manual)));
+
+        Assert.Contains("tenant-a", ex.Message);
+        Assert.Contains("perfil", ex.Message);
+    }
+
+    // ---------- apoio ----------
+
+    internal static DocumentDiscoveryResolver Resolver(string inboundAdapter, IEnumerable<IDocumentDiscovery> discoveries, IDocumentDiscovery? fallback = null)
+        => new(discoveries, new Profiles(new TenantConnectorProfile
+        {
+            TenantId = "tenant-a",
+            Environment = "Sandbox",
+            InboundAdapter = inboundAdapter,
+            OutboundAdapter = "Avalara",
+        }), fallback);
+
     private static RunRequest Request(IntegrationMode mode) => new()
     {
         Mode = mode,
         TenantId = "tenant-a",
-        CompanyCode = "12345678",
-        BranchCode = null,
+        CompanyCode = "44278225000260",
+        BranchCode = "SP-01",
         PeriodStart = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
         PeriodEnd = new DateTimeOffset(2026, 6, 30, 0, 0, 0, TimeSpan.Zero),
     };
 
-    private sealed class FakeDiscovery(int count) : IDocumentDiscovery
+    internal sealed class FakeDiscovery(string origin, int count) : IDocumentDiscovery
     {
-        public string Origin => "fake";
+        public string Origin => origin;
+
+        public int Calls { get; private set; }
+
+        public DiscoveryCriteria? Criteria { get; private set; }
+
+        /// <summary>As chaves que este fake acha no reprocesso; vazio = acha qualquer uma.</summary>
+        public HashSet<string> Knows { get; init; } = [];
+
+        public List<string> Asked { get; } = [];
 
         public Task<IReadOnlyList<DocumentReference>> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default)
         {
+            Calls++;
+            Criteria = criteria;
             IReadOnlyList<DocumentReference> refs = Enumerable.Range(1, count).Select(i => new DocumentReference
             {
                 TenantId = criteria.TenantId,
@@ -68,16 +146,22 @@ public class IntegrationRunnerTests
         }
 
         public Task<DocumentReference?> FindByKeyAsync(string tenantId, string naturalKey, CancellationToken ct = default)
-            => Task.FromResult<DocumentReference?>(new DocumentReference
-            {
-                TenantId = tenantId,
-                Type = DocumentType.GoodsInvoice55,
-                NaturalKey = naturalKey,
-                Locator = $"nfe/{naturalKey}.xml",
-            });
+        {
+            Asked.Add(naturalKey);
+            return Task.FromResult<DocumentReference?>(Knows.Count > 0 && !Knows.Contains(naturalKey)
+                ? null
+                : new DocumentReference
+                {
+                    TenantId = tenantId,
+                    Type = DocumentType.GoodsInvoice55,
+                    NaturalKey = naturalKey,
+                    Locator = $"{origin}/{naturalKey}",
+                    Origin = origin,
+                });
+        }
     }
 
-    private sealed class FakeQueue : IDocumentQueue
+    internal sealed class FakeQueue : IDocumentQueue
     {
         public List<DocumentReference> Enqueued { get; } = [];
 
@@ -97,5 +181,15 @@ public class IntegrationRunnerTests
             Recorded = execution;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class Profiles(TenantConnectorProfile? profile) : IConnectorProfileStore
+    {
+        public Task<TenantConnectorProfile?> GetAsync(string tenantId, CancellationToken ct = default) => Task.FromResult(profile);
+
+        public Task UpsertAsync(TenantConnectorProfile profile, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<TenantConnectorProfile>> ListByInboundAdapterAsync(string inboundAdapter, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<TenantConnectorProfile>>([]);
     }
 }

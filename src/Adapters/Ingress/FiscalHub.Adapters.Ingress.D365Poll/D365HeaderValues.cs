@@ -1,4 +1,5 @@
 using System.Globalization;
+using FiscalHub.Domain.Goods;
 
 namespace FiscalHub.Adapters.Ingress.D365Poll;
 
@@ -19,6 +20,13 @@ internal static class D365HeaderValues
             ? day
             : throw new FormatException($"FiscalDocumentDate inválido no F&O: '{literal}'.");
 
-    /// <summary>CNPJ/CPF só com dígitos (o F&amp;O o devolve formatado, <c>442782250001-80</c>).</summary>
+    /// <summary>
+    /// CNPJ/CPF sem a pontuação, com as letras e a caixa como vieram (o F&amp;O o devolve formatado, <c>442782250001-80</c>).
+    /// Tirar as letras mandaria o CNPJ alfanumérico <c>12ABC34501DE35</c> para a empresa <c>123450135</c>, que não existe
+    /// (change erp-company-directory-and-card-filters, tax-identifier-normalization).
+    /// </summary>
+    public static string TaxId(string value) => TaxIdentifiers.Normalize(value);
+
+    /// <summary>Só os dígitos, para os códigos numéricos da linha (NCM e CFOP). Nunca para CNPJ ou CPF: use <see cref="TaxId"/>.</summary>
     public static string Digits(string value) => new([.. value.Where(char.IsAsciiDigit)]);
 }
