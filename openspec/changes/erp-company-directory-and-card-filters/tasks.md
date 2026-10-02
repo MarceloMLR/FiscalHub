@@ -279,7 +279,7 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   - **o deploy da role:** antes de usar o diretório, e o texto do 403 quando falta;
   - **o fallback de Development:** o tenant-b vê o mock, e o tenant-a nunca. Sem passo manual;
   - **o reprocesso da nota do D365.**
-- [ ] 9.4 `docs/STATUS.md`:
+- [x] 9.4 `docs/STATUS.md`:
   - **fechar, com a evidência do grupo 10:**
     - "Filtros dos cards";
     - "O diretório de empresas com o CNPJ de 14 dígitos";
@@ -296,6 +296,10 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   **Parcial (2026-10-02).** Os itens novos entraram. Os quatro itens a fechar ganharam a nota "Implementado …; falta a
   prova manual (grupo 10)" e continuam abertos: a evidência é o grupo 10. A sessão da fatia também entrou no fim do STATUS,
   com o que foi verificado contra o fiscosysdev e os achados.
+
+  **Fechado (2026-10-02), com o grupo 10:** os quatro itens ficaram `[x]` no STATUS, cada um com a sua evidência, e a
+  ressalva da "Empresa Emitente LTDA" fechou junto com o do CNPJ de 14 dígitos. O CNPJ alfanumérico não foi exercitado no
+  ambiente, e isso está escrito no item (10.7 aberta).
 - [x] 9.5 O `CLAUDE.md` §7 e o contexto do `openspec/config.yaml`:
   - a role referencia também o `FiscalEstablishmentEntityView` padrão;
   - o hub lê a `FiscalEstablishments` da Microsoft.
@@ -321,10 +325,11 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
     - o dropdown carrega, por conferência visual do usuário ("já funciona").
     - **O texto do 403 não foi exercitado:** o deploy veio antes da prova. Ele fica coberto pelo teste do motivo do 403
       no adapter.
-- [ ] 10.3 O dropdown lista os quatro estabelecimentos, com o `RJ-01`:
+- [x] 10.3 O dropdown lista os quatro estabelecimentos, com o `RJ-01`:
   - a conferência visual do usuário;
   - o banco com 0 registros de documento para a filial `RJ-01`, que é a prova de que a lista vem do cadastro.
-- [ ] 10.4 O filtro de 30 dias. **A prova como foi pedida não vale em 2026-10-01:** 2026-08-07 está a 55 dias, fora de
+  - **Feito (2026-10-02):** a conferência visual do usuário, e o banco com 0 registros do `RJ-01`.
+- [x] 10.4 O filtro de 30 dias. **A prova como foi pedida não vale em 2026-10-01:** 2026-08-07 está a 55 dias, fora de
   qualquer janela (D11).
   - **Se houver uma nota com data fiscal nos últimos 30 dias no fiscosysdev, lançada no ERP:** ela entra com 30 dias, e
     não entra com o dia.
@@ -332,27 +337,42 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   - **Com o filtro no dia:** nem as notas de 2026-08-07 nem as de 2016 entram, por conferência visual.
   - **Substituída pelo D15 (2026-10-02):** os cards e a tabela contam pelo dia da execução, e não pela data fiscal. A prova
     nova é a do grupo 13 (13.9).
-- [ ] 10.5 Agendar `44278225000260`/`SP-01`, único, com o período cobrindo 2026-08-07, e rodar:
+  - **Feito (2026-10-02), pelo dia da execução:** o filtro de 30 dias e o do dia, nos cards e na tabela, por conferência
+    visual do usuário. A prova pela data fiscal, como foi pedida, não vale mais.
+- [x] 10.5 Agendar `44278225000260`/`SP-01`, único, com o período cobrindo 2026-08-07, e rodar:
   - **no log:** as referências descobertas, publicadas na fila de descoberta;
   - **no banco:** um registro por chave natural, sem linha nova;
   - **na tabela:** as notas na mesma linha que o coletor produziu, com o modo `Automatic` mantido nas ignoradas.
   - **Revisto pelo D15 (2026-10-02):** com a última entrada, as ignoradas que o agendamento registra de novo passam para a
     linha dele (dia da execução, `Agendada` e o período). A NF-e já integrada com o mesmo conteúdo é pulada pela
     idempotência e fica na linha do coletor. Continua valendo: um registro por chave natural, sem linha nova no banco.
-- [ ] 10.6 O filtro por modelo bate com o modal, com as ignoradas. Depende da nota recente do 10.4, porque as notas de
+  - **Feito (2026-10-02) com o agendamento da Matriz, e não o da `SP-01`, por decisão do usuário:** o agendamento único de
+    `44278225000180`/`Matriz`, de 2016-09-01 a 2016-10-02, rodou pela descoberta do D365 e achou 1 nota (execução 7 do
+    `IntegrationExecutions`). O banco tem 0 chaves duplicadas. A `SP-01` cobrindo 2026-08-07 não rodou: o mecanismo é o
+    mesmo, e o usuário deu a prova por suficiente.
+- [x] 10.6 O filtro por modelo bate com o modal, com as ignoradas. Depende da nota recente do 10.4, porque as notas de
   2026-08-07 não cabem em nenhuma janela. Sem ela, a tarefa fica aberta, anotada, com os testes 7.1 e 8.2 como prova.
   Em qualquer caso, conferir na tela que o modal de cada linha lista só as notas dela, e com o mesmo número do título.
   - **Substituída pelo D15 (2026-10-02) na parte da data fiscal:** com o dia da execução, as notas que o coletor trouxe
     hoje entram no filtro do dia, e a prova não depende mais de uma nota recente no ERP. Continua aberta como conferência
     na tela (13.9).
+  - **Feito (2026-10-02):** a conferência visual do usuário. A fumaça da API, depois do D15: o modal de cada uma das 4
+    linhas do dia devolveu o mesmo número do total dela.
 - [ ] 10.7 O CNPJ alfanumérico. A prova é pelos testes 2.8 e 7.1. Manualmente, só se o fiscosysdev aceitar um
   estabelecimento com CNPJ alfanumérico. Senão, a tarefa fica anotada como não exercitada no ambiente.
-- [ ] 10.8 O reprocesso de uma NF-e 55 do D365 com falha:
+  - **Não exercitada no ambiente (2026-10-02, decisão do usuário):** o fiscosysdev não tem estabelecimento alfanumérico, e
+    o banco local não tem nenhuma empresa com letras. A prova é a dos testes 2.8 e 7.1 (e o `DispatchToMockTests`).
+- [x] 10.8 O reprocesso de uma NF-e 55 do D365 com falha:
   - a referência vai para a fila de descoberta, com o locator `d365/brmf/…`, a origem `Dynamics365` e o gatilho manual;
   - é um envio real ao sandbox da Avalara, que recusa por validação como antes.
-- [ ] 10.9 O fallback: em Development, o tenant-b vê o mock, e o tenant-a não o vê.
-- [ ] 10.10 Registrar a prova no STATUS (9.4), com as linhas do log, e o que foi só conferência visual do usuário, sem
+  - **Feito (2026-10-02):** a `brmf|BRMF06-110000027` tem 1 reprocesso no banco e continua `IntegrationError`, a recusa
+    do sandbox. O `host-erp-directory-3.log` (fora do git) tem duas chamadas ao `fiscal/dfe` do sandbox (linhas 16245 e 16689): a da integração imediata e a
+    do reprocesso da mesma nota. O log não traz a mensagem da fila, então o locator e a origem não aparecem nele.
+- [x] 10.9 O fallback: em Development, o tenant-b vê o mock, e o tenant-a não o vê.
+  - **Feito (2026-10-02):** a conferência visual do usuário, sem linha de log.
+- [x] 10.10 Registrar a prova no STATUS (9.4), com as linhas do log, e o que foi só conferência visual do usuário, sem
   linha de log.
+  - **Feito (2026-10-02):** os quatro itens do STATUS fechados, cada um com a sua evidência.
 
 ## 11. Os ajustes da conferência na tela (2026-10-02)
 
@@ -453,8 +473,10 @@ D15. As provas 10.4 e 10.6, pela data fiscal, deixam de valer.
     (linha 35). No banco, as 14 notas ganharam o dia 2026-10-02, sem nenhuma sem dia.
   - **A fumaça da API:** o `/groups` do dia traz 4 linhas, e o de 2016-09-02, que é a data fiscal, nenhuma. O modal de
     cada linha devolve o mesmo número do total dela. Período, `from` sozinho e janela invertida dão 400 com o motivo.
-- [ ] 13.9 A conferência na tela, pelo usuário: uma integração imediata ou agendada de um período de 2016, feita hoje,
+- [x] 13.9 A conferência na tela, pelo usuário: uma integração imediata ou agendada de um período de 2016, feita hoje,
   aparece com a data de hoje e o período ao lado; a automática com "—"; o filtro do dia e o do modelo valem para a tabela;
   e o reprocesso não move a linha. A linha `Agendada` que já estava no banco ficou sem período, porque foi gravada antes da
   mudança, como o D15 prevê.
+  - **Feito (2026-10-02):** a conferência visual do usuário. No banco, a integração imediata da Matriz (execução 8) deixou
+    a linha `Manual` de 2026-10-02 com o período 2016-09-01 a 2016-10-02.
 

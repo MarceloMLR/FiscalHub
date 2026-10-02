@@ -236,6 +236,20 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
   - **Prova:** tabela de códigos e lugares com a Avalara.
   - **Sintoma:** escrituração incompleta na plataforma. É visível como "Enviado sem", mas incompleta.
 
+- [ ] **Mesmo CNPJ em mais de um contribuinte na plataforma.** (resolucao automatica do de/para, 2026-10-02)
+  - **Falta:** o codigo do estabelecimento na plataforma passa a ser resolvido casando o CNPJ do ERP com o
+    `cnpj` devolvido por `/taxcompliance/v2/contribuinte`. Se o mesmo CNPJ casar com mais de um
+    contribuinte, nao ha criterio de desempate e a escolha fica por conta da ordem do retorno.
+  - **Por que fica aberto e nao tratado agora:** no sandbox existem empresas `Padrao`, `QA` e `SPL` ao
+    lado das reais, o que torna a duplicidade possivel la. Em producao a expectativa e que nao ocorra
+    (Marcelo, 2026-10-02); nao foi observada em conta de producao.
+  - **Prova:** uma conta com o mesmo CNPJ em duas empresas, e o despacho recusando com motivo em vez de
+    escolher sozinho.
+  - **Sintoma - o pior tipo, porque nao falha:** a nota e aceita pela plataforma e escriturada no
+    contribuinte errado. Nao ha rejeicao, nao ha log, e so aparece na conferencia da apuracao.
+  - **Tratativa pretendida:** se o CNPJ casar com mais de um contribuinte, recusar com motivo legivel
+    nomeando os candidatos, em vez de escolher. Tela de de/para so se a duplicidade se mostrar comum.
+
 ### Credencial e cofre
 
 - [ ] **Provisionamento do cofre de conectores.** (ADR-0027 §6)
@@ -275,7 +289,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     do corpo.
   - **Sintoma (injeção):** um cliente publica uma referência com o tenant de outro. A regra do locator, na busca,
     segura a leitura de XML alheio, mas não a injeção.
-- [ ] **Diretório de empresas por tenant.** (ADR-0028)
+- [x] **Diretório de empresas por tenant.** (ADR-0028)
   - **Falta:** a porta `ICompanyDirectory` não recebe tenant, e o adapter JSON de dev devolve a mesma lista a todos.
   - **Prova:** o adapter real (ERP ou Avalara) escopado pelo tenant do login, e a porta ganha o tenant.
   - **Sintoma (vazamento):** o dropdown da integração manual mostra empresas de outro cliente.
@@ -286,6 +300,12 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     - **O mock:** o `companies.json` só existe em Development, como fallback do tenant cujo ERP não tem diretório. Fora
       de Development, o ERP sem diretório responde "não tem diretório de empresas no hub".
     - **A prova por teste:** `CompanyDirectoryQueryTests`, `JsonCompanyDirectoryTests` e `D365CompanyDirectoryTests`.
+  - **Fechado em 2026-10-02, com a prova manual (tarefas 10.2, 10.3 e 10.9 da change):**
+    - **a role:** deploy feito pelo Marcelo em 2026-10-02. No `host-erp-directory-3.log` (fora do git), o tenant-a autentica pelo app do próprio perfil
+      (linha 145), e a `FiscalEstablishments` responde 200 (linha 16389);
+    - **o dropdown:** lista os quatro estabelecimentos da `brmf`, com o `RJ-01`, que tem 0 registros de documento no banco;
+    - **o fallback:** em Development, o tenant-b vê o mock, e o tenant-a não o vê.
+    - **O que foi só conferência visual do usuário:** o dropdown e o fallback.
 - [ ] **O `/ingest` deve existir em produção?** (ADR-0028)
   - **Falta:** decisão de escopo. O gatilho real é o drop, o feed e o Event Grid, e o `/ingest` é conveniência
     manual. A correção do locator vale de qualquer forma.
@@ -484,7 +504,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **O que cada uma precisa:** domínio, portas e adapters próprios.
   - **O que já está decidido:** a carga é manual, pelo Agendamento. A integração automática continua só Fiscal, por
     decisão de produto.
-- [ ] **Filtros dos cards.** (dashboard, `GroupsPage`; próximo passo da change `establishment-and-readable-dashboard`)
+- [x] **Filtros dos cards.** (dashboard, `GroupsPage`; próximo passo da change `establishment-and-readable-dashboard`)
   - **Comportamento correto, e não defeito:** os cards contam as notas cuja data de referência é hoje.
     - **Qual data:** a data fiscal, no fuso de quem emitiu, sem conversão, com o mesmo critério para a nota montada e para
       a ignorada.
@@ -516,7 +536,12 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
       - **A tabela:** segue o mesmo filtro dos cards, e mostra o período integrado ("—" na automática).
       - **A prova manual nova:** a do grupo 13 da change. Com o dia da execução, as notas que o coletor trouxe hoje entram
         no filtro do dia.
-- [ ] **O modal do grupo não filtra pelo tipo e pelo modo.** (dashboard, `GroupModal`; risco do design da change
+  - **Fechado em 2026-10-02, com a prova manual pelo dia da execução (tarefas 10.4, 10.6 e 13.9 da change):**
+    - os filtros do dia, de 30 dias e do modelo valem para os cards e para a tabela, por conferência visual do usuário;
+    - a integração imediata da Matriz (execução 8) ficou na linha `Manual` de 2026-10-02, com o período 2016-09-01 a
+      2016-10-02;
+    - na fumaça da API, o `/groups` do dia trouxe 4 linhas, e o de 2016-09-02, a data fiscal, nenhuma.
+- [x] **O modal do grupo não filtra pelo tipo e pelo modo.** (dashboard, `GroupModal`; risco do design da change
   `establishment-and-readable-dashboard`)
   - **Falta:** a linha da tabela é por empresa, filial, dia, tipo e modo, e a consulta do modal
     (`/groups/{empresa}/{filial}/{dia}/documents`) é só pelos três primeiros.
@@ -531,6 +556,9 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
       `Modal_count_matches_the_row_total`).
     - **O período (D15):** a linha ganha o período integrado, e o modal o recebe (`period=none` na automática, ou
       `aaaa-mm-dd_aaaa-mm-dd`). A prova por teste: `Modal_with_the_period_lists_only_that_execution_and_none_lists_the_automatic`.
+  - **Fechado em 2026-10-02, com a prova manual (tarefa 10.6 da change):** o modal de cada linha lista só as notas dela,
+    com o mesmo número do título, por conferência visual do usuário. Na fumaça da API, o modal das 4 linhas do dia devolveu
+    o total de cada uma.
 - [x] **O tamanho do código do estabelecimento no F&O.** (change `establishment-and-readable-dashboard`, tarefa 1.1)
   - **Falta:** conferir no AOT o tamanho do EDT do `FiscalEstablishmentId`. O `$metadata` do OData declara a
     propriedade só como `Edm.String`, sem `MaxLength`, e o CDM da Microsoft também não o traz. O `BranchCode` foi
@@ -544,7 +572,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     dead-letter.
   - **Fechado em 2026-10-01:** no AOT, o EDT `FiscalEstablishmentId_BR` tem String Size 10, conferido pelo usuário no
     Visual Studio. O `nvarchar(20)` do `BranchCode` cabe com folga, e nenhum código do F&O passa de 10.
-- [ ] **O diretório de empresas com o CNPJ de 14 dígitos.** (quando houver descoberta por período com D365)
+- [x] **O diretório de empresas com o CNPJ de 14 dígitos.** (quando houver descoberta por período com D365)
   - **Falta:** o `ICompanyDirectory` (`companies.json`) e a descoberta local são o caminho de XML de dev, com o
     código de 8 dígitos. Uma integração manual ou agendada do D365 vai precisar do mesmo código do grupo, que é o CNPJ
     de 14 dígitos.
@@ -568,6 +596,16 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
       tela. A tradução do `12345678000190` fica no seed, para o `/ingest` e o `/drop`.
     - **A prova por teste:** `D365DocumentDiscoveryTests`, `IntegrationRunnerTests`, `DocumentReprocessTests` e
       `TaxIdentifiersTests`. O CNPJ alfanumérico de ponta a ponta está no `DispatchToMockTests`.
+  - **Fechado em 2026-10-02, com a prova manual (tarefas 10.3, 10.5 e 10.8 da change):**
+    - **o dropdown:** mostra o cadastro do 365, e a "Empresa Emitente LTDA" saiu do dropdown do tenant-a;
+    - **o agendamento:** o único da Matriz (`44278225000180`), de 2016-09-01 a 2016-10-02, achou 1 nota pela descoberta do
+      D365 (execução 7), e o banco tem 0 chaves duplicadas. A prova pedia a `SP-01` cobrindo 2026-08-07; o usuário deu a
+      da Matriz por suficiente, porque o mecanismo é o mesmo;
+    - **o reprocesso:** a `brmf|BRMF06-110000027` tem 1 reprocesso e continua `IntegrationError`, a recusa do sandbox. O
+      `host-erp-directory-3.log` (fora do git) tem duas chamadas ao `fiscal/dfe` do sandbox (linhas 16245 e 16689): a da integração imediata e a do
+      reprocesso.
+    - **Não exercitado no ambiente:** o CNPJ alfanumérico, porque o fiscosysdev não tem estabelecimento alfanumérico. A
+      prova é a dos testes (tarefa 10.7, aberta).
 
 - [ ] **O que o chamado de suporte anexa quando quem o abre não pode ver as fotos cruas.** (change
   `establishment-and-readable-dashboard`, D11)
