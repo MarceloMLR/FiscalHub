@@ -49,6 +49,9 @@ public sealed record DocumentSummary
     public string? Number { get; init; }
     public string? Model { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
+
+    /// <summary>Quantas vezes o reprocesso foi aceito para a nota; o modal o mostra ao lado das consultas.</summary>
+    public int Reprocessings { get; init; }
 }
 
 /// <summary>Grupo de documentos (empresa/filial/dia/tipo/modelo/modo) com contagens por estado — linha do dashboard.</summary>

@@ -8,7 +8,7 @@ namespace FiscalHub.Application.Tests;
 /// Especifica o reprocesso (spec period-discovery, "O reprocesso acha a nota na origem dela", design D5): a nota é procurada
 /// primeiro na descoberta do adapter de entrada do perfil e, em Development, no catálogo local; vale a primeira que acha. A
 /// referência volta com o gatilho manual, que fura a idempotência. A nota de outro tenant tem a resposta de "não encontrada",
-/// sem perguntar a ninguém.
+/// sem perguntar a ninguém. O reprocesso aceito é contado, e só ele (conferência na tela, 2026-10-02).
 /// </summary>
 public class DocumentReprocessTests
 {
@@ -29,6 +29,7 @@ public class DocumentReprocessTests
         Assert.Equal(IngestionTrigger.Manual, queued.Trigger);
         Assert.Equal("Dynamics365", queued.Origin);
         Assert.Empty(fallback.Asked);   // achou na primeira: o catálogo nem é perguntado
+        Assert.Equal([("tenant-a", D365Key)], Log.Recorded);   // contado uma vez
     }
 
     [Fact]
@@ -58,6 +59,7 @@ public class DocumentReprocessTests
 
         Assert.Equal(ReprocessStatus.NotInOrigin, status);
         Assert.Empty(queue.Enqueued);
+        Assert.Empty(Log.Recorded);   // recusado não conta
     }
 
     [Fact]
@@ -71,10 +73,24 @@ public class DocumentReprocessTests
         Assert.Equal(ReprocessStatus.OtherTenant, status);
         Assert.Empty(d365.Asked);
         Assert.Empty(queue.Enqueued);
+        Assert.Empty(Log.Recorded);
     }
 
-    private static DocumentReprocess Reprocess(IDocumentDiscovery d365, IDocumentDiscovery? fallback, FakeQueue queue)
-        => new(Resolver("Dynamics365", [d365], fallback), queue, new Tenant("tenant-a"));
+    private RecordingLog Log { get; } = new();
+
+    private DocumentReprocess Reprocess(IDocumentDiscovery d365, IDocumentDiscovery? fallback, FakeQueue queue)
+        => new(Resolver("Dynamics365", [d365], fallback), queue, Log, new Tenant("tenant-a"));
+
+    private sealed class RecordingLog : IReprocessLog
+    {
+        public List<(string Tenant, string Key)> Recorded { get; } = [];
+
+        public Task RecordAsync(string tenantId, string naturalKey, CancellationToken ct = default)
+        {
+            Recorded.Add((tenantId, naturalKey));
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class Tenant(string tenantId) : ITenantContext
     {

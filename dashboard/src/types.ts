@@ -20,6 +20,7 @@ export interface DocumentSummary {
   number?: string | null;
   model?: string | null;
   updatedAt: string;
+  reprocessings: number; // quantas vezes o reprocesso foi aceito; não zera no reenvio, ao contrário das consultas
 }
 
 // GET /trace devolve { "<caminho>": <conteudo> } — JSON aninhado ou string (o XML cru).

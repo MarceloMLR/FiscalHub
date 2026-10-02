@@ -37,6 +37,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IProcessingStore, SqlProcessingStore>();
         services.AddScoped<IDocumentQueries, SqlDocumentQueries>();
+        services.AddScoped<IReprocessLog, SqlReprocessLog>();
         services.AddScoped<IExecutionStore, SqlExecutionStore>();
         services.AddScoped<IExecutionQueries, SqlExecutionQueries>();
         services.AddScoped<IScheduleStore, SqlScheduleStore>();

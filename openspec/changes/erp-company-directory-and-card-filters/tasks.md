@@ -358,3 +358,21 @@ junto.
 - [x] 11.5 As opções na tela, com o nome do documento: "55 · NF-e", "57 · CT-e" e "SE · NFS-e". O modelo que o hub não
   conhece aparece só com o código.
 - [x] 11.6 `npm test` e `npm run build` verdes.
+
+## 12. A contagem de reprocessos no modal (conferência na tela, 2026-10-02)
+
+Pedido do usuário depois de reprocessar pela tela: a coluna de consultas do modal ganha, ao lado, a quantidade de
+reprocessos. A contagem não existia. Ela entra numa porta pequena, `IReprocessLog`, e não no `IProcessingStore`, para não
+engordar a porta de escrita e os sete fakes dela (o mesmo motivo do `IDocumentQueries`). A spec `period-discovery` ganhou
+o requisito.
+
+- [x] 12.1 Teste primeiro (Application, `DocumentReprocessTests`): o reprocesso aceito registra a nota uma vez, e o de
+  outro tenant e o da nota fora da origem não registram.
+- [x] 12.2 Teste primeiro (Infrastructure, SQLite): a contagem soma um por registro, não mexe em outro tenant, e a nota
+  sem registro não falha. As leituras do modal e da lista devolvem a contagem.
+- [x] 12.3 A coluna `ReprocessCount` (`int`, padrão 0) no `ProcessedDocument`, com a migração
+  `AddProcessedDocumentReprocessCount`, a porta `IReprocessLog` e o `SqlReprocessLog`.
+- [x] 12.4 O `DocumentReprocess` registra depois de reenfileirar, e o `DocumentSummary` ganha o `Reprocessings`.
+- [x] 12.5 Dashboard: a coluna "Reprocessos" no modal, ao lado de "Consultas".
+- [x] 12.6 `dotnet build` com 0 warnings, `dotnet test`, `npm test` e `npm run build` verdes, e o host reiniciado com a
+  migração aplicada.

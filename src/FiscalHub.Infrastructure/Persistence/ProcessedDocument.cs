@@ -47,6 +47,9 @@ internal sealed class ProcessedDocument
     /// <summary>Quantas vezes o status já foi consultado (para o limite do 204 eterno).</summary>
     public int Attempts { get; set; }
 
+    /// <summary>Quantas vezes o reprocesso foi aceito para esta nota. Não zera no reenvio, ao contrário do <see cref="Attempts"/>.</summary>
+    public int ReprocessCount { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public DateTimeOffset UpdatedAt { get; set; }

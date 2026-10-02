@@ -21,18 +21,20 @@ public enum ReprocessStatus
 /// reenfileira com o gatilho manual, que fura a idempotência (ADR-0016). Dá certo sem guardar a origem no registro do
 /// documento porque as formas de chave são disjuntas (<c>empresa|voucher</c> contra a chave de acesso de 44 dígitos), e o
 /// D365 recusa a outra forma sem rede. A fila é a de descoberta, a do coletor (D7), para a cópia do reprocesso não correr em
-/// paralelo com a do coletor.
+/// paralelo com a do coletor. O reprocesso aceito é contado (<see cref="IReprocessLog"/>), e o modal mostra a contagem.
 /// </summary>
 public sealed class DocumentReprocess
 {
     private readonly DocumentDiscoveryResolver _discoveries;
     private readonly IDocumentQueue _queue;
+    private readonly IReprocessLog _log;
     private readonly ITenantContext _tenant;
 
-    public DocumentReprocess(DocumentDiscoveryResolver discoveries, IDocumentQueue queue, ITenantContext tenant)
+    public DocumentReprocess(DocumentDiscoveryResolver discoveries, IDocumentQueue queue, IReprocessLog log, ITenantContext tenant)
     {
         _discoveries = discoveries;
         _queue = queue;
+        _log = log;
         _tenant = tenant;
     }
 
@@ -48,6 +50,7 @@ public sealed class DocumentReprocess
             if (await discovery.FindByKeyAsync(tenantId, naturalKey, ct) is { } reference)
             {
                 await _queue.EnqueueAsync(reference with { Trigger = IngestionTrigger.Manual }, ct);
+                await _log.RecordAsync(tenantId, naturalKey, ct);   // contado só depois de reenfileirar
                 return ReprocessStatus.Queued;
             }
         }

@@ -152,6 +152,7 @@ builder.Services.AddScoped<IIntegrationRunner>(sp => new IntegrationRunner(
 builder.Services.AddScoped(sp => new DocumentReprocess(
     sp.GetRequiredService<DocumentDiscoveryResolver>(),
     sp.GetRequiredKeyedService<IDocumentQueue>(ServiceBusMessagingServiceCollectionExtensions.DiscoveryQueueKey),
+    sp.GetRequiredService<IReprocessLog>(),
     sp.GetRequiredService<ITenantContext>()));
 
 // Poll de status: consulta os documentos em voo e fecha o ciclo (confirma/erro/unconfirmed).

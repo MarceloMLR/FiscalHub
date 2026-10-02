@@ -8,7 +8,9 @@ import { TicketModal } from '../support/TicketModal';
 import { formatCompany } from './companyCode';
 import type { DocumentGroup, DocumentSummary } from '../../types';
 
-const GRID = '34px minmax(120px,1.6fr) 80px minmax(130px,1.2fr) 90px minmax(150px,1.3fr)';
+// A contagem de reprocessos fica ao lado das consultas de status (conferência na tela, 2026-10-02). As consultas zeram a
+// cada reenvio; os reprocessos, não.
+const GRID = '34px minmax(120px,1.6fr) 80px minmax(130px,1.2fr) 90px 104px minmax(150px,1.3fr)';
 
 function dateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -39,7 +41,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
         title={<>Empresa {formatCompany(group.companyCode)} · Filial {group.branchCode}</>}
         subtitle={`${group.referenceDate}${group.model ? ` · Modelo ${group.model}` : ''} · ${group.total} ${group.total === 1 ? 'nota' : 'notas'}`}
         onClose={onClose}
-        maxWidth={780}
+        maxWidth={880}
         footer={
           <>
             <span style={{ fontSize: 12.5, color: 'var(--muted)', marginRight: 'auto' }}>
@@ -82,6 +84,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
           <div>Modelo</div>
           <div>Status</div>
           <div style={{ textAlign: 'right' }}>Consultas</div>
+          <div style={{ textAlign: 'right' }}>Reprocessos</div>
           <div style={{ textAlign: 'right' }}>Atualizado</div>
         </div>
 
@@ -116,6 +119,7 @@ export function GroupModal({ group, onClose }: { group: DocumentGroup | null; on
             <span style={{ color: 'var(--text)' }}>{d.model ?? '—'}</span>
             <span><StatusChip status={d.status} /></span>
             <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{d.attempts}</span>
+            <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>{d.reprocessings}</span>
             <span style={{ textAlign: 'right', fontSize: 12.5, color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
               {dateTime(d.updatedAt)}
             </span>

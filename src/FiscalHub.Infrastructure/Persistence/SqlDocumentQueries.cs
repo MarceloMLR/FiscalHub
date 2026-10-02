@@ -41,6 +41,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 Number = d.DocumentNumber,
                 Model = d.DocumentModel,
                 UpdatedAt = d.UpdatedAt,
+                Reprocessings = d.ReprocessCount,
             })
             .ToListAsync(ct);
 
@@ -131,6 +132,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 Number = d.DocumentNumber,
                 Model = d.DocumentModel,
                 UpdatedAt = d.UpdatedAt,
+                Reprocessings = d.ReprocessCount,
             })
             .ToListAsync(ct);
     }
@@ -151,6 +153,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 Number = d.DocumentNumber,
                 Model = d.DocumentModel,
                 UpdatedAt = d.UpdatedAt,
+                Reprocessings = d.ReprocessCount,
             })
             .ToListAsync(ct);
 

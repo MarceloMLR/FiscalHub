@@ -132,3 +132,21 @@ local de exemplo. Vale a primeira que acha a nota.
 #### Scenario: Nota que não existe na origem
 - **WHEN** o usuário pede o reprocesso de `brmf|BRMF99-0`, que o D365 não tem
 - **THEN** a resposta é "não encontrada na origem", e nada é enfileirado
+
+### Requirement: O reprocesso é contado, e a contagem aparece no modal
+
+Cada reprocesso aceito, com a nota achada na origem e reenfileirada, MUST somar um na contagem de reprocessos do registro do
+documento. O pedido de outro tenant e a nota que não está na origem MUST NOT contar.
+
+O modal do grupo MUST mostrar, por nota, a contagem de reprocessos ao lado da de consultas de status. A contagem não zera
+quando a nota é reenviada, ao contrário da de consultas. A nota gravada antes desta mudança começa em zero.
+
+(Pedido da conferência na tela, 2026-10-02.)
+
+#### Scenario: Dois reprocessos
+- **WHEN** o usuário reprocessa duas vezes a NF-e `brmf|BRMF06-110000027`, e a nota é achada nas duas
+- **THEN** o modal do grupo mostra 2 em "Reprocessos" para ela
+
+#### Scenario: Reprocesso recusado não conta
+- **WHEN** o reprocesso responde "não encontrada na origem"
+- **THEN** a contagem de reprocessos da nota não muda

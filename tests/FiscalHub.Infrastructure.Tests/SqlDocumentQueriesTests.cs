@@ -177,6 +177,36 @@ public class SqlDocumentQueriesTests
         Assert.Equal(row.Total, card.Total);
     }
 
+    // ---------- a contagem de reprocessos (conferência na tela, 2026-10-02) ----------
+
+    [Fact]
+    public async Task Each_reprocess_adds_one_and_the_modal_and_the_list_return_the_count()
+    {
+        using var h = await Harness.WithAsync(Row("nfe", "2026-08-07", "55", IntegrationStatus.IntegrationError));
+        var log = new SqlReprocessLog(h.Db);
+
+        await log.RecordAsync("tenant-a", "nfe");
+        await log.RecordAsync("tenant-a", "nfe");
+
+        Assert.Equal(2, Assert.Single(await h.Queries.ListByGroupAsync(Sp01, "SP-01", "2026-08-07", null, null, null)).Reprocessings);
+        Assert.Equal(2, Assert.Single(await h.Queries.ListRecentAsync(10)).Reprocessings);
+    }
+
+    [Fact]
+    public async Task Reprocess_count_starts_at_zero_and_does_not_touch_another_tenant()
+    {
+        using var h = await Harness.WithAsync(
+            Row("nfe", "2026-08-07", "55", IntegrationStatus.IntegrationError),
+            Row("nfe", "2026-08-07", "55", IntegrationStatus.IntegrationError, tenant: "tenant-b"));
+        var log = new SqlReprocessLog(h.Db);
+
+        await log.RecordAsync("tenant-b", "nfe");
+        await log.RecordAsync("tenant-a", "sem-registro");   // nota sem registro: nada a contar, e sem falha
+
+        Assert.Equal(0, Assert.Single(await h.Queries.ListRecentAsync(10)).Reprocessings);   // a do tenant-a
+        Assert.Equal(1, await h.Db.ProcessedDocuments.Where(d => d.TenantId == "tenant-b").Select(d => d.ReprocessCount).SingleAsync());
+    }
+
     // ---------- o banco de produção ----------
 
     [Fact]
@@ -218,6 +248,8 @@ public class SqlDocumentQueriesTests
 
     private sealed class Harness(ProcessingDbContext db, SqliteConnection conn) : IDisposable
     {
+        public ProcessingDbContext Db => db;
+
         public SqlDocumentQueries Queries { get; } = new(db, new StubTenantContext("tenant-a"));
 
         public static async Task<Harness> WithAsync(params ProcessedDocument[] rows)
