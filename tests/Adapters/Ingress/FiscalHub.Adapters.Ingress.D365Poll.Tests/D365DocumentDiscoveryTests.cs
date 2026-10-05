@@ -19,6 +19,7 @@ public class D365DocumentDiscoveryTests
     private const string Env = "https://fiscosysdev.operations.dynamics.com";
     private const string Register = "directory/establishments.json";
     private const string SpPeriod = "directory/period-SP-01-2026-08-07.json";
+    private const string Matriz = "44278225000180";   // a empresa da brmf, como o diretório a dá: o CNPJ completo da matriz
     private const string Sp01 = "44278225000260";
 
     private static readonly TimeSpan Brt = TimeSpan.FromHours(-3);
@@ -30,7 +31,7 @@ public class D365DocumentDiscoveryTests
     {
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
-        IReadOnlyList<DocumentReference> discovered = await h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01"));
+        IReadOnlyList<DocumentReference> discovered = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
 
         var feedHttp = new SequencedHttpMessageHandler().Respond(D365Fixtures.Text(SpPeriod));
         var feed = new D365ChangeFeed(new HttpClient(feedHttp), h.Profiles, new FakeTokens(), new D365ChangeFeedOptions(), new FakeTime(DateTimeOffset.UnixEpoch), new ListLogger<D365ChangeFeed>());
@@ -52,7 +53,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01"));
+        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
 
         Assert.Equal(2, h.Http.Requests.Count);
         Assert.Equal($"{Env}/data/FiscalEstablishments", h.Http.Requests[0].RequestUri!.GetLeftPart(UriPartial.Path));
@@ -97,12 +98,43 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register));
 
-        Assert.Empty(await h.Discovery.DiscoverAsync(Criteria("12345678", "0001")));
+        Assert.Empty(await h.Discovery.DiscoverAsync(Criteria("12345678000190", "0001")));
         Assert.Single(h.Http.Requests);
     }
 
     [Fact]
-    public async Task Without_branch_every_establishment_of_the_cnpj_enters()
+    public async Task Document_number_narrows_the_read()
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
+
+        await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01") with { DocumentNumber = "125" });
+
+        Assert.EndsWith(" and FiscalDocumentNumber eq '125'", Query(h.Http.Requests[1])["$filter"]);
+    }
+
+    // ---------- a empresa pela raiz (change company-root-in-directory, revista em 2026-10-05) ----------
+    // A empresa chega pelo CNPJ completo da matriz, como o diretório a dá e o agendamento a grava; a comparação é pela raiz.
+
+    [Fact]
+    public async Task The_company_without_branch_scopes_the_four_establishments()
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond("""{"value":[]}""");
+
+        await h.Discovery.DiscoverAsync(Criteria(Matriz, branch: null));
+
+        string filter = Query(h.Http.Requests[1])["$filter"]!;
+        foreach (string code in new[] { "Matriz", "SP-01", "SAL-01", "RJ-01" })
+        {
+            Assert.Contains($"(dataAreaId eq 'brmf' and FiscalEstablishment eq '{code}')", filter);
+        }
+
+        Assert.Equal(4, filter.Split("dataAreaId eq").Length - 1);
+    }
+
+    [Fact]
+    public async Task Without_branch_every_establishment_of_the_root_enters_even_with_a_repeated_cnpj()
     {
         // Derivada: o cadastro gravado, com um segundo estabelecimento no CNPJ da SP-01.
         JsonObject register = JsonNode.Parse(D365Fixtures.Text(Register))!.AsObject();
@@ -113,36 +145,118 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(register.ToJsonString()).Respond(D365Fixtures.Text(SpPeriod));
 
-        await h.Discovery.DiscoverAsync(Criteria(Sp01, branch: null));
+        await h.Discovery.DiscoverAsync(Criteria(Matriz, branch: null));
 
-        Assert.EndsWith(
-            "((dataAreaId eq 'brmf' and FiscalEstablishment eq 'SP-01') or (dataAreaId eq 'brmf' and FiscalEstablishment eq 'SP-02'))",
-            Query(h.Http.Requests[1])["$filter"]);
+        string filter = Query(h.Http.Requests[1])["$filter"]!;
+        Assert.Contains("(dataAreaId eq 'brmf' and FiscalEstablishment eq 'SP-02')", filter);
+        Assert.Equal(5, filter.Split("dataAreaId eq").Length - 1);
     }
 
     [Fact]
-    public async Task Document_number_narrows_the_read()
+    public async Task The_whole_company_brings_notes_of_more_than_one_establishment()
+    {
+        // Derivada: as duas NFS-e gravadas da SP-01, e uma terceira, igual à primeira, lançada na Matriz. As notas gravadas da
+        // Matriz e da SAL-01 nos períodos de directory/ são modelo 01, fora do mapa, e o mapeamento as tiraria antes da
+        // guarda.
+        JsonObject period = JsonNode.Parse(D365Fixtures.Text(SpPeriod))!.AsObject();
+        JsonObject matriz = period["value"]![0]!.DeepClone().AsObject();
+        matriz["FiscalEstablishment"] = "Matriz";
+        matriz["FiscalEstablishmentCNPJCPF"] = "442782250001-80";
+        matriz["Voucher"] = "BRMF06-110000099";
+        matriz["FiscalDocumentRecId"] = 68719470000L;
+        period["value"]!.AsArray().Insert(0, matriz);
+
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond(period.ToJsonString());
+
+        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, branch: null));
+
+        Assert.Equal(["Matriz", "SP-01", "SP-01"], found.Select(r => r.Metadata!.BranchCode));
+        Assert.Equal(["44278225000180", "44278225000260", "44278225000260"], found.Select(r => r.Metadata!.CompanyCode));   // o CNPJ do estabelecimento, como antes
+    }
+
+    [Fact]
+    public async Task The_company_with_a_branch_scopes_only_that_branch()
     {
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
 
-        await h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01") with { DocumentNumber = "125" });
+        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
 
-        Assert.EndsWith(" and FiscalDocumentNumber eq '125'", Query(h.Http.Requests[1])["$filter"]);
+        Assert.EndsWith("and ((dataAreaId eq 'brmf' and FiscalEstablishment eq 'SP-01'))", Query(h.Http.Requests[1])["$filter"]);
+        Assert.Equal(2, found.Count);
     }
 
     [Fact]
-    public async Task Note_of_the_establishment_with_another_cnpj_stays_out()
+    public async Task The_recorded_schedule_of_the_matriz_scopes_only_the_matriz()
     {
-        // Derivada: a segunda NFS-e gravada, com o CNPJ antigo de um estabelecimento que mudou de CNPJ.
+        // O único agendamento gravado no banco de dev (2026-10-05): a empresa 44278225000180 com a filial Matriz.
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond("""{"value":[]}""");
+
+        await h.Discovery.DiscoverAsync(Criteria(Matriz, "Matriz"));
+
+        Assert.EndsWith("and ((dataAreaId eq 'brmf' and FiscalEstablishment eq 'Matriz'))", Query(h.Http.Requests[1])["$filter"]);
+    }
+
+    [Fact]
+    public async Task The_cnpj_of_a_branch_without_branch_scopes_the_whole_company()
+    {
+        // A comparação é pela raiz: um CNPJ de filial, sem filial, é a empresa inteira, e não mais só aquele estabelecimento.
+        // No banco de dev não há agendamento assim (conferido em 2026-10-05).
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond("""{"value":[]}""");
+
+        await h.Discovery.DiscoverAsync(Criteria(Sp01, branch: null));
+
+        Assert.Equal(4, Query(h.Http.Requests[1])["$filter"]!.Split("dataAreaId eq").Length - 1);
+    }
+
+    [Fact]
+    public async Task A_note_whose_cnpj_is_of_another_root_stays_out_with_a_log()
+    {
+        // Derivada: a segunda NFS-e gravada da SP-01, com um CNPJ de outra raiz no estabelecimento próprio.
+        JsonObject period = JsonNode.Parse(D365Fixtures.Text(SpPeriod))!.AsObject();
+        period["value"]![1]!["FiscalEstablishmentCNPJCPF"] = "112223330001-81";
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond(period.ToJsonString());
+
+        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+
+        Assert.Equal(["brmf|BRMF06-110000034"], found.Select(r => r.NaturalKey));
+        Assert.Contains(h.Logger.Entries, e => e.Text.Contains("brmf|BRMF06-110000035") && e.Text.Contains("não é da empresa 44278225000180"));
+    }
+
+    [Fact]
+    public async Task A_note_with_another_cnpj_of_the_same_root_enters()
+    {
+        // Derivada: a segunda NFS-e gravada, com outra ordem da mesma raiz no cabeçalho. Antes da change, a igualdade do CNPJ
+        // a tirava; pela raiz, ela é da empresa pedida.
         JsonObject period = JsonNode.Parse(D365Fixtures.Text(SpPeriod))!.AsObject();
         period["value"]![1]!["FiscalEstablishmentCNPJCPF"] = "442782250099-99";
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(period.ToJsonString());
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01"));
+        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
 
-        Assert.Equal(["brmf|BRMF06-110000034"], found.Select(r => r.NaturalKey));
+        Assert.Equal(["brmf|BRMF06-110000034", "brmf|BRMF06-110000035"], found.Select(r => r.NaturalKey));
+    }
+
+    [Fact]
+    public async Task The_alphanumeric_company_finds_its_establishment()
+    {
+        // Derivada: o cadastro gravado, com um estabelecimento de CNPJ alfanumérico.
+        JsonObject register = JsonNode.Parse(D365Fixtures.Text(Register))!.AsObject();
+        register["value"]!.AsArray().Add(new JsonObject
+        {
+            ["dataAreaId"] = "brmf", ["FiscalEstablishmentId"] = "ALFA-01", ["CNPJ"] = "12.ABC.345/01DE-35", ["Name"] = "Filial alfanumérica",
+        });
+        var h = new Harness();
+        h.Http.Respond(register.ToJsonString()).Respond("""{"value":[]}""");
+
+        await h.Discovery.DiscoverAsync(Criteria("12ABC34501DE35", branch: null));
+
+        Assert.EndsWith("and ((dataAreaId eq 'brmf' and FiscalEstablishment eq 'ALFA-01'))", Query(h.Http.Requests[1])["$filter"]);
     }
 
     [Fact]
@@ -157,7 +271,7 @@ public class D365DocumentDiscoveryTests
             .Respond(D365Fixtures.Response(rows[1]))
             .Respond("""{"value":[]}""");
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01"));
+        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
 
         Assert.Equal(["brmf|BRMF06-110000034", "brmf|BRMF06-110000035"], found.Select(r => r.NaturalKey));
         Assert.Equal(4, h.Http.Requests.Count);
@@ -174,7 +288,7 @@ public class D365DocumentDiscoveryTests
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text("directory/period-Matriz-2017-01-15.json"));
 
         IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(
-            Criteria("44278225000180", "Matriz", start: new DateOnly(2017, 1, 15), end: new DateOnly(2017, 1, 15)));
+            Criteria(Matriz, "Matriz", start: new DateOnly(2017, 1, 15), end: new DateOnly(2017, 1, 15)));
 
         Assert.Empty(found);
         Assert.Contains(h.Logger.Warnings, w => w.Contains("'01'") && w.Contains("BRMF06-110000030"));
@@ -238,7 +352,7 @@ public class D365DocumentDiscoveryTests
     {
         var h = new Harness("""{"url":""}""");
 
-        await Assert.ThrowsAsync<ConnectorSettingsException>(() => h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01")));
+        await Assert.ThrowsAsync<ConnectorSettingsException>(() => h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01")));
 
         Assert.Empty(h.Http.Requests);
     }
@@ -249,7 +363,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond("""{"error":{"message":"denied"}}""", HttpStatusCode.Forbidden);
 
-        var ex = await Assert.ThrowsAsync<OriginUnavailableException>(() => h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01")));
+        var ex = await Assert.ThrowsAsync<OriginUnavailableException>(() => h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01")));
 
         Assert.Contains("FSFiscalDocumentBRView", ex.Message);
         Assert.Contains("HTTP 403", ex.Message);

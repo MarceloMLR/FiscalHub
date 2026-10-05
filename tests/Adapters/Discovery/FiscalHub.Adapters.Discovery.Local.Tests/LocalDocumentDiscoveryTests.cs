@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FiscalHub.Application.Inbound;
 
 namespace FiscalHub.Adapters.Discovery.Local.Tests;
@@ -35,6 +36,32 @@ public class LocalDocumentDiscoveryTests
 
         DocumentReference only = Assert.Single(found);
         Assert.StartsWith("35260698765432", only.NaturalKey);
+    }
+
+    [Theory]
+    [InlineData("12345678", "35260612345678")]
+    [InlineData("98765432", "35260698765432")]
+    public async Task The_company_of_the_example_directory_is_the_one_the_catalog_accepts(string company, string keyPrefix)
+    {
+        // O par de desenvolvimento (change company-root-in-directory, D5): o companies.json do Host lista a raiz do CNPJ,
+        // de 8 caracteres, e é essa a empresa que o catálogo local guarda e procura. Com a filial 0001, cada uma traz a nota
+        // de exemplo dela.
+        using JsonDocument directory = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "companies.json")));
+        JsonElement listed = directory.RootElement.EnumerateArray().Single(c => c.GetProperty("code").GetString() == company);
+        Assert.Equal(8, company.Length);
+        Assert.Contains(listed.GetProperty("branches").EnumerateArray(), b => b.GetProperty("code").GetString() == "0001");
+
+        IReadOnlyList<DocumentReference> found = await new LocalDocumentDiscovery().DiscoverAsync(Junho(company, "0001"));
+
+        Assert.StartsWith(keyPrefix, Assert.Single(found).NaturalKey);
+    }
+
+    [Fact]
+    public async Task Every_company_of_the_example_directory_is_a_root()
+    {
+        using JsonDocument directory = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "companies.json")));
+
+        Assert.All(directory.RootElement.EnumerateArray(), c => Assert.Equal(8, c.GetProperty("code").GetString()!.Length));
     }
 
     [Fact]

@@ -39,7 +39,8 @@ substitui o anterior (em vez de reescrever a história).
 | [0029](0029-integracao-automatica-e-o-poll.md) | Integração automática é o `poll.enabled`; o perfil perde o flag de tempo real | Aceito |
 | [0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md) | O grupo da nota vem do estabelecimento próprio e do dia fiscal; a tela lê o motivo pela foto | Aceito — revisado pelo 0032 |
 | [0031](0031-painel-do-coletor-rebobinar-pela-tela-e-teste-de-credencial.md) | O painel do coletor, rebobinar pela tela sob o lease, o teste de credencial com token novo e o freio no botão, e os módulos como apresentação | Aceito |
-| [0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md) | O diretório vem do ERP do tenant, a descoberta por período lê o D365 na fila do coletor, o CNPJ guarda as letras, e os cards contam por período e modelo no servidor | Aceito |
+| [0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md) | O diretório vem do ERP do tenant, a descoberta por período lê o D365 na fila do coletor, o CNPJ guarda as letras, e os cards contam por período e modelo no servidor | Aceito — §1 revisado pelo 0034 |
+| [0034](0034-a-empresa-se-compara-pela-raiz-do-cnpj.md) | A empresa continua sendo um CNPJ completo, uma por raiz, e se compara pela raiz; um formatador só mascara a raiz e o CNPJ completo | Aceito |
 
 ## Planejados
 
