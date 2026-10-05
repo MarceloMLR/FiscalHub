@@ -480,27 +480,37 @@ tela** (mesmo sem mudar nada) esquece a recusa na hora, e a próxima nota pede t
 documento. É um envelope com o status, a URL sem query, alguns cabeçalhos e o corpo, já redigido: sem token, sem
 segredo e sem `Bearer` com valor. O campo `redactions` conta o que foi redigido.
 
-### A integração manual e o agendamento contra o D365 (ADR-0032)
+### A integração manual e o agendamento contra o D365 (ADR-0032, ADR-0034)
 
 A tela **Agendamento** (a integração manual e os agendamentos) lê o ERP do tenant, e não mais o `companies.json`.
 
-- **O dropdown de empresas** é o cadastro de estabelecimentos do F&O (`FiscalEstablishments`, a entidade padrão da
-  Microsoft), filtrado pelas `companies` do perfil. Na `brmf`, são quatro, cada um com a filial dele:
+- **O dropdown de empresas** vem do cadastro de estabelecimentos do F&O (`FiscalEstablishments`, a entidade padrão da
+  Microsoft), filtrado pelas `companies` do perfil. Os estabelecimentos com a mesma **raiz** do CNPJ (os 8 primeiros
+  caracteres) são filiais da mesma empresa (ADR-0034). A empresa aparece pelo CNPJ completo da matriz, o de ordem `0001`
+  (sem ela, o de menor ordem), e cada filial pelo CNPJ dela, com o código ao lado. Na `brmf`, é uma empresa só,
+  "44.278.225/0001-80 — Contoso Entertainment System Brazil", com quatro filiais:
 
-  | Empresa | Filial |
+  | Filial, como aparece | Código gravado |
   |---|---|
-  | `44.278.225/0001-80` | `Matriz` |
-  | `44.278.225/0002-60` | `SP-01` |
-  | `44.278.225/0003-41` | `SAL-01` |
-  | `44.278.225/0034-48` | `RJ-01`, que não tem nota |
+  | `44.278.225/0001-80 — Matriz` | `Matriz` |
+  | `44.278.225/0034-48 — RJ-01`, que não tem nota | `RJ-01` |
+  | `44.278.225/0003-41 — SAL-01` | `SAL-01` |
+  | `44.278.225/0002-60 — SP-01` | `SP-01` |
+
+- **O que se grava é o que se vê:** a empresa é gravada com o CNPJ da matriz (`44278225000180`), sem máscara, e a
+  filial, pelo código.
+- **"Todas as filiais"** é a empresa inteira: a descoberta traz as notas de todos os estabelecimentos da raiz.
+- **A integração imediata reenvia.** Ela usa o gatilho manual, que fura a idempotência de propósito (ADR-0015): as NF-e
+  já confirmadas vão de novo ao destino ativo do tenant. A agendada, única ou diária, não reenvia o que já foi enviado sem
+  alteração. Para testar a imediata sem mandar nada à plataforma real, aponte a saída para o mock antes.
 
 - **O deploy da role vem antes.** A role `FSFiscalHubIntegration` precisa do privilégio padrão
   `FiscalEstablishmentEntityView`, com build e deploy do modelo (sem sync). Sem ele, o dropdown mostra o motivo do 403: "O
   F&O negou a leitura do cadastro de estabelecimentos (HTTP 403). A role FSFiscalHubIntegration precisa do privilégio
   FiscalEstablishmentEntityView…".
-- **A descoberta** lê a `FSFiscalDocumentBRs` pelo **dia fiscal** do período e pelo estabelecimento escolhido. O
-  agendamento diário (D-1) traz as notas com data fiscal de ontem. Todos os modelos entram, e a NFS-e e o CT-e viram
-  "ignorado" no roteamento, como no coletor.
+- **A descoberta** lê a `FSFiscalDocumentBRs` pelo **dia fiscal** do período e pelos estabelecimentos da empresa, ou só
+  pelo da filial escolhida. O agendamento diário (D-1) traz as notas com data fiscal de ontem. Todos os modelos entram, e
+  a NFS-e e o CT-e viram "ignorado" no roteamento, como no coletor.
 - **A fila é a do coletor** (`documents-discovered`). A nota descoberta pelo agendamento cai no mesmo registro e no mesmo
   grupo que o coletor produz, sem linha duplicada. A NFS-e ignorada mantém o modo `Automatic` de quando o coletor a
   registrou.

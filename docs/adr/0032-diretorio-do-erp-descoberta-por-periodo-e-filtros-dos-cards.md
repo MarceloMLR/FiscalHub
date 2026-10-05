@@ -10,6 +10,9 @@
   - **ADR-0028:** fecha o item "o diretório de empresas não é por tenant".
   - **ADR-0030:** a empresa do grupo é o CNPJ sem a pontuação e com as letras, e não o "CNPJ de 14 dígitos". O dia da
     linha no dashboard passa a ser o da execução que trouxe a nota, e não a data fiscal (8).
+- **Revisado por:** [ADR-0034](0034-a-empresa-se-compara-pela-raiz-do-cnpj.md). No §1, a empresa do diretório passa a ser
+  uma por raiz do CNPJ, com o CNPJ completo da matriz, e não uma por estabelecimento; ser da empresa passa a ser ter a
+  mesma raiz, e não o mesmo CNPJ. A máscara pelo tamanho passa a valer também para a raiz, de 8 caracteres.
 - **Change OpenSpec:** `openspec/changes/erp-company-directory-and-card-filters`. As capacidades são `company-directory`,
   `period-discovery`, `tax-identifier-normalization`, `document-grouping`, `d365-change-feed`, `d365-document-assembly`,
   `avalara-document-contract` e `inbound-source-resolution`.
@@ -46,6 +49,11 @@ nota.**
      settings do coletor.
    - **A chave:** a empresa é o CNPJ do estabelecimento, normalizado (5). A filial é o `FiscalEstablishmentId`. É a mesma
      chave dos grupos, sem tradução.
+
+     > **Revisado pelo ADR-0034 (2026-10-05).** A empresa continua sendo um CNPJ completo, mas uma por raiz (os 8
+     > primeiros caracteres, como texto): o da matriz, de ordem `0001`, ou o de menor ordem sem ela. As filiais são os
+     > estabelecimentos da mesma raiz. Os grupos continuam pelo CNPJ completo do estabelecimento; a ponte entre os dois é
+     > a igualdade das raízes.
    - **O cadastro, e não as notas:** um estabelecimento sem nota aparece, como o `RJ-01`.
    - **Por que não uma `FS*`:** as nossas existem porque a Microsoft não publica entidade sobre a `FiscalDocument_BR`
      (ADR-0022). Esta ela publica, com nome fixo. A role do pacote passa a referenciar o privilégio padrão

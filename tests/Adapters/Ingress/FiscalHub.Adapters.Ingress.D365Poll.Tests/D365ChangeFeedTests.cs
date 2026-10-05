@@ -669,12 +669,16 @@ public class D365ChangeFeedTests
     {
         public List<string> Warnings { get; } = [];
 
+        /// <summary>Todas as entradas, em qualquer nível.</summary>
+        public List<(LogLevel Level, string Text)> Entries { get; } = [];
+
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
         public bool IsEnabled(LogLevel logLevel) => true;
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
+            Entries.Add((logLevel, formatter(state, exception)));
             if (logLevel == LogLevel.Warning)
             {
                 Warnings.Add(formatter(state, exception));

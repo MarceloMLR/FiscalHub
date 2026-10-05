@@ -53,9 +53,11 @@ export interface Company {
   name: string;
 }
 
+// taxId: o CNPJ normalizado do estabelecimento, quando o diretório o tem (o do D365); o de exemplo não tem.
 export interface Branch {
   code: string;
   name: string;
+  taxId?: string | null;
 }
 
 // Integracao manual (POST /integrations/manual). branchCode null = todas as filiais.

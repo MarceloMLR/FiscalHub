@@ -37,6 +37,6 @@ public sealed class GoodsInvoiceMetadataExtractor : IDocumentMetadataExtractor<G
     private static (string Company, string Branch) FromIssuer(Party issuer)
     {
         string cnpj = TaxIdentifiers.Normalize(issuer.TaxId);
-        return (cnpj.Length >= 8 ? cnpj[..8] : cnpj, cnpj.Length >= 12 ? cnpj.Substring(8, 4) : "0001");
+        return (TaxIdentifiers.Root(cnpj), cnpj.Length >= 12 ? cnpj.Substring(8, 4) : "0001");
     }
 }

@@ -12,9 +12,10 @@ namespace FiscalHub.Adapters.Ingress.D365Poll.Tests;
 
 /// <summary>
 /// Especifica o diretório de empresas do D365 (spec company-directory, design D1 e D2) sobre o cadastro GRAVADO da
-/// <c>brmf</c> (<c>Fixtures/d365/directory/establishments.json</c>): a empresa é o CNPJ do estabelecimento sem a
-/// pontuação, e a filial é o código dele. A lista vem do cadastro, e não das notas: o <c>RJ-01</c> não tem nenhuma. A falha
-/// vira um motivo seguro, sem token nem cabeçalho. HTTP e token falsos, sem rede.
+/// <c>brmf</c> (<c>Fixtures/d365/directory/establishments.json</c>): a empresa é identificada pela raiz do CNPJ e mostrada
+/// pelo CNPJ completo da matriz (change company-root-in-directory), e a filial é o código do estabelecimento, com o CNPJ
+/// dele. As filiais de uma empresa são as dos estabelecimentos da mesma raiz. A lista vem do cadastro, e não das notas: o <c>RJ-01</c> não tem nenhuma. A falha vira um motivo seguro,
+/// sem token nem cabeçalho. HTTP e token falsos, sem rede.
 /// </summary>
 public class D365CompanyDirectoryTests
 {
@@ -54,35 +55,76 @@ public class D365CompanyDirectoryTests
 
     // ---------- o mapeamento (gravado) ----------
 
+    // A empresa é identificada pela raiz do CNPJ, e mostrada pelo CNPJ completo da matriz (change company-root-in-directory,
+    // revisão de 2026-10-05). Antes da change, eram quatro empresas, uma por estabelecimento.
     [Fact]
-    public async Task Four_recorded_establishments_are_four_companies_with_one_branch_each()
+    public async Task Four_recorded_establishments_are_one_company_coded_by_the_matriz()
     {
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Brmf));
 
         IReadOnlyList<Company> companies = await h.Directory.ListCompaniesAsync("tenant-a");
 
-        Assert.Equal(
-            [
-                new Company { Code = "44278225000180", Name = "Contoso Entertainment System Brazil" },
-                new Company { Code = "44278225000260", Name = "Filial de serviços" },
-                new Company { Code = "44278225000341", Name = "Filial Salvador" },
-                new Company { Code = "44278225003448", Name = "Filial Rio de Janeiro" },   // o RJ-01, que não tem nota
-            ],
-            companies);
+        // A Matriz é a de ordem 0001: o código é o CNPJ completo dela, e o nome é o dela.
+        Assert.Equal([new Company { Code = "44278225000180", Name = "Contoso Entertainment System Brazil" }], companies);
     }
 
-    [Theory]
-    [InlineData("44278225000180", "Matriz", "Contoso Entertainment System Brazil")]
-    [InlineData("44278225000260", "SP-01", "Filial de serviços")]
-    [InlineData("44278225000341", "SAL-01", "Filial Salvador")]
-    [InlineData("44278225003448", "RJ-01", "Filial Rio de Janeiro")]
-    public async Task Each_company_has_its_establishment_as_the_branch(string company, string code, string name)
+    [Fact]
+    public async Task The_company_lists_the_four_branches_with_their_cnpj_in_code_order()
     {
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Brmf));
 
-        Assert.Equal([new Branch { Code = code, Name = name }], await h.Directory.ListBranchesAsync("tenant-a", company));
+        Assert.Equal(
+            [
+                new Branch { Code = "Matriz", Name = "Contoso Entertainment System Brazil", TaxId = "44278225000180" },
+                new Branch { Code = "RJ-01", Name = "Filial Rio de Janeiro", TaxId = "44278225003448" },   // o RJ-01, que não tem nota
+                new Branch { Code = "SAL-01", Name = "Filial Salvador", TaxId = "44278225000341" },
+                new Branch { Code = "SP-01", Name = "Filial de serviços", TaxId = "44278225000260" },
+            ],
+            await h.Directory.ListBranchesAsync("tenant-a", "44278225000180"));
+    }
+
+    // A comparação é pela raiz: qualquer CNPJ da empresa traz as filiais dela, inclusive o de uma filial, gravado num
+    // agendamento da change anterior.
+    [Theory]
+    [InlineData("44278225000180")]
+    [InlineData("44278225000260")]
+    [InlineData("44278225000341")]
+    [InlineData("44278225003448")]
+    public async Task Any_cnpj_of_the_company_lists_the_four_branches(string company)
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Brmf));
+
+        Assert.Equal(["Matriz", "RJ-01", "SAL-01", "SP-01"], (await h.Directory.ListBranchesAsync("tenant-a", company)).Select(b => b.Code));
+    }
+
+    [Fact]
+    public async Task Without_order_0001_the_company_is_coded_by_the_lowest_order_present()
+    {
+        // Derivada: um cliente que só tem filiais no D365, sem a matriz. A empresa não pode quebrar nem aparecer em branco.
+        var h = new Harness();
+        h.Http.Respond(Register(
+            Establishment("brmf", "SAL-01", "442782250003-41", "Filial Salvador"),
+            Establishment("brmf", "SP-01", "442782250002-60", "Filial de serviços")));
+
+        Assert.Equal([new Company { Code = "44278225000260", Name = "Filial de serviços" }], await h.Directory.ListCompaniesAsync("tenant-a"));
+    }
+
+    [Fact]
+    public async Task Two_roots_in_the_register_are_two_companies_in_root_order()
+    {
+        var h = new Harness();
+        JsonObject register = JsonNode.Parse(D365Fixtures.Text(Brmf))!.AsObject();
+        register["value"]!.AsArray().Add(Establishment("brmf", "EMI-01", "12.345.678/0001-90", "Emitente LTDA"));
+        h.Http.Respond(register.ToJsonString());
+        h.Http.Respond(register.ToJsonString());
+
+        Assert.Equal(["12345678000190", "44278225000180"], (await h.Directory.ListCompaniesAsync("tenant-a")).Select(c => c.Code));
+        Assert.Equal(
+            [new Branch { Code = "EMI-01", Name = "Emitente LTDA", TaxId = "12345678000190" }],
+            await h.Directory.ListBranchesAsync("tenant-a", "12345678000190"));
     }
 
     [Fact]
@@ -91,7 +133,16 @@ public class D365CompanyDirectoryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Brmf));
 
-        Assert.Empty(await h.Directory.ListBranchesAsync("tenant-a", "12345678"));
+        Assert.Empty(await h.Directory.ListBranchesAsync("tenant-a", "98765432000188"));
+    }
+
+    [Fact]
+    public async Task An_empty_company_has_no_branch()
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Brmf));
+
+        Assert.Empty(await h.Directory.ListBranchesAsync("tenant-a", string.Empty));   // e não "todas"
     }
 
     [Fact]
@@ -105,10 +156,9 @@ public class D365CompanyDirectoryTests
             Establishment("brmf", "SP-02", "442782250002-60", "Filial de serviços 2"),
             Establishment("brmf", "SP-01", "442782250002-60", "Filial de serviços")));
 
+        // Sem a 0001, a menor ordem é a 0002, dos dois; o desempate é o menor código.
         Assert.Equal([new Company { Code = "44278225000260", Name = "Filial de serviços" }], await h.Directory.ListCompaniesAsync("tenant-a"));
-        Assert.Equal(
-            [new Branch { Code = "SP-01", Name = "Filial de serviços" }, new Branch { Code = "SP-02", Name = "Filial de serviços 2" }],
-            await h.Directory.ListBranchesAsync("tenant-a", "44278225000260"));
+        Assert.Equal(["SP-01", "SP-02"], (await h.Directory.ListBranchesAsync("tenant-a", "44278225000260")).Select(b => b.Code));
     }
 
     [Fact]
@@ -143,9 +193,9 @@ public class D365CompanyDirectoryTests
         h.Http.Respond(Register($"{Env}/data/FiscalEstablishments?$skip=1", Establishment("brmf", "Matriz", "442782250001-80", "Contoso")));
         h.Http.Respond(Register(Establishment("brmf", "RJ-01", "442782250034-48", "Filial Rio de Janeiro")));
 
-        IReadOnlyList<Company> companies = await h.Directory.ListCompaniesAsync("tenant-a");
+        IReadOnlyList<Branch> branches = await h.Directory.ListBranchesAsync("tenant-a", "44278225000180");
 
-        Assert.Equal(["44278225000180", "44278225003448"], companies.Select(c => c.Code));
+        Assert.Equal(["Matriz", "RJ-01"], branches.Select(b => b.Code));   // uma filial de cada página
         Assert.Equal(2, h.Http.Requests.Count);
     }
 
