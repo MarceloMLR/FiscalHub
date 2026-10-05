@@ -185,11 +185,14 @@ O `AvalaraEstablishmentListing` (internal, singleton, com um `HttpClient` nomead
     lista. O custo é uma página vazia a mais por lista, e em troca a leitura não depende de premissa sobre o servidor;
   - **o teto:** 50 páginas por lista, em `Avalara:ListingMaxPages`, como guarda geral. Zero ou negativo impede o host de
     subir. A lista que não chega à página vazia dentro do teto recusa a listagem com "Contrato do destino", nomeando o
-    endpoint e o teto, e a página seguinte não é pedida. Com o `$top` 100, são 4.900 itens por lista antes do teto;
+    endpoint e o teto, e a página seguinte não é pedida. **O teto é em páginas, e não em itens.** Ele cobre 49 páginas
+    com itens mais a vazia que confirma o fim. O teto efetivo em itens é, então, 49 vezes o tamanho real da página, que é
+    o menor entre o `$top` e o limite do servidor. Com páginas de 100, são 4.900 itens por lista. Se o servidor limitar
+    a 10, são 490. A falha é alta nos dois casos, e por isso é segura;
   - **a paginação que não avança:** uma página não vazia igual à anterior, item a item, recusa a listagem com
     "Contrato do destino", nomeando o endpoint e o `$skip`. Com a ordem estável, uma plataforma que ignora o `$skip`
     devolve sempre a mesma página, e é isso que esta guarda pega na segunda página, sem gastar o teto. O teto pega o
-    resto: uma plataforma que ignorasse também o `$orderby` devolveria páginas diferentes e sem fim. Comparar item a item
+    resto: uma plataforma que ignorasse o `$skip` e não ordenasse pelo campo pedido devolveria páginas diferentes e sem fim. Comparar item a item
     não depende de identificador, que pode faltar.
 - **O `$select`:** só os campos que o hub usa, e a `descricao` da empresa, que deixa o motivo da duplicidade legível
   (D9). O `/empresa` é uma lista só por listagem, e o que ela economizaria sem a descrição não paga a legibilidade. No
@@ -380,10 +383,15 @@ dizer por que esta listagem não é aquele diretório (D1).
 
 ## Risks / Trade-offs
 
-- **[A plataforma ignorar o `$orderby` em silêncio]** → Sem ordem estável, um item pode cair em duas páginas ou em nenhuma.
-  O repetido some na deduplicação pelo `contribuinteId`, mas o que falta é truncamento silencioso, e nem o teto nem a
-  guarda da página repetida o veem. Se a plataforma recusar o `$orderby` (400), a listagem é recusada, alto. Mitigação: a
-  prova 6.2 compara a listagem com o `$top` padrão e com o `$top` 2. Com a ordem instável, as duas divergem.
+- **[O `empresaId` ou o `contribuinteId` não ser campo ordenável]** → O `$orderby` está declarado no Swagger nos dois
+  endpoints ("Define the order by one or more fields (ex. LastModified)"), então o parâmetro existe. O que não se sabe é se
+  esses dois campos são ordenáveis, porque o exemplo da documentação é o `LastModified`. Há dois desfechos possíveis:
+  - **a recusa do campo (4xx):** a listagem é recusada, alto, com o motivo da plataforma;
+  - **o campo ignorado em silêncio:** a ordem fica instável, e um item pode cair em duas páginas ou em nenhuma. O repetido
+    some na deduplicação pelo `contribuinteId`. O que falta é truncamento silencioso, e nem o teto nem a guarda da página
+    repetida o veem.
+
+  Mitigação: a prova 6.2 compara a listagem com o `$top` padrão e com o `$top` 2. Com a ordem instável, as duas divergem.
 - **[A janela atrasa o cadastro novo]** → Um contribuinte cadastrado depois da listagem só aparece no vencimento. Até lá, as
   notas dele são recusadas, de forma visível e reprocessável. Mitigação: a validade curta, o salvar que força a releitura e
   o motivo que diz isso.
@@ -397,8 +405,10 @@ dizer por que esta listagem não é aquele diretório (D1).
 - **[Toda lista custa uma página vazia a mais]** → É uma requisição por lista, uma vez por janela: com 8 empresas, 18
   requisições em vez de 9. É o preço de não depender de premissa sobre o limite de página do servidor, nem de contagem
   total, que o contrato não oferece.
-- **[O teto recusa uma conta muito grande]** → Com o `$top` 100, uma lista passa do teto só com mais de 4.900 itens. A
-  recusa é alta e nomeia o teto, e a saída é subir o `Avalara:ListingPageSize` ou o `Avalara:ListingMaxPages`.
+- **[O teto recusa uma conta muito grande]** → O teto efetivo em itens depende do limite de página do servidor (D6). Com
+  páginas de 100, uma lista passa do teto com mais de 4.900 itens. Se o servidor limitar a 10, passa com mais de 490. A
+  recusa é alta e nomeia o teto. A saída é subir o `Avalara:ListingMaxPages`. Subir o `Avalara:ListingPageSize` só
+  adianta enquanto ele estiver abaixo do limite do servidor: acima dele, a página continua do tamanho do limite.
 
 ## Migration Plan
 
@@ -421,6 +431,6 @@ dizer por que esta listagem não é aquele diretório (D1).
   - **se a credencial enxerga mais de uma subscription:** um CNPJ repetido entre elas vira recusa por duplicidade, que é o
     lado seguro;
   - **se for preciso escolher uma:** ela entra como mais um campo da seção do ambiente, sem mudar a regra.
-- **O Swagger declara o `$orderby` nos dois endpoints?** A conferência de 2026-10-02 registrou o `$top` e o `$skip`. Se o
-  `$orderby` não estiver declarado, a plataforma pode ignorá-lo (Risks). A resposta não muda a spec nem as tarefas: o hub
-  manda o `$orderby` de todo jeito, e a prova 6.2 diz se a ordem é estável.
+- **O `empresaId` e o `contribuinteId` são campos ordenáveis?** O `$orderby` está declarado no Swagger nos dois endpoints,
+  com o `LastModified` de exemplo (Risks). A resposta não muda a spec nem as tarefas: o hub ordena por esses dois campos de
+  todo jeito, e a prova 6.2 diz se a ordem é estável.
