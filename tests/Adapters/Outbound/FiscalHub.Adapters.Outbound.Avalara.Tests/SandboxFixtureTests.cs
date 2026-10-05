@@ -76,7 +76,9 @@ public partial class SandboxFixtureTests
         var trace = new PhotoTrace();
         var dispatcher = new AvalaraComplianceDispatcher(
             new HttpClient(handler), Options.Create(new AvalaraOptions { DocumentsPath = "taxcompliance/v2/fiscal/dfe" }),
-            new NoOpAvalaraTokenProvider(), trace, new OneProfile(), new CapturingLogger<AvalaraComplianceDispatcher>(), TimeProvider.System);
+            new NoOpAvalaraTokenProvider(), trace, new OneProfile(),
+            new PlatformEstablishmentResolver([], new PlatformEstablishmentOptions(), TimeProvider.System),
+            new CapturingLogger<AvalaraComplianceDispatcher>(), TimeProvider.System);
 
         DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(Invoice(), Context()));
 

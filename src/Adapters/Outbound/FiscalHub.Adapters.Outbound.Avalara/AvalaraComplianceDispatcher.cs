@@ -25,6 +25,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     private readonly IAvalaraTokenProvider _tokenProvider;
     private readonly IProcessingTrace _trace;
     private readonly IConnectorProfileStore _profiles;
+    private readonly PlatformEstablishmentResolver _establishments;
     private readonly ILogger<AvalaraComplianceDispatcher> _logger;
     private readonly TimeProvider _clock;
 
@@ -34,6 +35,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         IAvalaraTokenProvider tokenProvider,
         IProcessingTrace trace,
         IConnectorProfileStore profiles,
+        PlatformEstablishmentResolver establishments,
         ILogger<AvalaraComplianceDispatcher> logger,
         TimeProvider clock)
     {
@@ -42,6 +44,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         _tokenProvider = tokenProvider;
         _trace = trace;
         _profiles = profiles;
+        _establishments = establishments;
         _logger = logger;
         _clock = clock;
     }
@@ -53,10 +56,21 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     public async Task<IntegrationReceipt> SubmitAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
     {
         // 1–2. Configuração do tenant: qual parte é a nossa, o parceiro e os códigos da plataforma (design D4, D5). Falta
-        //      algo → DispatchRejectedException antes de qualquer requisição (ADR-0026).
-        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, await _profiles.GetAsync(context.TenantId, ct));
-        (Party own, Party partner) = settings.PartiesOf(document);
-        AvalaraCompanyCodes codes = settings.CodesFor(own.TaxId);
+        //      algo → DispatchRejectedException antes da requisição de envio (ADR-0026). A tabela establishments ganha; a
+        //      listagem da plataforma só é pedida quando precisa — a nota que não diz a emissão, ou o CNPJ sem entrada —, e
+        //      vem da janela do resolvedor, uma por tenant e ambiente, e não uma por nota (platform-establishment-resolution).
+        TenantConnectorProfile? profile = await _profiles.GetAsync(context.TenantId, ct);
+        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, profile);
+        PlatformEstablishmentIndex? index = null;
+        if (document.Issuance is null)
+        {
+            settings.ThrowIfUnreadable();
+            index = await _establishments.GetAsync(profile!, ct);
+        }
+
+        (Party own, Party partner) = settings.PartiesOf(document, index);
+        AvalaraCompanyCodes codes = settings.OverrideFor(own.TaxId)
+            ?? settings.CodesFromPlatform(own.TaxId, index ?? await _establishments.GetAsync(profile!, ct));
 
         // 3. Mapeamento: o que o contrato não consegue representar recusa o envio de uma vez, com a lista completa.
         AvalaraMapping mapping = GoodsInvoiceToAvalara.Map(document, new AvalaraHeaderData(codes, partner, context.NaturalKey));

@@ -329,6 +329,182 @@ public class DispatchToMockTests
         Assert.Equal("98XYZ765000132", payload.RootElement.GetProperty("parceiro").GetProperty("cnpj").GetString());
     }
 
+    // ---------- o de/para do estabelecimento pela plataforma (platform-establishment-resolution) ----------
+
+    // A conta do mock: a empresa 005 com os quatro estabelecimentos da brmf e o CNPJ dos XMLs, e as empresas de teste.
+    // Os códigos não seguem a ordem do CNPJ.
+    private static readonly (string Cnpj, string Codigo)[] Brmf =
+    [
+        ("442782250001-80", "010"),   // Matriz
+        ("442782250002-60", "007"),   // SP-01
+        ("442782250003-41", "021"),   // SAL-01
+        ("442782250034-48", "003"),   // RJ-01
+    ];
+
+    // Uma listagem inteira da conta do mock com o $top 2: as empresas (3) em 2 páginas e a vazia; os contribuintes da 005 (5)
+    // em 3 páginas e a vazia, e os da Padrão e da QA (1 cada) em 1 e a vazia.
+    private static readonly (int Companies, int Taxpayers) OneListingWithTopTwo = (3, 4 + 2 + 2);
+
+    [Fact]
+    public async Task The_four_brmf_establishments_resolve_and_dispatch_with_an_empty_table()
+    {
+        using Harness h = await Harness.CreateAsync(establishments: "{}", listingPageSize: 2);
+
+        await ProcessBrmfAsync(h);
+
+        foreach ((string cnpj, string codigo) in Brmf)
+        {
+            StoredRow row = h.Store.Rows[Key(cnpj)];
+            Assert.Equal(IntegrationStatus.Submitted, row.Status);
+            using JsonDocument payload = await h.SentPayloadAsync(row.Receipt!.ExternalId);
+            Assert.Equal("005", payload.RootElement.GetProperty("codigoEmpresa").GetString());
+            Assert.Equal(codigo, payload.RootElement.GetProperty("codigoContribuinte").GetString());   // só com todas as páginas
+        }
+
+        Assert.Equal(OneListingWithTopTwo, await h.ListingRequestsAsync());   // o lote inteiro: uma listagem
+    }
+
+    [Fact]
+    public async Task A_server_page_limit_below_the_top_still_resolves_the_four_establishments()
+    {
+        using Harness h = await Harness.CreateAsync(establishments: "{}", listingPageSize: 100);
+        await h.MockListingAsync("listagem/limite?itens=2");   // o servidor devolve no máximo 2, com o $top 100
+
+        await ProcessBrmfAsync(h);
+
+        Assert.All(Brmf, b => Assert.Equal(IntegrationStatus.Submitted, h.Store.Rows[Key(b.Cnpj)].Status));
+        Assert.Equal(4, h.DocumentPosts);
+    }
+
+    [Fact]
+    public async Task A_batch_of_notes_lists_the_platform_once()
+    {
+        using Harness h = await Harness.CreateAsync(establishments: "{}", listingPageSize: 2);
+        h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+        for (int i = 0; i < 9; i++)
+        {
+            h.ServeNote("35637156582");
+            await h.ProcessAsync(OutgoingKey, "35637156582");
+        }
+
+        Assert.Equal(10, h.DocumentPosts);
+        Assert.Equal(OneListingWithTopTwo, await h.ListingRequestsAsync());
+    }
+
+    [Fact]
+    public async Task A_duplicate_on_the_platform_is_refused_naming_both_and_nothing_is_posted()
+    {
+        using Harness h = await Harness.CreateAsync(establishments: "{}");
+        await h.MockListingAsync("contribuintes/adicionar?cnpj=44278225000180&empresa=QA");
+
+        h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+
+        StoredRow row = h.Store.Rows[OutgoingKey];
+        Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
+        Assert.Contains("o estabelecimento 44278225000180 tem 2 contribuintes na plataforma", row.Reason);
+        Assert.Contains("empresa '005' (RESULTA IND E COM MAQUINAS (mock)), contribuinte '010' (#10001)", row.Reason);
+        Assert.Contains("empresa 'QA' (QA (mock)), contribuinte '001' (#90001)", row.Reason);
+        Assert.Equal(0, h.DocumentPosts);
+    }
+
+    [Fact]
+    public async Task A_cnpj_without_taxpayer_is_refused_naming_it_and_goes_out_after_restore_save_and_reprocess()
+    {
+        using Harness h = await Harness.CreateAsync(establishments: "{}");
+        await h.MockListingAsync("contribuintes/remover?cnpj=44278225000180");
+
+        h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+        StoredRow refused = h.Store.Rows[OutgoingKey];
+        Assert.Equal(IntegrationStatus.IntegrationError, refused.Status);
+        Assert.Contains("o estabelecimento 44278225000180 não tem contribuinte cadastrado na plataforma", refused.Reason);
+
+        // Cadastrado de novo na plataforma: sem salvar, a listagem guardada ainda vale e a nota continua recusada.
+        await h.MockListingAsync("contribuintes/restaurar");
+        h.ServeNote("35637156582");
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+        Assert.Equal(IntegrationStatus.IntegrationError, h.Store.Rows[OutgoingKey].Status);
+
+        // Salvar o perfil sem mudar nada faz o hub reler a plataforma, e o reprocesso sai.
+        Assert.Equal(ConnectorProfileSaveStatus.Saved, (await h.SaveProfileAsync(clientSecret: null)).Status);
+        h.ServeNote("35637156582");
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+
+        StoredRow sent = h.Store.Rows[OutgoingKey];
+        Assert.Equal(IntegrationStatus.Submitted, sent.Status);
+        using JsonDocument payload = await h.SentPayloadAsync(sent.Receipt!.ExternalId);
+        Assert.Equal("010", payload.RootElement.GetProperty("codigoContribuinte").GetString());
+        Assert.Equal(1, h.DocumentPosts);
+    }
+
+    [Fact]
+    public async Task An_alphanumeric_cnpj_on_the_platform_resolves_with_the_same_value()
+    {
+        using Harness h = await Harness.CreateAsync(establishments: "{}");
+        await h.MockListingAsync("contribuintes/adicionar?cnpj=12ABC34501DE35&empresa=005&codigo=ALFA");
+        JsonObject header = Header();
+        header["FiscalEstablishmentCNPJCPF"] = "12.ABC.345/01DE-35";
+
+        DocumentReference discovered = await h.DiscoverAsync(header);
+        h.ServeNote("35637156582", header, "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+        await h.ProcessAsync(discovered);
+
+        StoredRow row = h.Store.Rows[OutgoingKey];
+        Assert.Equal(IntegrationStatus.Submitted, row.Status);
+        using JsonDocument payload = await h.SentPayloadAsync(row.Receipt!.ExternalId);
+        Assert.Equal("005", payload.RootElement.GetProperty("codigoEmpresa").GetString());
+        Assert.Equal("ALFA", payload.RootElement.GetProperty("codigoContribuinte").GetString());
+    }
+
+    [Fact]
+    public async Task The_table_wins_over_the_platform_and_lists_nothing()
+    {
+        // A tabela de sempre do harness traduz a Matriz para 20247332000182; a plataforma tem a Matriz como 005/010.
+        using Harness h = await Harness.CreateAsync();
+        h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+
+        await h.ProcessAsync(OutgoingKey, "35637156582");
+
+        using JsonDocument payload = await h.SentPayloadAsync(h.Store.Rows[OutgoingKey].Receipt!.ExternalId);
+        Assert.Equal("20247332000182", payload.RootElement.GetProperty("codigoContribuinte").GetString());
+        Assert.Equal((0, 0), await h.ListingRequestsAsync());
+    }
+
+    // As quatro notas da brmf: a nota de saída gravada da Matriz, com o estabelecimento e o voucher trocados por nota.
+    private static async Task ProcessBrmfAsync(Harness h)
+    {
+        bool first = true;
+        foreach ((string cnpj, _) in Brmf)
+        {
+            JsonObject header = Header();
+            header["FiscalEstablishmentCNPJCPF"] = cnpj;
+            header["Voucher"] = Voucher(cnpj);
+            DocumentReference discovered = await h.DiscoverAsync(header);
+            Assert.Equal(Key(cnpj), discovered.NaturalKey);
+            if (first)
+            {
+                h.ServeNote("35637156582", header, "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
+                first = false;
+            }
+            else
+            {
+                h.ServeNote("35637156582", header);   // os cadastros de referência já estão no cache da montagem
+            }
+
+            await h.ProcessAsync(discovered);
+        }
+    }
+
+    // A ordem do estabelecimento no CNPJ (0001, 0002, 0003, 0034) faz o voucher de cada nota.
+    private static string Voucher(string cnpj) => $"BRMF21-{cnpj[8..12]}";
+
+    private static string Key(string cnpj) => $"brmf|{Voucher(cnpj)}";
+
+    private static JsonObject Header()
+        => JsonNode.Parse(Fixture(Path.Combine("d365", "notes", "35637156582", "header.json")))!["value"]![0]!.AsObject();
+
     // ---------- apoio ----------
 
     private static string Fixture(string relative) => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", relative));
@@ -374,7 +550,7 @@ public class DispatchToMockTests
         /// <summary>O host em memória, com o perfil do tenant-a gravado pelo caso de uso da tela (o segredo vai ao cofre).</summary>
         public static async Task<Harness> CreateAsync(
             string? clientSecret = Secret, IProcessingTrace? trace = null, string documentsPath = "documents", (int Status, string Body)? recordedSubmit = null,
-            string? establishments = null)
+            string? establishments = null, int listingPageSize = 100)
         {
             var h = new Harness();
             h._toMock.RecordedSubmit = recordedSubmit;
@@ -387,7 +563,16 @@ public class DispatchToMockTests
             services.AddSingleton<IConnectorProfileStore>(profiles);
             services.AddSingleton<ISecretStore, InMemorySecrets>();
             services.AddSingleton(trace);
-            services.AddAvalaraComplianceDispatcher(o => o.DocumentsPath = documentsPath);   // a composição padrão: autenticada
+            services.AddAvalaraComplianceDispatcher(o =>   // a composição padrão: autenticada
+            {
+                o.DocumentsPath = documentsPath;
+                o.ListingPageSize = listingPageSize;
+            });
+            // O resolvedor do de/para do estabelecimento, como o Host o registra: singleton, e observador do salvar do perfil.
+            services.AddSingleton(new PlatformEstablishmentOptions());
+            services.AddSingleton(TimeProvider.System);
+            services.AddSingleton<PlatformEstablishmentResolver>();
+            services.AddSingleton<IConnectorProfileObserver>(sp => sp.GetRequiredService<PlatformEstablishmentResolver>());
             services.ConfigureHttpClientDefaults(b => b.ConfigurePrimaryHttpMessageHandler(() => h._toMock));
             h._services = services.BuildServiceProvider();
 
@@ -510,6 +695,20 @@ public class DispatchToMockTests
         {
             using HttpResponseMessage response = await _mock.CreateClient().PostAsync($"admin/token/{value}", null);
             response.EnsureSuccessStatusCode();
+        }
+
+        /// <summary>Um modo da listagem do mock (/admin/contribuintes/* e /admin/listagem/*), aberto como os outros toggles.</summary>
+        public async Task MockListingAsync(string pathAndQuery)
+        {
+            using HttpResponseMessage response = await _mock.CreateClient().PostAsync($"admin/{pathAndQuery}", null);
+            response.EnsureSuccessStatusCode();
+        }
+
+        /// <summary>As requisições de listagem que o mock recebeu, por endpoint, cada página contando uma.</summary>
+        public async Task<(int Companies, int Taxpayers)> ListingRequestsAsync()
+        {
+            JsonNode snapshot = JsonNode.Parse(await _mock.CreateClient().GetStringAsync("admin/contribuintes"))!;
+            return ((int)snapshot["requisicoes"]!["empresas"]!, (int)snapshot["requisicoes"]!["contribuintes"]!);
         }
 
         public void Dispose()

@@ -12,6 +12,11 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// <summary>Registro no DI do adapter Avalara. Único ponto público — os tipos do adapter ficam internal.</summary>
 public static class AvalaraServiceCollectionExtensions
 {
+    /// <summary>O nome do adapter, como o perfil o grava: o do teste de credencial e o da listagem.</summary>
+    internal const string AdapterName = "Avalara";
+
+    internal const string ListingClientName = "avalara-listing";
+
     private const string TokenClientName = "avalara-token";
 
     /// <summary>
@@ -30,6 +35,13 @@ public static class AvalaraServiceCollectionExtensions
             options.Configure(configure);
         }
 
+        // Zero ou negativo impede o host de subir: com o $top 0, a primeira página viria vazia, e a conta pareceria não ter
+        // empresas; com o teto 0, nenhuma listagem terminaria.
+        options
+            .Validate(o => o.ListingPageSize > 0, "Avalara:ListingPageSize precisa ser positivo: é o $top de cada página da listagem.")
+            .Validate(o => o.ListingMaxPages > 0, "Avalara:ListingMaxPages precisa ser positivo: é o teto de páginas por lista da listagem.")
+            .ValidateOnStart();
+
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IProcessingTrace, NoOpProcessingTrace>();
 
@@ -45,6 +57,15 @@ public static class AvalaraServiceCollectionExtensions
             sp.GetRequiredService<ILogger<AvalaraTokenProvider>>()));
         services.AddSingleton<IConnectorProfileObserver, AvalaraProfileObserver>();
         services.AddSingleton<IConnectorCredentialTest, AvalaraCredentialTest>();   // o botão de testar a credencial (D10)
+
+        // A Avalara sabe listar os estabelecimentos da plataforma: o de/para sem cadastro manual (platform-establishment-resolution).
+        // Singleton com o cliente nomeado, como o provider de token; quem guarda a listagem é o resolvedor do núcleo.
+        services.AddHttpClient(ListingClientName).RedactLoggedHeaders(_ => true);
+        services.AddSingleton<IPlatformEstablishmentListing>(sp => new AvalaraEstablishmentListing(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(ListingClientName),
+            sp.GetRequiredService<IAvalaraTokenProvider>(),
+            sp.GetRequiredService<IOptions<AvalaraOptions>>(),
+            sp.GetRequiredService<ILogger<AvalaraEstablishmentListing>>()));
 
         services.AddHttpClient<IComplianceDispatcher<GoodsInvoice>, AvalaraComplianceDispatcher>().RedactLoggedHeaders(_ => true);
 

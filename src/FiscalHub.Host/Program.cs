@@ -85,6 +85,15 @@ builder.Services.AddSingleton(new CredentialTestOptions());
 builder.Services.AddSingleton<CredentialTestBrake>();
 builder.Services.AddSingleton<IConnectorProfileObserver>(sp => sp.GetRequiredService<CredentialTestBrake>());
 builder.Services.AddScoped<ConnectorCredentialTestService>();
+// O de/para do estabelecimento pela plataforma (change platform-establishment-resolution): a listagem guardada por tenant e
+// ambiente, uma por janela, e esquecida no salvar do perfil. A seção PlatformEstablishments é opcional, e zero ou negativo
+// impede o host de subir — a validade zero seria a listagem por nota.
+PlatformEstablishmentOptions establishmentOptions =
+    cfg.GetSection(PlatformEstablishmentOptions.Section).Get<PlatformEstablishmentOptions>() ?? new PlatformEstablishmentOptions();
+establishmentOptions.Validate();
+builder.Services.AddSingleton(establishmentOptions);
+builder.Services.AddSingleton<PlatformEstablishmentResolver>();
+builder.Services.AddSingleton<IConnectorProfileObserver>(sp => sp.GetRequiredService<PlatformEstablishmentResolver>());
 // Autenticado por padrão: URL e credencial vêm da seção do ambiente ativo do tenant, e o segredo, do cofre (ADR-0027).
 // A seção Avalara (opcional) só ajusta a forma da API — DocumentsPath, TokenPath, margens —, a mesma que a sonda lê.
 builder.Services.AddAvalaraComplianceDispatcher(options => cfg.GetSection("Avalara").Bind(options));

@@ -1,0 +1,5 @@
+[
+  { "empresaId": 7410, "codigoCIA": "005", "descricao": "RESULTA IND E COM MAQUINAS (fixture)" },
+  { "empresaId": 7411, "codigoCIA": "Padrão", "descricao": "Empresa padrão (fixture)" },
+  { "empresaId": 7412, "codigoCIA": "QA", "descricao": "QA (fixture)" }
+]
