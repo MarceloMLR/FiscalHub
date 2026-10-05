@@ -9,7 +9,7 @@ import { useSchedules, useExecutions } from '../schedules/useScheduling';
 import { StatusChip } from '../../components/StatusChip';
 import { FhDataGrid } from '../../components/FhDataGrid';
 import { NativeSelect, Segmented } from '../../components/Controls';
-import { formatCompany } from '../groups/companyCode';
+import { formatBranch, formatCompany } from '../groups/companyCode';
 import type { GridColDef } from '@mui/x-data-grid';
 import type { CreateScheduleRequest, ExecutionSummary, IntegrationModeName, Schedule } from '../../types';
 
@@ -370,7 +370,7 @@ export function IntegrationsPage() {
                     <NativeSelect value={branch} onChange={setBranch} disabled={company === '' || branches.isLoading}>
                       <option value={ALL_BRANCHES}>Todas as filiais</option>
                       {(branches.data ?? []).map((b) => (
-                        <option key={b.code} value={b.code}>{b.code} — {b.name}</option>
+                        <option key={b.code} value={b.code}>{formatBranch(b)}</option>
                       ))}
                     </NativeSelect>
                   )}

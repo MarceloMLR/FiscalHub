@@ -18,16 +18,23 @@ public interface ICompanyDirectory
     Task<IReadOnlyList<Branch>> ListBranchesAsync(string tenantId, string companyCode, CancellationToken ct = default);
 }
 
-/// <summary>Empresa no modelo padrão do diretório (código + nome). O código é a mesma chave dos grupos do dashboard.</summary>
+/// <summary>
+/// Empresa no modelo padrão do diretório (código + nome). No D365, o código é o CNPJ completo da matriz da empresa, o mesmo
+/// texto que um agendamento grava e que a tela mostra (change company-root-in-directory).
+/// </summary>
 public sealed record Company
 {
     public required string Code { get; init; }
     public required string Name { get; init; }
 }
 
-/// <summary>Filial no modelo padrão do diretório (código + nome).</summary>
+/// <summary>
+/// Filial no modelo padrão do diretório: o código, o nome e, quando a fonte o tem, o CNPJ normalizado do estabelecimento,
+/// que a tela mostra ao lado do código. O diretório de exemplo não tem CNPJ por filial.
+/// </summary>
 public sealed record Branch
 {
     public required string Code { get; init; }
     public required string Name { get; init; }
+    public string? TaxId { get; init; }
 }

@@ -46,4 +46,51 @@ public class TaxIdentifiersTests
     [Fact]
     public void Empty_stays_empty()
         => Assert.Equal(string.Empty, TaxIdentifiers.Normalize(string.Empty));
+
+    // ---------- a raiz e a mesma empresa (change company-root-in-directory, D1, revisto em 2026-10-05) ----------
+
+    [Theory]
+    [InlineData("44278225000260", "44278225")]
+    [InlineData("12ABC34501DE35", "12ABC345")]   // a raiz alfanumérica, com as letras
+    [InlineData("4427822", "4427822")]           // menos de 8 caracteres: volta inteiro
+    [InlineData("", "")]
+    public void The_root_is_the_first_eight_characters_as_text(string normalized, string root)
+        => Assert.Equal(root, TaxIdentifiers.Root(normalized));
+
+    [Theory]
+    [InlineData("44278225000180")]
+    [InlineData("44278225000260")]
+    [InlineData("44278225000341")]
+    [InlineData("44278225003448")]
+    public void Every_establishment_of_the_root_is_the_same_company_as_the_matriz(string cnpj)
+    {
+        Assert.True(TaxIdentifiers.IsSameCompany(cnpj, "44278225000180"));
+        Assert.True(TaxIdentifiers.IsSameCompany("44278225000180", cnpj));   // nos dois sentidos
+    }
+
+    [Fact]
+    public void Two_branches_of_the_same_root_are_the_same_company()
+        => Assert.True(TaxIdentifiers.IsSameCompany("44278225000260", "44278225003448"));
+
+    [Fact]
+    public void A_root_of_eight_characters_is_the_same_company_as_its_establishments()
+        => Assert.True(TaxIdentifiers.IsSameCompany("44278225000260", "44278225"));   // a empresa do caminho de XML é a raiz
+
+    [Fact]
+    public void Another_root_is_another_company()
+        => Assert.False(TaxIdentifiers.IsSameCompany("44278225000180", "12345678000190"));
+
+    [Fact]
+    public void The_alphanumeric_root_compares_with_its_case()
+    {
+        Assert.True(TaxIdentifiers.IsSameCompany("12ABC34501DE35", "12ABC34500XY12"));
+        Assert.False(TaxIdentifiers.IsSameCompany("12ABC34501DE35", "12abc34501de35"));   // a caixa não é convertida
+    }
+
+    [Theory]
+    [InlineData("44278225000180", "")]
+    [InlineData("", "44278225000180")]
+    [InlineData("", "")]
+    public void An_empty_side_is_no_company(string a, string b)
+        => Assert.False(TaxIdentifiers.IsSameCompany(a, b));   // e não "todas as empresas"
 }

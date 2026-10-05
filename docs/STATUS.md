@@ -172,6 +172,22 @@ As fontes estão entre parênteses:
   - **Prova:** NF-e de exportação real pelo `/ingest`.
   - **Sintoma:** a nota vai para a dead-letter com "Parte sem CNPJ ou CPF". É julgamento de conteúdo no
     parser, fora da linha do ADR-0026.
+- [ ] **O `CompanyCode` significa coisas diferentes conforme a origem.** (change `company-root-in-directory`, design D8;
+  ADR-0034)
+  - **O caso:** a mesma coluna do registro guarda dois conceitos.
+    - **No caminho de XML** (`GoodsInvoiceMetadataExtractor.FromIssuer`), a empresa é a raiz do CNPJ do emitente
+      (`12345678`), e a filial é a ordem (`0001`).
+    - **No D365** (`D365HeaderReference`), a empresa é o CNPJ completo do estabelecimento (`44278225000180`), e a filial é o
+      código dele (`Matriz`).
+  - **Por que é tolerável hoje:** um tenant usa uma origem ou outra. O ADR-0034 não piora: a empresa do D365 continua
+    sendo o CNPJ completo, e a descoberta já compara as duas formas pela raiz (`TaxIdentifiers.IsSameCompany`). Os
+    grupos e os filtros dos cards ainda comparam por igualdade.
+  - **Falta:** decidir uma chave só para o registro, ou guardar a raiz e o estabelecimento em colunas separadas, antes de
+    haver tenant com as duas origens, ou consulta que atravesse as duas.
+  - **Prova:** um tenant com notas do D365 e do XML do mesmo estabelecimento, e os cards, o modal e uma consulta por empresa
+    conferidos sobre as duas.
+  - **Sintoma:** a mesma empresa vira duas linhas nos cards (uma pela raiz, do XML, e uma pelo CNPJ completo, do D365). E um
+    filtro por igualdade da empresa acha as notas de uma origem e não as da outra, sem erro.
 
 ### Contrato e plataforma (Avalara)
 
@@ -676,6 +692,28 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **O caso:** o teste do D365 lê a `FSFiscalDocumentBRs`. O privilégio do cadastro, o `FiscalEstablishmentEntityView`,
     só aparece faltando no dropdown de empresas, com o 403.
   - **Direção:** o teste ler as duas entidades, se a falta do privilégio padrão aparecer em cliente.
+- [ ] **A coluna Empresa das tabelas de agendamento e de execução mostra o CNPJ da matriz.** (ADR-0034; change
+  `company-root-in-directory`, design, Risks)
+  - **O caso:** a empresa gravada é a que o dropdown oferece, o CNPJ da matriz (`44278225000180`). Numa linha cujo escopo
+    é outra filial, como a `SP-01`, o CNPJ exibido não é o do estabelecimento daquelas notas (`44.278.225/0002-60`). A
+    coluna Filial desambigua, mas quem lê só o CNPJ lê errado.
+  - **É regressão de leitura:** antes desta change, a linha mostrava o CNPJ do próprio estabelecimento. Só as linhas que
+    não são da matriz são afetadas. A linha com "Todas" mostra a empresa, e está certa.
+  - **Falta:** gravar o CNPJ do estabelecimento **só na execução**, numa coluna anulável. Ela é preenchida no momento da
+    descoberta, quando o escopo já resolveu um estabelecimento só. A tabela de execuções mostra esse CNPJ quando ele
+    existe, e a empresa quando não, sem consultar o diretório: o histórico não pode depender do ERP no ar.
+    - **No agendamento, não.** Ele não executou, e a única fonte seria o formulário. Um CNPJ que envelhece é pior que
+      nenhum. Execuções registram fato; agendamentos registram critério. A tabela de agendamentos continua mostrando a
+      empresa pedida, que é o critério.
+    - **Quando:** decidido em 2026-10-05 para a próxima correção pequena, junto com a do fallback do Azure CLI. Não entra
+      na `company-root-in-directory`.
+  - **Prova:**
+    - uma execução da empresa `44278225000180` com a filial `SP-01` mostra `44.278.225/0002-60` na coluna Empresa;
+    - uma execução com "Todas", cujo escopo tem mais de um estabelecimento, mostra `44.278.225/0001-80`;
+    - uma execução gravada antes da coluna, com ela nula, continua mostrando a empresa;
+    - a tabela de agendamentos não muda.
+  - **Sintoma (silencioso):** a linha de uma execução da `SP-01` mostra `44.278.225/0001-80`. Quem confere o CNPJ da nota
+    contra o da tabela vê dois números diferentes, e nada acusa erro. No dev, a execução 16 (2026-10-05) é um exemplo.
 
 ### Operação
 

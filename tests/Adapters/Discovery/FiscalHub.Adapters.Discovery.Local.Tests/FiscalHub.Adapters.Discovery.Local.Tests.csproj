@@ -23,4 +23,9 @@
     <ProjectReference Include="..\..\..\..\src\Adapters\Discovery\FiscalHub.Adapters.Discovery.Local\FiscalHub.Adapters.Discovery.Local.csproj" />
   </ItemGroup>
 
+  <!-- O diretório de exemplo do Host: o contrato do par de desenvolvimento é que a empresa dele é a que o catálogo local aceita. -->
+  <ItemGroup>
+    <None Include="..\..\..\..\src\FiscalHub.Host\companies.json" Link="companies.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

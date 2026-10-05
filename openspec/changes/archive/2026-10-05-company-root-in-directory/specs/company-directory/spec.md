@@ -1,39 +1,4 @@
-# company-directory Specification
-
-## Purpose
-
-Dar à integração manual e ao agendamento as empresas e as filiais do tenant logado, lidas do ERP dele pela
-implementação do adapter de entrada do perfil, sem o mock fora de Development, e dizer o que a tela mostra quando
-o ERP não tem diretório ou a leitura falha.
-
-## Requirements
-
-### Requirement: O diretório é o do tenant logado, pelo adapter de entrada do perfil
-
-A lista de empresas e a de filiais MUST ser do tenant do usuário logado. Um tenant na requisição MUST NOT decidir de
-quem é a lista (`tenant-boundary`).
-
-A implementação do diretório MUST ser a do adapter de entrada do perfil do tenant, pela comparação exata do
-identificador, como na resolução do adapter de entrada (`inbound-source-resolution`).
-
-- **Sem implementação para o adapter, ou sem perfil:** a resposta MUST dizer que o ERP do tenant não tem diretório, e
-  citar o adapter. Fora de Development, ela MUST NOT ser uma lista de outra fonte.
-- **Em Development, e só lá:** o diretório de exemplo responde no lugar da implementação que falta. Ele MUST NOT
-  responder por um tenant cujo adapter tem implementação.
-
-#### Scenario: Tenant do D365
-- **WHEN** o perfil do tenant-a tem o adapter de entrada `Dynamics365`, e o usuário do tenant-a abre a integração manual
-- **THEN** as empresas vêm do cadastro do D365 do tenant-a
-- **AND** a empresa `12345678` do diretório de exemplo não aparece
-
-#### Scenario: ERP sem diretório, fora de Development
-- **WHEN** o perfil do tenant-b tem o adapter de entrada `iScala`, e o host roda fora de Development
-- **THEN** a resposta diz que o ERP `iScala` do tenant-b não tem diretório
-- **AND** nenhuma empresa é listada
-
-#### Scenario: ERP sem diretório, em Development
-- **WHEN** o perfil do tenant-b tem o adapter de entrada `iScala`, e o host roda em Development
-- **THEN** a lista é a do diretório de exemplo, como hoje
+## MODIFIED Requirements
 
 ### Requirement: O D365 lista os estabelecimentos do cadastro
 
@@ -109,30 +74,6 @@ e as empresas (`companies`) do perfil do tenant, as mesmas do coletor.
 #### Scenario: CNPJ alfanumérico
 - **WHEN** o cadastro tem um só estabelecimento, com CNPJ `12.ABC.345/01DE-35`
 - **THEN** a empresa é `12ABC34501DE35`, com as letras, e a raiz dela é `12ABC345`
-
-### Requirement: A falha da leitura é dita, sem segredo
-
-Quando a leitura do diretório no ERP falha, a resposta MUST ser uma falha com motivo, e MUST NOT ser uma lista vazia.
-
-- **Settings do perfil inválidas:** o motivo é o da configuração, e nenhuma chamada é feita ao ERP.
-- **O ERP nega a leitura (HTTP 403):** o motivo MUST citar a role do conector e o privilégio da entidade do cadastro.
-- **Outra resposta de erro:** o motivo cita o status HTTP.
-- **O ERP pede espera (throttling):** o motivo diz que o ERP pediu espera.
-
-O motivo MUST NOT conter o token, o segredo, nem um cabeçalho com valor.
-
-#### Scenario: A role sem o privilégio
-- **WHEN** o F&O responde 403 à leitura do cadastro de estabelecimentos
-- **THEN** a falha diz que a role `FSFiscalHubIntegration` precisa do privilégio `FiscalEstablishmentEntityView`
-- **AND** nenhuma empresa é listada
-
-#### Scenario: O perfil sem a URL do ERP
-- **WHEN** o perfil do tenant-a não tem a `url` do F&O
-- **THEN** a falha cita a `url`, e nenhuma chamada é feita ao F&O
-
-#### Scenario: O motivo sem o token
-- **WHEN** a leitura falha com HTTP 500
-- **THEN** o motivo cita o 500, e não contém o token nem o cabeçalho `Authorization`
 
 ### Requirement: Os dropdowns mostram a empresa mascarada e o nome
 
