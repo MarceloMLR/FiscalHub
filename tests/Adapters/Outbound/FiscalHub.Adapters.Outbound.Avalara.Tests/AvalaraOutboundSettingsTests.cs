@@ -6,7 +6,8 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 
 /// <summary>
 /// Settings de saída da Avalara (design D4 e D5): os códigos da empresa vêm da tabela de estabelecimentos do ambiente
-/// ativo, nunca do ERP; a mesma tabela diz qual parte da nota é a nossa quando a origem não diz. A credencial e as URLs
+/// ativo, nunca do ERP; a mesma tabela diz qual parte da nota é a nossa quando a origem não diz. Desde a change
+/// platform-establishment-resolution (D3), a tabela é sobreposição: ausente, ela é vazia, e a plataforma completa. A credencial e as URLs
 /// vêm da mesma seção, sem fallback global (ADR-0027). Falta de configuração é rejeição com motivo claro, antes de
 /// qualquer requisição.
 /// </summary>
@@ -94,16 +95,67 @@ public class AvalaraOutboundSettingsTests
         Assert.Contains(Contoso, reason);
     }
 
+    // A seção sem a tabela saiu desta lista com a change platform-establishment-resolution (D3): ela deixou de ser problema
+    // por si só, e é a sobreposição vazia (os testes logo abaixo).
     [Theory]
     [InlineData("""{"production":{"establishments":{}}}""", "sandbox")]                 // sem a seção do ambiente ativo
-    [InlineData("""{"sandbox":{"baseUrl":"http://avalara/"}}""", "establishments")]     // sem a tabela
     [InlineData("""{"sandbox": [""", "JSON")]                                           // settings malformadas
+    [InlineData("""{"sandbox":{"establishments":["44278225000180"]}}""", "OutboundSettings.sandbox.establishments")]   // a tabela não é objeto
     public void Missing_or_broken_configuration_is_rejected_naming_what_is_wrong(string settings, string cited)
     {
         string reason = Rejection(() => Read(settings).CodesFor(Contoso));
 
         Assert.StartsWith("Configuração do conector:", reason);
         Assert.Contains(cited, reason);
+    }
+
+    [Fact]
+    public void A_section_without_the_table_is_an_empty_overlay_and_not_a_problem()
+    {
+        AvalaraOutboundSettings settings = Read("""{"sandbox":{"baseUrl":"http://avalara/"}}""");
+
+        Assert.Null(settings.OverrideFor(Contoso));
+        Assert.False(settings.HasOverride(Contoso));
+        settings.ThrowIfUnreadable();
+    }
+
+    [Fact]
+    public async Task Without_the_table_the_platform_gives_the_codes()
+    {
+        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "005", "010", "10001", "RESULTA"));
+
+        AvalaraCompanyCodes codes = Read("""{"sandbox":{"baseUrl":"http://avalara/"}}""").CodesFor(Contoso, index);
+
+        Assert.Equal(new AvalaraCompanyCodes("005", "010"), codes);
+    }
+
+    [Fact]
+    public void Without_the_table_and_a_destination_that_does_not_list_it_is_the_missing_translation()
+    {
+        string reason = Rejection(() => Read("""{"sandbox":{"baseUrl":"http://avalara/"}}""").CodesFor(Contoso));
+
+        Assert.StartsWith("Configuração do conector:", reason);
+        Assert.Contains("não tem tradução", reason);
+        Assert.Contains("OutboundSettings.sandbox.establishments", reason);
+    }
+
+    [Fact]
+    public async Task The_entry_wins_over_the_platform()
+    {
+        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "005", "010", "10001", "RESULTA"));
+
+        Assert.Equal(new AvalaraCompanyCodes("20247332000182", "20247332000182"), Read(Complete).CodesFor(Contoso, index));
+    }
+
+    [Fact]
+    public async Task An_incomplete_entry_does_not_fall_back_to_the_platform()
+    {
+        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "005", "010", "10001", "RESULTA"));
+
+        string reason = Rejection(() => Read($$"""{"sandbox":{"establishments":{"{{Contoso}}":{"codigoEmpresa":"E"} } } }""").CodesFor(Contoso, index));
+
+        Assert.Contains("codigoContribuinte", reason);
+        Assert.DoesNotContain("010", reason);
     }
 
     [Fact]

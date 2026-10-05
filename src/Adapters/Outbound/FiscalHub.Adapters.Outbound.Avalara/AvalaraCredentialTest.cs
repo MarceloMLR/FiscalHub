@@ -10,7 +10,7 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// </summary>
 internal sealed class AvalaraCredentialTest(IAvalaraTokenProvider tokens) : IConnectorCredentialTest
 {
-    public string Adapter => "Avalara";
+    public string Adapter => AvalaraServiceCollectionExtensions.AdapterName;
 
     public ConnectorSettingsKind Side => ConnectorSettingsKind.Outbound;
 

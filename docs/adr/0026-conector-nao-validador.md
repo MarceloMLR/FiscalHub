@@ -10,6 +10,9 @@
   aceite sem identificador deixa de ser retentado.
 - **Revisado por:** [ADR-0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md). A omissão visível deixa de fazer
   parte do motivo de falha. Ela é ressalva de nota aceita e fica gravada na foto da resposta do envio.
+- **Revisado por:** [ADR-0033](0033-de-para-de-estabelecimento-pela-plataforma.md). No §3, os códigos da empresa passam a vir
+  da listagem da plataforma, casada pelo CNPJ, e a tabela `establishments` vira sobreposição opcional, que ganha quando tem
+  a entrada. A consequência "Configuração obrigatória" deixa de valer para o destino que sabe listar.
 - **Change OpenSpec:** `openspec/changes/connector-not-validator`
 - **Validado no ambiente:** 2026-09-27, contra o `fiscosysdev` e o mock (ver o fim do documento).
 
@@ -98,6 +101,11 @@ da Avalara para dentro da Application.
 `codigoEmpresa` e `codigoContribuinte` vêm das `OutboundSettings` do perfil do tenant, na seção do ambiente ativo,
 pela tabela `establishments`. A chave é o CNPJ do estabelecimento próprio, e o valor é o par de códigos da
 plataforma. **Nunca vêm do ERP.**
+
+> **Revisado pelo ADR-0033 (2026-10-05).** Os códigos passam a vir da listagem da plataforma, casada pelo CNPJ normalizado:
+> o `codigoCIA` da empresa e o `codigo` do único contribuinte com o CNPJ. Nenhum ou mais de um é recusa, e nunca escolha. A
+> tabela `establishments` vira sobreposição opcional: quando tem a entrada, ganha, e a listagem nem é pedida. Ausente, ela é
+> vazia. Continua valendo que os códigos **nunca vêm do ERP**.
 
 É um requisito permanente, e não um ajuste de demonstração: todo cliente tem código diferente entre o ERP e a
 plataforma, e cliente com várias filiais precisa de uma tradução por filial.
@@ -202,6 +210,9 @@ demonstração. Ela volta a importar quando houver nota com IBS/CBS e a platafor
 - **O `Reason` do registro deixou de ser só motivo de falha,** e passou a ser também observação de envio. A tela e os
   KPIs separam pelo status.
 - **Configuração obrigatória:** sem `establishments`, todo envio do tenant é rejeitado, com motivo claro.
+
+  > **Revisado pelo ADR-0033 (2026-10-05).** Deixa de valer para o destino que sabe listar os estabelecimentos da
+  > plataforma, como a Avalara: sem a tabela, os códigos vêm da listagem. Continua valendo para o destino que não lista.
 
 **Pendências** (próximas fatias; o registro de risco está no checklist do primeiro cliente, em `docs/STATUS.md`)
 

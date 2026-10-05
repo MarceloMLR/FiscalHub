@@ -146,35 +146,83 @@ Sem isso, o envio é rejeitado com "Configuração do conector: o Client Secret 
 não está configurado … Configure em Configurações → Conectores → Avalara → Sandbox → Client Secret." Depois de reiniciar
 o emulador, digite de novo.
 
-### Tradução dos estabelecimentos (banco já existente)
+### Os estabelecimentos: a plataforma lista, a tabela sobrepõe
 
-Todo envio precisa de `codigoEmpresa` e `codigoContribuinte`. Eles **não vêm do ERP**: vêm da tabela
-`establishments` das `OutboundSettings` do perfil do tenant, por ambiente, com o CNPJ do estabelecimento próprio
-como chave (ADR-0026). Sem ela, o envio é rejeitado com um motivo que diz exatamente o que falta ("Configuração do
-conector: …").
+Todo envio precisa de `codigoEmpresa` e `codigoContribuinte`. Eles **não vêm do ERP** (ADR-0026 §3). Vêm da **listagem da
+plataforma**, casada pelo CNPJ do estabelecimento próprio, sem pontuação e com as letras (ADR-0033):
 
-O seed de um banco novo já traz, no `sandbox` do tenant-a:
+- **a listagem:** `GET /taxcompliance/v2/empresa` e, para cada empresa, `GET /taxcompliance/v2/contribuinte?empresaId=`,
+  paginados até a página vazia;
+- **o payload:** leva o `codigoCIA` da empresa e o `codigo` do único contribuinte com o CNPJ.
 
-- `44278225000180`, a Contoso do D365 (`brmf`);
-- `12345678000190`, o tenant-a dos XMLs de exemplo.
+**A tabela `establishments`** das `OutboundSettings`, por ambiente, virou sobreposição opcional:
 
-Os dois apontam para `20247332000182`, a empresa do JSON real do ambiente Avalara de teste.
+- **com a entrada:** quando ela tem o CNPJ, ganha, e a listagem nem é chamada;
+- **sem a tabela:** ela é a sobreposição vazia, e não um erro.
 
-**O diretório do ERP não semeia esta tabela** (ADR-0032 §7). Os códigos são da plataforma, e o diretório só daria a
-chave. Uma integração manual da `SAL-01` ou do `RJ-01` que traga NF-e 55 é rejeitada com "não tem tradução para o
-estabelecimento …", que é o desfecho certo. A tabela continua sem tela: entra pelo seed ou pelo SQL abaixo. A tela da
-tradução, com uma linha por estabelecimento do diretório, está no STATUS como próximo passo.
+**As recusas,** todas "Configuração do conector: …", sem retentativa:
 
-**Num banco criado antes desta mudança,** o seed não roda de novo. Aplique à mão, pelo mesmo padrão de SQL por
-arquivo das `InboundSettings` (seção 6). As referências seguem o nome que o servidor deriva (`fh-{tenant}--…`, ADR-0027),
-e o `clientTokenRef` não existe mais. O SQL grava só a referência: o valor continua sendo digitado na tela.
+- **nenhum contribuinte com o CNPJ:** "o estabelecimento 44278225000180 não tem contribuinte cadastrado na plataforma …";
+- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '005' (RESULTA …), contribuinte '010' (#10001); …".
+
+**A janela.** A listagem fica guardada por tenant e ambiente, e um lote de notas usa uma só. As opções:
+
+| Opção | Padrão | O que é |
+|---|---|---|
+| `PlatformEstablishments:CacheDuration` | 10 min | A validade da listagem guardada |
+| `PlatformEstablishments:RefusalHold` | 5 min | Quanto tempo uma recusa da listagem fica lembrada |
+| `Avalara:ListingPageSize` | 100 | O `$top` de cada página |
+| `Avalara:ListingMaxPages` | 50 | O teto de páginas por lista |
+
+Zero ou negativo em qualquer uma impede o host de subir.
+
+**Para reler a plataforma** depois de cadastrar um contribuinte, salve o perfil do conector na tela, mesmo sem mudar nada, e
+reprocesse a nota. Salvar esquece a listagem guardada do tenant, e a próxima nota lista de novo.
+
+**O mock lista como a plataforma,** com uma conta de mentira. Os códigos dos contribuintes não seguem a ordem do CNPJ:
+
+| Empresa | Contribuinte | CNPJ | Código |
+|---|---|---|---|
+| `005` (RESULTA IND E COM MAQUINAS) | Matriz | `44278225000180` | `010` |
+| | SP-01 | `44278225000260` | `007` |
+| | SAL-01 | `44278225000341` | `021` |
+| | RJ-01 | `44278225003448` | `003` |
+| | Os XMLs de exemplo | `12345678000190` | `015` |
+| `Padrão` | | `11222333000181` | `001` |
+| `QA` | | `99888777000166` | `001` |
+
+Os modos do mock ficam em `/admin`, abertos como os outros toggles:
 
 ```powershell
-$out = '{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}'
+# A duplicidade: o CNPJ da Matriz também na empresa QA (empresa= é o codigoCIA; sem ele, QA)
+Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/adicionar?cnpj=44278225000180&empresa=QA"
+# O CNPJ sem cadastro
+Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/remover?cnpj=44278225000180"
+# O servidor que limita a página abaixo do $top (sem itens, ou 0, tira o limite)
+Invoke-RestMethod -Method Post "http://localhost:5100/admin/listagem/limite?itens=2"
+# Volta ao inicial: a conta, sem limite, e os contadores zerados
+Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/restaurar"
+# A conta atual e as requisições de listagem recebidas (cada página conta uma)
+Invoke-RestMethod "http://localhost:5100/admin/contribuintes" | ConvertTo-Json -Depth 5
+```
+
+Depois de mudar a conta no mock, salve o perfil na tela para o hub reler, como faria depois de cadastrar na plataforma.
+
+**O seed de um banco novo** traz a tabela vazia no `sandbox` do tenant-a: o mock lista, e o caminho automático é o padrão.
+
+**Num banco criado antes desta mudança,** o seed não roda de novo. A tabela antiga traduz a Matriz (`44278225000180`) e o
+CNPJ dos XMLs (`12345678000190`) para `20247332000182`, e continua valendo como sobreposição. Para exercitar o caminho
+automático, esvazie a tabela pelo mesmo padrão de SQL por arquivo das `InboundSettings` (seção 6). O SQL grava só a
+referência do segredo, cujo valor continua sendo digitado na tela.
+
+```powershell
+$out = '{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}'
 "UPDATE ConnectorProfiles SET OutboundSettings = N'$out' WHERE TenantId = 'tenant-a';" | Set-Content -Encoding ascii set-outbound.sql
 docker cp set-outbound.sql fiscalhub-sql-1:/tmp/set-outbound.sql
 docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/set-outbound.sql
 ```
+
+Depois do SQL, salve o perfil na tela, ou espere a validade, para o hub esquecer a listagem guardada.
 
 ## 4. Disparar a esteira
 
@@ -197,8 +245,10 @@ responde 400 com a regra. O armazenamento de fotos (`traces/…`) nunca é orige
 Pelo drop, o arquivo precisa estar em `drop/{tenant}/{chave}.xml`. Um arquivo na raiz do drop não é ingerido: fica
 lá, e o host avisa no log uma vez.
 
-O XML também depende da tradução dos estabelecimentos. O XML não diz qual parte é a do tenant, e quem diz é a
-tabela: o emitente `12345678000190` está nela, então é o estabelecimento próprio, e o destinatário é o parceiro.
+O XML também depende dos estabelecimentos. O XML não diz qual parte é a do tenant: a nossa é a única que tem entrada na
+tabela `establishments` ou contribuinte na plataforma (ADR-0033). O emitente `12345678000190` está na listagem do mock,
+então é o estabelecimento próprio, e o destinatário é o parceiro. As duas partes do tenant, ou nenhuma, é recusa citando os
+dois CNPJs.
 
 ## 5. Ver o resultado
 
@@ -521,7 +571,8 @@ digitada só na tela. Nunca vai para arquivo do repositório, terminal compartil
 
 **1. Configurar pela tela, com a guarda antes.** A tela mostra só alguns campos, e salvar regrava as settings inteiras.
 Antes de confiar nela, prove que ela não apaga o que não mostra: os `establishments`, as `companies` e o `poll`. Sem os
-`establishments`, toda nota é rejeitada por falta de tradução; sem o `poll`, o feed do D365 para de descobrir notas.
+`establishments`, as entradas que sobrepõem a plataforma somem sem aviso, e a nota passa a ir com os códigos da listagem
+(ADR-0033); sem o `poll`, o feed do D365 para de descobrir notas.
 
 a) **Antes de salvar pela tela,** guarde a resposta do `GET /connector`. Ela nunca traz segredo nem referência, então
    pode ir para um arquivo, mas fora do repositório:

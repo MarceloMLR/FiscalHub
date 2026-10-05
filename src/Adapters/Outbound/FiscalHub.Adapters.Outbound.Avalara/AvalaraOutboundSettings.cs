@@ -15,10 +15,12 @@ internal sealed record AvalaraCompanyCodes(string CodigoEmpresa, string CodigoCo
 internal sealed record AvalaraClientCredential(string ClientId, string SecretName);
 
 /// <summary>
-/// Settings de saída da Avalara no perfil do tenant, na seção do ambiente ativo (design D4). A tabela
-/// <c>establishments</c> traduz o CNPJ do estabelecimento próprio para os códigos da plataforma — requisito permanente,
-/// não ajuste de demo: todo cliente tem código diferente entre o ERP e a plataforma. A mesma tabela diz qual parte da
-/// nota é a nossa quando a origem não diz (D5).
+/// Settings de saída da Avalara no perfil do tenant, na seção do ambiente ativo (design D4). Os códigos da plataforma do
+/// estabelecimento próprio nunca vêm do ERP: vêm da tabela <c>establishments</c>, quando ela tem o CNPJ, ou da listagem da
+/// plataforma (change <c>platform-establishment-resolution</c>, D3). A tabela é sobreposição opcional — ausente, ela é
+/// vazia — e, quando tem a entrada, ganha. A mesma regra diz qual parte da nota é a nossa quando a origem não diz (D5): a
+/// que tem entrada na tabela ou contribuinte na plataforma. Quem escreve o motivo das recusas da plataforma é este tipo
+/// (D9), porque sabe o vocabulário dela e onde fica a sobreposição.
 /// <para>A credencial e as URLs vêm da mesma seção, sem fallback global (ADR-0027): a credencial de um tenant só vai ao
 /// endereço do ambiente dele, e só por <c>https</c> (http só em loopback, que é o mock). O segredo só é aceito como
 /// referência no prefixo do tenant; um segredo em claro na seção recusa tudo o que levaria a uma requisição.</para>
@@ -28,10 +30,11 @@ internal sealed record AvalaraClientCredential(string ClientId, string SecretNam
 internal sealed class AvalaraOutboundSettings
 {
     private const string Screen = "Configurações → Conectores → Avalara";
+    private const int NamedCandidates = 5;   // o motivo da duplicidade nomeia até cinco: legível, e longe do corte do registro
 
-    private readonly Dictionary<string, JsonElement>? _establishments;   // chave: CNPJ só com dígitos
+    private readonly Dictionary<string, JsonElement> _establishments = new(StringComparer.Ordinal);   // chave: CNPJ normalizado
     private readonly string? _problem;              // sem perfil, sem seção ou JSON inválido: vale para tudo
-    private readonly string? _establishmentsProblem;
+    private readonly string? _establishmentsProblem;   // a tabela que não é objeto; ausente, ela é a sobreposição vazia
     private readonly string? _clearSecretProblem;   // segredo em claro na seção: recusa tudo o que faz requisição
     private readonly Uri? _baseUri;
     private readonly string? _baseUriProblem;
@@ -53,18 +56,20 @@ internal sealed class AvalaraOutboundSettings
         Environment = environment;
         string where = $"OutboundSettings.{environment}";
 
-        if (section.TryGetProperty("establishments", out JsonElement table) && table.ValueKind == JsonValueKind.Object)
+        if (section.TryGetProperty("establishments", out JsonElement table) && table.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))
         {
-            _establishments = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (JsonProperty entry in table.EnumerateObject())
+            if (table.ValueKind == JsonValueKind.Object)
             {
-                _establishments[TaxIdentifiers.Normalize(entry.Name)] = entry.Value.Clone();
+                foreach (JsonProperty entry in table.EnumerateObject())
+                {
+                    _establishments[TaxIdentifiers.Normalize(entry.Name)] = entry.Value.Clone();
+                }
             }
-        }
-        else
-        {
-            _establishmentsProblem = $"o tenant '{tenantId}', no ambiente '{environment}', não tem {where}.establishments "
-                + "(a tradução do CNPJ do estabelecimento para codigoEmpresa e codigoContribuinte).";
+            else
+            {
+                _establishmentsProblem = $"{where}.establishments do tenant '{tenantId}' não é um objeto (a tradução do CNPJ do "
+                    + "estabelecimento para codigoEmpresa e codigoContribuinte).";
+            }
         }
 
         if (FindClearSecret(section, where) is { } field)
@@ -133,10 +138,17 @@ internal sealed class AvalaraOutboundSettings
     /// motivo aponta os dois. Só vale para o envio: na consulta de status, o 404 é o documento ainda não indexado.
     /// </summary>
     public DispatchRejectedException SubmitPathNotFound(Uri url, string documentsPath, string? platformReason)
-        => Rejected($"o caminho de envio não existe nessa URL (HTTP 404 em POST {url.GetLeftPart(UriPartial.Path)}). A URL tem "
+        => PathNotFound("de envio", "POST", url, "Avalara:DocumentsPath", documentsPath, platformReason);
+
+    /// <summary>
+    /// A rejeição de um 404 num caminho da plataforma (o envio, a listagem): a URL tem duas partes, em dois lugares — o host
+    /// na URL base da seção do perfil, e o caminho numa opção do appsettings —, e o motivo aponta os dois, sem a query.
+    /// </summary>
+    public DispatchRejectedException PathNotFound(string what, string method, Uri url, string option, string path, string? platformReason)
+        => Rejected($"o caminho {what} não existe nessa URL (HTTP 404 em {method} {url.GetLeftPart(UriPartial.Path)}). A URL tem "
             + $"duas partes: a URL base do ambiente '{Environment}' do tenant '{TenantId}' ({BaseUri}, em "
-            + $"OutboundSettings.{Environment}.baseUrl; configure em {Screen} → {EnvironmentLabel} → URL base) e o caminho de "
-            + $"envio ('{documentsPath}', em Avalara:DocumentsPath, no appsettings do host)."
+            + $"OutboundSettings.{Environment}.baseUrl; configure em {Screen} → {EnvironmentLabel} → URL base) e o caminho {what} "
+            + $"('{path}', em {option}, no appsettings do host)."
             + (string.IsNullOrWhiteSpace(platformReason) ? string.Empty : $" Resposta da plataforma: {platformReason}"));
 
     public static AvalaraOutboundSettings Read(string tenantId, TenantConnectorProfile? profile)
@@ -165,21 +177,23 @@ internal sealed class AvalaraOutboundSettings
         }
     }
 
+    /// <summary>Lança a rejeição de configuração que vale para tudo (sem perfil, sem seção, tabela que não é objeto).</summary>
+    public void ThrowIfUnreadable() => Table();
+
+    /// <summary>A tabela tem uma entrada para o CNPJ, completa ou não.</summary>
+    public bool HasOverride(string taxId) => Table().ContainsKey(TaxIdentifiers.Normalize(taxId));
+
     /// <summary>
-    /// Os códigos da plataforma para o estabelecimento próprio. Nunca vêm do ERP: sem tradução, o envio é rejeitado
-    /// nomeando o que falta.
+    /// Os códigos da entrada da tabela para o estabelecimento próprio, ou <c>null</c> sem entrada. A entrada incompleta é
+    /// rejeitada nomeando o campo, e nunca completada pela plataforma: quem a escreveu disse qual é a tradução (D3).
     /// </summary>
-    public AvalaraCompanyCodes CodesFor(string establishmentTaxId)
+    public AvalaraCompanyCodes? OverrideFor(string establishmentTaxId)
     {
         Dictionary<string, JsonElement> table = Table();
         string cnpj = TaxIdentifiers.Normalize(establishmentTaxId);
-        string where = $"OutboundSettings.{Environment}.establishments";
-
         if (!table.TryGetValue(cnpj, out JsonElement entry))
         {
-            throw Rejected(
-                $"o tenant '{TenantId}', no ambiente '{Environment}', não tem tradução para o estabelecimento {cnpj} "
-                + $"(faltam codigoEmpresa e codigoContribuinte em {where}).");
+            return null;
         }
 
         string? empresa = Text(entry, "codigoEmpresa");
@@ -189,17 +203,57 @@ internal sealed class AvalaraOutboundSettings
         {
             throw Rejected(
                 $"o tenant '{TenantId}', no ambiente '{Environment}', tem o estabelecimento {cnpj} sem {string.Join(" e ", missing)} "
-                + $"em {where}[\"{cnpj}\"].");
+                + $"em OutboundSettings.{Environment}.establishments[\"{cnpj}\"].");
         }
 
         return new AvalaraCompanyCodes(empresa!, contribuinte!);
     }
 
     /// <summary>
-    /// O estabelecimento próprio e o parceiro (a contraparte). A nota diz pela emissão própria ou de terceiros; sem isso,
-    /// a única parte que está na tabela é a nossa — nenhuma ou as duas é rejeição citando os dois CNPJs.
+    /// Os códigos do estabelecimento próprio pela plataforma: o <c>codigoCIA</c> da empresa e o <c>codigo</c> do único
+    /// contribuinte com o CNPJ. Nenhum ou mais de um é recusa, nunca escolha (D4, D9). Sem a listagem (o destino que não
+    /// lista), a recusa de sempre, de falta de tradução na tabela.
     /// </summary>
-    public (Party Own, Party Partner) PartiesOf(GoodsInvoice invoice)
+    public AvalaraCompanyCodes CodesFromPlatform(string establishmentTaxId, PlatformEstablishmentIndex index)
+    {
+        Table();
+        string cnpj = TaxIdentifiers.Normalize(establishmentTaxId);
+        if (!index.CanList)
+        {
+            throw Rejected(
+                $"o tenant '{TenantId}', no ambiente '{Environment}', não tem tradução para o estabelecimento {cnpj} "
+                + $"(faltam codigoEmpresa e codigoContribuinte em OutboundSettings.{Environment}.establishments).");
+        }
+
+        return index.Match(cnpj) switch
+        {
+            EstablishmentMatch.Unique unique => CodesOf(cnpj, unique.Establishment),
+            EstablishmentMatch.Ambiguous ambiguous => throw Rejected(
+                $"o estabelecimento {cnpj} tem {ambiguous.Candidates.Count} contribuintes na plataforma (tenant '{TenantId}', ambiente "
+                + $"'{Environment}'), e o hub não escolhe entre eles: "
+                + string.Join("; ", ambiguous.Candidates.Take(NamedCandidates).Select(Candidate))
+                + (ambiguous.Candidates.Count > NamedCandidates ? $"; e mais {ambiguous.Candidates.Count - NamedCandidates}" : string.Empty)
+                + $". Remova a duplicidade na plataforma, ou traduza o estabelecimento em OutboundSettings.{Environment}.establishments."),
+            _ => throw Rejected(
+                $"o estabelecimento {cnpj} não tem contribuinte cadastrado na plataforma (tenant '{TenantId}', ambiente '{Environment}'). "
+                + $"Cadastre-o na plataforma, ou traduza-o em OutboundSettings.{Environment}.establishments. Se o cadastro acabou de "
+                + "ser feito, salve o perfil do conector (Configurações → Conectores) para o hub reler a plataforma, e reprocesse a nota."),
+        };
+    }
+
+    /// <summary>
+    /// Os códigos para o estabelecimento próprio: a entrada da tabela, se houver, e senão a plataforma. Sem índice, o
+    /// destino é tratado como o que não lista.
+    /// </summary>
+    public AvalaraCompanyCodes CodesFor(string establishmentTaxId, PlatformEstablishmentIndex? index = null)
+        => OverrideFor(establishmentTaxId) ?? CodesFromPlatform(establishmentTaxId, index ?? PlatformEstablishmentIndex.Unsupported);
+
+    /// <summary>
+    /// O estabelecimento próprio e o parceiro (a contraparte). A nota diz pela emissão própria ou de terceiros; sem isso,
+    /// a nossa é a única parte que é estabelecimento do tenant — com entrada na tabela ou contribuinte na plataforma (D5).
+    /// Nenhuma ou as duas é rejeição citando os dois CNPJs. Sem índice, só a tabela, como no destino que não lista.
+    /// </summary>
+    public (Party Own, Party Partner) PartiesOf(GoodsInvoice invoice, PlatformEstablishmentIndex? index = null)
     {
         switch (invoice.Issuance)
         {
@@ -210,21 +264,58 @@ internal sealed class AvalaraOutboundSettings
         }
 
         Dictionary<string, JsonElement> table = Table();
+        index ??= PlatformEstablishmentIndex.Unsupported;
         string issuer = TaxIdentifiers.Normalize(invoice.Issuer.TaxId), recipient = TaxIdentifiers.Normalize(invoice.Recipient.TaxId);
-        bool issuerIsOurs = table.ContainsKey(issuer), recipientIsOurs = table.ContainsKey(recipient);
+        bool issuerIsOurs = table.ContainsKey(issuer) || index.Knows(issuer);
+        bool recipientIsOurs = table.ContainsKey(recipient) || index.Knows(recipient);
+        string where = $"OutboundSettings.{Environment}.establishments";
 
         return (issuerIsOurs, recipientIsOurs) switch
         {
             (true, false) => (invoice.Issuer, invoice.Recipient),
             (false, true) => (invoice.Recipient, invoice.Issuer),
+            (true, true) when index.CanList => throw Rejected(
+                $"as duas partes da nota (emitente {issuer}, destinatário {recipient}) são estabelecimentos do tenant '{TenantId}' "
+                + $"(pela tradução em {where} ou pela plataforma), e a nota não diz qual é o estabelecimento próprio."),
             (true, true) => throw Rejected(
-                $"as duas partes da nota (emitente {issuer}, destinatário {recipient}) estão em OutboundSettings.{Environment}.establishments "
+                $"as duas partes da nota (emitente {issuer}, destinatário {recipient}) estão em {where} "
                 + "e a nota não diz qual é o estabelecimento próprio."),
+            _ when index.CanList => throw Rejected(
+                $"nenhuma parte da nota (emitente {issuer}, destinatário {recipient}) tem tradução em {where} nem contribuinte na "
+                + $"plataforma, no tenant '{TenantId}' (ambiente '{Environment}')."),
             _ => throw Rejected(
-                $"nenhuma parte da nota (emitente {issuer}, destinatário {recipient}) está em OutboundSettings.{Environment}.establishments "
-                + $"do tenant '{TenantId}'."),
+                $"nenhuma parte da nota (emitente {issuer}, destinatário {recipient}) está em {where} do tenant '{TenantId}'."),
         };
     }
+
+    // O único contribuinte do CNPJ, com os dois códigos. O que falta não é preenchido com outro valor: nem o CNPJ, nem o
+    // identificador, nem um dado do ERP.
+    private AvalaraCompanyCodes CodesOf(string cnpj, PlatformEstablishment establishment)
+    {
+        if (establishment.CompanyCode is { } company && establishment.EstablishmentCode is { } code)
+        {
+            return new AvalaraCompanyCodes(company, code);
+        }
+
+        string[] missing = [.. new[]
+        {
+            (establishment.CompanyCode, "o código da empresa (codigoCIA)"),
+            (establishment.EstablishmentCode, "o código do contribuinte (codigo)"),
+        }.Where(f => f.Item1 is null).Select(f => f.Item2)];
+        throw Rejected(
+            $"o único contribuinte do estabelecimento {cnpj} na plataforma ({Candidate(establishment)}) está sem "
+            + $"{string.Join(" e ", missing)} (tenant '{TenantId}', ambiente '{Environment}'). O hub não preenche o código com outro "
+            + $"valor: corrija o cadastro na plataforma, ou traduza o estabelecimento em OutboundSettings.{Environment}.establishments.");
+    }
+
+    // Um candidato como o motivo o nomeia: a empresa pelo código e pela descrição, o contribuinte pelo código e pelo #id —
+    // que separa dois contribuintes de mesmo código na mesma empresa, e é o endereço do registro na plataforma (D9). O
+    // empresaId não entra: depois do código e da descrição, ele não acrescenta nada legível.
+    private static string Candidate(PlatformEstablishment establishment)
+        => (establishment.CompanyCode is { } company ? $"empresa '{company}'" : "empresa sem código")
+            + (establishment.CompanyName is { } name ? $" ({name})" : string.Empty)
+            + (establishment.EstablishmentCode is { } code ? $", contribuinte '{code}'" : ", contribuinte sem código")
+            + (establishment.PlatformId is { } id ? $" (#{id})" : string.Empty);
 
     // O rótulo do ambiente na tela de conectores.
     private string EnvironmentLabel => Environment switch
@@ -243,7 +334,7 @@ internal sealed class AvalaraOutboundSettings
     private Dictionary<string, JsonElement> Table()
     {
         Check(_problem, _establishmentsProblem);
-        return _establishments!;
+        return _establishments;
     }
 
     // O primeiro problema da lista vira rejeição.
@@ -351,7 +442,7 @@ internal sealed class AvalaraOutboundSettings
         return null;
     }
 
-    private static DispatchRejectedException Rejected(string what) => new($"Configuração do conector: {what}");
+    internal static DispatchRejectedException Rejected(string what) => new($"Configuração do conector: {what}");
 
     private static string? Text(JsonElement entry, string name)
         => entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty(name, out JsonElement v)

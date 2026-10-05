@@ -664,8 +664,12 @@ public class AvalaraComplianceDispatcherTests
         var options = Options.Create(new AvalaraOptions { Destination = "avalara", DocumentsPath = documentsPath });
         return new AvalaraComplianceDispatcher(
             http, options, token ?? new FakeTokenProvider("tok-padrao"), trace ?? new NoOpProcessingTrace(),
-            profiles ?? Profile(), logger ?? new CapturingLogger<AvalaraComplianceDispatcher>(), new FixedClock(Now));
+            profiles ?? Profile(), NoListing(), logger ?? new CapturingLogger<AvalaraComplianceDispatcher>(), new FixedClock(Now));
     }
+
+    // Estes testes são o caminho da tabela: o resolvedor sem listagem é o destino que não lista, e a tabela é a única
+    // fonte, como antes da change platform-establishment-resolution. A plataforma tem os testes dela.
+    private static PlatformEstablishmentResolver NoListing() => new([], new PlatformEstablishmentOptions(), TimeProvider.System);
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider
     {
@@ -754,7 +758,7 @@ public class AvalaraComplianceDispatcherTests
         Operation = DocumentStatus.Issued,
     };
 
-    private static GoodsInvoice SampleInvoice() => new()
+    internal static GoodsInvoice SampleInvoice() => new()
     {
         AccessKey = "35260612345678000190550010000001231000000123",
         Model = "55",

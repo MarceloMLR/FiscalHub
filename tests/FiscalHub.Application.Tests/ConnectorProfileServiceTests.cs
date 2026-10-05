@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using FiscalHub.Application.Auth;
 using FiscalHub.Application.Connectors;
+using FiscalHub.Application.Outbound;
 
 namespace FiscalHub.Application.Tests;
 
@@ -341,6 +342,26 @@ public class ConnectorProfileServiceTests
     }
 
     [Fact]
+    public async Task Saving_the_profile_even_unchanged_makes_the_establishment_resolver_list_again()
+    {
+        // O resolvedor do de/para do estabelecimento é observador como o freio e o token (platform-establishment-resolution,
+        // D8): salvar sem mudar nada também o faz reler a plataforma, porque a correção pode ter sido feita lá.
+        var h = new Harness();
+        var listing = new CountingListing();
+        var resolver = new PlatformEstablishmentResolver([listing], new PlatformEstablishmentOptions(), TimeProvider.System);
+        var service = new ConnectorProfileService(h.Profiles, h.Secrets, [resolver], new Tenant("tenant-a"));
+        TenantConnectorProfile profile = Profile();
+
+        await resolver.GetAsync(profile);
+        await service.SaveAsync(Request());
+        await resolver.GetAsync(profile);
+        await service.SaveAsync(Request());   // a mesma requisição: nada muda, e o aviso vale do mesmo jeito
+        await resolver.GetAsync(profile);
+
+        Assert.Equal(3, listing.Calls);
+    }
+
+    [Fact]
     public async Task Observers_are_told_even_when_the_upsert_fails_after_a_vault_write()
     {
         var h = new Harness();
@@ -604,6 +625,19 @@ public class ConnectorProfileServiceTests
         public RecordingObserver Observer { get; }
 
         public ConnectorProfileService Service { get; }
+    }
+
+    private sealed class CountingListing : IPlatformEstablishmentListing
+    {
+        public string Adapter => "Avalara";
+
+        public int Calls { get; private set; }
+
+        public Task<IReadOnlyList<PlatformEstablishment>> ListAsync(TenantConnectorProfile profile, CancellationToken ct = default)
+        {
+            Calls++;
+            return Task.FromResult<IReadOnlyList<PlatformEstablishment>>([]);
+        }
     }
 
     private sealed class Tenant(string tenantId) : ITenantContext

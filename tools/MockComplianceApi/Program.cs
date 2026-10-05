@@ -11,6 +11,9 @@ using System.Text.Json.Nodes;
 // Autentica como a plataforma (ADR-0027): POST /oauth/token (client_credentials com corpo JSON, a forma da coleção do
 // Postman do cliente) emite um token, e /documents* exigem o Bearer emitido aqui. /admin/* e a inspeção do payload
 // continuam abertos, porque são ferramenta de dev.
+// Lista os estabelecimentos como a plataforma (change platform-establishment-resolution): GET /taxcompliance/v2/empresa
+// (array puro) e /taxcompliance/v2/contribuinte?empresaId= ({"value": [...]}), na forma verificada no sandbox e no Swagger
+// em 2026-10-02, com $top, $skip, $orderby e $select. A conta é de mentira, e os modos ficam em /admin/contribuintes.
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -157,6 +160,48 @@ foreach (string path in documentPaths)
             : Results.NotFound());
 }
 
+// A listagem de estabelecimentos (change platform-establishment-resolution), na forma verificada no sandbox em 2026-10-02
+// e no Swagger: as empresas num array puro, os contribuintes de uma empresa em {"value": [...]}, o empresaId obrigatório
+// nos contribuintes, e a paginação pelo cliente com $top e $skip, sem nextLink. O $orderby ordena pelo campo pedido; sem
+// ele, a ordem muda a cada pedido, para que um hub que esquecesse a ordem falhasse aqui, e não por sorte. O $select devolve
+// só os campos pedidos. Exigem o Bearer, como o envio.
+var directory = new PlatformDirectory();
+
+app.MapGet("/taxcompliance/v2/empresa", (HttpRequest request) =>
+    !Authorized(request)
+        ? Unauthenticated()
+        : Results.Json(directory.Companies(request.Query)));
+
+app.MapGet("/taxcompliance/v2/contribuinte", (HttpRequest request, string? empresaId) =>
+    !Authorized(request)
+        ? Unauthenticated()
+        : string.IsNullOrWhiteSpace(empresaId)
+            ? Results.Json(new { mensagens = new[] { "empresaId é obrigatório (mock)" } }, statusCode: StatusCodes.Status400BadRequest)
+            : Results.Json(new { value = directory.Taxpayers(empresaId, request.Query) }));
+
+// Os modos da listagem (dev): a duplicidade (um CNPJ que já está, noutra empresa), o CNPJ sem cadastro, o limite de página
+// do próprio servidor, e os contadores de requisições, que contam cada página.
+app.MapPost("/admin/contribuintes/adicionar", (string cnpj, string? empresa, string? codigo) =>
+    directory.Add(cnpj, empresa ?? "QA", codigo ?? "001") is { } added
+        ? Results.Ok(added)
+        : Results.NotFound(new { mensagem = $"empresa '{empresa}' não existe no mock" }));
+
+app.MapPost("/admin/contribuintes/remover", (string cnpj) => Results.Ok(new { removidos = directory.Remove(cnpj) }));
+
+app.MapPost("/admin/contribuintes/restaurar", () =>
+{
+    directory.Restore();
+    return Results.Ok(directory.Snapshot());
+});
+
+app.MapPost("/admin/listagem/limite", (int? itens) =>
+{
+    directory.PageLimit = itens is > 0 ? itens : null;
+    return Results.Ok(new { limite = directory.PageLimit });
+});
+
+app.MapGet("/admin/contribuintes", () => Results.Ok(directory.Snapshot()));
+
 // Toggle (dev): força o resultado padrão dos próximos documentos (carregado | erro | rejeitar), com motivo
 // opcional (?motivo=...), pra exercitar erro, recusa e reprocesso ao vivo.
 app.MapPost("/admin/result/{value}", (string value, string? motivo) =>
@@ -192,6 +237,145 @@ internal sealed class ResultToggle
 internal sealed class TokenToggle
 {
     public bool Refuse { get; set; }
+}
+
+// A conta de mentira da listagem (dev): uma empresa real com os quatro estabelecimentos da brmf e o CNPJ dos XMLs de exemplo,
+// e as empresas de teste ao lado, como no sandbox. Os códigos dos contribuintes NÃO seguem a ordem do CNPJ (a Matriz, 0001,
+// não é "001"): um código derivado da ordem falharia aqui, em vez de passar por coincidência.
+internal sealed class PlatformDirectory
+{
+    private readonly object _gate = new();
+    private List<Company> _companies = Initial();
+    private int _nextId = 90001;
+
+    public int? PageLimit { get; set; }
+
+    public int CompanyRequests { get; private set; }
+
+    public int TaxpayerRequests { get; private set; }
+
+    public List<Dictionary<string, object?>> Companies(IQueryCollection query)
+    {
+        lock (_gate)
+        {
+            CompanyRequests++;
+            IEnumerable<Dictionary<string, object?>> rows = _companies.Select(c => new Dictionary<string, object?>
+            {
+                ["empresaId"] = c.EmpresaId,
+                ["codigoCIA"] = c.CodigoCia,
+                ["descricao"] = c.Descricao,
+                ["idPortalCompany"] = c.IdPortalCompany,
+            });
+            return Page(rows, query);
+        }
+    }
+
+    public List<Dictionary<string, object?>> Taxpayers(string empresaId, IQueryCollection query)
+    {
+        lock (_gate)
+        {
+            TaxpayerRequests++;
+            Company? company = _companies.FirstOrDefault(c => c.EmpresaId.ToString() == empresaId);
+            IEnumerable<Dictionary<string, object?>> rows = (company?.Taxpayers ?? []).Select(t => new Dictionary<string, object?>
+            {
+                ["contribuinteId"] = t.ContribuinteId,
+                ["empresaId"] = company!.EmpresaId,
+                ["codigo"] = t.Codigo,
+                ["cnpj"] = t.Cnpj,
+                ["razao"] = t.Razao,
+            });
+            return Page(rows, query);
+        }
+    }
+
+    public object? Add(string cnpj, string codigoCia, string codigo)
+    {
+        lock (_gate)
+        {
+            Company? company = _companies.FirstOrDefault(c => c.CodigoCia == codigoCia);
+            if (company is null)
+            {
+                return null;
+            }
+
+            var taxpayer = new Taxpayer(_nextId++, codigo, cnpj, $"Contribuinte adicionado ({codigoCia})");
+            company.Taxpayers.Add(taxpayer);
+            return new { empresa = company.CodigoCia, taxpayer.ContribuinteId, taxpayer.Codigo, taxpayer.Cnpj };
+        }
+    }
+
+    public int Remove(string cnpj)
+    {
+        lock (_gate)
+        {
+            return _companies.Sum(c => c.Taxpayers.RemoveAll(t => t.Cnpj == cnpj));
+        }
+    }
+
+    public void Restore()
+    {
+        lock (_gate)
+        {
+            _companies = Initial();
+            PageLimit = null;
+            CompanyRequests = 0;
+            TaxpayerRequests = 0;
+        }
+    }
+
+    public object Snapshot()
+    {
+        lock (_gate)
+        {
+            return new
+            {
+                empresas = _companies.Select(c => new { c.EmpresaId, c.CodigoCia, c.Descricao, contribuintes = c.Taxpayers }),
+                limite = PageLimit,
+                requisicoes = new { empresas = CompanyRequests, contribuintes = TaxpayerRequests },
+            };
+        }
+    }
+
+    // $orderby pelo campo pedido (sem ele, uma ordem que muda a cada pedido), $skip, $top com o limite de página do próprio
+    // servidor, e $select.
+    private List<Dictionary<string, object?>> Page(IEnumerable<Dictionary<string, object?>> rows, IQueryCollection query)
+    {
+        string? orderBy = query["$orderby"].FirstOrDefault()?.Trim();
+        List<Dictionary<string, object?>> ordered = string.IsNullOrEmpty(orderBy)
+            ? [.. rows.OrderBy(_ => Random.Shared.Next())]
+            : [.. rows.OrderBy(r => r.GetValueOrDefault(orderBy) is int number ? number.ToString("D12") : r.GetValueOrDefault(orderBy)?.ToString(), StringComparer.Ordinal)];
+
+        int skip = int.TryParse(query["$skip"], out int s) && s > 0 ? s : 0;
+        int top = int.TryParse(query["$top"], out int t) && t > 0 ? t : ordered.Count;
+        int size = PageLimit is { } limit ? Math.Min(top, limit) : top;
+
+        string[]? select = query["$select"].FirstOrDefault()?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return [.. ordered.Skip(skip).Take(size).Select(r => select is null ? r : r.Where(kv => select.Contains(kv.Key)).ToDictionary())];
+    }
+
+    private static List<Company> Initial() =>
+    [
+        new(7410, "005", "RESULTA IND E COM MAQUINAS (mock)", "7e93b784-0000-4000-8000-000000007410",
+        [
+            new(10001, "010", "44278225000180", "CONTOSO MATRIZ (mock)"),
+            new(10002, "007", "44278225000260", "CONTOSO SP-01 (mock)"),
+            new(10003, "021", "44278225000341", "CONTOSO SAL-01 (mock)"),
+            new(10004, "003", "44278225003448", "CONTOSO RJ-01 (mock)"),
+            new(10005, "015", "12345678000190", "EMITENTE DOS XMLS DE EXEMPLO (mock)"),
+        ]),
+        new(7411, "Padrão", "Empresa padrão (mock)", "7e93b784-0000-4000-8000-000000007411",
+        [
+            new(20001, "001", "11222333000181", "PADRÃO (mock)"),
+        ]),
+        new(7412, "QA", "QA (mock)", "7e93b784-0000-4000-8000-000000007412",
+        [
+            new(30001, "001", "99888777000166", "QA (mock)"),
+        ]),
+    ];
+
+    private sealed record Company(int EmpresaId, string CodigoCia, string Descricao, string IdPortalCompany, List<Taxpayer> Taxpayers);
+
+    internal sealed record Taxpayer(int ContribuinteId, string Codigo, string Cnpj, string Razao);
 }
 
 // Exposto para o teste ponta a ponta subir o mock em memória (WebApplicationFactory<Program>).

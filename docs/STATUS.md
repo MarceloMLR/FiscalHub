@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-10-02
+**Última atualização:** 2026-10-05
 
 ## Ferramentas da sessão
 
@@ -225,12 +225,17 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
   - **Falta:** dado real. A base não tem o caso.
   - **Prova:** medir na base do cliente (item × tipo, fora os retidos).
   - **Sintoma:** notas recusadas pelo hub ("tributo repetido no item"). É visível, mas é rejeição nossa.
-- [ ] **Estabelecimentos do cliente e transferência entre filiais por XML.** (CNV D4, D5)
-  - **Falta:** a tabela de `establishments` de um cliente com várias filiais, e o XML de transferência, em
-    que as duas partes estão na tabela.
-  - **Prova:** configurar todas as filiais antes da virada e mandar um XML de transferência.
-  - **Sintoma:** rejeição em massa "sem tradução" na virada, e o XML de transferência rejeitado como
-    ambíguo.
+- [ ] **Estabelecimentos do cliente e transferência entre filiais por XML.** (CNV D4, D5; ADR-0033)
+  - **Falta:** a listagem da plataforma de um cliente com várias filiais, e o XML de transferência, em que as duas partes
+    são estabelecimentos do tenant (pela tabela ou pela plataforma).
+  - **Desde 2026-10-05 (ADR-0033):** a virada deixa de depender da tabela `establishments`. As filiais cadastradas na
+    plataforma resolvem sozinhas, e a tabela é só sobreposição. O que não está na plataforma é recusado nomeando o CNPJ.
+  - **A brmf:** com a tabela vazia, a `Matriz` resolve e despacha. A `SP-01`, a `SAL-01` e o `RJ-01` não têm NF-e 55 no
+    fiscosysdev, e só se provaram no ponta a ponta automatizado
+    (`DispatchToMockTests.The_four_brmf_establishments_resolve_and_dispatch_with_an_empty_table`, com o cabeçalho trocado).
+  - **Prova:** conferir a listagem da plataforma de todas as filiais antes da virada, e mandar um XML de transferência.
+  - **Sintoma:** rejeição "não tem contribuinte cadastrado na plataforma" das filiais que faltam, e o XML de transferência
+    rejeitado como ambíguo.
 - [ ] **Lugares ainda sem tradução.** (CNV D7, D8)
   - **Falta:** diferencial de alíquota, IS, encargo e retenções que não são de ISS vão como omissão.
   - **Prova:** tabela de códigos e lugares com a Avalara.
@@ -249,6 +254,28 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
     contribuinte errado. Nao ha rejeicao, nao ha log, e so aparece na conferencia da apuracao.
   - **Tratativa pretendida:** se o CNPJ casar com mais de um contribuinte, recusar com motivo legivel
     nomeando os candidatos, em vez de escolher. Tela de de/para so se a duplicidade se mostrar comum.
+  - **Desde 2026-10-05, a tratativa está implementada** (ADR-0033, change `platform-establishment-resolution`):
+    - **a recusa:** mais de um contribuinte com o CNPJ é recusa, sem desempate e sem despacho. O motivo nomeia cada
+      candidato pela empresa (código e descrição) e pelo contribuinte (código e `#contribuinteId`);
+    - **a completude:** a listagem é tudo ou nada, porque uma listagem parcial esconderia a duplicidade na empresa que
+      falhou;
+    - **a evidência:** no mock e no ponta a ponta
+      (`DispatchToMockTests.A_duplicate_on_the_platform_is_refused_naming_both_and_nothing_is_posted`), e nos testes do
+      resolvedor e do dispatcher.
+  - **Continua aberto:** até a prova numa conta real, com o mesmo CNPJ em duas empresas.
+
+- [ ] **Os campos ordenáveis da listagem de estabelecimentos.** (ADR-0033 §6)
+  - **Falta:** saber se o `empresaId` e o `contribuinteId` são ordenáveis. O `$orderby` está declarado no Swagger nos dois
+    endpoints, mas o exemplo da documentação é o `LastModified`.
+  - **Prova:** a mesma listagem contra o sandbox com o `Avalara:ListingPageSize` padrão e com 2. As duas têm de dar as
+    mesmas empresas e os mesmos contribuintes.
+  - **Sintoma:** a recusa do campo (4xx) é alta. O campo ignorado em silêncio deixa a ordem instável: um item pode cair em
+    duas páginas ou em nenhuma, e o que falta é truncamento silencioso.
+- [ ] **O `subscriptionId` da listagem.** (ADR-0033, Open Questions do design)
+  - **Falta:** saber o que ele escopa. É opcional nos dois endpoints, e a listagem não o manda: a credencial já limita à
+    conta.
+  - **Prova:** uma credencial com mais de uma subscription, se houver.
+  - **Sintoma:** um CNPJ repetido entre subscriptions vira recusa por duplicidade, que é o lado seguro.
 
 ### Credencial e cofre
 
@@ -263,9 +290,10 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
     `DescribeAsync` (as versões de um nome conhecido) passa com a condição.
   - **Sintoma:** um host comprometido sobrescreve segredos que não são de conector; ou, com a condição errada, a tela
     de conectores falha ao gravar com `ForbiddenByRbac`.
-- [ ] **Recusa lembrada e token com mais de uma instância.** (ADR-0027 §7)
+- [ ] **Recusa lembrada e token com mais de uma instância.** (ADR-0027 §7; ADR-0033 §8)
   - **Falta:** o cache de token e a recusa lembrada são por processo. Salvar o perfil esquece só na instância que
-    atendeu o `PUT`.
+    atendeu o `PUT`. A listagem de estabelecimentos guardada e a recusa dela também (ADR-0033): nas outras réplicas, a
+    listagem antiga vale até o vencimento da janela (10 minutos).
   - **Prova:** com duas réplicas, recusar a credencial, corrigir pela tela e contar os pedidos de token por réplica.
   - **Sintoma:** até 5 minutos de "credencial recusada" nas outras réplicas depois da correção. É visível e se
     desfaz sozinho.
@@ -615,6 +643,9 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **Sintoma:** se o portal mostrar os anexos ao solicitante, o Viewer baixa por lá as fotos que a tela e a API lhe
     negam.
 - [ ] **A tela da tradução de estabelecimentos.** (ADR-0032 §7; change `erp-company-directory-and-card-filters`, D12)
+  - **Revisto pelo ADR-0033 (2026-10-05):** deixa de ser o próximo passo. O de/para vem da listagem da plataforma, e a
+    tabela é só sobreposição. A `SAL-01` e o `RJ-01` resolvem pela plataforma. A tela entra só se a duplicidade se
+    mostrar comum (o item do mesmo CNPJ).
   - **Hoje:** o `establishments` das `OutboundSettings` não tem tela. Entra pelo seed e por SQL, e a tela o preserva ao
     salvar.
   - **O que foi decidido:** ele não é semeado pelo diretório. Os códigos são da plataforma e nunca vêm do ERP

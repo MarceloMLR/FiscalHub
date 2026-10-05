@@ -17,6 +17,28 @@ public sealed class AvalaraOptions
     public string TokenPath { get; set; } = "oauth/token";
 
     /// <summary>
+    /// Caminho da listagem de empresas, relativo à URL base (change <c>platform-establishment-resolution</c>, D6). O padrão é
+    /// o verificado no sandbox, e o mock atende o mesmo.
+    /// </summary>
+    public string CompaniesPath { get; set; } = "taxcompliance/v2/empresa";
+
+    /// <summary>Caminho da listagem de contribuintes de uma empresa (<c>?empresaId=</c>), relativo à URL base.</summary>
+    public string TaxpayersPath { get; set; } = "taxcompliance/v2/contribuinte";
+
+    /// <summary>
+    /// O <c>$top</c> de cada página da listagem, fixo durante ela. Um servidor que limite a página abaixo dele só faz a
+    /// leitura dar mais páginas, porque o <c>$skip</c> soma os itens recebidos. Zero ou negativo impede o host de subir.
+    /// </summary>
+    public int ListingPageSize { get; set; } = 100;
+
+    /// <summary>
+    /// O teto de páginas por lista, a guarda geral contra a leitura que não termina. É em páginas, e não em itens: o teto
+    /// efetivo em itens é 49 vezes o tamanho real da página (o menor entre o <see cref="ListingPageSize"/> e o limite do
+    /// servidor) — 4.900 com páginas de 100, 490 se o servidor limitar a 10. Zero ou negativo impede o host de subir.
+    /// </summary>
+    public int ListingMaxPages { get; set; } = 50;
+
+    /// <summary>
     /// Margem para renovar o token antes de ele expirar, evitando usar um token que vence no meio
     /// da requisição (e devolve 401).
     /// </summary>

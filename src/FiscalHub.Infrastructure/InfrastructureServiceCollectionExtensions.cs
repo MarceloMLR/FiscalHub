@@ -187,10 +187,10 @@ public static class InfrastructureServiceCollectionExtensions
                 // tenantId/clientId do Entra entram quando a app registration existir; em dev o token vem do Azure CLI.
                 InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":500,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300}}""",
                 OutboundAdapter = "Avalara",
-                // establishments: CNPJ do estabelecimento próprio → códigos na plataforma (ADR-0026) — nunca vêm do ERP.
-                // Sandbox: a Contoso do D365 (brmf) e o tenant-a dos XMLs de exemplo, os dois apontando para a empresa do
-                // JSON real do ambiente Avalara de teste. Production sem tradução: ali o envio é rejeitado com motivo claro.
-                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"},"12345678000190":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}""",
+                // establishments: a sobreposição opcional do CNPJ do estabelecimento para os códigos da plataforma (ADR-0033),
+                // que nunca vêm do ERP. Vazia no sandbox, porque o mock lista os estabelecimentos como a plataforma (a brmf e
+                // o CNPJ dos XMLs de exemplo): um banco novo exercita o de/para automático. Uma entrada aqui ganha da plataforma.
+                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}""",
                 // Chamados: mock local pra demo (funciona sem conta). Troque p/ "Freshdesk" + domain/apiKey na tela de Configurações.
                 SupportAdapter = "Local",
                 SupportSettings = """{"domain":"suaempresa.freshdesk.com","apiKeyRef":"kv:fh-tenant-a--support--apikey","requesterEmail":"suporte@acme.com","priority":2}""",

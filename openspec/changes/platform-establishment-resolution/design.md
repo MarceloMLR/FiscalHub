@@ -420,12 +420,10 @@ dizer por que esta listagem não é aquele diretório (D1).
 
 ## Open Questions
 
-- **Os quatro CNPJs da `brmf` estão cadastrados como contribuintes no sandbox da Avalara?** O seed traduz a `Matriz` para
-  `20247332000182`, o que sugere que ao menos ela não estava quando a tradução foi escrita. A resposta não muda a spec nem
-  as tarefas, só o desfecho da prova manual:
-  - **se estiverem:** as notas da `Matriz` são enviadas com os códigos da plataforma;
-  - **se não estiverem:** a prova manual registra a recusa nomeando o CNPJ, que é um dos cenários da spec, e o caminho feliz
-    fica provado no mock.
+- ~~**Os quatro CNPJs da `brmf` estão cadastrados como contribuintes no sandbox da Avalara?**~~ **Respondida (Marcelo,
+  2026-10-05): não.** O fiscosysdev e o sandbox da Avalara são ambientes sem relação, e nenhum CNPJ da `brmf` existe lá.
+  Na prova 6.2, a recusa nomeando o CNPJ é o desfecho esperado. O que ela prova é o `$orderby` e o `$skip` contra a
+  plataforma real, e o caminho feliz fica provado no mock.
 - **O que o `subscriptionId` escopa?** É opcional nos dois endpoints (Swagger, 2026-10-02), e a listagem não o manda, porque
   a credencial já limita à conta. A pergunta não bloqueia, e a resposta não muda a spec nem as tarefas:
   - **se a credencial enxerga mais de uma subscription:** um CNPJ repetido entre elas vira recusa por duplicidade, que é o

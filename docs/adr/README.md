@@ -33,13 +33,14 @@ substitui o anterior (em vez de reescrever a história).
 | [0023](0023-descoberta-por-polling-com-change-tracking-no-d365.md) | Descoberta por polling como garantia de captura no D365 F&O | Aceito — revisado pelo 0024 |
 | [0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md) | Feed de mudanças por janela de data no D365 (porta, marca d'água, keyset, lease) | Aceito — revisado pelo 0025; complementado pelo 0031 (rebobinar pela tela) |
 | [0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md) | Montagem do documento D365, origem na referência e supressão de republicação | Aceito — §6 revisado pelo 0026 |
-| [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito — §2 revisado pelo 0027; a omissão visível revisada pelo 0030 |
+| [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito — §2 revisado pelo 0027; a omissão visível revisada pelo 0030; §3 revisado pelo 0033 |
 | [0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md) | Credencial da plataforma por tenant, segredo pela tela no cofre, e a resposta como quarta foto | Aceito — §8 revisado pelo 0030 |
 | [0028](0028-limite-de-tenant.md) | Limite de tenant: o tenant vem de quem está logado, nunca da requisição; o locator mora em quem o lê | Aceito — revisado pelo 0032 |
 | [0029](0029-integracao-automatica-e-o-poll.md) | Integração automática é o `poll.enabled`; o perfil perde o flag de tempo real | Aceito |
 | [0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md) | O grupo da nota vem do estabelecimento próprio e do dia fiscal; a tela lê o motivo pela foto | Aceito — revisado pelo 0032 |
 | [0031](0031-painel-do-coletor-rebobinar-pela-tela-e-teste-de-credencial.md) | O painel do coletor, rebobinar pela tela sob o lease, o teste de credencial com token novo e o freio no botão, e os módulos como apresentação | Aceito |
 | [0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md) | O diretório vem do ERP do tenant, a descoberta por período lê o D365 na fila do coletor, o CNPJ guarda as letras, e os cards contam por período e modelo no servidor | Aceito |
+| [0033](0033-de-para-de-estabelecimento-pela-plataforma.md) | O de/para do estabelecimento vem da listagem da plataforma, casada pelo CNPJ, paginada até a página vazia e guardada por janela; a recusa fica onde haveria escolha, e a tabela `establishments` vira sobreposição | Aceito |
 
 ## Planejados
 

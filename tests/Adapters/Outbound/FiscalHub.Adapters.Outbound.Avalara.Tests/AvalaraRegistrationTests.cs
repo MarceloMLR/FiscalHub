@@ -44,7 +44,7 @@ public class AvalaraRegistrationTests
         await using ServiceProvider sp = Build(services => services.AddAvalaraComplianceDispatcher());
         IOptionsMonitor<HttpClientFactoryOptions> options = sp.GetRequiredService<IOptionsMonitor<HttpClientFactoryOptions>>();
 
-        foreach (string client in new[] { "avalara-token", "IComplianceDispatcher<GoodsInvoice>" })
+        foreach (string client in new[] { "avalara-token", "IComplianceDispatcher<GoodsInvoice>", "avalara-listing" })
         {
             Func<string, bool> redact = options.Get(client).ShouldRedactHeaderValue;
             Assert.True(redact("Authorization"), client);
@@ -52,6 +52,36 @@ public class AvalaraRegistrationTests
             // O padrão do framework também redige tudo; a regra é nossa, explícita, e não depende dele.
             Assert.Equal(typeof(AvalaraOptions).Assembly, redact.Method.DeclaringType!.Assembly);
         }
+    }
+
+    [Fact]
+    public async Task The_establishment_listing_is_declared_with_the_adapter_name()
+    {
+        await using ServiceProvider sp = Build(services => services.AddAvalaraComplianceDispatcher());
+
+        IPlatformEstablishmentListing listing = Assert.Single(sp.GetServices<IPlatformEstablishmentListing>());
+
+        Assert.IsType<AvalaraEstablishmentListing>(listing);
+        Assert.Equal("Avalara", listing.Adapter);
+        Assert.Equal(Assert.Single(sp.GetServices<IConnectorCredentialTest>()).Adapter, listing.Adapter);
+    }
+
+    [Theory]
+    [InlineData(0, 50, "Avalara:ListingPageSize")]
+    [InlineData(-1, 50, "Avalara:ListingPageSize")]
+    [InlineData(100, 0, "Avalara:ListingMaxPages")]
+    [InlineData(100, -1, "Avalara:ListingMaxPages")]
+    public async Task Zero_or_negative_page_size_or_ceiling_is_refused_naming_the_setting(int pageSize, int maxPages, string setting)
+    {
+        await using ServiceProvider sp = Build(services => services.AddAvalaraComplianceDispatcher(o =>
+        {
+            o.ListingPageSize = pageSize;
+            o.ListingMaxPages = maxPages;
+        }));
+
+        var ex = Assert.Throws<OptionsValidationException>(() => sp.GetRequiredService<IOptions<AvalaraOptions>>().Value);
+
+        Assert.Contains(setting, ex.Message);
     }
 
     [Fact]
@@ -86,6 +116,10 @@ public class AvalaraRegistrationTests
         });
         services.AddSingleton<ISecretStore, InMemorySecrets>();
         services.AddSingleton<IConnectorProfileStore, InMemoryProfiles>();
+        // O resolvedor do núcleo, como o Host o registra: o dispatcher o recebe, e o salvar do perfil o avisa.
+        services.AddSingleton(new PlatformEstablishmentOptions());
+        services.AddSingleton<PlatformEstablishmentResolver>();
+        services.AddSingleton<IConnectorProfileObserver>(sp => sp.GetRequiredService<PlatformEstablishmentResolver>());
         register(services);
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }
