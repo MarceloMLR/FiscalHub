@@ -31,7 +31,7 @@ public class D365DocumentDiscoveryTests
     {
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
-        IReadOnlyList<DocumentReference> discovered = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+        IReadOnlyList<DocumentReference> discovered = (await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"))).References;
 
         var feedHttp = new SequencedHttpMessageHandler().Respond(D365Fixtures.Text(SpPeriod));
         var feed = new D365ChangeFeed(new HttpClient(feedHttp), h.Profiles, new FakeTokens(), new D365ChangeFeedOptions(), new FakeTime(DateTimeOffset.UnixEpoch), new ListLogger<D365ChangeFeed>());
@@ -53,7 +53,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+        IReadOnlyList<DocumentReference> found = (await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"))).References;
 
         Assert.Equal(2, h.Http.Requests.Count);
         Assert.Equal($"{Env}/data/FiscalEstablishments", h.Http.Requests[0].RequestUri!.GetLeftPart(UriPartial.Path));
@@ -86,9 +86,10 @@ public class D365DocumentDiscoveryTests
     {
         var h = new Harness();
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01", start: new DateOnly(2026, 8, 8), end: new DateOnly(2026, 8, 7)));
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria(Sp01, "SP-01", start: new DateOnly(2026, 8, 8), end: new DateOnly(2026, 8, 7)));
 
-        Assert.Empty(found);
+        Assert.Empty(result.References);
+        Assert.Null(result.EstablishmentTaxId);   // o pedido inválido não resolve escopo
         Assert.Empty(h.Http.Requests);
     }
 
@@ -98,7 +99,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register));
 
-        Assert.Empty(await h.Discovery.DiscoverAsync(Criteria("12345678000190", "0001")));
+        Assert.Empty((await h.Discovery.DiscoverAsync(Criteria("12345678000190", "0001"))).References);
         Assert.Single(h.Http.Requests);
     }
 
@@ -169,7 +170,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(period.ToJsonString());
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, branch: null));
+        IReadOnlyList<DocumentReference> found = (await h.Discovery.DiscoverAsync(Criteria(Matriz, branch: null))).References;
 
         Assert.Equal(["Matriz", "SP-01", "SP-01"], found.Select(r => r.Metadata!.BranchCode));
         Assert.Equal(["44278225000180", "44278225000260", "44278225000260"], found.Select(r => r.Metadata!.CompanyCode));   // o CNPJ do estabelecimento, como antes
@@ -181,7 +182,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+        IReadOnlyList<DocumentReference> found = (await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"))).References;
 
         Assert.EndsWith("and ((dataAreaId eq 'brmf' and FiscalEstablishment eq 'SP-01'))", Query(h.Http.Requests[1])["$filter"]);
         Assert.Equal(2, found.Count);
@@ -221,7 +222,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(period.ToJsonString());
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+        IReadOnlyList<DocumentReference> found = (await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"))).References;
 
         Assert.Equal(["brmf|BRMF06-110000034"], found.Select(r => r.NaturalKey));
         Assert.Contains(h.Logger.Entries, e => e.Text.Contains("brmf|BRMF06-110000035") && e.Text.Contains("não é da empresa 44278225000180"));
@@ -237,7 +238,7 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(period.ToJsonString());
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+        IReadOnlyList<DocumentReference> found = (await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"))).References;
 
         Assert.Equal(["brmf|BRMF06-110000034", "brmf|BRMF06-110000035"], found.Select(r => r.NaturalKey));
     }
@@ -271,7 +272,7 @@ public class D365DocumentDiscoveryTests
             .Respond(D365Fixtures.Response(rows[1]))
             .Respond("""{"value":[]}""");
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+        IReadOnlyList<DocumentReference> found = (await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"))).References;
 
         Assert.Equal(["brmf|BRMF06-110000034", "brmf|BRMF06-110000035"], found.Select(r => r.NaturalKey));
         Assert.Equal(4, h.Http.Requests.Count);
@@ -287,11 +288,113 @@ public class D365DocumentDiscoveryTests
         var h = new Harness();
         h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text("directory/period-Matriz-2017-01-15.json"));
 
-        IReadOnlyList<DocumentReference> found = await h.Discovery.DiscoverAsync(
-            Criteria(Matriz, "Matriz", start: new DateOnly(2017, 1, 15), end: new DateOnly(2017, 1, 15)));
+        IReadOnlyList<DocumentReference> found = (await h.Discovery.DiscoverAsync(
+            Criteria(Matriz, "Matriz", start: new DateOnly(2017, 1, 15), end: new DateOnly(2017, 1, 15)))).References;
 
         Assert.Empty(found);
         Assert.Contains(h.Logger.Warnings, w => w.Contains("'01'") && w.Contains("BRMF06-110000030"));
+    }
+
+    // ---------- o estabelecimento que a descoberta resolveu (change explicit-credential-and-execution-cnpj, D5) ----------
+    // O CNPJ é o do cadastro, decidido pelo escopo antes de ler as notas: vale com zero notas, e não depende do que as notas
+    // trazem. Sem CNPJ quando o escopo tem mais de um estabelecimento, ou nenhum.
+
+    [Fact]
+    public async Task The_sp01_gives_its_establishment_cnpj()
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
+
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+
+        Assert.Equal(2, result.References.Count);
+        Assert.Equal(Sp01, result.EstablishmentTaxId);
+    }
+
+    [Fact]
+    public async Task The_sp01_without_any_note_still_gives_its_establishment_cnpj()
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond("""{"value":[]}""");
+
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+
+        Assert.Empty(result.References);
+        Assert.Equal(Sp01, result.EstablishmentTaxId);
+    }
+
+    [Fact]
+    public async Task The_whole_company_with_four_establishments_gives_no_cnpj()
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond(D365Fixtures.Text(SpPeriod));
+
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria(Matriz, branch: null));
+
+        Assert.Equal(2, result.References.Count);
+        Assert.Null(result.EstablishmentTaxId);
+    }
+
+    [Fact]
+    public async Task A_root_with_a_single_establishment_asked_without_branch_gives_its_cnpj()
+    {
+        // Derivada: o cadastro gravado, com um estabelecimento de outra raiz, sozinho nela.
+        JsonObject register = JsonNode.Parse(D365Fixtures.Text(Register))!.AsObject();
+        register["value"]!.AsArray().Add(new JsonObject
+        {
+            ["dataAreaId"] = "brmf", ["FiscalEstablishmentId"] = "OUT-01", ["CNPJ"] = "11.222.333/0001-81", ["Name"] = "Outra empresa",
+        });
+        var h = new Harness();
+        h.Http.Respond(register.ToJsonString()).Respond("""{"value":[]}""");
+
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria("11222333000181", branch: null));
+
+        Assert.Equal("11222333000181", result.EstablishmentTaxId);
+    }
+
+    [Fact]
+    public async Task The_alphanumeric_establishment_gives_its_cnpj_with_the_letters()
+    {
+        // Derivada: o cadastro gravado, com um estabelecimento de CNPJ alfanumérico.
+        JsonObject register = JsonNode.Parse(D365Fixtures.Text(Register))!.AsObject();
+        register["value"]!.AsArray().Add(new JsonObject
+        {
+            ["dataAreaId"] = "brmf", ["FiscalEstablishmentId"] = "ALFA-01", ["CNPJ"] = "12.ABC.345/01DE-35", ["Name"] = "Filial alfanumérica",
+        });
+        var h = new Harness();
+        h.Http.Respond(register.ToJsonString()).Respond("""{"value":[]}""");
+
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria("12ABC34501DE35", "ALFA-01"));
+
+        Assert.Equal("12ABC34501DE35", result.EstablishmentTaxId);
+    }
+
+    [Fact]
+    public async Task A_branch_outside_the_register_gives_no_cnpj_and_reads_no_notes()
+    {
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register));
+
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria(Matriz, "XX-99"));
+
+        Assert.Empty(result.References);
+        Assert.Null(result.EstablishmentTaxId);
+        Assert.Single(h.Http.Requests);   // só o cadastro
+    }
+
+    [Fact]
+    public async Task A_note_with_another_cnpj_of_the_same_root_does_not_change_the_establishment_cnpj()
+    {
+        // Derivada: a segunda NFS-e gravada da SP-01 traz outra ordem da mesma raiz. O CNPJ é o do cadastro, e não o da nota.
+        JsonObject period = JsonNode.Parse(D365Fixtures.Text(SpPeriod))!.AsObject();
+        period["value"]![1]!["FiscalEstablishmentCNPJCPF"] = "442782250099-99";
+        var h = new Harness();
+        h.Http.Respond(D365Fixtures.Text(Register)).Respond(period.ToJsonString());
+
+        DiscoveryResult result = await h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01"));
+
+        Assert.Equal(["44278225000260", "44278225009999"], result.References.Select(r => r.Metadata!.CompanyCode));
+        Assert.Equal(Sp01, result.EstablishmentTaxId);
     }
 
     // ---------- a busca por chave (reprocesso) ----------
@@ -355,6 +458,34 @@ public class D365DocumentDiscoveryTests
         await Assert.ThrowsAsync<ConnectorSettingsException>(() => h.Discovery.DiscoverAsync(Criteria(Matriz, "SP-01")));
 
         Assert.Empty(h.Http.Requests);
+    }
+
+    [Fact]
+    public async Task Profile_without_auth_fails_with_the_reason_and_without_any_request()
+    {
+        // O provider de produção, e não o falso: a falta de credencial é o motivo, e nenhuma outra identidade entra
+        // (change explicit-credential-and-execution-cnpj, D2).
+        var http = new SequencedHttpMessageHandler();
+        var profiles = new FakeProfiles
+        {
+            Profile = new TenantConnectorProfile
+            {
+                TenantId = "tenant-a",
+                Environment = "Sandbox",
+                InboundAdapter = "Dynamics365",
+                InboundSettings = $$"""{"url":"{{Env}}","companies":["brmf"]}""",
+                OutboundAdapter = "Avalara",
+            },
+        };
+        var discovery = new D365DocumentDiscovery(
+            new HttpClient(http), profiles,
+            new ClientCredentialsD365TokenProvider(new EmptyVault(), new ListLogger<ClientCredentialsD365TokenProvider>()),
+            new D365ChangeFeedOptions(), new FakeTime(DateTimeOffset.UnixEpoch), new ListLogger<D365DocumentDiscovery>());
+
+        var ex = await Assert.ThrowsAsync<ConnectorSettingsException>(() => discovery.DiscoverAsync(Criteria(Matriz, "SP-01")));
+
+        Assert.StartsWith("A credencial do ERP não está configurada", ex.Message);
+        Assert.Empty(http.Requests);   // nem o cadastro, nem as notas
     }
 
     [Fact]

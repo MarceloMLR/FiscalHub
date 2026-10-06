@@ -195,6 +195,8 @@ export interface ExecutionSummary {
   mode: IntegrationModeName;
   companyCode: string;
   branchCode?: string | null;
+  // O CNPJ do estabelecimento que a descoberta resolveu; ausente com várias filiais e nas execuções de antes do campo.
+  establishmentTaxId?: string | null;
   periodStart: string;
   periodEnd: string;
   discoveredCount: number;

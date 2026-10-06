@@ -9,18 +9,19 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace FiscalHub.Adapters.Ingress.D365Poll.Tests;
 
 /// <summary>
-/// Monta as NF-e modelo 55 de um F&amp;O REAL. Opt-in, no mesmo padrão do teste do feed: só roda com
-/// <c>FISCALHUB_D365_URL</c> definida (e o desenvolvedor logado no Azure CLI); <c>FISCALHUB_D365_COMPANY</c> escolhe a
-/// empresa (padrão brmf). Sem a variável, aparece como pulado e não toca a rede.
+/// Monta as NF-e modelo 55 de um F&amp;O REAL. Opt-in, no mesmo padrão do teste do feed: só roda com a URL e a credencial
+/// do app do conector definidas (<see cref="D365IntegrationEnvironment"/>), e autentica como o conector, por client
+/// credentials; <c>FISCALHUB_D365_COMPANY</c> escolhe a empresa (padrão brmf). Sem as variáveis, aparece como pulado,
+/// nomeando o que falta, e não toca a rede.
 /// </summary>
 public class D365GoodsInvoiceSourceIntegrationTests
 {
     [D365IntegrationFact]
     public async Task Every_goods_invoice_of_the_company_assembles_and_twice_gives_the_same_fingerprint()
     {
-        string url = Environment.GetEnvironmentVariable("FISCALHUB_D365_URL")!;
+        string url = D365IntegrationEnvironment.Read(D365IntegrationEnvironment.Url);
         string company = Environment.GetEnvironmentVariable("FISCALHUB_D365_COMPANY") is { Length: > 0 } c ? c : "brmf";
-        var tokens = new AzureCliD365TokenProvider(TimeProvider.System);
+        ClientCredentialsD365TokenProvider tokens = D365IntegrationEnvironment.Tokens();
         var profiles = new D365ChangeFeedTests.FakeProfiles
         {
             Profile = new TenantConnectorProfile
@@ -28,7 +29,7 @@ public class D365GoodsInvoiceSourceIntegrationTests
                 TenantId = "tenant-a",
                 Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
-                InboundSettings = $$"""{"url":"{{url}}","companies":["{{company}}"]}""",
+                InboundSettings = $$"""{"url":"{{url}}","companies":["{{company}}"],"auth":{{D365IntegrationEnvironment.AuthJson()}}}""",
                 OutboundAdapter = "Avalara",
             },
         };

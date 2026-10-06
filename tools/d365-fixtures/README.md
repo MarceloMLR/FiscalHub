@@ -5,10 +5,22 @@ change `add-d365-document-assembly`). Os testes rodam sobre esses arquivos, sem 
 
 ## Como rodar
 
+O script autentica como o conector: client credentials, com o app do conector, e nunca com a sessão do Azure CLI (change
+`explicit-credential-and-execution-cnpj`). A resposta gravada é a que o conector recebe, com a role
+`FSFiscalHubIntegration`. A credencial vem de três variáveis de ambiente, as mesmas dos testes contra o F&O real:
+
 ```powershell
-az login
+$env:FISCALHUB_D365_ENTRA_TENANT_ID = '<tenant do Entra do app>'
+$env:FISCALHUB_D365_CLIENT_ID = '<client id do app>'
+$env:FISCALHUB_D365_CLIENT_SECRET = '<client secret do app>'
 ./tools/d365-fixtures/Record-D365Fixtures.ps1 -EnvironmentUrl https://fiscosysdev.operations.dynamics.com -Company brmf
 ```
+
+- **Onde as variáveis ficam:** só na sessão (`$env:`). Nunca em arquivo versionado. O segredo não vai por parâmetro,
+  para não ficar no histórico do shell, e o script nunca imprime o segredo nem o token.
+- **Sem alguma delas:** o script para antes de qualquer requisição, nomeando as que faltam.
+- **Os mesmos valores** que a tela grava em Configurações → Conectores → Entrada: Tenant do Entra ID, Client ID e Client
+  Secret.
 
 Destino padrão: `tests/Adapters/Ingress/FiscalHub.Adapters.Ingress.D365Poll.Tests/Fixtures/d365/`.
 Regravar sobrescreve; confira o `git diff` antes de versionar — um diff grande quer dizer que a base

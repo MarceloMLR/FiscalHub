@@ -5,10 +5,13 @@ using FiscalHub.Application.Inbound;
 namespace FiscalHub.Adapters.Ingress.D365Poll.Tests;
 
 /// <summary>
-/// Roda o feed contra um F&amp;O REAL. Opt-in: só roda com <c>FISCALHUB_D365_URL</c> definida (e o
-/// desenvolvedor logado no Azure CLI); sem ela aparece como pulado e não toca a rede — CI inclusive.
+/// Roda o feed contra um F&amp;O REAL, com a autenticação do conector: client credentials, com o app do conector. Opt-in:
+/// só roda com a URL e as três variáveis da credencial definidas (<see cref="D365IntegrationEnvironment"/>); sem elas aparece
+/// como pulado, nomeando o que falta, e não toca a rede — CI inclusive.
 /// <list type="bullet">
 /// <item><c>FISCALHUB_D365_URL</c> — ex.: https://fiscosysdev.operations.dynamics.com</item>
+/// <item><c>FISCALHUB_D365_ENTRA_TENANT_ID</c>, <c>FISCALHUB_D365_CLIENT_ID</c> e <c>FISCALHUB_D365_CLIENT_SECRET</c> — o
+/// app do conector, como a tela o grava</item>
 /// <item><c>FISCALHUB_D365_COMPANY</c> — opcional, ex.: brmf</item>
 /// <item><c>FISCALHUB_D365_EXPECTED_ROWS</c> — opcional, ex.: 83 no fiscosysdev</item>
 /// </list>
@@ -20,7 +23,7 @@ public class D365ChangeFeedIntegrationTests
     [D365IntegrationFact]
     public async Task Keyset_read_from_2015_neither_repeats_nor_skips()
     {
-        string url = Environment.GetEnvironmentVariable("FISCALHUB_D365_URL")!;
+        string url = D365IntegrationEnvironment.Read(D365IntegrationEnvironment.Url);
         string? company = Environment.GetEnvironmentVariable("FISCALHUB_D365_COMPANY");
         string companies = string.IsNullOrWhiteSpace(company) ? "[]" : $"[\"{company}\"]";
 
@@ -33,12 +36,12 @@ public class D365ChangeFeedIntegrationTests
                 TenantId = "tenant-a",
                 Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
-                InboundSettings = $$"""{"url":"{{url}}","companies":{{companies}},"pageSize":{{PageSize}}}""",
+                InboundSettings = $$"""{"url":"{{url}}","companies":{{companies}},"pageSize":{{PageSize}},"auth":{{D365IntegrationEnvironment.AuthJson()}}}""",
                 OutboundAdapter = "Avalara",
             },
         };
         var feed = new D365ChangeFeed(
-            new HttpClient(capture), profiles, new AzureCliD365TokenProvider(TimeProvider.System),
+            new HttpClient(capture), profiles, D365IntegrationEnvironment.Tokens(),
             new D365ChangeFeedOptions(), TimeProvider.System, logger);
 
         var pages = new List<ChangeFeedPage>();
@@ -81,14 +84,11 @@ public class D365ChangeFeedIntegrationTests
     }
 }
 
-/// <summary>Fato que só roda com <c>FISCALHUB_D365_URL</c> definida; senão aparece como pulado.</summary>
+/// <summary>Fato que só roda com a URL e a credencial do app do conector definidas; senão aparece como pulado, nomeando o que falta.</summary>
 public sealed class D365IntegrationFactAttribute : FactAttribute
 {
     public D365IntegrationFactAttribute()
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("FISCALHUB_D365_URL")))
-        {
-            Skip = "Integração com F&O real: defina FISCALHUB_D365_URL (e faça az login) para rodar.";
-        }
+        Skip = D365IntegrationEnvironment.SkipReason(Environment.GetEnvironmentVariable);
     }
 }

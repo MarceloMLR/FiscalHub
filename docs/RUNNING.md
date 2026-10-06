@@ -294,30 +294,47 @@ primeira passada então descobre os 83 cabeçalhos do `fiscosysdev` (empresa `br
 
 - `docker compose up -d`, que sobe SQL, Azurite e o emulador do Service Bus com a fila
   `documents-discovered`.
-- **A identidade no F&O.** Em Development, o perfil do tenant com auth completo (`auth.tenantId`, `auth.clientId` e
-  o Client Secret gravado na tela, presente no cofre) autentica com a credencial do próprio tenant, como em produção.
-  Sem isso, o host cai na sessão do Azure CLI: faça `az login` com um usuário que tenha acesso ao `fiscosysdev`. O log diz,
-  uma vez por tenant (e de novo se mudar), qual das duas autenticou, e por quê:
+- **A identidade no F&O.** O conector autentica só com a credencial do perfil do tenant, em Development como em
+  produção (change `explicit-credential-and-execution-cnpj`). A sessão do `az login` não entra no lugar.
+  - **Onde preencher:** em **Configurações → Conectores → Entrada (ERP)**, o **Tenant do Entra ID**, o **Client ID** e
+    o **Client Secret** do app do conector. Salve. O segredo vai para o cofre, e o perfil guarda só a referência.
+  - **O log:** uma linha por tenant, e de novo quando o app muda, diz com que identidade ele autentica:
 
-  ```
-  D365: o tenant tenant-a autentica no F&O com o Azure CLI (a identidade delegada do az login), porque auth incompleto no perfil: falta tenantId, clientId.
-  ```
+    ```
+    D365: o tenant tenant-a autentica no F&O com a credencial do próprio tenant (client credentials: app <client id>, tenant do Entra <tenant do Entra>).
+    ```
 
-  Em produção, o Azure CLI nunca entra.
+  - **Sem a credencial, a integração não lê o F&O.** O quadro **Situação** mostra o motivo como último erro, e o
+    dropdown de empresas mostra o mesmo motivo no lugar da lista. Um banco novo de dev vem com o tenant do Entra e o
+    Client ID vazios, e o motivo é:
+
+    ```
+    A credencial do ERP está incompleta: falta Tenant do Entra ID e Client ID. Configure em Configurações → Conectores → Entrada.
+    ```
 - Host rodando em Development. É o padrão do `dotnet run`, pelo `launchSettings.json`.
 
 **1. Preparar o poll do tenant-a**, ainda desligado, com página de 20, para exercitar 5 páginas por keyset, e marca
 inicial em 2015. O `pageSize` e o `startFrom` não têm tela, e por isso vão por SQL. O `enabled` vai `false`, porque quem
-liga é a tela, no passo 2:
+liga é a tela, no passo 2. O SQL muda só esses três campos, com `JSON_MODIFY`: a URL, as empresas e a credencial gravada
+pela tela ficam como estão, e a ordem entre este passo e a tela não importa.
 
 ```powershell
-$settings = '{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":20,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}'
-"UPDATE ConnectorProfiles SET InboundSettings = N'$settings' WHERE TenantId = 'tenant-a';" | Set-Content -Encoding ascii enable-poll.sql
+@'
+UPDATE ConnectorProfiles
+SET InboundSettings = JSON_MODIFY(JSON_MODIFY(JSON_MODIFY(JSON_MODIFY(InboundSettings,
+    '$.poll', JSON_QUERY(ISNULL(JSON_QUERY(InboundSettings, '$.poll'), '{}'))),
+    '$.pageSize', 20),
+    '$.poll.enabled', CAST(0 AS bit)),
+    '$.poll.startFrom', '2015-01-01T00:00:00Z')
+WHERE TenantId = 'tenant-a';
+'@ | Set-Content -Encoding ascii enable-poll.sql
 docker cp enable-poll.sql fiscalhub-sql-1:/tmp/enable-poll.sql
 docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/enable-poll.sql
 ```
 
-O SQL vai por arquivo porque o PowerShell 5.1 quebra as aspas do JSON quando ele é passado direto no `-Q`.
+O SQL vai por arquivo porque o PowerShell 5.1 quebra as aspas quando elas são passadas direto no `-Q`. O here-string
+com aspas simples (`@'…'@`) não expande o `$` do caminho JSON. A primeira troca cria a seção `poll` quando o perfil não a
+tem: sem ela, o `JSON_MODIFY` deixaria o `enabled` e o `startFrom` de fora, sem erro.
 
 Dá para usar o `PUT /connector` no lugar do SQL. As settings enviadas substituem as gravadas, com duas exceções: o
 segredo ausente mantém a referência que já estava, e os chamados ausentes do corpo ficam como estavam. Um `*Ref` no

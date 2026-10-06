@@ -7,7 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FiscalHub.Adapters.Ingress.D365Poll.Tests;
 
-/// <summary>Especifica o registro no DI: feed scoped do D365, client credentials por padrão, Azure CLI só por opção.</summary>
+/// <summary>
+/// Especifica o registro no DI: feed scoped do D365 e o client credentials como a única identidade do conector, sem
+/// provider nem método de registro que troque a identidade por ambiente.
+/// </summary>
 public class D365PollRegistrationTests
 {
     [Fact]
@@ -22,13 +25,52 @@ public class D365PollRegistrationTests
         Assert.IsType<ClientCredentialsD365TokenProvider>(sp.GetRequiredService<ID365TokenProvider>());
     }
 
-    [Fact]
-    public async Task Azure_cli_fallback_enters_only_when_asked()
-    {
-        // O padrão (produção) é o client credentials, e o Azure CLI não entra; o host só pede o fallback em Development.
-        await using ServiceProvider sp = Build(services => services.AddD365ChangeFeed().UseD365AzureCliFallback());
+    // ---------- a credencial do perfil é a única identidade (change explicit-credential-and-execution-cnpj, D4) ----------
 
-        Assert.IsType<D365DevelopmentTokenProvider>(sp.GetRequiredService<ID365TokenProvider>());
+    [Fact]
+    public async Task Every_d365_registration_resolves_the_one_client_credentials_provider()
+    {
+        // Os quatro registros do adapter, como o host os faz.
+        await using ServiceProvider sp = Build(services =>
+        {
+            services.AddD365ChangeFeed();
+            services.AddD365GoodsInvoiceSource();
+            services.AddD365CompanyDirectory();
+            services.AddD365DocumentDiscovery();
+        });
+
+        ID365TokenProvider provider = Assert.Single(sp.GetServices<ID365TokenProvider>());
+        Assert.IsType<ClientCredentialsD365TokenProvider>(provider);
+    }
+
+    [Fact]
+    public void The_only_token_provider_in_the_adapter_is_client_credentials()
+    {
+        // O adapter não lê o ambiente do host: sem outra implementação, nenhum ramo de Development tem o que escolher.
+        Type[] providers =
+        [
+            .. typeof(ID365TokenProvider).Assembly.GetTypes()
+                .Where(t => t is { IsClass: true, IsAbstract: false } && typeof(ID365TokenProvider).IsAssignableFrom(t)),
+        ];
+
+        Assert.Equal([typeof(ClientCredentialsD365TokenProvider)], providers);
+    }
+
+    [Fact]
+    public void The_registration_surface_is_exactly_the_four_add_methods()
+    {
+        // Nenhum Use* que um host chamaria sob IsDevelopment() para trocar a identidade do conector.
+        string[] methods =
+        [
+            .. typeof(D365PollServiceCollectionExtensions)
+                .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+                .Select(m => m.Name)
+                .Order(StringComparer.Ordinal),
+        ];
+
+        Assert.Equal(
+            ["AddD365ChangeFeed", "AddD365CompanyDirectory", "AddD365DocumentDiscovery", "AddD365GoodsInvoiceSource"],
+            methods);
     }
 
     [Fact]

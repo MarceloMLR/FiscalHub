@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatBranch, formatCompany } from './companyCode';
+import { formatBranch, formatCompany, formatExecutionCompany } from './companyCode';
 
 // A máscara pelo tamanho, e não pelo tipo do caractere (spec document-grouping, "CNPJ formatado na tela"): o CNPJ completo
 // (14) e a raiz (8), numéricos ou alfanuméricos. Um formatador só, para o dropdown, as tabelas, os cards e o modal (change
@@ -43,5 +43,29 @@ describe('a filial no dropdown', () => {
   it('sem o CNPJ, como no diretório de exemplo, mostra o código e o nome', () => {
     expect(formatBranch({ code: '0001', name: 'Matriz', taxId: null })).toBe('0001 — Matriz');
     expect(formatBranch({ code: '0001', name: 'Matriz' })).toBe('0001 — Matriz');
+  });
+});
+
+// A coluna Empresa da tabela de execuções (change explicit-credential-and-execution-cnpj, D7): o CNPJ do estabelecimento que
+// a descoberta resolveu, quando a execução o gravou, e a empresa quando não. Sem consultar o diretório.
+describe('a empresa na tabela de execuções', () => {
+  it('a execução da SP-01 mostra o CNPJ do estabelecimento, e não o da matriz', () => {
+    expect(formatExecutionCompany({ companyCode: '44278225000180', establishmentTaxId: '44278225000260' })).toBe('44.278.225/0002-60');
+  });
+
+  it('a execução de todas as filiais, sem o CNPJ, mostra a empresa', () => {
+    expect(formatExecutionCompany({ companyCode: '44278225000180', establishmentTaxId: null })).toBe('44.278.225/0001-80');
+  });
+
+  it('a execução gravada antes do campo, sem ele na resposta, mostra a empresa', () => {
+    expect(formatExecutionCompany({ companyCode: '44278225000180' })).toBe('44.278.225/0001-80');
+  });
+
+  it('o CNPJ vazio conta como ausente', () => {
+    expect(formatExecutionCompany({ companyCode: '44278225000180', establishmentTaxId: '' })).toBe('44.278.225/0001-80');
+  });
+
+  it('a empresa de 8 caracteres do catálogo local, sem o CNPJ, ganha a máscara da raiz', () => {
+    expect(formatExecutionCompany({ companyCode: '12345678', establishmentTaxId: null })).toBe('12.345.678');
   });
 });

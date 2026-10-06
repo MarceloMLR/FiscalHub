@@ -7,7 +7,7 @@ namespace FiscalHub.Adapters.Ingress.D365Poll.Tests;
 
 /// <summary>
 /// Especifica o teste de credencial do D365 (spec connector-credential-test, design D11): um token NOVO do Entra ID a cada
-/// teste, pela credencial gravada do tenant (nunca o Azure CLI), e uma leitura mínima da FSFiscalDocumentBRs, porque o token
+/// teste, pela credencial gravada do tenant, e uma leitura mínima da FSFiscalDocumentBRs, porque o token
 /// prova a credencial, e não a permissão. O cache de token do coletor não é lido nem trocado. Cofre, credencial e F&amp;O
 /// falsos, sem rede.
 /// </summary>
@@ -215,16 +215,18 @@ public class D365CredentialTestTests
     // ---------- a credencial incompleta ----------
 
     [Theory]
-    [InlineData("""{"url":"https://fiscosysdev.operations.dynamics.com"}""")]                                                      // sem auth
-    [InlineData("""{"url":"https://fiscosysdev.operations.dynamics.com","auth":{"tenantId":"entra-a","clientId":"app-a"}}""")]   // sem o segredo
-    [InlineData("""{"auth":{"tenantId":"entra-a"}}""")]                                                                            // sem URL
-    public async Task Incomplete_credential_makes_no_request(string settings)
+    [InlineData("""{"url":"https://fiscosysdev.operations.dynamics.com"}""", "A credencial do ERP não está configurada")]          // sem auth
+    [InlineData("""{"url":"https://fiscosysdev.operations.dynamics.com","auth":{"tenantId":"entra-a","clientId":"app-a"}}""",
+        "A credencial do ERP está incompleta: falta Client Secret.")]                                                                 // sem o segredo
+    [InlineData("""{"auth":{"tenantId":"entra-a"}}""", "url do ambiente F&O ausente")]                                              // sem URL
+    public async Task Incomplete_credential_makes_no_request(string settings, string reason)
     {
         var h = new Harness();
 
         CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(settings), null);
 
         Assert.Equal(CredentialTestVerdict.Incomplete, outcome.Verdict);
+        Assert.Contains(reason, outcome.Reason);
         Assert.Empty(h.Created);
         Assert.Empty(h.Erp.Requests);
     }
@@ -237,7 +239,7 @@ public class D365CredentialTestTests
         CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
 
         Assert.Equal(CredentialTestVerdict.Incomplete, outcome.Verdict);
-        Assert.Contains("cofre", outcome.Reason);
+        Assert.Contains("O Client Secret do ERP do tenant 'tenant-a' não está no cofre", outcome.Reason);
         Assert.Empty(h.Created);        // nenhuma credencial criada: nem a do tenant, nem outra
         Assert.Empty(h.Erp.Requests);
     }
@@ -275,7 +277,7 @@ public class D365CredentialTestTests
         public Harness(bool secretInVault = true, TimeSpan? timeout = null)
         {
             Secrets = new Vault(secretInVault ? [(SecretName, Secret)] : []);
-            Tokens = new ClientCredentialsD365TokenProvider(Secrets, (tenant, client, secret) =>
+            Tokens = new ClientCredentialsD365TokenProvider(Secrets, Logger, (tenant, client, secret) =>
             {
                 var credential = new CountingCredential(Failure, Created.Count + 1);
                 Created.Add(credential);
@@ -287,6 +289,8 @@ public class D365CredentialTestTests
         public Exception? Failure { get; init; }
 
         public List<CountingCredential> Created { get; } = [];
+
+        public D365ChangeFeedTests.ListLogger<ClientCredentialsD365TokenProvider> Logger { get; } = new();
 
         public Vault Secrets { get; }
 

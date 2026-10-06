@@ -17,8 +17,8 @@ public static class D365PollServiceCollectionExtensions
     /// <summary>
     /// Registra o <c>IDocumentChangeFeed</c> do D365 (scoped: lê o perfil do tenant pelo
     /// <c>IConnectorProfileStore</c>) com token por client credentials. Requer o <c>ISecretStore</c> (resolve
-    /// o <c>kv:</c> no cofre de conectores, ADR-0027) e um <c>IConnectorProfileStore</c> registrados. Em desenvolvimento, chame
-    /// <see cref="UseD365AzureCliFallback"/> para cair na sessão do Azure CLI quando o perfil não tem credencial própria.
+    /// o <c>kv:</c> no cofre de conectores, ADR-0027) e um <c>IConnectorProfileStore</c> registrados. O client credentials é
+    /// a única identidade do conector, em qualquer ambiente do host (change explicit-credential-and-execution-cnpj, D1).
     /// </summary>
     public static IServiceCollection AddD365ChangeFeed(this IServiceCollection services, Action<D365ChangeFeedOptions>? configure = null)
     {
@@ -44,8 +44,9 @@ public static class D365PollServiceCollectionExtensions
             sp.GetRequiredService<ILogger<D365ChangeFeed>>()));
 
         // O teste da credencial gravada (D11): um provedor de client credentials próprio, porque o teste pede um token novo
-        // a cada vez. Nunca é o do coletor, cujo cache fica intacto, nem o Azure CLI do desenvolvimento.
-        services.TryAddSingleton(sp => new ClientCredentialsD365TokenProvider(sp.GetRequiredService<ISecretStore>()));
+        // a cada vez. Nunca é o do coletor, cujo cache fica intacto.
+        services.TryAddSingleton(sp => new ClientCredentialsD365TokenProvider(
+            sp.GetRequiredService<ISecretStore>(), sp.GetRequiredService<ILogger<ClientCredentialsD365TokenProvider>>()));
         services.AddScoped<IConnectorCredentialTest>(sp => new D365CredentialTest(
             sp.GetRequiredService<ClientCredentialsD365TokenProvider>(),
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(HttpClientName)));
@@ -124,27 +125,12 @@ public static class D365PollServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>
-    /// SÓ DESENVOLVIMENTO: o perfil com auth completo e o segredo no cofre usa a credencial do próprio tenant; sem isso,
-    /// cai na sessão do Azure CLI do desenvolvedor (<c>az login</c>). Loga, uma vez por tenant, qual identidade
-    /// autenticou. O host deve chamar isto apenas em <c>IsDevelopment()</c>: em produção, o Azure CLI nunca entra.
-    /// </summary>
-    public static IServiceCollection UseD365AzureCliFallback(this IServiceCollection services)
-    {
-        services.TryAddSingleton(TimeProvider.System);
-        services.Replace(ServiceDescriptor.Singleton<ID365TokenProvider>(sp => new D365DevelopmentTokenProvider(
-            new ClientCredentialsD365TokenProvider(sp.GetRequiredService<ISecretStore>()),
-            new AzureCliD365TokenProvider(sp.GetRequiredService<TimeProvider>()),
-            sp.GetRequiredService<ISecretStore>(),
-            sp.GetRequiredService<ILogger<D365DevelopmentTokenProvider>>())));
-        return services;
-    }
-
     private static void AddShared(IServiceCollection services)
     {
         services.AddHttpClient(HttpClientName);
 
         // Singleton de propósito: as credenciais (e o cache de token delas) precisam sobreviver entre passadas.
-        services.TryAddSingleton<ID365TokenProvider>(sp => new ClientCredentialsD365TokenProvider(sp.GetRequiredService<ISecretStore>()));
+        services.TryAddSingleton<ID365TokenProvider>(sp => new ClientCredentialsD365TokenProvider(
+            sp.GetRequiredService<ISecretStore>(), sp.GetRequiredService<ILogger<ClientCredentialsD365TokenProvider>>()));
     }
 }

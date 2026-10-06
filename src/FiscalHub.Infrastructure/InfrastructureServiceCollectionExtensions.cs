@@ -184,7 +184,8 @@ public static class InfrastructureServiceCollectionExtensions
                 Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 // Feed de mudanças do D365 (ADR-0024). Poll desligado: liga no perfil para o teste manual (docs/RUNNING.md).
-                // tenantId/clientId do Entra entram quando a app registration existir; em dev o token vem do Azure CLI.
+                // O tenant do Entra, o Client ID e o Client Secret entram pela tela: sem eles, a leitura do F&O falha com o
+                // motivo, em dev também (change explicit-credential-and-execution-cnpj).
                 InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":500,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300}}""",
                 OutboundAdapter = "Avalara",
                 // establishments: a sobreposição opcional do CNPJ do estabelecimento para os códigos da plataforma (ADR-0033),

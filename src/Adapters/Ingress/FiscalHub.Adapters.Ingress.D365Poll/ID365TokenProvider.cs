@@ -2,8 +2,9 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 
 /// <summary>
 /// Gancho para o bearer token do Entra ID usado no OData do F&amp;O. Mantido <c>internal</c>, no espelho do
-/// <c>IAvalaraTokenProvider</c>: o detalhe de autenticação é do D365 e não vaza do adapter. Duas
-/// implementações: client credentials (produção) e sessão do Azure CLI (só desenvolvimento).
+/// <c>IAvalaraTokenProvider</c>: o detalhe de autenticação é do D365 e não vaza do adapter. Uma implementação só, o
+/// client credentials, em qualquer ambiente do host: a credencial do perfil é a única identidade do conector (change
+/// explicit-credential-and-execution-cnpj, D1).
 /// </summary>
 internal interface ID365TokenProvider
 {

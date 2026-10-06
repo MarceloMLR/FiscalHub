@@ -1,4 +1,4 @@
-import type { Branch } from '../../types';
+import type { Branch, ExecutionSummary } from '../../types';
 
 // A empresa, para exibição, pelo tamanho, e não pelo tipo do caractere: o CNPJ alfanumérico tem a mesma máscara.
 // - 14 caracteres: o CNPJ completo (a empresa do diretório do D365, a matriz, e a dos grupos do D365), como 44.278.225/0001-80;
@@ -12,6 +12,13 @@ export function formatCompany(code: string): string {
   }
 
   return code.length === 8 ? `${code.slice(0, 2)}.${code.slice(2, 5)}.${code.slice(5)}` : code;
+}
+
+// A empresa na tabela de execuções: o CNPJ do estabelecimento que a descoberta resolveu, quando a execução o gravou; a
+// empresa pedida, quando não (várias filiais, o catálogo local, ou a execução de antes do campo). Só o que a execução gravou:
+// o histórico não consulta o diretório (change explicit-credential-and-execution-cnpj, D7). Os agendamentos mostram a empresa.
+export function formatExecutionCompany(execution: Pick<ExecutionSummary, 'companyCode' | 'establishmentTaxId'>): string {
+  return formatCompany(execution.establishmentTaxId || execution.companyCode);
 }
 
 // A filial no dropdown: com o CNPJ, ele mascarado e o código ao lado (44.278.225/0002-60 — SP-01); sem ele (o diretório de

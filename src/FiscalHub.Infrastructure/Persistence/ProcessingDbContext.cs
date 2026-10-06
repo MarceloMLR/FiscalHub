@@ -55,6 +55,7 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         exec.Property(e => e.TenantId).HasMaxLength(100);
         exec.Property(e => e.CompanyCode).HasMaxLength(20);
         exec.Property(e => e.BranchCode).HasMaxLength(20);
+        exec.Property(e => e.EstablishmentTaxId).HasMaxLength(20);   // o CNPJ normalizado tem 14; anulável, só na execução
         exec.Property(e => e.PeriodStart).HasMaxLength(10);
         exec.Property(e => e.PeriodEnd).HasMaxLength(10);
 

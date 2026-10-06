@@ -41,7 +41,8 @@ substitui o anterior (em vez de reescrever a história).
 | [0031](0031-painel-do-coletor-rebobinar-pela-tela-e-teste-de-credencial.md) | O painel do coletor, rebobinar pela tela sob o lease, o teste de credencial com token novo e o freio no botão, e os módulos como apresentação | Aceito |
 | [0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md) | O diretório vem do ERP do tenant, a descoberta por período lê o D365 na fila do coletor, o CNPJ guarda as letras, e os cards contam por período e modelo no servidor | Aceito — §1 revisado pelo 0034 |
 | [0033](0033-de-para-de-estabelecimento-pela-plataforma.md) | O de/para do estabelecimento vem da listagem da plataforma, casada pelo CNPJ, paginada até a página vazia e guardada por janela; a recusa fica onde haveria escolha, e a tabela `establishments` vira sobreposição | Aceito |
-| [0034](0034-a-empresa-se-compara-pela-raiz-do-cnpj.md) | A empresa continua sendo um CNPJ completo, uma por raiz, e se compara pela raiz; um formatador só mascara a raiz e o CNPJ completo | Aceito |
+| [0034](0034-a-empresa-se-compara-pela-raiz-do-cnpj.md) | A empresa continua sendo um CNPJ completo, uma por raiz, e se compara pela raiz; um formatador só mascara a raiz e o CNPJ completo | Aceito — "Piora" revisado pelo 0035 |
+| [0035](0035-credencial-do-perfil-e-o-cnpj-da-execucao.md) | A credencial do perfil é a única identidade do conector contra o F&O, sem modo de desenvolvimento; a descoberta devolve o estabelecimento que resolveu, e a execução o grava | Aceito |
 
 ## Planejados
 
