@@ -246,20 +246,49 @@ própria tarefa.
 
 ## 6. As provas pelo caminho do hub (D9)
 
-- [ ] 6.1 A listagem completa contra o sandbox, pela sonda: `listing --tenant tenant-a`. As empresas e os contribuintes
+- [x] 6.1 A listagem completa contra o sandbox, pela sonda: `listing --tenant tenant-a`. As empresas e os contribuintes
   de todas elas são lidos até a página vazia, sem recusa de contrato. Anotar as empresas, os contribuintes e as páginas
   por endpoint. A sonda lê a listagem direto, e a sobreposição do contorno não interfere.
+
+  **Feito (2026-10-06),** com `dotnet run -c Release --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a`,
+  no ambiente ativo `sandbox` do perfil (o host `api-gateway.sandbox.avalarabrasil.com.br`) e com o `ListingPageSize`
+  padrão de 100. A sonda imprimiu "8 empresas em 2 páginas e 14 contribuintes em 16 páginas", sem recusa de contrato:
+  - **as empresas:** uma página cheia e a vazia em envelope, que encerrou a leitura;
+  - **os contribuintes:** 16 páginas para 8 empresas, a página e a vazia de cada uma. Nenhuma empresa passa de 100
+    contribuintes, então o `$skip` dos contribuintes não foi exercitado contra o sandbox (continua com a 6.2 da
+    `platform-establishment-resolution`).
 - [ ] 6.2 O de/para de um estabelecimento conhecido: `listing --tenant tenant-a --cnpj <CNPJ de um contribuinte do
   sandbox>`, com o CNPJ conferido pelo Marcelo no sandbox. O casamento é único, e os códigos e o `#id` são os que o
   sandbox mostra para esse contribuinte. Anotar a empresa e o contribuinte pelo código, sem o CNPJ.
-- [ ] 6.3 Pela esteira, contra o sandbox:
+- [x] 6.3 Pela esteira, contra o sandbox:
   - **antes:** tirar a sobreposição do contorno do tenant-a, guardando-a, e salvar o perfil, para a listagem ser chamada;
   - **a prova:** reprocessar uma das cinco NF-e 55 da `Matriz`. Ela é recusada com "o estabelecimento 44278225000180 não
     tem contribuinte cadastrado na plataforma …", e não com "Contrato do destino". O log do host mostra as contagens da
     listagem. A recusa é o desfecho certo, porque nenhum CNPJ da `brmf` existe no sandbox;
   - **depois:** repor a sobreposição do contorno, salvar o perfil e conferir que ela voltou.
-- [ ] 6.4 Com a saída no mock, pelo RUNNING: o mock desta change, que serve o envelope com a query, e a tabela
+
+  **Feito (2026-10-06),** com o host desta branch (o que rodava, de antes, foi parado com autorização do Marcelo):
+  - **antes:** o `GET /connector` guardado. A sobreposição apontava os quatro CNPJs da Contoso para `001`/`001`. O
+    `PUT /connector` levou as settings inteiras, só com o `sandbox.establishments` vazio, e respondeu 204;
+  - **a prova:** as cinco NF-e 55 estavam em `IntegrationError` com o motivo do defeito. O reprocesso da
+    `brmf|BRMF21-10000026` (202) deu, em uns 9 s, "Configuração do conector: o estabelecimento 44278225000180 não tem
+    contribuinte cadastrado na plataforma (tenant 'tenant-a', ambiente 'sandbox')…". O log do host: "8 empresas em 2
+    páginas e 14 contribuintes em 16 páginas". Nenhum documento foi enviado ao sandbox;
+  - **depois:** o `PUT` com as settings de antes (204), e o `GET` comparado campo a campo com o guardado: igual em tudo,
+    inclusive nos segredos. As outras quatro NF-e 55 continuam com o motivo do defeito, porque não foram reprocessadas.
+- [x] 6.4 Com a saída no mock, pelo RUNNING: o mock desta change, que serve o envelope com a query, e a tabela
   `establishments` vazia na seção do mock. Reprocessar uma NF-e 55 da `Matriz`: ela é enviada com o `codigoEmpresa` e o
   `codigoContribuinte` que o mock inventado dá à `Matriz` (grupo 1), e o poll a confirma (`Confirmed`) em vez de
   `IntegrationError`. O `GET /admin/contribuintes` mostra as páginas de uma listagem. No fim, o perfil volta ao que era,
   com o contorno.
+
+  **Feito (2026-10-06),** com o host e o mock desta branch, o mock em `http://localhost:5100`:
+  - **a saída no mock:** como na 6.1 da `platform-establishment-resolution`, o mock entrou na seção `production`, com a
+    tabela vazia e um segredo de teste, e o ambiente ativo foi `Production` durante a prova. A seção `sandbox`, com o
+    contorno, não foi tocada;
+  - **a prova:** o reprocesso da `brmf|BRMF21-10000026` foi listado no mock (log do host: "3 empresas em 2 páginas e 7
+    contribuintes em 6 páginas"; contadores do mock: 2 e 6), enviado e confirmado: `Confirmed`, `ExternalId`
+    `1a4bf817-…`. O payload no mock leva `codigoEmpresa 012`, `codigoContribuinte 010` e a referência da nota;
+  - **depois:** o perfil voltou ao guardado, e o `GET` deu igual em todos os campos. A única diferença é o
+    `outbound.production.clientSecret`, que passou a "configurado" com o segredo de teste: o cofre não tem apagar, e um
+    Client Secret de produção de verdade o sobrescreve pela tela. O mock foi parado. O host desta branch ficou no ar.
