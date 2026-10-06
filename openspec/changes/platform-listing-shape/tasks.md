@@ -162,12 +162,12 @@ própria tarefa.
 
 ## 4. A resposta real gravada, e a sonda (D5, D7)
 
-- [ ] 4.1 Teste primeiro da varredura, no `SandboxFixtureTests`, para os arquivos `listagem-*`:
+- [x] 4.1 Teste primeiro da varredura, no `SandboxFixtureTests`, para os arquivos `listagem-*`:
   - **nenhum CNPJ:** nem com 14 dígitos seguidos, nem formatado;
   - **a lista do que fica:** fora do `empresaId`, do `codigoCIA`, do `contribuinteId` e do `codigo`, todo valor de item
     é `[mascarado]`. Os nomes das propriedades ficam;
   - **a teoria de amostras da varredura:** ganha os dois casos, o pego e o que passa.
-- [ ] 4.2 As três respostas reais, das chamadas diretas de 2026-10-06. Os corpos crus foram colados pelo Marcelo na
+- [x] 4.2 As três respostas reais, das chamadas diretas de 2026-10-06. Os corpos crus foram colados pelo Marcelo na
   conversa da proposta, e o resultado da curadoria, que não tem dado sensível, fica registrado aqui. Cada item tem também
   `"descricao": "[mascarado]"` e `"idPortalCompany": "[mascarado]"`, nessa ordem de propriedades:
 
@@ -192,17 +192,22 @@ própria tarefa.
     Postman. O README diz também que o array sem opções e o envelope do `/contribuinte` não têm resposta gravada.
 
   A varredura do 4.1 tem de passar com os três arquivos.
-- [ ] 4.3 A reprodução, no `SandboxFixtureTests`:
+- [x] 4.3 A reprodução, no `SandboxFixtureTests`:
   - **a página real e a vazia real:** com o `ListingPageSize` 5, o `top5` como primeira página de empresas e a `vazia`
     como segunda, a leitura termina com as 5 empresas, em 2 páginas, sem recusa;
   - **a evidência do `$skip`:** os itens do `skip2` são o terceiro e o quarto do `top5`, pelo `empresaId`, lido dos
     arquivos e não escrito no teste;
   - **o resumo da classe:** passa a citar a listagem.
-- [ ] 4.4 O comando `listing` da sonda (D7): roda o `AvalaraEstablishmentListing` real com as `AvalaraOptions` do host, e
+- [x] 4.4 O comando `listing` da sonda (D7): roda o `AvalaraEstablishmentListing` real com as `AvalaraOptions` do host, e
   imprime as contagens e as páginas por endpoint e, para cada `--cnpj`, o casamento pelo `PlatformEstablishmentIndex`: os
   códigos e o `#id`, nenhum, ou os candidatos. Nenhum outro conteúdo da listagem é impresso. O uso da sonda e o RUNNING §9
   ganham o comando.
-- [ ] 4.5 `dotnet build -warnaserror` limpo e `dotnet test` verde. A sonda compila sem warning.
+- [x] 4.5 `dotnet build -warnaserror` limpo e `dotnet test` verde. A sonda compila sem warning.
+
+  **Feito (2026-10-06),** em `Release` (ver 1.5): 0 warnings na solução e na sonda, e a suíte inteira verde. A
+  `FiscalHub.Adapters.Outbound.Avalara.Tests` foi de 330 a 340 testes. A varredura do 4.1 ficou vermelha antes dos
+  arquivos, pela falta deles, e verde com os três. A busca do 1.5 continua sem ocorrência fora do `Fixtures/sandbox/`: a
+  reprodução lê os `empresaId` dos arquivos. O `listing` da sonda compila, mas ainda não rodou: ele é exercitado no 6.1.
 
 ## 5. O registro do fato (D6, D9, D11)
 

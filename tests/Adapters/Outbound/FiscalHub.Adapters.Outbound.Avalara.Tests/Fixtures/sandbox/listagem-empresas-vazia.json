@@ -1,0 +1,16 @@
+{
+  "exchange": "listing",
+  "note": "status 200 derivado, e não lido: o AvalaraEstablishmentListing trata 401, 403, 404, os demais 4xx e o EnsureSuccessStatusCode antes de parsear, e o defeito em dev foi recusa de forma, então a resposta foi 2xx, e num GET de listagem isso é 200; é a mesma inferência que prova o $select aceito.",
+  "request": {
+    "method": "GET",
+    "url": "https://api-gateway.sandbox.avalarabrasil.com.br/taxcompliance/v2/empresa",
+    "query": "$top=5&$orderby=empresaId&$skip=999"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "value": []
+    }
+  },
+  "redactions": 0
+}

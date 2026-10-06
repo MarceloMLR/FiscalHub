@@ -1,0 +1,22 @@
+{
+  "exchange": "listing",
+  "note": "status 200 derivado, e não lido: o AvalaraEstablishmentListing trata 401, 403, 404, os demais 4xx e o EnsureSuccessStatusCode antes de parsear, e o defeito em dev foi recusa de forma, então a resposta foi 2xx, e num GET de listagem isso é 200; é a mesma inferência que prova o $select aceito.",
+  "request": {
+    "method": "GET",
+    "url": "https://api-gateway.sandbox.avalarabrasil.com.br/taxcompliance/v2/empresa",
+    "query": "$top=5&$orderby=empresaId"
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "value": [
+        { "empresaId": 7330, "codigoCIA": "001", "descricao": "[mascarado]", "idPortalCompany": "[mascarado]" },
+        { "empresaId": 7407, "codigoCIA": "002", "descricao": "[mascarado]", "idPortalCompany": "[mascarado]" },
+        { "empresaId": 7408, "codigoCIA": "004", "descricao": "[mascarado]", "idPortalCompany": "[mascarado]" },
+        { "empresaId": 7409, "codigoCIA": "003", "descricao": "[mascarado]", "idPortalCompany": "[mascarado]" },
+        { "empresaId": 7410, "codigoCIA": "005", "descricao": "[mascarado]", "idPortalCompany": "[mascarado]" }
+      ]
+    }
+  },
+  "redactions": 10
+}

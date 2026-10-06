@@ -694,7 +694,16 @@ dotnet run --project tools/AvalaraSandboxProbe -- send --tenant tenant-a --paylo
 
 # a leitura de volta, se a plataforma a oferecer
 dotnet run --project tools/AvalaraSandboxProbe -- get --tenant tenant-a --id <id> --label exp-a
+
+# a listagem de estabelecimentos inteira, e o casamento de um CNPJ, sem mandar documento
+dotnet run --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a --cnpj <cnpj de um contribuinte da conta>
 ```
+
+- `listing` roda a listagem real do adapter pelo resolvedor, como o despacho a pede, com as `AvalaraOptions` do host
+  (inclusive o `Avalara:ListingPageSize`). Imprime a linha de log da listagem, com as empresas, os contribuintes e as
+  páginas de cada endpoint, e, para cada `--cnpj`, o casamento: os códigos e o `#id` do contribuinte único, nenhum, ou os
+  candidatos da duplicidade. Nenhum outro conteúdo da listagem é impresso, e nada é gravado em `out/`. A sobreposição
+  `establishments` do perfil não entra: ela só vale no envio. Uma recusa da listagem sai com o motivo, como no envio.
 
 - `--omit` e `--set` mexem só no topo do payload, e podem repetir. O valor do `--set` é JSON quando dá (`1`, `true`,
   `null`), e texto nos outros casos.

@@ -13,6 +13,9 @@ pelo Marcelo, com **valores de mentira** (changes `platform-establishment-resolu
 | `empresas-vazio.json` | **`{"value": []}`** | a página vazia com a query, `$skip=999` (2026-10-06). É ela que encerra toda leitura do hub |
 | `contribuintes-*.json` | **`{"value": [...]}`** | `GET /taxcompliance/v2/contribuinte?empresaId=`, sempre chamado com query (2026-10-02). A forma dele sem opções nunca foi observada |
 
+As respostas reais das chamadas de 2026-10-06, com o que identifica empresa mascarado, estão em `../sandbox/`
+(`listagem-empresas-*.json`). As de 2026-10-02 não foram gravadas.
+
 Os campos são os do `$select` que o hub pede: `empresaId,codigoCIA,descricao` nas empresas e `contribuinteId,codigo,cnpj`
 nos contribuintes.
 
