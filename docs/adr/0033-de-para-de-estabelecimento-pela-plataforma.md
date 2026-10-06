@@ -17,6 +17,14 @@
     LastModified)"), e nenhum devolve `nextLink`. O `empresaId` é obrigatório no `/contribuinte`, e o `subscriptionId` é
     opcional nos dois.
 
+  > **Corrigido pela change `platform-listing-shape` (2026-10-06).** A forma do `/empresa` era condicional à query. O
+  > array puro veio da chamada **sem** opções. Com `$top` e `$orderby`, com e sem `$skip`, o sandbox devolve
+  > `{"value": [...]}`, e a página vazia vem como `{"value": []}`. O hub sempre chama com a query, e o adapter exigia o
+  > array: todo despacho de tenant sem a tabela `establishments` morria em recusa de contrato. Desde a correção, o hub
+  > aceita as duas formas nas duas listas, e qualquer outra é recusa que nomeia as propriedades recebidas. As respostas
+  > reais estão em `tests/Adapters/Outbound/FiscalHub.Adapters.Outbound.Avalara.Tests/Fixtures/sandbox/listagem-empresas-*.json`.
+  > A decisão deste ADR não muda: o que mudou foi o fato registrado aqui.
+
 ## Contexto
 
 Todo envio à Avalara leva os códigos da empresa e do contribuinte do estabelecimento próprio, e eles nunca vêm do ERP

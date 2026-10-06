@@ -245,6 +245,13 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
   - **A sobreposição:** o payload levou `MANUAL-E` e `MANUAL-C`, e o contador continuou em 2 e 6.
   - **No fim,** o poll de status confirmou todas as notas contra o mock antes da restauração, e nenhuma ficou pendente
     para ser consultada no sandbox real. O host e o mock foram parados, e o log do host não teve nenhuma falha.
+
+  **Anotado pela change `platform-listing-shape` (2026-10-06), sem desmarcar.** O mock desta prova servia o `/empresa` em
+  array com a query, ao contrário da plataforma, que devolve `{"value": [...]}` com a query, inclusive na página vazia.
+  A evidência acima vale para o casamento, a duplicidade, a paginação e a sobreposição, que não dependem da forma. Para a
+  forma, não vale: foi essa divergência que deixou o defeito passar até o sandbox. A `platform-listing-shape` corrigiu o
+  adapter e o mock. Os códigos e as descrições citados acima são os do mock da época, e o mock de hoje usa valores
+  inventados.
 - [ ] 6.2 Contra o sandbox, com o `establishments` vazio, nas notas da `Matriz`.
   - **O desfecho esperado é a recusa nomeando o CNPJ** ("o estabelecimento 44278225000180 não tem contribuinte cadastrado
     na plataforma …"). O fiscosysdev e o sandbox da Avalara são ambientes sem relação, e nenhum CNPJ da `brmf` existe lá
@@ -265,6 +272,21 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
 
   Se a recusa por duplicidade aparecer com as empresas de teste do sandbox, ela é a prova do item do STATUS: registrar os
   candidatos.
+
+  **Anotado pela change `platform-listing-shape` (2026-10-06), sem marcar.** Esta prova estava bloqueada: a listagem
+  morria na primeira página, porque o `/empresa` devolve envelope com a query e o adapter exigia o array. Com a correção:
+  - **já provado nas empresas, por chamada direta:** o `$orderby` e o `$skip` (o `$skip=2` trouxe o terceiro e o quarto
+    itens do `$top=5`, com a ordem estável) e a página vazia (`{"value": []}`). As respostas estão no `Fixtures/sandbox/`
+    (`listagem-empresas-*.json`), e o `SandboxFixtureTests` confere a evidência do `$skip`. O `empresaId` é, então,
+    campo ordenável;
+  - **a provar pelo grupo 6 da `platform-listing-shape`:** a listagem completa das empresas e dos contribuintes contra o
+    sandbox, e o de/para de um estabelecimento conhecido, pelo `listing` da sonda. A evidência fica anotada lá;
+  - **o que continua aqui:** o `$orderby` e o `$skip` dos contribuintes, que não foram chamados direto. Com o `$top`
+    padrão de 100, eles só se exercitam numa empresa com mais de 100 contribuintes.
+
+  **O contorno em uso no banco de dev muda a prova pela esteira.** A sobreposição do tenant-a aponta os CNPJs da Contoso
+  para um contribuinte da TMSA (STATUS, Operação). Com ela, a listagem nem é chamada para as notas da `Matriz`: para esta
+  prova, a sobreposição sai durante a rodada e volta no fim.
 - [x] 6.3 Os outros três estabelecimentos (`SP-01`, `SAL-01` e `RJ-01`) não têm NF-e 55 no fiscosysdev. A prova deles é a
   do 4.2. Anotar isso aqui e no STATUS, e não marcar a prova real deles como feita.
 

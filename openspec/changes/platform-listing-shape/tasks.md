@@ -211,16 +211,16 @@ própria tarefa.
 
 ## 5. O registro do fato (D6, D9, D11)
 
-- [ ] 5.1 O ADR-0033: a linha "Verificado (2026-10-02)" ganha a nota em citação. A forma do `/empresa` era condicional à
+- [x] 5.1 O ADR-0033: a linha "Verificado (2026-10-02)" ganha a nota em citação. A forma do `/empresa` era condicional à
   query: o array sem opções, e o envelope com elas, inclusive na página vazia. O hub aceita as duas desde esta change, e as
   respostas reais estão no `Fixtures/sandbox/`.
-- [ ] 5.2 Na change `platform-establishment-resolution`, anotar sem marcar nem desmarcar:
+- [x] 5.2 Na change `platform-establishment-resolution`, anotar sem marcar nem desmarcar:
   - **na 6.1:** o mock servia o `/empresa` em array com a query, ao contrário da plataforma. A evidência vale para o
     casamento, a duplicidade, a paginação e a sobreposição, e não para a forma. A divergência foi corrigida nesta change;
   - **na 6.2:** o caminho da listagem foi destravado aqui. Nas empresas, o `$orderby`, o `$skip` e a página vazia já estão
     provados por chamada direta (as fixtures do `Fixtures/sandbox/`), e a listagem completa e o de/para, pelo grupo 6. O
     `$orderby` e o `$skip` dos contribuintes continuam com ela.
-- [ ] 5.3 O item na seção de Operação do `docs/STATUS.md` (D11), no estilo dos outros itens:
+- [x] 5.3 O item na seção de Operação do `docs/STATUS.md` (D11), no estilo dos outros itens:
   - **o ambiente:** o D365 de dev (o fiscosysdev, Contoso, raiz `44278225`) e a conta Avalara de sandbox (TMSA, IMS,
     ELTER, BULKTECH e RESULTA) descrevem empresas diferentes, sem nenhum CNPJ em comum. O de/para casa por CNPJ, então
     nenhum estabelecimento do ERP de dev resolve na plataforma de dev, e o fim da esteira só fecha contra o mock;
@@ -238,7 +238,11 @@ própria tarefa.
     pelos três motivos do D11: o `AvalaraJson` não escreve campo nulo, a premissa de que a plataforma recusaria não está
     testada (o pior caso é aceitar debaixo do contribuinte principal), e a recusa de hoje diz o quê e o que fazer. A
     recusa fica como está.
-- [ ] 5.4 `openspec validate --all --strict` verde.
+- [x] 5.4 `openspec validate --all --strict` verde.
+
+  **Feito (2026-10-06):** 23 itens, 0 falhas. São as 21 specs e as duas changes desta branch; a
+  `explicit-credential-and-execution-cnpj` não está nela. Na 5.2, a 6.2 foi anotada com o que esta change já provou e
+  com o que o grupo 6 ainda vai provar, sem dar como feito o que não rodou.
 
 ## 6. As provas pelo caminho do hub (D9)
 
