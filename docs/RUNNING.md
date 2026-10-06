@@ -163,7 +163,7 @@ plataforma**, casada pelo CNPJ do estabelecimento próprio, sem pontuação e co
 **As recusas,** todas "Configuração do conector: …", sem retentativa:
 
 - **nenhum contribuinte com o CNPJ:** "o estabelecimento 44278225000180 não tem contribuinte cadastrado na plataforma …";
-- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '005' (RESULTA …), contribuinte '010' (#10001); …".
+- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '012' (METALURGICA …), contribuinte '010' (#10001); …".
 
 **A janela.** A listagem fica guardada por tenant e ambiente, e um lote de notas usa uma só. As opções:
 
@@ -183,19 +183,19 @@ reprocesse a nota. Salvar esquece a listagem guardada do tenant, e a próxima no
 
 | Empresa | Contribuinte | CNPJ | Código |
 |---|---|---|---|
-| `005` (RESULTA IND E COM MAQUINAS) | Matriz | `44278225000180` | `010` |
+| `012` (METALURGICA EXEMPLO) | Matriz | `44278225000180` | `010` |
 | | SP-01 | `44278225000260` | `007` |
 | | SAL-01 | `44278225000341` | `021` |
 | | RJ-01 | `44278225003448` | `003` |
 | | Os XMLs de exemplo | `12345678000190` | `015` |
-| `Padrão` | | `11222333000181` | `001` |
-| `QA` | | `99888777000166` | `001` |
+| `Comércio` | | `11222333000181` | `001` |
+| `009` | | `99888777000166` | `001` |
 
 Os modos do mock ficam em `/admin`, abertos como os outros toggles:
 
 ```powershell
-# A duplicidade: o CNPJ da Matriz também na empresa QA (empresa= é o codigoCIA; sem ele, QA)
-Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/adicionar?cnpj=44278225000180&empresa=QA"
+# A duplicidade: o CNPJ da Matriz também na empresa 009 (empresa= é o codigoCIA; sem ele, 009)
+Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/adicionar?cnpj=44278225000180&empresa=009"
 # O CNPJ sem cadastro
 Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/remover?cnpj=44278225000180"
 # O servidor que limita a página abaixo do $top (sem itens, ou 0, tira o limite)

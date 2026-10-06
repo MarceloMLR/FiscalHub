@@ -24,7 +24,7 @@ public class AvalaraEstablishmentListingTests
         IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
 
         PlatformEstablishment matriz = Assert.Single(listed, e => e.TaxId == "44278225000180");
-        Assert.Equal(("005", "010", "10001"), (matriz.CompanyCode, matriz.EstablishmentCode, matriz.PlatformId));
+        Assert.Equal(("012", "010", "10001"), (matriz.CompanyCode, matriz.EstablishmentCode, matriz.PlatformId));
         Assert.Equal(["44278225000180", "44278225000260", "44278225000341", "11222333000181"], listed.Select(e => e.TaxId));
     }
 
@@ -35,8 +35,8 @@ public class AvalaraEstablishmentListingTests
 
         IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
 
-        Assert.Equal(3, listed.Count(e => e.CompanyCode == "005"));   // a 005 com três estabelecimentos
-        Assert.DoesNotContain(listed, e => e.CompanyCode == "Padrão");   // a Padrão veio com {"value": []}
+        Assert.Equal(3, listed.Count(e => e.CompanyCode == "012"));   // a 012 com três estabelecimentos
+        Assert.DoesNotContain(listed, e => e.CompanyCode == "Comércio");   // a Comércio veio com {"value": []}
         Assert.Equal(3, h.Platform.To(PlatformHandler.TaxpayersPath).Select(r => r.Query["empresaId"]).Distinct().Count());
     }
 
@@ -60,7 +60,7 @@ public class AvalaraEstablishmentListingTests
     [Fact]
     public async Task A_numeric_company_code_is_missing_and_never_converted()
     {
-        var platform = new PlatformHandler().WithCompany(7410, null, "sem texto", ("44278225000180", "010", 10001));
+        var platform = new PlatformHandler().WithCompany(8120, null, "sem texto", ("44278225000180", "010", 10001));
         platform.Companies[0]["codigoCIA"] = 5;
         var h = new Harness(platform);
 
@@ -70,8 +70,8 @@ public class AvalaraEstablishmentListingTests
     }
 
     [Theory]
-    [InlineData(7410, "7410")]
-    [InlineData("A-7410", "A-7410")]
+    [InlineData(8120, "8120")]
+    [InlineData("A-8120", "A-8120")]
     public async Task The_company_id_goes_in_the_query_as_it_came(object empresaId, string expected)
     {
         var h = new Harness(new PlatformHandler().WithCompany(empresaId, "005", "x", ("44278225000180", "010", 10001)));
@@ -109,13 +109,13 @@ public class AvalaraEstablishmentListingTests
     {
         var platform = new PlatformHandler();
         platform.Companies.AddRange(JsonNode.Parse(PlatformHandler.Fixture("empresas-campos-a-mais.json"))!.AsArray().Select(n => n!.AsObject()));
-        platform.Taxpayers["7410"] = [.. JsonNode.Parse(PlatformHandler.Fixture("contribuintes-7410-campos-a-mais.json"))!["value"]!.AsArray()
+        platform.Taxpayers["8120"] = [.. JsonNode.Parse(PlatformHandler.Fixture("contribuintes-8120-campos-a-mais.json"))!["value"]!.AsArray()
             .Select(n => n!.AsObject())];
         var h = new Harness(platform);
 
         PlatformEstablishment only = Assert.Single(await h.Listing().ListAsync(Profile()));
 
-        Assert.Equal(new PlatformEstablishment("44278225000180", "005", "010", "10001", "RESULTA IND E COM MAQUINAS (fixture)"), only);
+        Assert.Equal(new PlatformEstablishment("44278225000180", "012", "010", "10001", "METALURGICA EXEMPLO (fixture)"), only);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class AvalaraEstablishmentListingTests
 
         IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
 
-        Assert.All(listed.Where(e => e.CompanyCode == "005"), e => Assert.Equal("RESULTA IND E COM MAQUINAS (fixture)", e.CompanyName));
+        Assert.All(listed.Where(e => e.CompanyCode == "012"), e => Assert.Equal("METALURGICA EXEMPLO (fixture)", e.CompanyName));
     }
 
     [Fact]
@@ -136,9 +136,9 @@ public class AvalaraEstablishmentListingTests
         await h.Listing().ListAsync(Profile());
 
         Assert.Equal(2, h.Platform.Count(PlatformHandler.CompaniesPath));    // a página e a vazia
-        Assert.Equal(5, h.Platform.Count(PlatformHandler.TaxpayersPath));    // a Padrão vazia já na primeira: 2 + 1 + 2
+        Assert.Equal(5, h.Platform.Count(PlatformHandler.TaxpayersPath));    // a Comércio vazia já na primeira: 2 + 1 + 2
         Assert.Equal(
-            ["7410", "7410", "7411", "7412", "7412"],
+            ["8120", "8120", "8121", "8122", "8122"],
             h.Platform.To(PlatformHandler.TaxpayersPath).Select(r => r.Query["empresaId"]));   // em sequência, empresa a empresa
     }
 
@@ -192,7 +192,7 @@ public class AvalaraEstablishmentListingTests
     public async Task A_failure_in_the_third_company_throws_and_returns_nothing()
     {
         var platform = PlatformHandler.FromFixtures();
-        platform.Override = r => r.Query["empresaId"] == "7412" ? PlatformHandler.Json(HttpStatusCode.ServiceUnavailable, "{}") : null;
+        platform.Override = r => r.Query["empresaId"] == "8122" ? PlatformHandler.Json(HttpStatusCode.ServiceUnavailable, "{}") : null;
         var h = new Harness(platform);
 
         await Assert.ThrowsAsync<HttpRequestException>(() => h.Listing().ListAsync(Profile()));
@@ -219,7 +219,7 @@ public class AvalaraEstablishmentListingTests
     {
         // Pedidos 100, recebidos 10: com o $skip somando o $top, os itens de 10 a 24 nunca seriam lidos.
         (string?, string?, object?)[] taxpayers = [.. Enumerable.Range(1, 25).Select(i => ((string?)$"{i:D8}000100", (string?)$"{i:D3}", (object?)i))];
-        var platform = new PlatformHandler { ServerPageLimit = 10 }.WithCompany(7410, "005", "x", taxpayers);
+        var platform = new PlatformHandler { ServerPageLimit = 10 }.WithCompany(8120, "012", "x", taxpayers);
         var h = new Harness(platform);
 
         IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
@@ -245,7 +245,7 @@ public class AvalaraEstablishmentListingTests
     [Fact]
     public async Task A_failure_in_the_second_page_throws_and_returns_not_even_the_first()
     {
-        var platform = new PlatformHandler().WithCompany(7410, "005", "x",
+        var platform = new PlatformHandler().WithCompany(8120, "012", "x",
             ("11111111000111", "1", 1), ("11111111000112", "2", 2), ("11111111000113", "3", 3));
         platform.Override = r => r.Path == PlatformHandler.TaxpayersPath && r.Skip == 2
             ? PlatformHandler.Json(HttpStatusCode.ServiceUnavailable, "{}")
@@ -273,7 +273,7 @@ public class AvalaraEstablishmentListingTests
     public async Task The_page_ceiling_is_refused_naming_the_endpoint_the_company_and_the_ceiling()
     {
         // Páginas diferentes que não acabam: o $orderby e o $skip ignorados juntos. Só o teto as pega.
-        var platform = new PlatformHandler().WithCompany(7410, "005", "x");
+        var platform = new PlatformHandler().WithCompany(8120, "012", "x");
         int n = 0;
         platform.Override = r => r.Path == PlatformHandler.TaxpayersPath
             ? PlatformHandler.Json(HttpStatusCode.OK, $$"""{"value":[{"contribuinteId":{{++n}},"codigo":"x","cnpj":"1"}]}""")
@@ -285,7 +285,7 @@ public class AvalaraEstablishmentListingTests
 
         Assert.StartsWith("Contrato do destino: ", ex.Reason);
         Assert.Contains("taxcompliance/v2/contribuinte", ex.Reason);
-        Assert.Contains("7410", ex.Reason);
+        Assert.Contains("8120", ex.Reason);
         Assert.Contains("3 páginas", ex.Reason);
         Assert.Equal(3, h.Platform.Count(PlatformHandler.TaxpayersPath));   // a 4ª não é pedida
     }
@@ -476,7 +476,7 @@ public class AvalaraEstablishmentListingTests
         Assert.Contains("3 empresas", log);
         Assert.Contains("4 contribuintes", log);
         Assert.DoesNotContain("44278225000180", log);
-        Assert.DoesNotContain("RESULTA", log);
+        Assert.DoesNotContain("METALURGICA", log);
     }
 
     [Fact]

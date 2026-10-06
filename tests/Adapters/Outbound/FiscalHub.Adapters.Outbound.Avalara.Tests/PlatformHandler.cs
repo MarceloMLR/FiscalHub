@@ -40,12 +40,12 @@ internal sealed class PlatformHandler : HttpMessageHandler
 
     public List<string> SubmittedBodies { get; } = [];
 
-    /// <summary>A plataforma das fixtures: a empresa 005 com três estabelecimentos, a Padrão vazia e a QA.</summary>
+    /// <summary>A plataforma das fixtures: a empresa 012 com três estabelecimentos, a Comércio vazia e a 009.</summary>
     public static PlatformHandler FromFixtures()
     {
         var handler = new PlatformHandler();
         handler.Companies.AddRange(JsonNode.Parse(Fixture("empresas.json"))!.AsArray().Select(n => n!.AsObject()));
-        foreach (string id in new[] { "7410", "7411", "7412" })
+        foreach (string id in new[] { "8120", "8121", "8122" })
         {
             handler.Taxpayers[id] = [.. JsonNode.Parse(Fixture($"contribuintes-{id}.json"))!["value"]!.AsArray().Select(n => n!.AsObject())];
         }

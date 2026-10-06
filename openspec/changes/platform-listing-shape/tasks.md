@@ -18,7 +18,7 @@ própria tarefa.
 
 ## 1. Os valores inventados, num commit separado (D10)
 
-- [ ] 1.1 Inventar e trocar os valores que vieram do sandbox, sem mudar nenhuma lógica:
+- [x] 1.1 Inventar e trocar os valores que vieram do sandbox, sem mudar nenhuma lógica:
   - **o `Fixtures/listing/`:** o `empresaId`, o `codigoCIA`, a `descricao` e o `idPortalCompany` de todos os arquivos,
     inclusive as variantes `*-campos-a-mais.json`. Os arquivos `contribuintes-<empresaId>.json` mudam de nome com o
     `empresaId`;
@@ -32,19 +32,27 @@ própria tarefa.
   `"001"` a `"005"`, `"Padrão"`, `"QA"` e `"SPL"`, as razões sociais e os `idPortalCompany`. As três propriedades do D10
   ficam: o `codigoCIA` fora da ordem do `empresaId`, os códigos de contribuinte fora da ordem do CNPJ e um `codigoCIA` com
   acento.
-- [ ] 1.2 O `Fixtures/listing/README.md`: a afirmação "valores de mentira" passa a ser verdade. Ele registra as três
+- [x] 1.2 O `Fixtures/listing/README.md`: a afirmação "valores de mentira" passa a ser verdade. Ele registra as três
   propriedades, e diz que os CNPJs são os da Contoso de propósito, para as notas gravadas resolverem no mock.
-- [ ] 1.3 Os testes que afirmam esses valores, ou que montam a mesma empresa real inline, por substituição mecânica: o
+- [x] 1.3 Os testes que afirmam esses valores, ou que montam a mesma empresa real inline, por substituição mecânica: o
   `AvalaraEstablishmentListingTests`, o `AvalaraDispatcherPlatformCodesTests`, o `AvalaraOutboundSettingsTests` e o
   `DispatchToMockTests`, e os outros que a suíte apontar. Só o valor esperado muda, e nenhuma asserção muda de natureza.
   Um código genérico sozinho, como os do `PlatformEstablishmentResolverTests`, fica.
-- [ ] 1.4 O RUNNING: as linhas que mostram os códigos e a descrição do mock, como o exemplo da duplicidade, passam aos
+- [x] 1.4 O RUNNING: as linhas que mostram os códigos e a descrição do mock, como o exemplo da duplicidade, passam aos
   valores novos.
-- [ ] 1.5 A conferência:
+- [x] 1.5 A conferência:
   - **a busca:** nenhuma razão social, nenhum `idPortalCompany` e nenhum `empresaId` do sandbox em `tests/`, `tools/` e
     `docs/RUNNING.md`, fora do `Fixtures/sandbox/`. Anotar a busca usada;
   - `dotnet build -warnaserror` limpo e `dotnet test` verde, com só valores trocados no diff;
   - o commit, sozinho, antes do grupo 2.
+
+  **Feito (2026-10-06).** Os valores: a `8120` (`"012"`, METALURGICA EXEMPLO), a `8121` (`"Comércio"`) e a `8122`
+  (`"009"`, LABORATORIO), com os `idPortalCompany` `00000000-0000-4000-8000-0000000081NN`. A busca, sem nenhuma ocorrência
+  fora do `Fixtures/sandbox/`: `grep -rnE "RESULTA|TMSA|IMS - |ELTER|BULKTECH|7e93b784|92acdd6d|9efa51d4|aef7d5be|81c69c9c|(7330|740[7-9]|741[0-2])" tests tools docs/RUNNING.md`.
+  Ela achou uma sobra que a troca mecânica não cobria, o `"7412"` do teste da falha na terceira empresa, e o
+  `7400 + i` do teste dos sete candidatos, que gerava o `7407`, também mudou (para `8200 + i`). O build e a suíte rodaram em
+  `Release` (`dotnet build -c Release -warnaserror`: 0 warnings; `dotnet test -c Release`: 1140 aprovados, 3 ignorados, os
+  opt-in de sempre), porque um `FiscalHub.Host` em execução travava o `bin/Debug` do host.
 
 ## 2. A reprodução, nos dois níveis (D4, D5)
 
