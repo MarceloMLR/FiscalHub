@@ -1,12 +1,20 @@
 # Fixtures da listagem de estabelecimentos
 
 Não são respostas gravadas. A pasta `../sandbox/` guarda só o que veio da plataforma; esta guarda a **forma** verificada
-pelo Marcelo em 2026-10-02, com **valores de mentira** (change `platform-establishment-resolution`, tarefa 2.2):
+pelo Marcelo, com **valores de mentira** (changes `platform-establishment-resolution`, tarefa 2.2, e
+`platform-listing-shape`).
 
-- `GET /taxcompliance/v2/empresa` devolve um **array puro**, sem envelope;
-- `GET /taxcompliance/v2/contribuinte?empresaId=` devolve **`{"value": [...]}`**;
-- os campos são os do `$select` que o hub pede: `empresaId,codigoCIA,descricao` nas empresas e
-  `contribuinteId,codigo,cnpj` nos contribuintes.
+**A forma depende de a chamada ter opções de query.** O mesmo endpoint tem duas respostas, e o hub aceita as duas:
+
+| Arquivo | Forma | De qual chamada veio |
+|---|---|---|
+| `empresas.json` | **array puro** | `GET /taxcompliance/v2/empresa`, **sem** opções de query (2026-10-02) |
+| `empresas-envelope.json` | **`{"value": [...]}`** | o mesmo endpoint **com** `$top` e `$orderby`, com e sem `$skip` (2026-10-06). É a forma que o hub recebe, porque sempre chama com a query |
+| `empresas-vazio.json` | **`{"value": []}`** | a página vazia com a query, `$skip=999` (2026-10-06). É ela que encerra toda leitura do hub |
+| `contribuintes-*.json` | **`{"value": [...]}`** | `GET /taxcompliance/v2/contribuinte?empresaId=`, sempre chamado com query (2026-10-02). A forma dele sem opções nunca foi observada |
+
+Os campos são os do `$select` que o hub pede: `empresaId,codigoCIA,descricao` nas empresas e `contribuinteId,codigo,cnpj`
+nos contribuintes.
 
 As variantes `*-campos-a-mais.json` trazem também `idPortalCompany`, `empresaId` e `razao`: são o cenário da plataforma
 que ignora o `$select`, e o resultado da listagem não pode mudar com elas.

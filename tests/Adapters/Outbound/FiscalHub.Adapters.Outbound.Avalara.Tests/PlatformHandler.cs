@@ -7,9 +7,14 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 
 /// <summary>
 /// Uma plataforma falsa com a listagem de estabelecimentos e o envio (change platform-establishment-resolution, tarefa
-/// 2.1), sem lib de mock. Responde por caminho e pela query: as empresas num array puro, os contribuintes de cada
-/// <c>empresaId</c> em <c>{"value": [...]}</c>, paginados de verdade pelo <c>$top</c> e pelo <c>$skip</c>. Conta as
-/// requisições por caminho e guarda as queries — o resultado certo com N listagens é o defeito que os testes procuram.
+/// 2.1), sem lib de mock. Responde por caminho e pela query: as empresas e os contribuintes de cada <c>empresaId</c>,
+/// paginados de verdade pelo <c>$top</c> e pelo <c>$skip</c>. Conta as requisições por caminho e guarda as queries — o
+/// resultado certo com N listagens é o defeito que os testes procuram.
+/// <para>
+/// A forma imita o sandbox com a query do hub (change platform-listing-shape): as duas listas em <c>{"value": [...]}</c>,
+/// inclusive a página vazia, como nas chamadas diretas de 2026-10-06. O array puro, que o <c>/empresa</c> devolve sem
+/// opções de query, sai por lista, pelo <see cref="ArrayPaths"/>.
+/// </para>
 /// </summary>
 internal sealed class PlatformHandler : HttpMessageHandler
 {
@@ -33,6 +38,9 @@ internal sealed class PlatformHandler : HttpMessageHandler
     /// <summary>Ignora o <c>$skip</c>: toda página é a primeira.</summary>
     public bool IgnoreSkip { get; set; }
 
+    /// <summary>Os caminhos que respondem no array puro, e não no envelope do padrão.</summary>
+    public HashSet<string> ArrayPaths { get; } = [];
+
     /// <summary>Uma resposta no lugar da normal, para provocar as falhas: devolve null para seguir normal.</summary>
     public Func<Request, HttpResponseMessage?>? Override { get; set; }
 
@@ -44,16 +52,24 @@ internal sealed class PlatformHandler : HttpMessageHandler
     public static PlatformHandler FromFixtures()
     {
         var handler = new PlatformHandler();
-        handler.Companies.AddRange(JsonNode.Parse(Fixture("empresas.json"))!.AsArray().Select(n => n!.AsObject()));
+        handler.Companies.AddRange(Items("empresas.json"));
         foreach (string id in new[] { "8120", "8121", "8122" })
         {
-            handler.Taxpayers[id] = [.. JsonNode.Parse(Fixture($"contribuintes-{id}.json"))!["value"]!.AsArray().Select(n => n!.AsObject())];
+            handler.Taxpayers[id] = Items($"contribuintes-{id}.json");
         }
 
         return handler;
     }
 
     public static string Fixture(string name) => File.ReadAllText(Path.Combine(FixtureDir, name));
+
+    /// <summary>Os itens de uma fixture, numa forma ou na outra: o array puro, ou o array em <c>value</c>.</summary>
+    public static List<JsonObject> Items(string name)
+    {
+        JsonNode root = JsonNode.Parse(Fixture(name))!;
+        JsonArray items = root is JsonArray array ? array : root["value"]!.AsArray();
+        return [.. items.Select(n => n!.AsObject())];
+    }
 
     /// <summary>Uma empresa com os contribuintes dela, cada um um (cnpj, codigo, contribuinteId).</summary>
     public PlatformHandler WithCompany(object empresaId, string? codigoCia, string? descricao, params (string? Cnpj, string? Codigo, object? Id)[] taxpayers)
@@ -123,14 +139,17 @@ internal sealed class PlatformHandler : HttpMessageHandler
 
         return recorded.Path switch
         {
-            CompaniesPath => Json(HttpStatusCode.OK, new JsonArray([.. Page(Companies, recorded).Select(c => c.DeepClone())]).ToJsonString()),
-            TaxpayersPath => Json(HttpStatusCode.OK, new JsonObject
-            {
-                ["value"] = new JsonArray([.. Page(Taxpayers.GetValueOrDefault(recorded.Query["empresaId"] ?? string.Empty) ?? [], recorded)
-                    .Select(t => t.DeepClone())]),
-            }.ToJsonString()),
+            CompaniesPath => List(CompaniesPath, Page(Companies, recorded)),
+            TaxpayersPath => List(TaxpayersPath, Page(Taxpayers.GetValueOrDefault(recorded.Query["empresaId"] ?? string.Empty) ?? [], recorded)),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
+    }
+
+    // A página no envelope, como o sandbox responde à query do hub, ou no array puro, quando o caminho pede.
+    private HttpResponseMessage List(string path, IEnumerable<JsonObject> page)
+    {
+        var items = new JsonArray([.. page.Select(i => i.DeepClone())]);
+        return Json(HttpStatusCode.OK, ArrayPaths.Contains(path) ? items.ToJsonString() : new JsonObject { ["value"] = items }.ToJsonString());
     }
 
     public static HttpResponseMessage Json(HttpStatusCode status, string body)

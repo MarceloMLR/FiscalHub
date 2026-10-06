@@ -15,8 +15,10 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// e não há como pedir um CNPJ na conta inteira. O payload leva o <c>codigoCIA</c> da empresa e o <c>codigo</c> do
 /// contribuinte, lidos como texto, como vieram.
 /// <list type="bullet">
-///   <item><b>Os formatos verificados:</b> as empresas num array puro, os contribuintes em <c>{"value": [...]}</c>. O outro
-///   formato é recusa de contrato.</item>
+///   <item><b>As duas formas de uma lista</b> (change <c>platform-listing-shape</c>): o array puro e o objeto com o array em
+///   <c>value</c>, nas duas listas, decididas a cada resposta. O <c>/empresa</c> devolve o envelope com opções de query,
+///   inclusive na página vazia, e o array sem elas, e a forma não pode depender de como o adapter monta a query. Qualquer
+///   outra forma é recusa de contrato, que nomeia as propriedades recebidas, e nunca os valores.</item>
 ///   <item><b>A paginação, pelo cliente:</b> ordem estável pelo <c>$orderby</c>, <c>$top</c> fixo, o <c>$skip</c> somando os
 ///   itens <b>recebidos</b> (um servidor que limite a página só dá mais páginas, sem pular itens), e a parada só na página
 ///   vazia. A página igual à anterior (o <c>$skip</c> ignorado) e o teto de páginas são recusa de contrato.</item>
@@ -30,6 +32,9 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
 {
     private const string CompaniesSelect = "$select=empresaId,codigoCIA,descricao&$orderby=empresaId";
     private const string TaxpayersSelect = "$select=contribuinteId,codigo,cnpj&$orderby=contribuinteId";
+
+    // Quantos nomes de propriedade a recusa da forma cita, antes do "e mais N".
+    private const int MaxNamedProperties = 10;
 
     private readonly HttpClient _http;
     private readonly IAvalaraTokenProvider _tokens;
@@ -52,7 +57,7 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
         AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(profile.TenantId, profile);
 
         var companies = new ListPath(
-            "a listagem de empresas", "da listagem de empresas", _options.CompaniesPath, "Avalara:CompaniesPath", CompaniesSelect, Envelope: false);
+            "a listagem de empresas", "da listagem de empresas", _options.CompaniesPath, "Avalara:CompaniesPath", CompaniesSelect);
         (List<JsonElement> companyItems, int companyPages) = await ReadAllAsync(settings, companies, ct);
 
         var establishments = new List<PlatformEstablishment>();
@@ -68,7 +73,7 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
             var taxpayers = new ListPath(
                 $"a listagem de contribuintes da empresa {empresaId}{(codigoCia is null ? string.Empty : $" ('{codigoCia}')")}",
                 "da listagem de contribuintes", _options.TaxpayersPath, "Avalara:TaxpayersPath",
-                $"empresaId={Uri.EscapeDataString(empresaId)}&{TaxpayersSelect}", Envelope: true);
+                $"empresaId={Uri.EscapeDataString(empresaId)}&{TaxpayersSelect}");
             (List<JsonElement> taxpayerItems, int pages) = await ReadAllAsync(settings, taxpayers, ct);
             taxpayerPages += pages;
 
@@ -180,19 +185,15 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
             throw Contract($"{list.Label} ({list.Path}) não respondeu com JSON.");
         }
 
-        JsonElement array;
-        if (list.Envelope)
+        // A forma é desta resposta, e não da lista nem da página anterior. As outras propriedades do envelope, como o
+        // @odata.nextLink, ficam de fora: a paginação continua sendo do hub.
+        JsonElement array = root.ValueKind switch
         {
-            array = root.ValueKind == JsonValueKind.Object && root.TryGetProperty("value", out JsonElement value) && value.ValueKind == JsonValueKind.Array
-                ? value
-                : throw Contract($"{list.Label} ({list.Path}) não veio no formato verificado, o array em \"value\" (veio {Kind(root)}).");
-        }
-        else
-        {
-            array = root.ValueKind == JsonValueKind.Array
-                ? root
-                : throw Contract($"{list.Label} ({list.Path}) não veio no formato verificado, um array puro (veio {Kind(root)}).");
-        }
+            JsonValueKind.Array => root,
+            JsonValueKind.Object when root.TryGetProperty("value", out JsonElement value) && value.ValueKind == JsonValueKind.Array => value,
+            _ => throw Contract($"{list.Label} ({list.Path}) não veio em nenhuma das duas formas de lista, um array ou um objeto com o "
+                + $"array em \"value\" (veio {Describe(root)})."),
+        };
 
         JsonElement[] items = [.. array.EnumerateArray()];
         return items.Any(i => i.ValueKind != JsonValueKind.Object)
@@ -218,15 +219,39 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
                 ? property.Value
                 : null;
 
-    private static string Kind(JsonElement root) => root.ValueKind switch
+    // O que veio no lugar da lista: os nomes das propriedades de primeiro nível, e nunca os valores, que são resposta da
+    // plataforma e podem ter dado de cliente. "error, message" e "value, que não é um array" levam a conclusões opostas.
+    private static string Describe(JsonElement root)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            return Kind(root);
+        }
+
+        string[] names = [.. root.EnumerateObject().Select(p => p.Name)];
+        string described = names.Length switch
+        {
+            0 => "um objeto vazio",
+            1 => $"um objeto com a propriedade {names[0]}",
+            > MaxNamedProperties => $"um objeto com as propriedades {string.Join(", ", names.Take(MaxNamedProperties))} e mais {names.Length - MaxNamedProperties}",
+            _ => $"um objeto com as propriedades {string.Join(", ", names)}",
+        };
+
+        return root.TryGetProperty("value", out JsonElement value) ? $"{described}, mas o value é {Kind(value)}, e não um array" : described;
+    }
+
+    private static string Kind(JsonElement element) => element.ValueKind switch
     {
         JsonValueKind.Object => "um objeto",
         JsonValueKind.Array => "um array",
-        _ => "outro tipo",
+        JsonValueKind.String => "um texto",
+        JsonValueKind.Number => "um número",
+        JsonValueKind.True or JsonValueKind.False => "um booleano",
+        _ => "null",
     };
 
     private static DispatchRejectedException Contract(string what) => new($"Contrato do destino: {what}");
 
-    /// <summary>Uma lista da plataforma: como o motivo a nomeia, o caminho, a opção que o define, a query e o formato.</summary>
-    private sealed record ListPath(string Label, string What, string Path, string Option, string Query, bool Envelope);
+    /// <summary>Uma lista da plataforma: como o motivo a nomeia, o caminho, a opção que o define e a query.</summary>
+    private sealed record ListPath(string Label, string What, string Path, string Option, string Query);
 }

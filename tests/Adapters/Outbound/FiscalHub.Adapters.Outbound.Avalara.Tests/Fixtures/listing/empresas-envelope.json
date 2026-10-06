@@ -1,0 +1,7 @@
+{
+  "value": [
+    { "empresaId": 8120, "codigoCIA": "012", "descricao": "METALURGICA EXEMPLO (fixture)" },
+    { "empresaId": 8121, "codigoCIA": "Comércio", "descricao": "Comércio de exemplo (fixture)" },
+    { "empresaId": 8122, "codigoCIA": "009", "descricao": "LABORATORIO (fixture)" }
+  ]
+}

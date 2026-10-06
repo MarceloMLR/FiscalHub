@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -344,6 +345,22 @@ public class DispatchToMockTests
     // Uma listagem inteira da conta do mock com o $top 2: as empresas (3) em 2 páginas e a vazia; os contribuintes da 012 (5)
     // em 3 páginas e a vazia, e os da Comércio e da 009 (1 cada) em 1 e a vazia.
     private static readonly (int Companies, int Taxpayers) OneListingWithTopTwo = (3, 4 + 2 + 2);
+
+    [Fact]
+    public async Task The_mock_lists_companies_like_the_sandbox_in_an_envelope_with_the_query_and_in_an_array_without()
+    {
+        // As chamadas diretas ao sandbox (change platform-listing-shape): com as opções de query, o envelope, inclusive na
+        // página vazia; sem nenhuma opção, o array puro.
+        using Harness h = await Harness.CreateAsync();
+
+        JsonNode withQuery = await h.MockListingPageAsync("taxcompliance/v2/empresa?$top=5&$orderby=empresaId");
+        JsonNode emptyPage = await h.MockListingPageAsync("taxcompliance/v2/empresa?$top=5&$orderby=empresaId&$skip=999");
+        JsonNode withoutQuery = await h.MockListingPageAsync("taxcompliance/v2/empresa");
+
+        Assert.Equal(3, Assert.IsType<JsonObject>(withQuery)["value"]!.AsArray().Count);
+        Assert.Equal("""{"value":[]}""", emptyPage.ToJsonString());
+        Assert.Equal(3, Assert.IsType<JsonArray>(withoutQuery).Count);
+    }
 
     [Fact]
     public async Task The_four_brmf_establishments_resolve_and_dispatch_with_an_empty_table()
@@ -702,6 +719,23 @@ public class DispatchToMockTests
         {
             using HttpResponseMessage response = await _mock.CreateClient().PostAsync($"admin/{pathAndQuery}", null);
             response.EnsureSuccessStatusCode();
+        }
+
+        /// <summary>Uma página crua da listagem do mock, com um token emitido por ele, que a listagem exige como o envio.</summary>
+        public async Task<JsonNode> MockListingPageAsync(string pathAndQuery)
+        {
+            using HttpClient client = _mock.CreateClient();
+            using var tokenRequest = new StringContent(
+                """{"grant_type":"client_credentials","client_id":"mock-client","client_secret":"segredo-de-teste"}""", Encoding.UTF8, "application/json");
+            using HttpResponseMessage token = await client.PostAsync("oauth/token", tokenRequest);
+            token.EnsureSuccessStatusCode();
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, pathAndQuery);
+            request.Headers.Authorization = new AuthenticationHeaderValue(
+                "Bearer", (string)JsonNode.Parse(await token.Content.ReadAsStringAsync())!["access_token"]!);
+            using HttpResponseMessage response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
         }
 
         /// <summary>As requisições de listagem que o mock recebeu, por endpoint, cada página contando uma.</summary>

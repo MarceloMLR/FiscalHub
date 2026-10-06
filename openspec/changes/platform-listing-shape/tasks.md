@@ -56,19 +56,19 @@ própria tarefa.
 
 ## 2. A reprodução, nos dois níveis (D4, D5)
 
-- [ ] 2.1 O `PlatformHandler` imita o sandbox com a query:
+- [x] 2.1 O `PlatformHandler` imita o sandbox com a query:
   - **o padrão:** o envelope `{"value": [...]}` nas duas listas, inclusive na página vazia;
   - **uma opção por lista:** força o array puro;
   - **o `FromFixtures`:** lê os itens das fixtures nas duas formas, e o handler decide o embrulho;
   - **o resumo da classe:** diz de onde vem cada forma.
-- [ ] 2.2 As fixtures da listagem (D5), já com os valores do grupo 1:
+- [x] 2.2 As fixtures da listagem (D5), já com os valores do grupo 1:
   - **o `Fixtures/listing/empresas-envelope.json`:** os mesmos itens do `empresas.json`, em `{"value": [...]}`, sem
     `@odata.*`;
   - **o `Fixtures/listing/empresas-vazio.json`:** `{"value": []}`, a página vazia como o sandbox a devolve com a query;
   - **o `Fixtures/listing/README.md`:** a forma deixa de ser única. O array puro veio do `/empresa` sem opções de query
     (2026-10-02). O envelope veio do `/empresa` com `$top` e `$orderby`, com e sem `$skip`, inclusive a página vazia
     (2026-10-06), e do `/contribuinte`, sempre chamado com query. O README aponta o `../sandbox/` para as respostas reais.
-- [ ] 2.3 O `MockComplianceApi` (D4):
+- [x] 2.3 O `MockComplianceApi` (D4):
   - **o `/empresa`:** o envelope quando a query tem um parâmetro que começa com `$`, inclusive na página vazia, e o array
     puro sem nenhum;
   - **o `/contribuinte`:** continua sempre em envelope. O comentário diz que a forma dele sem opções nunca foi observada;
@@ -78,7 +78,7 @@ própria tarefa.
   - o `/empresa?$top=5&$orderby=empresaId` do mock responde um objeto com o array em `value`;
   - o `/empresa?$top=5&$orderby=empresaId&$skip=999` responde `{"value": []}`;
   - o `/empresa` sem query responde um array.
-- [ ] 2.4 Rodar e anotar a reprodução, com o adapter de hoje:
+- [x] 2.4 Rodar e anotar a reprodução, com o adapter de hoje:
   - `dotnet build -warnaserror` limpo;
   - os testes da `FiscalHub.Adapters.Outbound.Avalara.Tests` que listam empresas, e os `DispatchToMockTests` da resolução
     pela plataforma, caem com "não veio no formato verificado, um array puro (veio um objeto)".
@@ -86,9 +86,23 @@ própria tarefa.
   Anotar aqui os testes que caíram. Se algum teste da resolução **não** cair, ele não atravessa o `/empresa`: anotar qual,
   e por quê.
 
+  **Feito (2026-10-06).** `dotnet build -c Release -warnaserror` limpo. Caíram 49 testes, todos com o motivo de dev:
+  - **43 na `FiscalHub.Adapters.Outbound.Avalara.Tests`,** do `AvalaraEstablishmentListingTests` e do
+    `AvalaraDispatcherPlatformCodesTests`. Em 24, a falha traz o motivo inteiro, e nos outros 19 o xUnit o corta em
+    "Contrato do destino: a listagem de empres…";
+  - **6 no `DispatchToMockTests`:** `The_four_brmf_establishments_resolve_and_dispatch_with_an_empty_table`,
+    `A_server_page_limit_below_the_top_still_resolves_the_four_establishments`, `A_batch_of_notes_lists_the_platform_once`,
+    `A_duplicate_on_the_platform_is_refused_naming_both_and_nothing_is_posted`,
+    `A_cnpj_without_taxpayer_is_refused_naming_it_and_goes_out_after_restore_save_and_reprocess` e
+    `An_alphanumeric_cnpj_on_the_platform_resolves_with_the_same_value`. Quatro deles só afirmam o status
+    (`IntegrationError`), e o motivo gravado foi conferido com um `Assert.Fail` temporário, revertido em seguida.
+
+  Da resolução pela plataforma, só o `The_table_wins_over_the_platform_and_lists_nothing` não caiu: a sobreposição ganha, e
+  ele não lista nada. O teste novo do mock passou, porque prova o mock, e não o adapter.
+
 ## 3. As duas formas e a recusa que diz o que veio (D1, D2, D3, D8; `avalara-establishment-listing`)
 
-- [ ] 3.1 Teste primeiro das duas formas, no `AvalaraEstablishmentListingTests`:
+- [x] 3.1 Teste primeiro das duas formas, no `AvalaraEstablishmentListingTests`:
   - **as empresas:** o `empresas.json` e o `empresas-envelope.json`, servidos crus, dão a mesma listagem, com os mesmos
     códigos e na mesma ordem;
   - **a parada na página vazia em envelope:** com o `empresas-vazio.json` servido cru depois da última página cheia, a
@@ -101,7 +115,7 @@ própria tarefa.
     vazia;
   - **a mesma página na outra forma:** a de `$skip=2` em array, igual à de `$skip=0` em envelope, é recusa por `$skip`
     ignorado, nomeando o endpoint e o `$skip=2`.
-- [ ] 3.2 Teste primeiro da recusa da forma, pela tabela da spec. Todas começam com "Contrato do destino: " e nomeiam o
+- [x] 3.2 Teste primeiro da recusa da forma, pela tabela da spec. Todas começam com "Contrato do destino: " e nomeiam o
   endpoint:
   - **o objeto sem `value`:** `{"error": …, "message": …}` diz "um objeto com as propriedades error, message";
   - **uma propriedade só:** diz "com a propriedade";
@@ -110,27 +124,41 @@ própria tarefa.
   - **a raiz que não é objeto nem array:** o número, o texto, o booleano e o `null`, cada um pelo tipo;
   - **doze propriedades:** as dez primeiras, na ordem em que vieram, e "e mais 2";
   - **o corpo que não é JSON:** a mensagem de hoje.
-- [ ] 3.3 Teste primeiro de que a recusa nunca traz os valores: com
+- [x] 3.3 Teste primeiro de que a recusa nunca traz os valores: com
   `{"mensagem": "CNPJ 11222333000181 sem acesso", "codigo": 9101}`, o motivo tem `mensagem` e `codigo`, e não tem
   `11222333000181`, `sem acesso` nem `9101`. O mesmo vale para o número e o texto na raiz.
-- [ ] 3.4 Os testes de hoje que mudam, cada um com um comentário que diz por quê:
+- [x] 3.4 Os testes de hoje que mudam, cada um com um comentário que diz por quê:
   - **o `Companies_in_an_envelope_are_a_contract_refusal`:** passa a provar a aceitação, com o nome trocado;
   - **o `Taxpayers_without_the_value_array_are_a_contract_refusal`:** o `[{"contribuinteId":1}]` sai da teoria, porque o
     array é aceito. Os outros casos ficam, e ganham a conferência da mensagem;
   - **o resumo da classe:** deixa de dizer "as empresas num array puro".
-- [ ] 3.5 Implementar, no `AvalaraEstablishmentListing`:
+- [x] 3.5 Implementar, no `AvalaraEstablishmentListing`:
   - o `ListPath` sem o `Envelope`;
   - o `Parse` com as duas formas, decididas a cada resposta (D1);
   - a mensagem nova, com a descrição do que veio no lugar do `Kind` (D3);
   - o comentário do topo da classe, que deixa de afirmar uma forma por lista.
-- [ ] 3.6 As mutações (D8). Cada uma é aplicada, rodada e revertida, e o teste que caiu é anotado aqui:
+- [x] 3.6 As mutações (D8). Cada uma é aplicada, rodada e revertida, e o teste que caiu é anotado aqui:
   - **aceitar qualquer objeto sem olhar o `value`** (o objeto sem `value` como lista vazia): tem de derrubar um teste do
     3.2;
   - **pôr o valor da propriedade na mensagem:** tem de derrubar o 3.3.
 
   Se uma mutação passar, falta um teste: escrevê-lo antes de marcar.
-- [ ] 3.7 `dotnet build -warnaserror` limpo e `dotnet test` verde. Os testes que caíram no 2.4 passam sem mudança neles,
+
+  **Feito (2026-10-06).** As duas caíram:
+  - **a primeira** derrubou 9 testes: as seis teorias de objeto do `A_form_that_is_not_a_list_is_refused_saying_what_came`,
+    as duas do `Taxpayers_without_the_value_array_are_a_contract_refusal`, o
+    `More_than_ten_properties_name_the_first_ten_in_the_order_they_came` e o
+    `The_refusal_names_and_never_carries_a_value` do objeto;
+  - **a segunda** derrubou 8, entre eles o `The_refusal_names_and_never_carries_a_value` do objeto (3.3).
+
+  O código foi restaurado de um backup depois de cada uma, e o diff dele bate com o da 3.5.
+- [x] 3.7 `dotnet build -warnaserror` limpo e `dotnet test` verde. Os testes que caíram no 2.4 passam sem mudança neles,
   inclusive os `DispatchToMockTests`.
+
+  **Feito (2026-10-06),** em `Release`, pelo `FiscalHub.Host` em execução (ver 1.5): 0 warnings, e a suíte inteira verde.
+  A `FiscalHub.Adapters.Outbound.Avalara.Tests` foi de 311 a 330 testes, e a `FiscalHub.Integration.Tests` de 26 a 27. Os
+  seis `DispatchToMockTests` do 2.4 passam sem nenhuma mudança neles. Dos 43 testes do adapter que caíram no 2.4, só os
+  dois que a 3.4 manda mudar foram tocados.
 
 ## 4. A resposta real gravada, e a sonda (D5, D7)
 

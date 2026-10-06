@@ -11,9 +11,10 @@ using System.Text.Json.Nodes;
 // Autentica como a plataforma (ADR-0027): POST /oauth/token (client_credentials com corpo JSON, a forma da coleção do
 // Postman do cliente) emite um token, e /documents* exigem o Bearer emitido aqui. /admin/* e a inspeção do payload
 // continuam abertos, porque são ferramenta de dev.
-// Lista os estabelecimentos como a plataforma (change platform-establishment-resolution): GET /taxcompliance/v2/empresa
-// (array puro) e /taxcompliance/v2/contribuinte?empresaId= ({"value": [...]}), na forma verificada no sandbox e no Swagger
-// em 2026-10-02, com $top, $skip, $orderby e $select. A conta é de mentira, e os modos ficam em /admin/contribuintes.
+// Lista os estabelecimentos como a plataforma (changes platform-establishment-resolution e platform-listing-shape):
+// GET /taxcompliance/v2/empresa e /taxcompliance/v2/contribuinte?empresaId=, com $top, $skip, $orderby e $select. A forma
+// depende da query, como no sandbox: com opções OData, {"value": [...]}, inclusive na página vazia; sem nenhuma, o array
+// puro. A conta é de mentira, e os modos ficam em /admin/contribuintes.
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -160,17 +161,26 @@ foreach (string path in documentPaths)
             : Results.NotFound());
 }
 
-// A listagem de estabelecimentos (change platform-establishment-resolution), na forma verificada no sandbox em 2026-10-02
-// e no Swagger: as empresas num array puro, os contribuintes de uma empresa em {"value": [...]}, o empresaId obrigatório
-// nos contribuintes, e a paginação pelo cliente com $top e $skip, sem nextLink. O $orderby ordena pelo campo pedido; sem
-// ele, a ordem muda a cada pedido, para que um hub que esquecesse a ordem falhasse aqui, e não por sorte. O $select devolve
-// só os campos pedidos. Exigem o Bearer, como o envio.
+// A listagem de estabelecimentos (change platform-establishment-resolution), como no sandbox e no Swagger: o empresaId
+// obrigatório nos contribuintes, e a paginação pelo cliente com $top e $skip, sem nextLink. O $orderby ordena pelo campo
+// pedido; sem ele, a ordem muda a cada pedido, para que um hub que esquecesse a ordem falhasse aqui, e não por sorte. O
+// $select devolve só os campos pedidos. Exigem o Bearer, como o envio.
+//
+// A forma, de qual chamada veio cada uma (change platform-listing-shape):
+// - o /empresa sem opções de query devolve o array puro (2026-10-02);
+// - o /empresa com $top e $orderby, com e sem $skip, devolve {"value": [...]}, e a página vazia vem como {"value": []}
+//   (chamadas diretas de 2026-10-06). É a forma que o hub recebe, porque sempre chama com a query. Aqui, qualquer parâmetro
+//   que começa com $ liga o envelope: qual opção sozinha o liga no sandbox não foi isolado, e o hub aceita as duas formas;
+// - o /contribuinte devolve {"value": [...]}. Ele sempre foi chamado com query, e a forma dele sem opções nunca foi
+//   observada, então continua sempre em envelope: não se fabrica forma.
 var directory = new PlatformDirectory();
 
 app.MapGet("/taxcompliance/v2/empresa", (HttpRequest request) =>
     !Authorized(request)
         ? Unauthenticated()
-        : Results.Json(directory.Companies(request.Query)));
+        : request.Query.Keys.Any(k => k.StartsWith('$'))
+            ? Results.Json(new { value = directory.Companies(request.Query) })
+            : Results.Json(directory.Companies(request.Query)));
 
 app.MapGet("/taxcompliance/v2/contribuinte", (HttpRequest request, string? empresaId) =>
     !Authorized(request)

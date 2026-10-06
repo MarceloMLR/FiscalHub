@@ -7,10 +7,16 @@ using Microsoft.Extensions.Options;
 namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 
 /// <summary>
-/// Especifica a listagem de estabelecimentos da Avalara (spec avalara-establishment-listing, design D6 e D7): as empresas
-/// num array puro e os contribuintes de cada empresa em <c>{"value": [...]}</c>, com o <c>$select</c> e o
-/// <c>$orderby</c>; a paginação pelo cliente, com o <c>$skip</c> pelos itens recebidos e a parada só na página vazia; e o
-/// tudo ou nada — qualquer falha deixa a listagem inteira sem uso. A plataforma é falsa e conta as requisições.
+/// Especifica a listagem de estabelecimentos da Avalara (spec avalara-establishment-listing, design D6 e D7): as empresas e
+/// os contribuintes de cada empresa, com o <c>$select</c> e o <c>$orderby</c>; a paginação pelo cliente, com o
+/// <c>$skip</c> pelos itens recebidos e a parada só na página vazia; e o tudo ou nada — qualquer falha deixa a listagem
+/// inteira sem uso. A plataforma é falsa e conta as requisições.
+/// <para>
+/// As duas formas de uma lista (change platform-listing-shape, D1 a D3): o array puro e o objeto com o array em
+/// <c>value</c>, aceitas nas duas listas e decididas a cada resposta. O <c>/empresa</c> devolve o envelope com a query do
+/// hub, inclusive na página vazia, e o array sem opções. Qualquer outra forma é recusa que nomeia as propriedades
+/// recebidas, e nunca os valores.
+/// </para>
 /// </summary>
 public class AvalaraEstablishmentListingTests
 {
@@ -311,28 +317,131 @@ public class AvalaraEstablishmentListingTests
         Assert.All(h.Platform.Requests, r => Assert.Equal("100", r.Query["$top"]));
     }
 
+    // --- As duas formas de uma lista (platform-listing-shape, 3.1) ---
+
+    [Fact]
+    public async Task Companies_as_an_array_and_as_an_envelope_give_the_same_listing()
+    {
+        var asArray = new Harness(Companies(PlatformHandler.Fixture("empresas.json"), "[]"));
+        var asEnvelope = new Harness(Companies(PlatformHandler.Fixture("empresas-envelope.json"), PlatformHandler.Fixture("empresas-vazio.json")));
+
+        IReadOnlyList<PlatformEstablishment> fromArray = await asArray.Listing().ListAsync(Profile());
+        IReadOnlyList<PlatformEstablishment> fromEnvelope = await asEnvelope.Listing().ListAsync(Profile());
+
+        Assert.Equal(4, fromArray.Count);
+        Assert.Equal(fromArray, fromEnvelope);   // os mesmos códigos, na mesma ordem
+    }
+
+    [Fact]
+    public async Task The_empty_page_in_an_envelope_ends_the_reading()
+    {
+        // É a página vazia que o sandbox devolve com a query do hub ($skip=999, 2026-10-06), e é ela que encerra toda
+        // leitura. Até esta change, ela era recusa de contrato, mesmo com a primeira página certa.
+        var h = new Harness(Companies(PlatformHandler.Fixture("empresas-envelope.json"), PlatformHandler.Fixture("empresas-vazio.json")));
+
+        IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
+
+        Assert.Equal([0, 3], h.Platform.To(PlatformHandler.CompaniesPath).Select(r => r.Skip));   // a página e a vazia, e nenhuma a mais
+        Assert.Equal(["8120", "8121", "8122"], h.Platform.To(PlatformHandler.TaxpayersPath).Select(r => r.Query["empresaId"]).Distinct());
+        Assert.Equal(4, listed.Count);
+    }
+
+    [Fact]
+    public async Task Taxpayers_as_an_array_give_the_same_as_in_an_envelope()
+    {
+        // O /contribuinte nunca foi visto em array: sempre foi chamado com a query. O teste prova que a regra é a mesma nas
+        // duas listas, e não uma forma observada.
+        var inEnvelope = new Harness(PlatformHandler.FromFixtures());
+        var platform = PlatformHandler.FromFixtures();
+        platform.ArrayPaths.Add(PlatformHandler.TaxpayersPath);
+        var inArray = new Harness(platform);
+
+        IReadOnlyList<PlatformEstablishment> expected = await inEnvelope.Listing().ListAsync(Profile());
+
+        Assert.Equal(expected, await inArray.Listing().ListAsync(Profile()));
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("""{"value":[]}""")]
+    public async Task A_company_without_taxpayers_reads_the_same_in_both_forms(string empty)
+    {
+        var platform = PlatformHandler.FromFixtures();
+        platform.Override = r => r.Query["empresaId"] == "8121" ? PlatformHandler.Json(HttpStatusCode.OK, empty) : null;
+        var h = new Harness(platform);
+
+        IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
+
+        Assert.Equal(await new Harness(PlatformHandler.FromFixtures()).Listing().ListAsync(Profile()), listed);
+        Assert.Single(h.Platform.To(PlatformHandler.TaxpayersPath), r => r.Query["empresaId"] == "8121");   // a vazia já na primeira
+    }
+
+    [Fact]
+    public async Task The_odata_properties_of_the_envelope_are_ignored_and_the_next_page_is_the_hubs()
+    {
+        // As propriedades do OData não vieram nas amostras do sandbox: o teste prova que, se vierem, a paginação continua
+        // sendo do cliente. O nextLink aponta para outro lugar de propósito, e nenhuma requisição vai até ele.
+        var platform = PlatformHandler.FromFixtures();
+        platform.Override = r => r.Path == PlatformHandler.CompaniesPath && r.Skip == 0
+            ? PlatformHandler.Json(HttpStatusCode.OK, $$"""
+                {"@odata.context":"https://avalara-a/$metadata#empresa","@odata.count":3,
+                 "@odata.nextLink":"https://avalara-a/outro/lugar?$skip=2",
+                 "value":[{{platform.Companies[0].ToJsonString()}},{{platform.Companies[1].ToJsonString()}}]}
+                """)
+            : null;
+        var h = new Harness(platform);
+
+        IReadOnlyList<PlatformEstablishment> listed = await h.Listing(new AvalaraOptions { ListingPageSize = 2 }).ListAsync(Profile());
+
+        Assert.Equal([0, 2, 3], h.Platform.To(PlatformHandler.CompaniesPath).Select(r => r.Skip));   // pela URL do hub, até a vazia
+        Assert.DoesNotContain(h.Platform.Requests, r => r.Path.Contains("outro", StringComparison.Ordinal));
+        Assert.Equal(4, listed.Count);
+    }
+
+    [Fact]
+    public async Task The_same_page_in_the_other_form_is_an_ignored_skip()
+    {
+        // A página repetida se compara pelos itens, e não pelo corpo: em array ou em envelope, é a mesma página.
+        var platform = PlatformHandler.FromFixtures();
+        string items = $"[{platform.Companies[0].ToJsonString()},{platform.Companies[1].ToJsonString()}]";
+        platform.Override = r => r.Path == PlatformHandler.CompaniesPath
+            ? PlatformHandler.Json(HttpStatusCode.OK, r.Skip == 0 ? $$"""{"value":{{items}}}""" : items)
+            : null;
+        var h = new Harness(platform);
+
+        var ex = await Assert.ThrowsAsync<DispatchRejectedException>(
+            () => h.Listing(new AvalaraOptions { ListingPageSize = 2 }).ListAsync(Profile()));
+
+        Assert.StartsWith("Contrato do destino: ", ex.Reason);
+        Assert.Contains("taxcompliance/v2/empresa", ex.Reason);
+        Assert.Contains("$skip=2", ex.Reason);
+    }
+
     // --- As falhas (2.5) ---
 
     [Fact]
-    public async Task Companies_in_an_envelope_are_a_contract_refusal()
+    public async Task Companies_in_an_empty_envelope_are_an_account_without_companies()
     {
+        // Até a change platform-listing-shape, o envelope nas empresas era recusa de contrato. O sandbox o devolve com a query
+        // do hub, inclusive na página vazia, e agora ele é lido: o envelope vazio na primeira página é a conta sem empresas.
         var platform = PlatformHandler.FromFixtures();
         platform.Override = r => r.Path == PlatformHandler.CompaniesPath ? PlatformHandler.Json(HttpStatusCode.OK, """{"value":[]}""") : null;
         var h = new Harness(platform);
 
-        var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Listing().ListAsync(Profile()));
+        IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
 
-        Assert.StartsWith("Contrato do destino: ", ex.Reason);
-        Assert.Contains("taxcompliance/v2/empresa", ex.Reason);
+        Assert.Empty(listed);
+        Assert.Equal(1, h.Platform.Count(PlatformHandler.CompaniesPath));
+        Assert.Equal(0, h.Platform.Count(PlatformHandler.TaxpayersPath));
     }
 
     [Theory]
-    [InlineData("""[{"contribuinteId":1}]""")]
-    [InlineData("""{"items":[]}""")]
-    [InlineData("""{"value":{}}""")]
-    [InlineData("não é json")]
-    public async Task Taxpayers_without_the_value_array_are_a_contract_refusal(string body)
+    [InlineData("""{"items":[]}""", "(veio um objeto com a propriedade items).")]
+    [InlineData("""{"value":{}}""", "(veio um objeto com a propriedade value, mas o value é um objeto, e não um array).")]
+    [InlineData("não é json", "não respondeu com JSON.")]
+    public async Task Taxpayers_without_the_value_array_are_a_contract_refusal(string body, string said)
     {
+        // O array puro saiu desta teoria: desde a change platform-listing-shape, ele é aceito nas duas listas.
         var platform = PlatformHandler.FromFixtures();
         platform.Override = r => r.Path == PlatformHandler.TaxpayersPath ? PlatformHandler.Json(HttpStatusCode.OK, body) : null;
         var h = new Harness(platform);
@@ -341,6 +450,61 @@ public class AvalaraEstablishmentListingTests
 
         Assert.StartsWith("Contrato do destino: ", ex.Reason);
         Assert.Contains("taxcompliance/v2/contribuinte", ex.Reason);
+        Assert.EndsWith(said, ex.Reason);
+    }
+
+    // --- A recusa da forma diz o que veio (platform-listing-shape, 3.2 e 3.3) ---
+
+    [Theory]
+    [InlineData("""{"error":"unavailable","message":"tente mais tarde"}""", "um objeto com as propriedades error, message")]
+    [InlineData("""{"error":"unavailable"}""", "um objeto com a propriedade error")]
+    [InlineData("{}", "um objeto vazio")]
+    [InlineData("""{"value":{"empresaId":1}}""", "um objeto com a propriedade value, mas o value é um objeto, e não um array")]
+    [InlineData("""{"@odata.count":0,"value":"nada"}""", "um objeto com as propriedades @odata.count, value, mas o value é um texto, e não um array")]
+    [InlineData("42", "um número")]
+    [InlineData("\"ok\"", "um texto")]
+    [InlineData("true", "um booleano")]
+    [InlineData("null", "null")]
+    public async Task A_form_that_is_not_a_list_is_refused_saying_what_came(string body, string came)
+    {
+        var h = new Harness(Companies(body, "[]"));
+
+        var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Listing().ListAsync(Profile()));
+
+        Assert.Equal(
+            "Contrato do destino: a listagem de empresas (taxcompliance/v2/empresa) não veio em nenhuma das duas formas de lista, "
+            + $"um array ou um objeto com o array em \"value\" (veio {came}).",
+            ex.Reason);
+    }
+
+    [Fact]
+    public async Task More_than_ten_properties_name_the_first_ten_in_the_order_they_came()
+    {
+        string body = "{" + string.Join(",", Enumerable.Range(1, 12).Select(i => $"\"p{i:D2}\":{i}")) + "}";
+        var h = new Harness(Companies(body, "[]"));
+
+        var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Listing().ListAsync(Profile()));
+
+        Assert.EndsWith("(veio um objeto com as propriedades p01, p02, p03, p04, p05, p06, p07, p08, p09, p10 e mais 2).", ex.Reason);
+        Assert.DoesNotContain("p11", ex.Reason);
+    }
+
+    [Theory]
+    [InlineData("""{"mensagem":"CNPJ 11222333000181 sem acesso","codigo":9101}""", "mensagem, codigo")]
+    [InlineData("424242", "um número")]
+    [InlineData("\"valor-que-nao-pode-vazar\"", "um texto")]
+    public async Task The_refusal_names_and_never_carries_a_value(string body, string named)
+    {
+        var h = new Harness(Companies(body, "[]"));
+
+        var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Listing().ListAsync(Profile()));
+
+        Assert.Contains(named, ex.Reason);
+        Assert.DoesNotContain("11222333000181", ex.Reason);
+        Assert.DoesNotContain("sem acesso", ex.Reason);
+        Assert.DoesNotContain("9101", ex.Reason);
+        Assert.DoesNotContain("424242", ex.Reason);
+        Assert.DoesNotContain("valor-que-nao-pode-vazar", ex.Reason);
     }
 
     [Fact]
@@ -498,6 +662,17 @@ public class AvalaraEstablishmentListingTests
              "production":{"baseUrl":"https://avalara-a-prod/","clientId":"id-a","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret"}}
             """,
     };
+
+    // A plataforma das fixtures com as páginas de empresas cruas: a primeira, e a que vem depois dela. A forma vem do corpo
+    // dado, e não do handler.
+    private static PlatformHandler Companies(string firstPage, string nextPage)
+    {
+        var platform = PlatformHandler.FromFixtures();
+        platform.Override = r => r.Path == PlatformHandler.CompaniesPath
+            ? PlatformHandler.Json(HttpStatusCode.OK, r.Skip == 0 ? firstPage : nextPage)
+            : null;
+        return platform;
+    }
 
     private sealed class Harness(PlatformHandler platform)
     {
