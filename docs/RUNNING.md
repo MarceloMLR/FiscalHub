@@ -163,7 +163,7 @@ plataforma**, casada pelo CNPJ do estabelecimento próprio, sem pontuação e co
 **As recusas,** todas "Configuração do conector: …", sem retentativa:
 
 - **nenhum contribuinte com o CNPJ:** "o estabelecimento 44278225000180 não tem contribuinte cadastrado na plataforma …";
-- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '005' (RESULTA …), contribuinte '010' (#10001); …".
+- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '012' (METALURGICA …), contribuinte '010' (#2000010001); …".
 
 **A janela.** A listagem fica guardada por tenant e ambiente, e um lote de notas usa uma só. As opções:
 
@@ -183,19 +183,19 @@ reprocesse a nota. Salvar esquece a listagem guardada do tenant, e a próxima no
 
 | Empresa | Contribuinte | CNPJ | Código |
 |---|---|---|---|
-| `005` (RESULTA IND E COM MAQUINAS) | Matriz | `44278225000180` | `010` |
+| `012` (METALURGICA EXEMPLO) | Matriz | `44278225000180` | `010` |
 | | SP-01 | `44278225000260` | `007` |
 | | SAL-01 | `44278225000341` | `021` |
 | | RJ-01 | `44278225003448` | `003` |
 | | Os XMLs de exemplo | `12345678000190` | `015` |
-| `Padrão` | | `11222333000181` | `001` |
-| `QA` | | `99888777000166` | `001` |
+| `Comércio` | | `11222333000181` | `001` |
+| `009` | | `99888777000166` | `001` |
 
 Os modos do mock ficam em `/admin`, abertos como os outros toggles:
 
 ```powershell
-# A duplicidade: o CNPJ da Matriz também na empresa QA (empresa= é o codigoCIA; sem ele, QA)
-Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/adicionar?cnpj=44278225000180&empresa=QA"
+# A duplicidade: o CNPJ da Matriz também na empresa 009 (empresa= é o codigoCIA; sem ele, 009)
+Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/adicionar?cnpj=44278225000180&empresa=009"
 # O CNPJ sem cadastro
 Invoke-RestMethod -Method Post "http://localhost:5100/admin/contribuintes/remover?cnpj=44278225000180"
 # O servidor que limita a página abaixo do $top (sem itens, ou 0, tira o limite)
@@ -711,7 +711,21 @@ dotnet run --project tools/AvalaraSandboxProbe -- send --tenant tenant-a --paylo
 
 # a leitura de volta, se a plataforma a oferecer
 dotnet run --project tools/AvalaraSandboxProbe -- get --tenant tenant-a --id <id> --label exp-a
+
+# a listagem de estabelecimentos inteira, e o casamento de um CNPJ, sem mandar documento
+dotnet run --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a --cnpj <cnpj de um contribuinte da conta>
 ```
+
+- `listing` roda a listagem real do adapter pelo resolvedor, como o despacho a pede, com as `AvalaraOptions` do host
+  (inclusive o `Avalara:ListingPageSize`). Imprime a linha de log da listagem, com as empresas, os contribuintes e as
+  páginas de cada endpoint, e, para cada `--cnpj`, o casamento: os códigos e o `#id` do contribuinte único, nenhum, ou os
+  candidatos da duplicidade. Nenhum outro conteúdo da listagem é impresso, e nada é gravado em `out/`. A sobreposição
+  `establishments` do perfil não entra: ela só vale no envio. Uma recusa da listagem sai com o motivo, como no envio.
+- `listing --ids` imprime só os identificadores da conta: os `empresaId` e os `contribuinteId`, sem CNPJ, código ou
+  descrição. É a lista de `Fixtures/sandbox/identificadores-da-conta.json`, que o `SandboxFixtureTests` usa para recusar
+  valor real nas fixtures inventadas e no mock. A varredura só vê o que a conta tinha na data da gravação, e a falha dela
+  mostra essa data (`recordedAt`): com a lista velha, regrave o arquivo com a saída deste comando. Um identificador
+  inventado novo sai da faixa reservada, que não depende da gravação (`Fixtures/listing/README.md`).
 
 - `--omit` e `--set` mexem só no topo do payload, e podem repetir. O valor do `--set` é JSON quando dá (`1`, `true`,
   `null`), e texto nos outros casos.

@@ -122,11 +122,11 @@ public class AvalaraOutboundSettingsTests
     [Fact]
     public async Task Without_the_table_the_platform_gives_the_codes()
     {
-        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "005", "010", "10001", "RESULTA"));
+        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "012", "010", "2000010001", "METALURGICA"));
 
         AvalaraCompanyCodes codes = Read("""{"sandbox":{"baseUrl":"http://avalara/"}}""").CodesFor(Contoso, index);
 
-        Assert.Equal(new AvalaraCompanyCodes("005", "010"), codes);
+        Assert.Equal(new AvalaraCompanyCodes("012", "010"), codes);
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public class AvalaraOutboundSettingsTests
     [Fact]
     public async Task The_entry_wins_over_the_platform()
     {
-        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "005", "010", "10001", "RESULTA"));
+        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "012", "010", "2000010001", "METALURGICA"));
 
         Assert.Equal(new AvalaraCompanyCodes("20247332000182", "20247332000182"), Read(Complete).CodesFor(Contoso, index));
     }
@@ -150,7 +150,7 @@ public class AvalaraOutboundSettingsTests
     [Fact]
     public async Task An_incomplete_entry_does_not_fall_back_to_the_platform()
     {
-        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "005", "010", "10001", "RESULTA"));
+        PlatformEstablishmentIndex index = await Indexes.Of(new PlatformEstablishment(Contoso, "012", "010", "2000010001", "METALURGICA"));
 
         string reason = Rejection(() => Read($$"""{"sandbox":{"establishments":{"{{Contoso}}":{"codigoEmpresa":"E"} } } }""").CodesFor(Contoso, index));
 

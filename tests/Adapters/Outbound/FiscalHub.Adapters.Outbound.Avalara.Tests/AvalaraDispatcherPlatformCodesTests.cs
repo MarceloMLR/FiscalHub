@@ -23,7 +23,7 @@ public class AvalaraDispatcherPlatformCodesTests
     [Fact]
     public async Task The_entry_wins_with_no_listing_request()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Issuer, "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Issuer, "010", 2000010001)));
 
         await h.Dispatcher(Entry(Issuer, "MANUAL-E", "MANUAL-C")).SubmitAsync(Own(), Context());
 
@@ -34,7 +34,7 @@ public class AvalaraDispatcherPlatformCodesTests
     [Fact]
     public async Task An_incomplete_entry_does_not_fall_back_to_the_platform()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Issuer, "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Issuer, "010", 2000010001)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(
             () => h.Dispatcher($$$"""{"{{{Issuer}}}":{"codigoEmpresa":"MANUAL-E"}}""").SubmitAsync(Own(), Context()));
@@ -47,18 +47,18 @@ public class AvalaraDispatcherPlatformCodesTests
     [Fact]
     public async Task Without_an_entry_the_codes_come_from_the_platform_and_neither_is_the_cnpj()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Issuer, "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Issuer, "010", 2000010001)));
 
         await h.Dispatcher().SubmitAsync(Own(), Context());
 
-        Assert.Equal(("005", "010"), h.SubmittedCodes());
+        Assert.Equal(("012", "010"), h.SubmittedCodes());
         Assert.NotEqual(Issuer, h.SubmittedCodes().Empresa);
     }
 
     [Fact]
     public async Task Without_a_taxpayer_the_refusal_names_the_cnpj_and_nothing_is_posted()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", ("44278225000180", "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", ("44278225000180", "010", 2000010001)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
@@ -75,41 +75,41 @@ public class AvalaraDispatcherPlatformCodesTests
     public async Task A_duplicate_is_refused_naming_both_candidates_without_the_company_id()
     {
         var h = new Harness(new PlatformHandler()
-            .WithCompany(7410, "005", "RESULTA IND E COM...", (Issuer, "001", 10001))
-            .WithCompany(7412, "QA", "QA", (Issuer, "001", 20001)));
+            .WithCompany(8120, "012", "METALURGICA EXEMPLO...", (Issuer, "001", 2000010001))
+            .WithCompany(8122, "009", "LABORATORIO", (Issuer, "001", 20001)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
         Assert.Equal(
             $"Configuração do conector: o estabelecimento {Issuer} tem 2 contribuintes na plataforma (tenant 'tenant-a', ambiente "
-            + "'sandbox'), e o hub não escolhe entre eles: empresa '005' (RESULTA IND E COM...), contribuinte '001' (#10001); "
-            + "empresa 'QA' (QA), contribuinte '001' (#20001). Remova a duplicidade na plataforma, ou traduza o estabelecimento em "
+            + "'sandbox'), e o hub não escolhe entre eles: empresa '012' (METALURGICA EXEMPLO...), contribuinte '001' (#2000010001); "
+            + "empresa '009' (LABORATORIO), contribuinte '001' (#20001). Remova a duplicidade na plataforma, ou traduza o estabelecimento em "
             + "OutboundSettings.sandbox.establishments.",
             ex.Reason);
-        Assert.DoesNotContain("7410", ex.Reason);   // o empresaId não acrescenta nada legível
+        Assert.DoesNotContain("8120", ex.Reason);   // o empresaId não acrescenta nada legível
         Assert.Equal(0, h.Posts);
     }
 
     [Fact]
     public async Task Two_taxpayers_with_the_same_code_in_the_same_company_are_told_apart_by_the_id()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Issuer, "001", 10001), (Issuer, "001", 10002)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Issuer, "001", 2000010001), (Issuer, "001", 2000010002)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
-        Assert.Contains("contribuinte '001' (#10001); empresa '005' (RESULTA), contribuinte '001' (#10002)", ex.Reason);
+        Assert.Contains("contribuinte '001' (#2000010001); empresa '012' (METALURGICA), contribuinte '001' (#2000010002)", ex.Reason);
     }
 
     [Fact]
     public async Task A_missing_description_or_id_is_left_out_of_the_candidate()
     {
         var h = new Harness(new PlatformHandler()
-            .WithCompany(7410, "005", null, (Issuer, "001", null))
-            .WithCompany(7412, "QA", "QA", (Issuer, null, 20001)));
+            .WithCompany(8120, "012", null, (Issuer, "001", null))
+            .WithCompany(8122, "009", "LABORATORIO", (Issuer, null, 20001)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
-        Assert.Contains("empresa '005', contribuinte '001'; empresa 'QA' (QA), contribuinte sem código (#20001).", ex.Reason);
+        Assert.Contains("empresa '012', contribuinte '001'; empresa '009' (LABORATORIO), contribuinte sem código (#20001).", ex.Reason);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class AvalaraDispatcherPlatformCodesTests
         var platform = new PlatformHandler();
         for (int i = 1; i <= 7; i++)
         {
-            platform.WithCompany(7400 + i, $"E{i}", $"Empresa {i}", (Issuer, "001", 10000 + i));
+            platform.WithCompany(8200 + i, $"E{i}", $"Empresa {i}", (Issuer, "001", 2000010000 + i));
         }
 
         var h = new Harness(platform);
@@ -126,30 +126,30 @@ public class AvalaraDispatcherPlatformCodesTests
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
         Assert.Contains("tem 7 contribuintes", ex.Reason);
-        Assert.Contains("(#10005); e mais 2.", ex.Reason);
-        Assert.DoesNotContain("#10006", ex.Reason);
+        Assert.Contains("(#2000010005); e mais 2.", ex.Reason);
+        Assert.DoesNotContain("#2000010006", ex.Reason);
     }
 
     [Theory]
-    [InlineData("005", null, "o código do contribuinte (codigo)")]
+    [InlineData("012", null, "o código do contribuinte (codigo)")]
     [InlineData(null, "010", "o código da empresa (codigoCIA)")]
     [InlineData(null, null, "o código da empresa (codigoCIA) e o código do contribuinte (codigo)")]
     public async Task The_only_taxpayer_without_a_code_is_refused_naming_the_field(string? company, string? code, string missing)
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, company, "RESULTA", (Issuer, code, 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, company, "METALURGICA", (Issuer, code, 2000010001)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
         Assert.Contains($"o único contribuinte do estabelecimento {Issuer} na plataforma", ex.Reason);
         Assert.Contains($"está sem {missing}", ex.Reason);
-        Assert.Contains("(RESULTA)", ex.Reason);   // a empresa
+        Assert.Contains("(METALURGICA)", ex.Reason);   // a empresa
         Assert.Equal(0, h.Posts);
     }
 
     [Fact]
     public async Task A_resolver_without_the_listing_gives_the_missing_translation_of_always()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Issuer, "010", 10001)), withListing: false);
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Issuer, "010", 2000010001)), withListing: false);
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
@@ -163,18 +163,18 @@ public class AvalaraDispatcherPlatformCodesTests
     [Fact]
     public async Task Without_issuance_only_the_platform_knowing_the_issuer_makes_it_ours()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Issuer, "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Issuer, "010", 2000010001)));
 
         await h.Dispatcher().SubmitAsync(AvalaraComplianceDispatcherTests.SampleInvoice(), Context());
 
-        Assert.Equal(("005", "010"), h.SubmittedCodes());
+        Assert.Equal(("012", "010"), h.SubmittedCodes());
         Assert.Equal(Recipient, (string?)h.Submitted()["parceiro"]!["cnpj"]);   // o destinatário é o parceiro
     }
 
     [Fact]
     public async Task Without_issuance_the_issuer_in_the_table_and_the_recipient_on_the_platform_is_refused_citing_both()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Recipient, "020", 10002)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Recipient, "020", 2000010002)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(
             () => h.Dispatcher(Entry(Issuer, "E", "C")).SubmitAsync(AvalaraComplianceDispatcherTests.SampleInvoice(), Context()));
@@ -188,7 +188,7 @@ public class AvalaraDispatcherPlatformCodesTests
     [Fact]
     public async Task Without_issuance_and_no_side_of_the_tenant_is_refused_citing_both()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", ("44278225000180", "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", ("44278225000180", "010", 2000010001)));
 
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(
             () => h.Dispatcher().SubmitAsync(AvalaraComplianceDispatcherTests.SampleInvoice(), Context()));
@@ -201,7 +201,7 @@ public class AvalaraDispatcherPlatformCodesTests
     [Fact]
     public async Task A_d365_note_with_the_table_makes_no_listing_request()
     {
-        var h = new Harness(new PlatformHandler().WithCompany(7410, "005", "RESULTA", (Issuer, "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(8120, "012", "METALURGICA", (Issuer, "010", 2000010001)));
 
         await h.Dispatcher(Entry(Issuer, "E", "C")).SubmitAsync(Own(), Context());
         await h.Dispatcher(Entry(Issuer, "E", "C")).SubmitAsync(AvalaraComplianceDispatcherTests.SampleInvoice() with { Issuance = Issuance.ThirdParty, Recipient = new Party { TaxId = Issuer, Name = "Nós" } }, Context());

@@ -14,8 +14,13 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 
 /// <summary>
 /// As respostas reais do sandbox (design D15, change <c>connect-avalara-sandbox</c>): nenhuma fixture carrega credencial ou
-/// token, e cada uma reexercita o dispatcher contra a resposta de verdade. Só a recusa no envio aconteceu (2026-09-27); o
+/// token, e cada uma reexercita o adapter contra a resposta de verdade. No envio, só a recusa aconteceu (2026-09-27); o
 /// aceite, a consulta de status e a recusa de credencial pelo hub não foram exercitados, e não se fabrica resposta.
+/// <para>
+/// A listagem (change <c>platform-listing-shape</c>, D5): as três respostas do <c>/empresa</c> com a query, de 2026-10-06,
+/// curadas à mão. A varredura impõe a curadoria — nenhum CNPJ, e todo valor fora da lista do que fica mascarado —, e a
+/// reprodução lê a primeira página e a vazia reais, e confere a evidência do <c>$skip</c>.
+/// </para>
 /// </summary>
 public partial class SandboxFixtureTests
 {
@@ -24,6 +29,9 @@ public partial class SandboxFixtureTests
     private const string RealRefusalReason = "6 campos com erro: operacao, tipoPagamento, parceiro.Codigo e mais 3";
 
     private static readonly string FixtureDir = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sandbox");
+
+    // O que fica real numa resposta gravada da listagem: a forma e o que o hub lê. O resto sai como "[mascarado]".
+    private static readonly HashSet<string> KeptInListing = ["empresaId", "codigoCIA", "contribuinteId", "codigo"];
 
     // ---------- 18.2: varredura ----------
 
@@ -41,6 +49,41 @@ public partial class SandboxFixtureTests
             Assert.False(Jwt().IsMatch(text), $"{name}: JWT");
             Assert.False(CredentialWithValue().IsMatch(text), $"{name}: access_token ou client_secret com valor");
         }
+    }
+
+    // A curadoria das respostas da listagem é à mão (change platform-listing-shape, D5), então a regra fica aqui, e não em
+    // quem curou: nenhum CNPJ, e todo valor de item fora da lista do que fica mascarado.
+    [Fact]
+    public void No_listing_fixture_carries_a_cnpj_or_a_value_outside_what_stays()
+    {
+        string[] files = Directory.GetFiles(FixtureDir, "listagem-*.json");
+        Assert.NotEmpty(files);   // a varredura não passa no vazio
+
+        foreach (string file in files)
+        {
+            string text = File.ReadAllText(file);
+            string name = Path.GetFileName(file);
+            Assert.False(Cnpj().IsMatch(text), $"{name}: CNPJ");
+            Assert.Empty(Unmasked(JsonNode.Parse(text)!["response"]!["body"]!).Select(property => $"{name}: {property} sem máscara"));
+        }
+    }
+
+    [Theory]
+    [InlineData("""{"cnpj":"11222333000181"}""", true)]
+    [InlineData("""{"cnpj":"11.222.333/0001-81"}""", true)]
+    [InlineData("""{"cnpj":"[mascarado]","empresaId":8120,"contribuinteId":2000010001}""", false)]
+    public void The_cnpj_scan_catches_both_spellings(string sample, bool caught) => Assert.Equal(caught, Cnpj().IsMatch(sample));
+
+    [Theory]
+    [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"EMPRESA DE VERDADE"}]}""", "descricao")]
+    [InlineData("""[{"contribuinteId":2000010001,"codigo":"010","razao":"CONTRIBUINTE DE VERDADE"}]""", "razao")]
+    [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"[mascarado]","idPortalCompany":"[mascarado]"}]}""", null)]
+    [InlineData("""{"value":[]}""", null)]
+    public void The_masking_scan_catches_a_value_outside_what_stays(string body, string? caught)
+    {
+        string[] expected = caught is null ? [] : [caught];
+
+        Assert.Equal(expected, Unmasked(JsonNode.Parse(body)!));
     }
 
     [Theory]
@@ -98,6 +141,164 @@ public partial class SandboxFixtureTests
         Assert.Equal(6, photoBody["errors"]!.AsObject().Count);
     }
 
+    // ---------- a listagem (change platform-listing-shape, D5) ----------
+
+    [Fact]
+    public async Task The_real_page_and_the_real_empty_page_end_the_reading_with_the_five_companies()
+    {
+        // A primeira página e a vazia, como o sandbox as devolveu com a query: as duas em envelope. O adapter de antes desta
+        // change recusava já a primeira. A vazia veio com $skip=999, e aqui encerra a leitura no $skip=5: a forma é a dela.
+        (_, string firstPage) = RecordedSubmit("listagem-empresas-top5.json");
+        (_, string emptyPage) = RecordedSubmit("listagem-empresas-vazia.json");
+        var platform = new PlatformHandler
+        {
+            Override = r => r.Path == PlatformHandler.CompaniesPath ? PlatformHandler.Json(HttpStatusCode.OK, r.Skip == 0 ? firstPage : emptyPage) : null,
+        };
+        var logger = new CapturingLogger<AvalaraEstablishmentListing>();
+        var listing = new AvalaraEstablishmentListing(
+            new HttpClient(platform), new NoOpAvalaraTokenProvider(), Options.Create(new AvalaraOptions { ListingPageSize = 5 }), logger);
+
+        await listing.ListAsync(ListingProfile());
+
+        Assert.Equal([0, 5], platform.To(PlatformHandler.CompaniesPath).Select(r => r.Skip));
+        Assert.Equal(RecordedIds("listagem-empresas-top5.json"), platform.To(PlatformHandler.TaxpayersPath).Select(r => r.Query["empresaId"]!).Distinct());
+        Assert.Contains("5 empresas em 2 páginas", logger.All);
+    }
+
+    [Fact]
+    public void The_recorded_skip_brings_the_third_and_the_fourth_of_the_first_page()
+    {
+        // A evidência do $skip e da ordem estável, conferível no repositório, e não só no relato. Os identificadores vêm dos
+        // arquivos, e não do teste: um empresaId real só existe no Fixtures/sandbox/.
+        Assert.Equal(RecordedIds("listagem-empresas-top5.json").Skip(2).Take(2), RecordedIds("listagem-empresas-skip2.json"));
+    }
+
+    // ---------- os valores inventados (change platform-listing-shape, D10) ----------
+
+    // Os identificadores reais da conta ficam só aqui, no Fixtures/sandbox/, e as fixtures inventadas e o mock não podem
+    // carregar nenhum. A conferência por busca só achava o que já se sabia ser real, e um identificador de contribuinte que
+    // parecia inventado passou por ela.
+    [Fact]
+    public void No_invented_fixture_nor_the_mock_carries_a_real_identifier_of_the_account()
+    {
+        HashSet<string> real = RealIdentifiers();
+        string[] fixtures = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Fixtures", "listing"), "*.json");
+        List<string> mock = MockIdentifiers(File.ReadAllText(Path.Combine(RepoRoot(), "tools", "MockComplianceApi", "Program.cs")));
+        Assert.NotEmpty(fixtures);   // a varredura não passa no vazio
+        Assert.NotEmpty(mock);
+
+        List<string> found =
+        [
+            .. fixtures.SelectMany(f => IdentifiersIn(JsonNode.Parse(File.ReadAllText(f))).Where(real.Contains).Select(id => $"{Path.GetFileName(f)}: {id}")),
+            .. mock.Where(real.Contains).Select(id => $"MockComplianceApi: {id}"),
+        ];
+
+        if (found.Count > 0)
+        {
+            Assert.Fail(RealIdentifierFailure(found));
+        }
+    }
+
+    [Fact]
+    public void The_scan_failure_says_when_the_real_list_was_recorded()
+    {
+        // Quem bate na varredura precisa saber se a lista de identificadores reais é de dois dias ou de seis meses: ela só vê o
+        // que a conta tinha na data da gravação.
+        string failure = RealIdentifierFailure(["contribuintes-x.json: 1"]);
+
+        Assert.Contains("contribuintes-x.json: 1", failure);
+        Assert.Contains($"gravada em {RecordedAt():yyyy-MM-dd}", failure);
+        Assert.Contains("listing --tenant tenant-a --ids", failure);   // como regravar
+    }
+
+    [Fact]
+    public void The_identifier_scan_catches_a_real_identifier_and_passes_an_invented_one()
+    {
+        // O real vem da gravação, e não do teste: um identificador real só existe no Fixtures/sandbox/.
+        HashSet<string> real = RealIdentifiers();
+        string realId = real.First();
+
+        Assert.Equal(new[] { realId }, IdentifiersIn(JsonNode.Parse($$"""[{"contribuinteId":{{realId}},"codigo":"010"}]""")).Where(real.Contains));
+        Assert.DoesNotContain(IdentifiersIn(JsonNode.Parse("""{"value":[{"empresaId":8120,"contribuinteId":2000010001}]}""")), real.Contains);
+        Assert.Equal(new[] { realId }, MockIdentifiers($"new({realId}, \"010\", \"44278225000180\", \"MATRIZ (mock)\"),").Where(real.Contains));
+        Assert.DoesNotContain(MockIdentifiers("new(2000010001, \"010\", \"44278225000180\", \"MATRIZ (mock)\"),"), real.Contains);
+    }
+
+    // Os identificadores reais da conta, como texto: os empresaId e os contribuinteId gravados pela sonda.
+    // A falha da varredura: o que foi achado, de quando é a lista de identificadores reais e como regravá-la.
+    private static string RealIdentifierFailure(IEnumerable<string> found)
+    {
+        DateOnly recordedAt = RecordedAt();
+        int days = DateOnly.FromDateTime(DateTime.UtcNow).DayNumber - recordedAt.DayNumber;
+        return $"Identificador real da conta em valor inventado: {string.Join("; ", found)}. Troque-o por um da faixa reservada "
+            + $"(2.000.000.000 em diante, Fixtures/listing/README.md). A lista de identificadores reais "
+            + $"(Fixtures/sandbox/identificadores-da-conta.json) foi gravada em {recordedAt:yyyy-MM-dd}, há {days} dia(s): ela só "
+            + "vê o que a conta tinha naquela data. Para regravar: dotnet run --project tools/AvalaraSandboxProbe -- listing "
+            + "--tenant tenant-a --ids";
+    }
+
+    private static DateOnly RecordedAt()
+        => DateOnly.ParseExact(
+            (string)JsonNode.Parse(File.ReadAllText(Path.Combine(FixtureDir, "identificadores-da-conta.json")))!["recordedAt"]!,
+            "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static HashSet<string> RealIdentifiers()
+    {
+        JsonNode ids = JsonNode.Parse(File.ReadAllText(Path.Combine(FixtureDir, "identificadores-da-conta.json")))!;
+        return [.. ids["empresaId"]!.AsArray().Concat(ids["contribuinteId"]!.AsArray()).Select(n => n!.ToJsonString())];
+    }
+
+    // Os valores das chaves empresaId e contribuinteId, em qualquer lugar da árvore, como texto.
+    private static IEnumerable<string> IdentifiersIn(JsonNode? node)
+    {
+        if (node is JsonArray array)
+        {
+            foreach (string id in array.SelectMany(IdentifiersIn))
+            {
+                yield return id;
+            }
+        }
+        else if (node is JsonObject obj)
+        {
+            foreach ((string key, JsonNode? value) in obj)
+            {
+                IEnumerable<string> ids = key is "empresaId" or "contribuinteId" && value is JsonValue v ? [v.ToJsonString().Trim('"')] : IdentifiersIn(value);
+                foreach (string id in ids)
+                {
+                    yield return id;
+                }
+            }
+        }
+    }
+
+    // Os identificadores da conta do mock: o primeiro argumento de cada registro de empresa e de contribuinte.
+    private static List<string> MockIdentifiers(string source) => [.. MockRecord().Matches(source).Select(m => m.Groups[1].Value)];
+
+    private static string RepoRoot()
+    {
+        for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "FiscalHub.slnx")))
+            {
+                return dir.FullName;
+            }
+        }
+
+        throw new InvalidOperationException("Raiz do repositório não encontrada.");
+    }
+
+    private static List<string> RecordedIds(string file)
+        => [.. JsonNode.Parse(RecordedSubmit(file).Body)!["value"]!.AsArray().Select(i => i!["empresaId"]!.ToJsonString())];
+
+    private static TenantConnectorProfile ListingProfile() => new()
+    {
+        TenantId = "tenant-a",
+        Environment = "Sandbox",
+        InboundAdapter = "Dynamics365",
+        OutboundAdapter = "Avalara",
+        OutboundSettings = """{"sandbox":{"baseUrl":"https://api-gateway.sandbox.avalarabrasil.com.br/"}}""",
+    };
+
     // O status e o corpo gravados no envelope, como a plataforma devolveu (já redigidos).
     internal static (int Status, string Body) RecordedSubmit(string file)
     {
@@ -107,6 +308,22 @@ public partial class SandboxFixtureTests
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         }));
     }
+
+    // Os valores de item da listagem fora da lista do que fica que não estão mascarados: só o nome da propriedade.
+    private static List<string> Unmasked(JsonNode body)
+    {
+        JsonArray items = body as JsonArray ?? body["value"]?.AsArray() ?? [];
+        return [.. items.Select(i => i!.AsObject())
+            .SelectMany(item => item)
+            .Where(p => !KeptInListing.Contains(p.Key) && !(p.Value is JsonValue v && v.TryGetValue(out string? text) && text == "[mascarado]"))
+            .Select(p => p.Key)];
+    }
+
+    [GeneratedRegex(@"(?<!\d)\d{14}(?!\d)|\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}")]
+    private static partial Regex Cnpj();
+
+    [GeneratedRegex(@"\bnew\((\d+), """)]
+    private static partial Regex MockRecord();
 
     [GeneratedRegex(@"Bearer\s+(?!\[redigido\])[A-Za-z0-9\-._~+/]+=*", RegexOptions.IgnoreCase)]
     private static partial Regex BearerWithValue();

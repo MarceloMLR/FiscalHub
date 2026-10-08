@@ -268,7 +268,7 @@ Todos começam pelo prefixo de sempre e citam o tenant e o ambiente (ADR-0026 §
 | Caso | Motivo |
 |---|---|
 | Sem contribuinte | "Configuração do conector: o estabelecimento {cnpj} não tem contribuinte cadastrado na plataforma (tenant '{t}', ambiente '{e}'). Cadastre-o na plataforma, ou traduza-o em OutboundSettings.{e}.establishments. Se o cadastro acabou de ser feito, salve o perfil do conector (Configurações → Conectores) para o hub reler a plataforma, e reprocesse a nota." |
-| Mais de um | "Configuração do conector: o estabelecimento {cnpj} tem {n} contribuintes na plataforma (tenant '{t}', ambiente '{e}'), e o hub não escolhe entre eles: empresa '{codigoCIA}' ({descricao}), contribuinte '{codigo}' (#{contribuinteId}); …. Remova a duplicidade na plataforma, ou traduza o estabelecimento em OutboundSettings.{e}.establishments." Por exemplo: "empresa '005' (RESULTA IND E COM...), contribuinte '001' (#10001)". Até cinco candidatos, e "e mais {k}". Código ausente aparece como "sem código", e descrição ou `#id` ausentes ficam de fora. |
+| Mais de um | "Configuração do conector: o estabelecimento {cnpj} tem {n} contribuintes na plataforma (tenant '{t}', ambiente '{e}'), e o hub não escolhe entre eles: empresa '{codigoCIA}' ({descricao}), contribuinte '{codigo}' (#{contribuinteId}); …. Remova a duplicidade na plataforma, ou traduza o estabelecimento em OutboundSettings.{e}.establishments." Por exemplo: "empresa '017' (EMPRESA EXEMPLO...), contribuinte '001' (#50001)". Até cinco candidatos, e "e mais {k}". Código ausente aparece como "sem código", e descrição ou `#id` ausentes ficam de fora. |
 | Contribuinte sem código | "Configuração do conector: o único contribuinte do estabelecimento {cnpj} na plataforma (empresa '{codigoCIA}') está sem o código do contribuinte (tenant…)." O mesmo para a empresa sem `codigoCIA`. |
 | Destino sem listagem | o motivo de hoje, de falta de tradução em `establishments`. |
 | A parte nossa | "nenhuma parte da nota (emitente {a}, destinatário {b}) tem tradução em OutboundSettings.{e}.establishments nem contribuinte na plataforma…", ou "as duas partes … são estabelecimentos do tenant (pela tradução ou pela plataforma), e a nota não diz qual é o próprio." |
@@ -299,15 +299,15 @@ O `MockComplianceApi` ganha, com o Bearer exigido como nos caminhos de envio:
 
 O que ele lista:
 
-- **Uma empresa real** (`codigoCIA = "005"`, com descrição). Ela tem os quatro estabelecimentos da `brmf` e o CNPJ dos XMLs
+- **Uma empresa real** (`codigoCIA = "012"`, com descrição). Ela tem os quatro estabelecimentos da `brmf` e o CNPJ dos XMLs
   de exemplo, com códigos que **não** seguem a ordem do CNPJ: a `Matriz` não é `"001"`, e a `SP-01` não é `"002"`. Um
   código derivado da ordem falharia no ensaio, em vez de passar por coincidência.
-- **As empresas de teste ao lado**, como no sandbox: `Padrão` e `QA`, com contribuintes de outros CNPJs.
+- **As empresas de teste ao lado**, como no sandbox: `Comércio` e `009`, com contribuintes de outros CNPJs.
 
 Os modos, pela convenção do `/admin/*`, abertos porque são ferramenta de dev:
 
 - **`POST /admin/contribuintes/adicionar?cnpj=&empresa=`:** põe um contribuinte com o CNPJ na empresa pedida (sem ela, a
-  `QA`), com um identificador novo. Com um CNPJ que já está na listagem, é a duplicidade. Com um CNPJ alfanumérico, é o
+  `009`), com um identificador novo. Com um CNPJ que já está na listagem, é a duplicidade. Com um CNPJ alfanumérico, é o
   cenário da plataforma alfanumérica;
 - **`POST /admin/contribuintes/remover?cnpj=`:** tira o CNPJ da listagem;
 - **`POST /admin/contribuintes/restaurar`:** volta ao inicial, sem limite de página próprio;
@@ -356,7 +356,7 @@ teste do resolvedor (D12).
   - com a sobreposição, 0 de listagem.
 - **O ponta a ponta** (`DispatchToMockTests`, com o mock em memória e o `$top` pequeno):
   - as notas dos quatro estabelecimentos da `brmf`, com o `establishments` vazio, são despachadas com os códigos do mock.
-    Com o `$top` menor que a lista da empresa `005`, isso só passa se o hub pedir todas as páginas;
+    Com o `$top` menor que a lista da empresa `012`, isso só passa se o hub pedir todas as páginas;
   - o mesmo com o limite de página do mock abaixo do `$top`, que só passa com o `$skip` pelos itens recebidos;
   - o contador do mock mostra as páginas de uma listagem só para o lote inteiro.
 

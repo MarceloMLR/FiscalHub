@@ -280,13 +280,17 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
       resolvedor e do dispatcher.
   - **Continua aberto:** até a prova numa conta real, com o mesmo CNPJ em duas empresas.
 
-- [ ] **Os campos ordenáveis da listagem de estabelecimentos.** (ADR-0033 §6)
+- [x] **Os campos ordenáveis da listagem de estabelecimentos.** (ADR-0033 §6) — fechado em 2026-10-08, com a prova manual
   - **Falta:** saber se o `empresaId` e o `contribuinteId` são ordenáveis. O `$orderby` está declarado no Swagger nos dois
     endpoints, mas o exemplo da documentação é o `LastModified`.
   - **Prova:** a mesma listagem contra o sandbox com o `Avalara:ListingPageSize` padrão e com 2. As duas têm de dar as
     mesmas empresas e os mesmos contribuintes.
   - **Sintoma:** a recusa do campo (4xx) é alta. O campo ignorado em silêncio deixa a ordem instável: um item pode cair em
     duas páginas ou em nenhuma, e o que falta é truncamento silencioso.
+  - **Fechado em 2026-10-08, com a prova manual (tarefa 6.2 da change `platform-establishment-resolution`):** a mesma
+    resolução pelo host, contra o sandbox, deu "8 empresas em 2 páginas e 14 contribuintes em 16 páginas" com o
+    `ListingPageSize` padrão e "8 empresas em 5 páginas e 14 contribuintes em 19 páginas" com 2. A impressão da
+    listagem inteira foi a mesma nas duas. O `empresaId` e o `contribuinteId` são ordenáveis, e a ordem é estável.
 - [ ] **O `subscriptionId` da listagem.** (ADR-0033, Open Questions do design)
   - **Falta:** saber o que ele escopa. É opcional nos dois endpoints, e a listagem não o manda: a credencial já limita à
     conta.
@@ -745,6 +749,30 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     de novo.
   - **Sintoma:** por uma janela de sobreposição, o tráfego no F&O volta a cerca de 6 vezes por nota. O hash
     impede o reenvio.
+- [ ] **O ambiente de dev não fecha a esteira contra a plataforma, e o contorno da TMSA.** (change
+  `platform-listing-shape`, D11)
+  - **O ambiente:** o D365 de desenvolvimento (o fiscosysdev, Contoso, raiz `44278225`) e a conta Avalara de sandbox (TMSA,
+    IMS, ELTER, BULKTECH e RESULTA) descrevem empresas diferentes, sem nenhum CNPJ em comum. O de/para casa por CNPJ
+    (ADR-0033), então nenhum estabelecimento do ERP de dev resolve na plataforma de dev, e o fim da esteira só fecha
+    contra o mock.
+  - **O contorno em uso, temporário:** os quatro CNPJs da Contoso estão apontados, pela sobreposição
+    `OutboundSettings.sandbox.establishments` do tenant-a, para um mesmo contribuinte da TMSA, para as notas chegarem à
+    validação da Avalara e os erros seguintes aparecerem. Ele vive só no banco de dev, não está no repositório, e some num
+    `docker compose down -v`.
+  - **Gatilho de remoção:** o cadastro dos CNPJs da Contoso como contribuintes na conta de sandbox. Ao remover, conferir
+    que a resolução volta a vir da listagem.
+  - **Enquanto existir:** documentos da Contoso aparecem na conta da TMSA. Conferir o status das notas depois de cada
+    rodada, e apagar o que tiver sido aceito.
+  - **Sintoma se ficar esquecido:** as notas integram com o código de outra empresa, e nada acusa. O mesmo arranjo em
+    produção mandaria documentos de um cliente para a conta de outro.
+  - **Alternativa considerada e recusada, para não ser reaberta:** despachar sem o código do contribuinte quando o CNPJ
+    não resolve, em vez de recusar. Três motivos:
+    - o `AvalaraJson` não escreve campo nulo, então não sairia um campo em branco, e sim um payload sem o campo;
+    - a premissa de que a plataforma recusaria do mesmo jeito não está testada. O padrão provável para identificador
+      ausente é o contribuinte principal da conta: o pior caso é aceitar e registrar a nota debaixo de outro;
+    - a recusa de hoje diz o quê e o que fazer, e o erro remoto viria diluído entre campos sem relação.
+
+    A recusa fica como está.
 
 **Funcionalidades que ainda não existem** (entram por fatia, e não por prova):
 

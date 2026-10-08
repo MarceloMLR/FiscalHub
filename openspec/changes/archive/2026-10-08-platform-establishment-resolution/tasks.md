@@ -56,7 +56,7 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
   gravada:
   - **a forma:** a verificada pelo Marcelo em 2026-10-02, que está no pedido desta change, com os campos do `$select`;
   - **os valores:** de mentira;
-  - **as empresas:** um array puro, com `"005"`, `"Padrão"` e `"QA"`, cada uma com a `descricao`;
+  - **as empresas:** um array puro, com `"012"`, `"Comércio"` e `"009"`, cada uma com a `descricao`;
   - **os contribuintes:** em `{"value": [...]}`;
   - **uma variante com `idPortalCompany` e `razao`:** para o cenário da plataforma que ignora o `$select`.
 
@@ -124,9 +124,9 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
 - [x] 3.2 Teste primeiro, no `AvalaraComplianceDispatcherTests`, com o resolvedor real sobre a listagem e o handler do 2.1:
   - **a entrada ganha:** códigos manuais e 0 requisições de listagem;
   - **a entrada incompleta:** não cai na plataforma;
-  - **sem entrada:** os códigos da plataforma (`"005"`, `"010"`), e nenhum é o CNPJ;
+  - **sem entrada:** os códigos da plataforma (`"012"`, `"010"`), e nenhum é o CNPJ;
   - **sem contribuinte:** o motivo do D9, sem `POST`;
-  - **duplicidade:** sem `POST`, e o motivo no formato do D9: `empresa '005' (RESULTA IND E COM...), contribuinte '001'
+  - **duplicidade:** sem `POST`, e o motivo no formato do D9: `empresa '012' (METALURGICA EXEMPLO...), contribuinte '001'
     (#10001)`. Além disso:
     - o `empresaId` não aparece;
     - dois contribuintes de código `001` na mesma empresa saem distintos pelo `#id`;
@@ -162,22 +162,22 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
     - o `$orderby` ordena pelo campo pedido, e sem ele a ordem muda a cada pedido;
     - o `$select` devolve só os campos pedidos;
   - **os dados:**
-    - a empresa `"005"`, com descrição, os quatro estabelecimentos da `brmf` (`44278225000180`, `44278225000260`,
+    - a empresa `"012"`, com descrição, os quatro estabelecimentos da `brmf` (`44278225000180`, `44278225000260`,
       `44278225000341` e `44278225003448`) e o `12345678000190` dos XMLs. Os códigos não seguem a ordem do CNPJ;
-    - as empresas `Padrão` e `QA`, com descrição e com contribuintes de outros CNPJs;
+    - as empresas `Comércio` e `009`, com descrição e com contribuintes de outros CNPJs;
   - **a administração:**
     - `POST /admin/contribuintes/adicionar?cnpj=&empresa=`, `remover?cnpj=` e `restaurar`;
     - `POST /admin/listagem/limite?itens=`, o limite de página do próprio mock;
     - `GET /admin/contribuintes`, com a listagem e os contadores, que contam cada página;
   - **o comentário do topo:** passa a citar a listagem verificada.
 - [x] 4.2 `DispatchToMockTests`, com o resolvedor na composição do `Harness`, o `establishments` vazio, o mock em memória e o
-  `ListingPageSize` 2, menor que a lista de contribuintes da empresa `"005"`:
+  `ListingPageSize` 2, menor que a lista de contribuintes da empresa `"012"`:
   - **os quatro estabelecimentos:** uma nota de cada um, com o cabeçalho da fixture trocado como no teste alfanumérico, é
     despachada com os códigos do mock. Isso só passa se o hub pedir todas as páginas;
   - **o limite de página do mock:** com o `ListingPageSize` 100 e o limite do mock em 2, as mesmas quatro notas são
     despachadas. Isso só passa com o `$skip` pelos itens recebidos e a parada na página vazia;
   - **um lote de N notas:** o contador do mock mostra as páginas de uma listagem só, e não N listagens;
-  - **o `adicionar` do CNPJ da `Matriz` na `QA`:** recusa nomeando os dois, e nenhum documento novo no mock;
+  - **o `adicionar` do CNPJ da `Matriz` na `009`:** recusa nomeando os dois, e nenhum documento novo no mock;
   - **o `remover` da `Matriz`:** recusa nomeando o CNPJ. Depois, o `restaurar`, o salvar do perfil (o observador) e o
     reprocesso: a nota é enviada;
   - **o `adicionar` de um CNPJ alfanumérico:** uma nota com `12.ABC.345/01DE-35` é despachada com os códigos dele;
@@ -210,7 +210,7 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
 - [x] 6.1 Contra o mock, com o host, o SQL e o cofre locais, e o `establishments` vazio (o SQL do RUNNING):
   - **a passada do coletor do tenant-a:** as 5 NF-e 55 da `Matriz` são enviadas com os códigos do mock. O `GET
     /admin/contribuintes` mostra as páginas de uma listagem só para o lote;
-  - **a duplicidade:** `adicionar` o CNPJ da `Matriz` na `QA`, salvar o perfil e reprocessar uma nota. Ela é recusada
+  - **a duplicidade:** `adicionar` o CNPJ da `Matriz` na `009`, salvar o perfil e reprocessar uma nota. Ela é recusada
     nomeando os dois candidatos no formato do D9, com a descrição e o `#id`, e o mock não recebe documento;
   - **o limite de página do mock:** `POST /admin/listagem/limite?itens=2`, salvar e reprocessar uma nota. Ela é enviada, e
     o contador mostra mais páginas. Depois, `restaurar`;
@@ -230,22 +230,29 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
     `outbound.production.clientSecret` passou a "configurado" com o valor de teste. O cofre não tem apagar, e um Client
     Secret de produção de verdade o sobrescreve pela tela.
   - **A passada do coletor:** rebobinada a marca para 2015, a passada achou 14 referências. As 5 NF-e 55 da `Matriz`,
-    que estavam em `IntegrationError` pela recusa do sandbox, foram enviadas com `codigoEmpresa 005` e `codigoContribuinte
+    que estavam em `IntegrationError` pela recusa do sandbox, foram enviadas com `codigoEmpresa 012` e `codigoContribuinte
     010` e confirmadas. O lote inteiro custou uma listagem: o log diz "3 empresas em 2 páginas e 7 contribuintes em 6
     páginas", e o contador do mock deu 2 e 6.
   - **A duplicidade:** a `BRMF21-10000026` foi recusada com "o estabelecimento 44278225000180 tem 2 contribuintes na
-    plataforma (…): empresa '005' (RESULTA IND E COM MAQUINAS (mock)), contribuinte '010' (#10001); empresa 'QA' (QA
-    (mock)), contribuinte '001' (#90001). Remova a duplicidade…". O `ExternalId` continuou o da passada, porque nenhum
+    plataforma (…): empresa '012' (METALURGICA EXEMPLO (mock)), contribuinte '010' (#10001); empresa '009'
+    (LABORATORIO (mock)), contribuinte '001' (#90001). Remova a duplicidade…". O `ExternalId` continuou o da passada, porque nenhum
     envio saiu.
-  - **O limite de página do mock (2 itens):** a nota foi enviada com `005` e `010`, e a listagem deu 3 páginas de
+  - **O limite de página do mock (2 itens):** a nota foi enviada com `012` e `010`, e a listagem deu 3 páginas de
     empresas e 8 de contribuintes, sem perder nenhum dos 7.
   - **O CNPJ sem cadastro:** a nota foi recusada com "o estabelecimento 44278225000180 não tem contribuinte cadastrado na
     plataforma (…)".
-  - **A volta:** a nota foi enviada com `005` e `010`, e confirmada.
+  - **A volta:** a nota foi enviada com `012` e `010`, e confirmada.
   - **A sobreposição:** o payload levou `MANUAL-E` e `MANUAL-C`, e o contador continuou em 2 e 6.
   - **No fim,** o poll de status confirmou todas as notas contra o mock antes da restauração, e nenhuma ficou pendente
     para ser consultada no sandbox real. O host e o mock foram parados, e o log do host não teve nenhuma falha.
-- [ ] 6.2 Contra o sandbox, com o `establishments` vazio, nas notas da `Matriz`.
+
+  **Anotado pela change `platform-listing-shape` (2026-10-06), sem desmarcar.** O mock desta prova servia o `/empresa` em
+  array com a query, ao contrário da plataforma, que devolve `{"value": [...]}` com a query, inclusive na página vazia.
+  A evidência acima vale para o casamento, a duplicidade, a paginação e a sobreposição, que não dependem da forma. Para a
+  forma, não vale: foi essa divergência que deixou o defeito passar até o sandbox. A `platform-listing-shape` corrigiu o
+  adapter e o mock. Os códigos e as descrições citados acima foram trocados pelos valores inventados do mock de hoje,
+  antes do arquivamento (2026-10-08); o relato é o da época.
+- [x] 6.2 Contra o sandbox, com o `establishments` vazio, nas notas da `Matriz`.
   - **O desfecho esperado é a recusa nomeando o CNPJ** ("o estabelecimento 44278225000180 não tem contribuinte cadastrado
     na plataforma …"). O fiscosysdev e o sandbox da Avalara são ambientes sem relação, e nenhum CNPJ da `brmf` existe lá
     (Marcelo, 2026-10-05). A recusa é o resultado certo, e não uma falha da prova. O caminho feliz fica provado no mock
@@ -265,6 +272,43 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
 
   Se a recusa por duplicidade aparecer com as empresas de teste do sandbox, ela é a prova do item do STATUS: registrar os
   candidatos.
+
+  **Anotado pela change `platform-listing-shape` (2026-10-06), sem marcar.** Esta prova estava bloqueada: a listagem
+  morria na primeira página, porque o `/empresa` devolve envelope com a query e o adapter exigia o array. Com a correção:
+  - **já provado nas empresas, por chamada direta:** o `$orderby` e o `$skip` (o `$skip=2` trouxe o terceiro e o quarto
+    itens do `$top=5`, com a ordem estável) e a página vazia (`{"value": []}`). As respostas estão no `Fixtures/sandbox/`
+    (`listagem-empresas-*.json`), e o `SandboxFixtureTests` confere a evidência do `$skip`. O `empresaId` é, então,
+    campo ordenável;
+  - **a provar pelo grupo 6 da `platform-listing-shape`:** a listagem completa das empresas e dos contribuintes contra o
+    sandbox, e o de/para de um estabelecimento conhecido, pelo `listing` da sonda. A evidência fica anotada lá;
+  - **o que continua aqui:** o `$orderby` e o `$skip` dos contribuintes, que não foram chamados direto. Com o `$top`
+    padrão de 100, eles só se exercitam numa empresa com mais de 100 contribuintes.
+
+  **O contorno em uso no banco de dev muda a prova pela esteira.** A sobreposição do tenant-a aponta os CNPJs da Contoso
+  para um contribuinte da TMSA (STATUS, Operação). Com ela, a listagem nem é chamada para as notas da `Matriz`: para esta
+  prova, a sobreposição sai durante a rodada e volta no fim.
+
+  **Feito (2026-10-08), pelo caminho do hub,** com o host do `main` (`fead545`, a correção da forma) e o `establishments`
+  do tenant-a vazio durante a prova. O host de antes (o pid 69156, de 06/10) foi derrubado, como o Marcelo pediu:
+  - **a rodada com o `ListingPageSize` padrão (100):** o reprocesso da `brmf|BRMF21-10000026` deu "8 empresas em 2
+    páginas e 14 contribuintes em 16 páginas", e a nota foi recusada com "o estabelecimento 44278225000180 não tem
+    contribuinte cadastrado na plataforma…", o desfecho esperado;
+  - **a rodada com o `Avalara:ListingPageSize` 2:** o host subiu de novo com `Avalara__ListingPageSize=2`, o perfil foi
+    salvo para reler, e o mesmo reprocesso deu "8 empresas em 5 páginas e 14 contribuintes em 19 páginas", com a mesma
+    recusa;
+  - **as mesmas empresas e os mesmos contribuintes:** as contagens são iguais, e há mais páginas na segunda. O log só
+    conta, então os conjuntos foram comparados pela sonda, com o mesmo adapter e as duas configurações, por uma
+    impressão (SHA-256 do CNPJ, dos códigos, do identificador e da descrição de cada estabelecimento, ordenados), num
+    trecho temporário revertido em seguida. As duas deram `ED43014D120FC4D2`;
+  - **o `$skip` dos contribuintes foi exercitado:** com o `$top` 2 e a parada só na página vazia, 19 páginas para 14
+    contribuintes em 8 empresas só fecham com as 8 empresas com um número ímpar de contribuintes, e pelo menos uma com 3
+    ou mais. Nenhuma página repetida foi recusada, e o teto de 50 páginas não chegou perto;
+  - **depois:** o perfil voltou ao guardado, com o contorno, igual em todos os campos e nos segredos, e o host ficou no ar
+    com a configuração padrão.
+
+  O `empresaId` e o `contribuinteId` são, então, campos ordenáveis, e a ordem é estável entre as duas configurações. O
+  item do STATUS "Os campos ordenáveis da listagem de estabelecimentos" foi fechado com esta evidência. A recusa por
+  duplicidade não apareceu.
 - [x] 6.3 Os outros três estabelecimentos (`SP-01`, `SAL-01` e `RJ-01`) não têm NF-e 55 no fiscosysdev. A prova deles é a
   do 4.2. Anotar isso aqui e no STATUS, e não marcar a prova real deles como feita.
 
@@ -273,3 +317,21 @@ evidência. O que for parcial, não exercitado ou movido fica aberto e anotado n
   `Matriz` trocado para cada CNPJ: os quatro saem com os códigos do mock (`010`, `007`, `021` e `003`), numa listagem só. O
   STATUS registra isso no item "Estabelecimentos do cliente e transferência entre filiais por XML". **A prova real dos três
   não foi feita**, e só será quando houver NF-e 55 deles numa base.
+
+## Os valores reais nos artefatos, antes do arquivamento (2026-10-08)
+
+Pela regra do D10 da `platform-listing-shape`, os exemplos e as descrições do mock e das fixtures nos artefatos desta
+change passaram a valores inventados, preservando o `codigoCIA` fora da ordem do `empresaId` e os códigos de contribuinte
+fora da ordem do CNPJ:
+
+- **nas specs:** a empresa do sandbox (`7410`, `"005"`, a razão social) e a `7411` deram lugar à `9101` (`"017"`,
+  EMPRESA EXEMPLO), à `9102` e à `009` (LABORATORIO), com os contribuintes `#50001`, `#50002` e `#60001`, os mesmos
+  valores da delta da `platform-listing-shape`;
+- **no design e no tasks.md:** o que descreve o mock e as fixtures segue os valores de hoje deles (`8120`, `"012"`,
+  METALURGICA EXEMPLO; `"Comércio"`; `"009"`, LABORATORIO). Nas tarefas já feitas, só o valor mudou, e não o relato;
+- **o `94082641000186`:** conferido com o `listing --cnpj` da sonda, é um contribuinte real do sandbox (o `#10001`,
+  código `"001"`, da empresa `"005"`). O exemplo da spec era um registro copiado do sandbox, e o CNPJ saiu;
+- **o que fica:** as menções que descrevem o sandbox como fato, como o ADR-0033 faz (`Padrão`, `QA` e `SPL` no
+  proposal, no design e na spec, e os `"005"`, `"Padrão"` e `"QA"` verificados no proposal), e a 2.3, que descreve um
+  teste com códigos genéricos sozinhos (`"005"` e `"Padrão"` no `Codes_are_text_as_they_came`). Os CNPJs da Contoso
+  ficam: são dados de demonstração da Microsoft.

@@ -11,6 +11,7 @@ using FiscalHub.Infrastructure;
 using FiscalHub.Infrastructure.Secrets;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -26,6 +27,7 @@ const string Usage = """
       dotnet run --project tools/AvalaraSandboxProbe -- send  --tenant tenant-a --payload <avalara.json> --label <nome>
                   [--omit campo]... [--set campo=valor]... [--ref-suffix <s>] [--poll] [--poll-attempts 10] [--poll-seconds 5]
       dotnet run --project tools/AvalaraSandboxProbe -- get   --tenant tenant-a --id <id> --label <nome>
+      dotnet run --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a [--cnpj <cnpj>]... [--ids]
 
     Opções comuns: --host-settings <pasta do appsettings do Host> (padrão: src/FiscalHub.Host)
                    --out <pasta de saída> (padrão: tools/AvalaraSandboxProbe/out)
@@ -79,6 +81,7 @@ try
         "token" => await TokenAsync(),
         "send" => await SendAsync(),
         "get" => await GetAsync(),
+        "listing" => await ListingAsync(),
         _ => Fail(Usage, 2),
     };
 }
@@ -234,6 +237,82 @@ async Task<int> GetAsync()
     return response.IsSuccessStatusCode ? 0 : 1;
 }
 
+// ---- listing: a listagem real do adapter e o casamento de um CNPJ (change platform-listing-shape, D7) ----
+// O mesmo caminho do despacho, do resolvedor ao índice, sem mandar documento. A sobreposição establishments do perfil não
+// entra: ela só vale no envio. Imprime as contagens por endpoint e o casamento dos CNPJs pedidos, e nada mais da listagem.
+// Com --ids, imprime só os identificadores da conta, a lista do Fixtures/sandbox/identificadores-da-conta.json (D10).
+async Task<int> ListingAsync()
+{
+    var listing = new AvalaraEstablishmentListing(http, provider, Options.Create(options), new ConsoleLogger<AvalaraEstablishmentListing>());
+    if (parsed.Value("ids") is not null)
+    {
+        return await IdsAsync(listing);
+    }
+
+    var resolver = new PlatformEstablishmentResolver([listing], new PlatformEstablishmentOptions(), TimeProvider.System);
+
+    PlatformEstablishmentIndex index;
+    try
+    {
+        index = await resolver.GetAsync(profile!);
+    }
+    catch (HttpRequestException ex)
+    {
+        return Fail($"listagem: falha transitória (HTTP {(int?)ex.StatusCode}): {ex.Message}", 1);
+    }
+
+    foreach (string cnpj in parsed.Values("cnpj"))
+    {
+        Console.WriteLine(index.Match(cnpj) switch
+        {
+            EstablishmentMatch.Unique unique => $"{cnpj}: um contribuinte, {Candidate(unique.Establishment)}",
+            EstablishmentMatch.Ambiguous ambiguous => $"{cnpj}: {ambiguous.Candidates.Count} contribuintes, "
+                + string.Join("; ", ambiguous.Candidates.Select(Candidate)),
+            _ => $"{cnpj}: nenhum contribuinte na plataforma",
+        });
+    }
+
+    return 0;
+
+    static string Candidate(PlatformEstablishment e)
+        => $"codigoEmpresa '{e.CompanyCode ?? "(sem código)"}', codigoContribuinte '{e.EstablishmentCode ?? "(sem código)"}' (#{e.PlatformId})";
+}
+
+// Os identificadores da conta, e nada mais: os contribuinteId pela listagem real, e os empresaId pelo /empresa, paginado
+// como o hub pagina. São números, sem CNPJ, código ou descrição.
+async Task<int> IdsAsync(AvalaraEstablishmentListing listing)
+{
+    IReadOnlyList<PlatformEstablishment> all = await listing.ListAsync(profile!);
+    var companies = new List<string>();
+    for (int skip = 0, page = 0; ; page++)
+    {
+        if (page == options.ListingMaxPages)
+        {
+            return Fail($"empresas: o /empresa não chegou à página vazia em {options.ListingMaxPages} páginas", 1);
+        }
+
+        AvalaraAccessToken token = await provider.GetTokenAsync(settings);
+        using var request = new HttpRequestMessage(HttpMethod.Get,
+            new Uri(settings.BaseUri, $"{options.CompaniesPath}?$select=empresaId&$orderby=empresaId&$top={options.ListingPageSize}&$skip={skip}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
+        using HttpResponseMessage response = await http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        JsonNode root = JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
+        JsonArray items = root as JsonArray ?? root["value"]!.AsArray();
+        if (items.Count == 0)
+        {
+            break;
+        }
+
+        companies.AddRange(items.Select(c => c!["empresaId"]!.ToJsonString()));
+        skip += items.Count;
+    }
+
+    Console.WriteLine($"empresaId ({companies.Count}): {string.Join(", ", companies)}");
+    Console.WriteLine($"contribuinteId ({all.Count}): {string.Join(", ", all.Select(e => e.PlatformId).OrderBy(id => long.TryParse(id, out long n) ? n : long.MaxValue))}");
+    return 0;
+}
+
 void Save(string file, string content)
 {
     string path = Path.Combine(outDir, file);
@@ -312,6 +391,23 @@ static string RepoRoot()
     return Directory.GetCurrentDirectory();
 }
 
+/// <summary>A linha de informação de um componente do hub no console, como o log a escreveria; o resto fica de fora.</summary>
+internal sealed class ConsoleLogger<T> : ILogger<T>
+{
+    public IDisposable? BeginScope<TState>(TState state)
+        where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Information;
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        if (IsEnabled(logLevel))
+        {
+            Console.WriteLine(formatter(state, exception));
+        }
+    }
+}
+
 internal static class Json
 {
     public static readonly JsonSerializerOptions Indented = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
@@ -320,7 +416,7 @@ internal static class Json
 /// <summary>Argumentos: o comando e as opções <c>--nome valor</c>; <c>--poll</c> é marcador; <c>--omit</c> e <c>--set</c> repetem.</summary>
 internal sealed class ProbeArgs
 {
-    private static readonly HashSet<string> Flags = ["poll"];
+    private static readonly HashSet<string> Flags = ["poll", "ids"];
 
     private readonly Dictionary<string, List<string>> _options = new(StringComparer.Ordinal);
 
