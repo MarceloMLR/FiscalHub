@@ -366,8 +366,15 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
   - o do feed lê os 83 cabeçalhos da `brmf`;
   - o da montagem monta as NF-e 55;
   - sem o `FISCALHUB_D365_CLIENT_SECRET`, os dois aparecem pulados, e o motivo nomeia só ele.
+
+  **Em aberto (2026-10-08).** Depende do Client Secret do app, que fica com o Marcelo. Na suíte, os dois aparecem
+  pulados — a `FiscalHub.Adapters.Ingress.D365Poll.Tests` fecha com 2 ignorados —, que é o comportamento especificado
+  sem as variáveis.
 - [ ] 10.4 O gravador com `-DirectoryOnly` e as variáveis: o `git diff` das fixtures sai vazio. Se não sair, investigar
   antes de versionar.
+
+  **Em aberto (2026-10-08).** Mesma dependência da 10.3. Ela e a 10.3 são as únicas provas desta change contra o
+  ambiente real que não foram rodadas.
 - [x] 10.5 A identidade, com o host em Development e uma sessão do `az login` ativa:
   - **com a credencial gravada pela tela:** o log tem "D365: o tenant tenant-a autentica no F&O com a credencial do
     próprio tenant (client credentials: app …)" uma vez;
@@ -398,7 +405,7 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
     - o `GET /connector` de depois saiu idêntico ao de antes, byte a byte (1.442 caracteres);
     - na passada seguinte, as falhas voltaram a 0, a marca andou e houve requisição nova ao F&O;
     - nenhuma linha de identidade nova, porque o app é o mesmo.
-- [ ] 10.6 A coluna, contra o fiscosysdev e com a saída apontada para o mock:
+- [x] 10.6 A coluna, contra o fiscosysdev e com a saída apontada para o mock:
   - **a `SP-01`:** uma execução da empresa `44278225000180` com a filial `SP-01` mostra `44.278.225/0002-60`;
   - **"Todas":** a execução mostra `44.278.225/0001-80`;
   - **a linha antiga:** a execução 16, gravada antes da coluna, continua com ela nula e mostra `44.278.225/0001-80`;
@@ -426,7 +433,22 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
     São os mesmos valores dos testes da 7.1;
   - **os agendamentos:** o `GET /schedules` de depois saiu idêntico ao de antes (o agendamento 2, da `Matriz`, inativo).
 
-  **Falta:** abrir a tela Agendamento → Execuções e ver a coluna Empresa das execuções 19, 20 e 16, e a tabela de
-  agendamentos.
-- [ ] 10.7 Fechar no `docs/STATUS.md` o item "A coluna Empresa das tabelas de agendamento e de execução mostra o CNPJ da
+  **Feito (2026-10-08), conferência visual do Marcelo.** O banco de dev foi recriado em 06/10 e as execuções 16, 19 e 20
+  da anotação parcial deixaram de existir, então a evidência foi refeita com o host desta branch na `:5200`, pela API, no
+  mesmo período de 2026-08-07:
+
+  | Execução | Filial | `EstablishmentTaxId` | A coluna Empresa mostra |
+  |---|---|---|---|
+  | 2 | `SP-01` | `44278225000260` | `44.278.225/0002-60` |
+  | 3 | todas | nulo | `44.278.225/0001-80` |
+  | 4 | `SP-01` | nulo | `44.278.225/0001-80` |
+
+  - **a linha antiga:** a execução 4 teve o campo anulado por `UPDATE`, para reproduzir uma gravada antes da coluna. Ela
+    mostra a empresa, como a execução 1, que é anterior de verdade;
+  - **nada saiu:** as três acharam as mesmas 2 NFS-e de 2026-08-07, que o roteamento ignora. A saída do perfil não foi
+    apontada para o mock, e nenhuma chamada chegou à plataforma;
+  - **os agendamentos:** a comparação "igual à de antes da change" perdeu o antes, porque o banco foi recriado. Ficou
+    provado o que ela queria dizer: o `GET /schedules` não tem o campo, e a tabela mostra a empresa gravada, que é o
+    critério. Há um agendamento diário da `SP-01` na tela.
+- [x] 10.7 Fechar no `docs/STATUS.md` o item "A coluna Empresa das tabelas de agendamento e de execução mostra o CNPJ da
   matriz", com a data e as provas da 10.6. A linha 1150 não muda.
