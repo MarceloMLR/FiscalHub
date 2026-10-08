@@ -29,8 +29,8 @@ mais de um, sem código, falha da listagem) são as de `platform-establishment-r
 
 #### Scenario: Os códigos saem da plataforma
 - **WHEN** a tabela do ambiente ativo não tem o CNPJ `44278225000180`, e o único contribuinte da plataforma com esse CNPJ
-  tem `codigo = "010"`, na empresa de `codigoCIA = "005"`
-- **THEN** o payload leva `codigoEmpresa = "005"` e `codigoContribuinte = "010"`
+  tem `codigo = "010"`, na empresa de `codigoCIA = "017"`
+- **THEN** o payload leva `codigoEmpresa = "017"` e `codigoContribuinte = "010"`
 - **AND** nenhum dos dois é `44278225000180`
 
 #### Scenario: O ambiente ativo escolhe a tabela

@@ -71,12 +71,12 @@ public partial class SandboxFixtureTests
     [Theory]
     [InlineData("""{"cnpj":"11222333000181"}""", true)]
     [InlineData("""{"cnpj":"11.222.333/0001-81"}""", true)]
-    [InlineData("""{"cnpj":"[mascarado]","empresaId":8120,"contribuinteId":10001}""", false)]
+    [InlineData("""{"cnpj":"[mascarado]","empresaId":8120,"contribuinteId":2000010001}""", false)]
     public void The_cnpj_scan_catches_both_spellings(string sample, bool caught) => Assert.Equal(caught, Cnpj().IsMatch(sample));
 
     [Theory]
     [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"EMPRESA DE VERDADE"}]}""", "descricao")]
-    [InlineData("""[{"contribuinteId":10001,"codigo":"010","razao":"CONTRIBUINTE DE VERDADE"}]""", "razao")]
+    [InlineData("""[{"contribuinteId":2000010001,"codigo":"010","razao":"CONTRIBUINTE DE VERDADE"}]""", "razao")]
     [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"[mascarado]","idPortalCompany":"[mascarado]"}]}""", null)]
     [InlineData("""{"value":[]}""", null)]
     public void The_masking_scan_catches_a_value_outside_what_stays(string body, string? caught)
@@ -173,6 +173,120 @@ public partial class SandboxFixtureTests
         Assert.Equal(RecordedIds("listagem-empresas-top5.json").Skip(2).Take(2), RecordedIds("listagem-empresas-skip2.json"));
     }
 
+    // ---------- os valores inventados (change platform-listing-shape, D10) ----------
+
+    // Os identificadores reais da conta ficam só aqui, no Fixtures/sandbox/, e as fixtures inventadas e o mock não podem
+    // carregar nenhum. A conferência por busca só achava o que já se sabia ser real, e um identificador de contribuinte que
+    // parecia inventado passou por ela.
+    [Fact]
+    public void No_invented_fixture_nor_the_mock_carries_a_real_identifier_of_the_account()
+    {
+        HashSet<string> real = RealIdentifiers();
+        string[] fixtures = Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "Fixtures", "listing"), "*.json");
+        List<string> mock = MockIdentifiers(File.ReadAllText(Path.Combine(RepoRoot(), "tools", "MockComplianceApi", "Program.cs")));
+        Assert.NotEmpty(fixtures);   // a varredura não passa no vazio
+        Assert.NotEmpty(mock);
+
+        List<string> found =
+        [
+            .. fixtures.SelectMany(f => IdentifiersIn(JsonNode.Parse(File.ReadAllText(f))).Where(real.Contains).Select(id => $"{Path.GetFileName(f)}: {id}")),
+            .. mock.Where(real.Contains).Select(id => $"MockComplianceApi: {id}"),
+        ];
+
+        if (found.Count > 0)
+        {
+            Assert.Fail(RealIdentifierFailure(found));
+        }
+    }
+
+    [Fact]
+    public void The_scan_failure_says_when_the_real_list_was_recorded()
+    {
+        // Quem bate na varredura precisa saber se a lista de identificadores reais é de dois dias ou de seis meses: ela só vê o
+        // que a conta tinha na data da gravação.
+        string failure = RealIdentifierFailure(["contribuintes-x.json: 1"]);
+
+        Assert.Contains("contribuintes-x.json: 1", failure);
+        Assert.Contains($"gravada em {RecordedAt():yyyy-MM-dd}", failure);
+        Assert.Contains("listing --tenant tenant-a --ids", failure);   // como regravar
+    }
+
+    [Fact]
+    public void The_identifier_scan_catches_a_real_identifier_and_passes_an_invented_one()
+    {
+        // O real vem da gravação, e não do teste: um identificador real só existe no Fixtures/sandbox/.
+        HashSet<string> real = RealIdentifiers();
+        string realId = real.First();
+
+        Assert.Equal(new[] { realId }, IdentifiersIn(JsonNode.Parse($$"""[{"contribuinteId":{{realId}},"codigo":"010"}]""")).Where(real.Contains));
+        Assert.DoesNotContain(IdentifiersIn(JsonNode.Parse("""{"value":[{"empresaId":8120,"contribuinteId":2000010001}]}""")), real.Contains);
+        Assert.Equal(new[] { realId }, MockIdentifiers($"new({realId}, \"010\", \"44278225000180\", \"MATRIZ (mock)\"),").Where(real.Contains));
+        Assert.DoesNotContain(MockIdentifiers("new(2000010001, \"010\", \"44278225000180\", \"MATRIZ (mock)\"),"), real.Contains);
+    }
+
+    // Os identificadores reais da conta, como texto: os empresaId e os contribuinteId gravados pela sonda.
+    // A falha da varredura: o que foi achado, de quando é a lista de identificadores reais e como regravá-la.
+    private static string RealIdentifierFailure(IEnumerable<string> found)
+    {
+        DateOnly recordedAt = RecordedAt();
+        int days = DateOnly.FromDateTime(DateTime.UtcNow).DayNumber - recordedAt.DayNumber;
+        return $"Identificador real da conta em valor inventado: {string.Join("; ", found)}. Troque-o por um da faixa reservada "
+            + $"(2.000.000.000 em diante, Fixtures/listing/README.md). A lista de identificadores reais "
+            + $"(Fixtures/sandbox/identificadores-da-conta.json) foi gravada em {recordedAt:yyyy-MM-dd}, há {days} dia(s): ela só "
+            + "vê o que a conta tinha naquela data. Para regravar: dotnet run --project tools/AvalaraSandboxProbe -- listing "
+            + "--tenant tenant-a --ids";
+    }
+
+    private static DateOnly RecordedAt()
+        => DateOnly.ParseExact(
+            (string)JsonNode.Parse(File.ReadAllText(Path.Combine(FixtureDir, "identificadores-da-conta.json")))!["recordedAt"]!,
+            "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static HashSet<string> RealIdentifiers()
+    {
+        JsonNode ids = JsonNode.Parse(File.ReadAllText(Path.Combine(FixtureDir, "identificadores-da-conta.json")))!;
+        return [.. ids["empresaId"]!.AsArray().Concat(ids["contribuinteId"]!.AsArray()).Select(n => n!.ToJsonString())];
+    }
+
+    // Os valores das chaves empresaId e contribuinteId, em qualquer lugar da árvore, como texto.
+    private static IEnumerable<string> IdentifiersIn(JsonNode? node)
+    {
+        if (node is JsonArray array)
+        {
+            foreach (string id in array.SelectMany(IdentifiersIn))
+            {
+                yield return id;
+            }
+        }
+        else if (node is JsonObject obj)
+        {
+            foreach ((string key, JsonNode? value) in obj)
+            {
+                IEnumerable<string> ids = key is "empresaId" or "contribuinteId" && value is JsonValue v ? [v.ToJsonString().Trim('"')] : IdentifiersIn(value);
+                foreach (string id in ids)
+                {
+                    yield return id;
+                }
+            }
+        }
+    }
+
+    // Os identificadores da conta do mock: o primeiro argumento de cada registro de empresa e de contribuinte.
+    private static List<string> MockIdentifiers(string source) => [.. MockRecord().Matches(source).Select(m => m.Groups[1].Value)];
+
+    private static string RepoRoot()
+    {
+        for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "FiscalHub.slnx")))
+            {
+                return dir.FullName;
+            }
+        }
+
+        throw new InvalidOperationException("Raiz do repositório não encontrada.");
+    }
+
     private static List<string> RecordedIds(string file)
         => [.. JsonNode.Parse(RecordedSubmit(file).Body)!["value"]!.AsArray().Select(i => i!["empresaId"]!.ToJsonString())];
 
@@ -207,6 +321,9 @@ public partial class SandboxFixtureTests
 
     [GeneratedRegex(@"(?<!\d)\d{14}(?!\d)|\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}")]
     private static partial Regex Cnpj();
+
+    [GeneratedRegex(@"\bnew\((\d+), """)]
+    private static partial Regex MockRecord();
 
     [GeneratedRegex(@"Bearer\s+(?!\[redigido\])[A-Za-z0-9\-._~+/]+=*", RegexOptions.IgnoreCase)]
     private static partial Regex BearerWithValue();

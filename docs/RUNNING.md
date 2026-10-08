@@ -163,7 +163,7 @@ plataforma**, casada pelo CNPJ do estabelecimento próprio, sem pontuação e co
 **As recusas,** todas "Configuração do conector: …", sem retentativa:
 
 - **nenhum contribuinte com o CNPJ:** "o estabelecimento 44278225000180 não tem contribuinte cadastrado na plataforma …";
-- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '012' (METALURGICA …), contribuinte '010' (#10001); …".
+- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '012' (METALURGICA …), contribuinte '010' (#2000010001); …".
 
 **A janela.** A listagem fica guardada por tenant e ambiente, e um lote de notas usa uma só. As opções:
 
@@ -704,6 +704,11 @@ dotnet run --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a --cn
   páginas de cada endpoint, e, para cada `--cnpj`, o casamento: os códigos e o `#id` do contribuinte único, nenhum, ou os
   candidatos da duplicidade. Nenhum outro conteúdo da listagem é impresso, e nada é gravado em `out/`. A sobreposição
   `establishments` do perfil não entra: ela só vale no envio. Uma recusa da listagem sai com o motivo, como no envio.
+- `listing --ids` imprime só os identificadores da conta: os `empresaId` e os `contribuinteId`, sem CNPJ, código ou
+  descrição. É a lista de `Fixtures/sandbox/identificadores-da-conta.json`, que o `SandboxFixtureTests` usa para recusar
+  valor real nas fixtures inventadas e no mock. A varredura só vê o que a conta tinha na data da gravação, e a falha dela
+  mostra essa data (`recordedAt`): com a lista velha, regrave o arquivo com a saída deste comando. Um identificador
+  inventado novo sai da faixa reservada, que não depende da gravação (`Fixtures/listing/README.md`).
 
 - `--omit` e `--set` mexem só no topo do payload, e podem repetir. O valor do `--set` é JSON quando dá (`1`, `true`,
   `null`), e texto nos outros casos.

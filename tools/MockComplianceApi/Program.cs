@@ -253,7 +253,9 @@ internal sealed class TokenToggle
 // duas empresas de teste ao lado, como no sandbox. Tudo é inventado, e nada vem da conta de sandbox: os CNPJs são os da
 // Contoso no D365 de dev, de propósito, para as notas gravadas resolverem aqui. O codigoCIA não acompanha a ordem do
 // empresaId (8120 é "012", 8122 é "009"), como no sandbox. Os códigos dos contribuintes NÃO seguem a ordem do CNPJ (a
-// Matriz, 0001, não é "001"): um código derivado da ordem falharia aqui, em vez de passar por coincidência.
+// Matriz, 0001, não é "001"): um código derivado da ordem falharia aqui, em vez de passar por coincidência. Os
+// identificadores de contribuinte saem da faixa reservada (2.000.000.000 + o número antigo): os de antes, na casa dos dez
+// mil, coincidiam com contribuintes reais. O SandboxFixtureTests recusa aqui qualquer identificador real da conta.
 internal sealed class PlatformDirectory
 {
     private readonly object _gate = new();
@@ -369,11 +371,11 @@ internal sealed class PlatformDirectory
     [
         new(8120, "012", "METALURGICA EXEMPLO (mock)", "00000000-0000-4000-8000-000000008120",
         [
-            new(10001, "010", "44278225000180", "CONTOSO MATRIZ (mock)"),
-            new(10002, "007", "44278225000260", "CONTOSO SP-01 (mock)"),
-            new(10003, "021", "44278225000341", "CONTOSO SAL-01 (mock)"),
-            new(10004, "003", "44278225003448", "CONTOSO RJ-01 (mock)"),
-            new(10005, "015", "12345678000190", "EMITENTE DOS XMLS DE EXEMPLO (mock)"),
+            new(2000010001, "010", "44278225000180", "CONTOSO MATRIZ (mock)"),
+            new(2000010002, "007", "44278225000260", "CONTOSO SP-01 (mock)"),
+            new(2000010003, "021", "44278225000341", "CONTOSO SAL-01 (mock)"),
+            new(2000010004, "003", "44278225003448", "CONTOSO RJ-01 (mock)"),
+            new(2000010005, "015", "12345678000190", "EMITENTE DOS XMLS DE EXEMPLO (mock)"),
         ]),
         new(8121, "Comércio", "Comércio de exemplo (mock)", "00000000-0000-4000-8000-000000008121",
         [

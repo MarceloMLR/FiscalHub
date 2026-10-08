@@ -22,9 +22,9 @@ do casamento nem ir no payload.
 A listagem MUST NOT filtrar por tenant: a credencial do tenant já a limita à conta dele. Ela MUST NOT mandar o
 `subscriptionId`, que é opcional nos dois endpoints.
 
-#### Scenario: Uma empresa e o contribuinte dela
-- **WHEN** a plataforma devolve a empresa `{"empresaId": 9101, "codigoCIA": "017", "descricao": "EMPRESA EXEMPLO"}`, e o
-  contribuinte `{"contribuinteId": 50001, "codigo": "031", "cnpj": "11222333000181"}` na empresa `9101`
+#### Scenario: Os dois formatos
+- **WHEN** a plataforma devolve `[{"empresaId": 9101, "codigoCIA": "017", "descricao": "EMPRESA EXEMPLO"}]` em empresas,
+  e `{"value": [{"contribuinteId": 50001, "codigo": "031", "cnpj": "11222333000181"}]}` nos contribuintes da empresa `9101`
 - **THEN** o CNPJ `11222333000181` é listado com o código de empresa `017`, a descrição `EMPRESA EXEMPLO` e o código de
   contribuinte `031`
 
@@ -74,6 +74,10 @@ Cada resposta da listagem MUST ter um destes desfechos (`platform-establishment-
 #### Scenario: O caminho errado
 - **WHEN** a requisição de empresas responde HTTP 404
 - **THEN** a nota é rejeitada com motivo que aponta a URL base do perfil e o caminho de empresas no appsettings
+
+#### Scenario: Empresas em envelope
+- **WHEN** a requisição de empresas responde 200 com `{"value": [...]}`
+- **THEN** as empresas são lidas como no array, sem recusa: o envelope é uma das duas formas de uma lista
 
 #### Scenario: Um corpo que não é lista
 - **WHEN** a requisição de empresas responde 200 com `{"error": "unavailable", "message": "tente mais tarde"}`

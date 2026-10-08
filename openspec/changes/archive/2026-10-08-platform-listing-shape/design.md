@@ -283,6 +283,11 @@ contribuinte da TMSA. Com ela, a sobreposição ganha, e a listagem nem é chama
 
 ### D10. As fixtures inventadas são inventadas por inteiro
 
+> **Corrigido em 2026-10-08, depois do arquivamento, a pedido do Marcelo.** Este D10 afirmava que os `contribuinteId` das
+> fixtures e do mock já eram inventados, e a conferência por busca não os olhava. A conta de sandbox tem os contribuintes
+> `9709` e `9992` a `10004`: o `10001` a `10004` eram reais. As correções estão nos parágrafos "Nenhum valor novo",
+> "O que fica", "A faixa reservada", "Fato não é fixture" e "A conferência", e o commit dos valores é o `8200965`.
+
 O `Fixtures/listing/README.md` afirma que os valores são de mentira. Não são: o `Fixtures/listing/` e o mock carregam a
 empresa real do sandbox, com o `empresaId` 7410, o `codigoCIA` `"005"`, a razão social e o começo do `idPortalCompany`
 (`7e93b784-…`). Ou se consertam os valores, ou se conserta o README, e esta change escreve a regra de mascaramento:
@@ -299,6 +304,7 @@ publicá-la violada uma pasta ao lado tira a credibilidade dela.
 - os `empresaId` 7330 e 7407 a 7413, todos da conta: os pares com o `codigoCIA` foram conferidos em 2026-10-08 (tarefa
   1.5);
 - os `codigoCIA` de `"001"` a `"005"`, o `"Padrão"`, o `"SPL"` e o `"QA"`, todos da conta;
+- os `contribuinteId` `9709` e `9992` a `10004`, todos da conta (conferidos em 2026-10-08, pela sonda);
 - as razões sociais e os `idPortalCompany`.
 
 **As propriedades que os valores inventados preservam:**
@@ -310,7 +316,38 @@ publicá-la violada uma pasta ao lado tira a credibilidade dela.
 
 **O que fica:** os CNPJs dos contribuintes. No mock e nas fixtures, eles são os da Contoso no D365 de dev, de propósito,
 para as notas gravadas resolverem, e os de exemplo (`11222333000181`, `12345678000190`, `99888777000166`). Nenhum é da
-conta de sandbox. Os `contribuinteId` e os códigos de contribuinte já são inventados.
+conta de sandbox. Os códigos de contribuinte (`codigo`) são códigos curtos e genéricos, e caem na regra do código
+genérico, abaixo.
+
+**Os `contribuinteId` não eram inventados.** A versão anterior deste parágrafo dizia que eram, sem ter conferido: o
+`/contribuinte` nunca foi chamado direto, e nenhum identificador de contribuinte da conta tinha sido visto. O `10001`, o
+`10002`, o `10003` e o `10004` do mock, das fixtures e dos testes eram reais, e o `10005` a `10009` eram os próximos que a
+sequência da plataforma emite. Todos passaram à faixa reservada. Um identificador que parece inventado não é prova de
+que é: foi exatamente assim que o `10001` passou.
+
+**A faixa reservada dos identificadores inventados:** `2.000.000.000` mais o número antigo (o `10001` virou
+`2000010001`). Por quê:
+
+- **os identificadores da plataforma são sequenciais e positivos.** A conta mostra empresas de `7330` a `7413` e
+  contribuintes de `9709` e de `9992` a `10004`, e a sequência cresce de um em um. Para chegar a dois bilhões, ela teria de
+  avançar dois bilhões de cadastros: a faixa fica fora do alcance dela;
+- **cabe no `int` de 32 bits,** o tipo do mock e do `PlatformHandler`, que vai até `2.147.483.647`;
+- **o número antigo continua legível** no fim, e a busca por palavra inteira não confunde um com o outro;
+- **negativos colidiriam menos ainda, mas não servem:** o mock ordena o `$orderby` pelo texto do número (`D12`), e um
+  identificador negativo mudaria a ordem da listagem. Seria mexer em comportamento numa troca de valores.
+
+Todo identificador inventado novo sai desta faixa. Os inventados de antes que ficaram fora dela (os `empresaId` `8120` a
+`8122`, `8201` a `8207`, `9101` e `9102`, e os `contribuinteId` `20001`, `30001`, `50001`, `50002`, `60001` e `90001` em
+diante) foram conferidos contra a conta em 2026-10-08 e não coincidem com nenhum real.
+
+**Fato não é fixture.** As duas coisas seguem regras opostas:
+
+- **uma menção que descreve o sandbox como fato,** num ADR, num README do `Fixtures/sandbox/`, num registro de prova ou
+  num relato de tarefa, é evidência. O valor real fica, porque é ele que se está registrando. É o caso do ADR-0033, que
+  cita os `codigoCIA` `"Padrão"`, `"QA"` e `"SPL"` da conta, e das respostas gravadas no `Fixtures/sandbox/`;
+- **uma fixture, o mock, um exemplo de spec ou um valor montado num teste é inventado,** e não pode carregar nenhum valor
+  real: nem razão social, nem `idPortalCompany`, nem identificador de empresa ou de contribuinte. Se um valor real for
+  preciso, ele é gravado no `Fixtures/sandbox/`, e o teste o lê de lá.
 
 **O escopo é só valores:** as fixtures, o `PlatformHandler`, o mock, os testes que afirmam esses valores, o README e as
 linhas do RUNNING que mostram os códigos e a descrição do mock. Nenhuma mudança de comportamento. Que vários testes
@@ -326,8 +363,19 @@ empresa do sandbox, fica como está, como os do `PlatformEstablishmentResolverTe
 conserto esconderia a mudança que importa. Vindo antes, os arquivos que o conserto cria, como o `empresas-envelope.json`,
 já nascem inventados. A suíte verde antes e depois, com só valores trocados, prova que o comportamento não mudou.
 
-**A conferência é por busca:** nenhuma razão social, nenhum `idPortalCompany` e nenhum `empresaId` do sandbox em `tests/`,
-`tools/` e `docs/RUNNING.md`, fora do `Fixtures/sandbox/`.
+**A conferência.** A versão anterior era uma busca por uma lista de valores reais montada com o que tinha aparecido nas
+chamadas diretas: razões sociais, `idPortalCompany` e `empresaId`. O buraco estava aí: os `contribuinteId` não entraram
+na lista porque este D10 os tinha posto em "o que fica", e a busca só achava o que já se sabia ser real. Agora:
+
+- **a lista é a da conta inteira, e não a do que foi visto.** Os identificadores reais (os `empresaId` e os
+  `contribuinteId`) ficam em `Fixtures/sandbox/identificadores-da-conta.json`, gravados pelo `listing --ids` da sonda, que
+  imprime só números;
+- **um teste recusa qualquer um deles** nas fixtures inventadas (as chaves `empresaId` e `contribuinteId` do
+  `Fixtures/listing/`) e nos registros do mock (`SandboxFixtureTests`);
+- **o resto continua por busca, com a lista inteira:** os identificadores escritos dentro do código dos testes, o RUNNING
+  e as specs, com as razões sociais e os `idPortalCompany`, fora do `Fixtures/sandbox/`. Ficam fora as coincidências que
+  não são identificador da plataforma, como a porta 10001 do Azurite e os `RecId` do D365;
+- **a lista envelhece com a conta.** Antes de pôr um valor inventado que não sai da faixa, regravar o arquivo pela sonda.
 
 ### D11. O item de Operação do STATUS
 

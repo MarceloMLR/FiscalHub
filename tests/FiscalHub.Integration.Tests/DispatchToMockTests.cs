@@ -421,7 +421,7 @@ public class DispatchToMockTests
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
         Assert.Contains("o estabelecimento 44278225000180 tem 2 contribuintes na plataforma", row.Reason);
-        Assert.Contains("empresa '012' (METALURGICA EXEMPLO (mock)), contribuinte '010' (#10001)", row.Reason);
+        Assert.Contains("empresa '012' (METALURGICA EXEMPLO (mock)), contribuinte '010' (#2000010001)", row.Reason);
         Assert.Contains("empresa '009' (LABORATORIO (mock)), contribuinte '001' (#90001)", row.Reason);
         Assert.Equal(0, h.DocumentPosts);
     }
