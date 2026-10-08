@@ -362,19 +362,33 @@ Cada grupo de código termina com `dotnet build` com 0 warnings e `dotnet test` 
 - [x] 10.2 `openspec validate --all --strict` verde.
 
   **Feito (2026-10-05):** 23 passaram e 0 falharam (as 21 specs e as 2 changes ativas).
-- [ ] 10.3 Os testes contra o F&O real, com as quatro variáveis:
+- [x] 10.3 Os testes contra o F&O real, com as quatro variáveis:
   - o do feed lê os 83 cabeçalhos da `brmf`;
   - o da montagem monta as NF-e 55;
   - sem o `FISCALHUB_D365_CLIENT_SECRET`, os dois aparecem pulados, e o motivo nomeia só ele.
 
-  **Em aberto (2026-10-08).** Depende do Client Secret do app, que fica com o Marcelo. Na suíte, os dois aparecem
-  pulados — a `FiscalHub.Adapters.Ingress.D365Poll.Tests` fecha com 2 ignorados —, que é o comportamento especificado
-  sem as variáveis.
+
+  **Feito (2026-10-08), com as quatro variáveis na sessão.** Os dois rodaram contra o fiscosysdev: total 2, falhou 0,
+  ignorado 0. O do feed leu os cabeçalhos da `brmf` e o da montagem montou as NF-e 55.
+
+  **A prova achou um defeito, e por isso existia.** Na primeira rodada o teste da montagem falhou com "A credencial do
+  ERP não está configurada: o perfil não tem Tenant do Entra ID, Client ID nem Client Secret". O perfil dele estava
+  certo — o `D365GoodsInvoiceSource` autenticava —, mas o teste também lê os cabeçalhos por um `D365ODataClient`
+  avulso, e essa conexão tinha ficado com `Auth: null`. Funcionava enquanto o fallback do `az login` existia, porque
+  o provider antigo ignorava o `auth` da conexão e usava a sessão da máquina; com o client credentials sendo o único
+  caminho, virou recusa. A tarefa 2.3 nomeava só o `D365ChangeFeedIntegrationTests`, e o da montagem teve o provider
+  trocado mas não a conexão. Como o teste ficou **pulado** desde que foi escrito, nem a suíte nem o build o pegaram.
+
+  **O conserto:** o `D365IntegrationEnvironment` ganhou `Auth()`, que devolve o `D365AuthSettings` com a referência
+  `kv:`, e a conexão do teste passou a usá-lo. Duas linhas.
 - [ ] 10.4 O gravador com `-DirectoryOnly` e as variáveis: o `git diff` das fixtures sai vazio. Se não sair, investigar
   antes de versionar.
 
-  **Em aberto (2026-10-08).** Mesma dependência da 10.3. Ela e a 10.3 são as únicas provas desta change contra o
-  ambiente real que não foram rodadas.
+
+  **Em aberto (2026-10-08).** Depende do Client Secret do app, que fica com o Marcelo. É a única prova desta change
+  contra o ambiente real que não foi rodada: a 10.3 passou. O gravador regrava fixtures contra o fiscosysdev, e um
+  `git diff` não vazio abre investigação de tamanho desconhecido — por isso ficou fora do fechamento.
+
 - [x] 10.5 A identidade, com o host em Development e uma sessão do `az login` ativa:
   - **com a credencial gravada pela tela:** o log tem "D365: o tenant tenant-a autentica no F&O com a credencial do
     próprio tenant (client credentials: app …)" uma vez;
