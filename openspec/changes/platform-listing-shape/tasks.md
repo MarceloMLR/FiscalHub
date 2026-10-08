@@ -54,6 +54,15 @@ própria tarefa.
   `Release` (`dotnet build -c Release -warnaserror`: 0 warnings; `dotnet test -c Release`: 1140 aprovados, 3 ignorados, os
   opt-in de sempre), porque um `FiscalHub.Host` em execução travava o `bin/Debug` do host.
 
+  **Conferido depois (2026-10-08), com o `listing --cnpj` da sonda contra o sandbox:**
+  - **o `20247332000182`,** a tradução antiga da tabela (no `DispatchToMockTests`, no `SandboxFixtureTests`, em outros
+    testes do adapter, no RUNNING, na spec `avalara-document-contract` e em changes arquivadas): "nenhum contribuinte na
+    plataforma" entre os 14 da conta. É número solto, e não CNPJ de cliente, e fica onde está;
+  - **as empresas da conta:** os pares `empresaId`/`codigoCIA` são `7330`/`"001"`, `7407`/`"002"`, `7408`/`"004"`,
+    `7409`/`"003"`, `7410`/`"005"`, `7411`/`"Padrão"`, `7412`/`"SPL"` e `7413`/`"QA"`. A `7411` e a `7412` se
+    confirmaram reais, e a `7413` também é. A busca do 1.5, refeita com a `7413`, o `9709` e o CNPJ da TMSA, continua sem
+    ocorrência fora do `Fixtures/sandbox/`.
+
 ## 2. A reprodução, nos dois níveis (D4, D5)
 
 - [x] 2.1 O `PlatformHandler` imita o sandbox com a query:
@@ -257,9 +266,19 @@ própria tarefa.
   - **os contribuintes:** 16 páginas para 8 empresas, a página e a vazia de cada uma. Nenhuma empresa passa de 100
     contribuintes, então o `$skip` dos contribuintes não foi exercitado contra o sandbox (continua com a 6.2 da
     `platform-establishment-resolution`).
-- [ ] 6.2 O de/para de um estabelecimento conhecido: `listing --tenant tenant-a --cnpj <CNPJ de um contribuinte do
+- [x] 6.2 O de/para de um estabelecimento conhecido: `listing --tenant tenant-a --cnpj <CNPJ de um contribuinte do
   sandbox>`, com o CNPJ conferido pelo Marcelo no sandbox. O casamento é único, e os códigos e o `#id` são os que o
   sandbox mostra para esse contribuinte. Anotar a empresa e o contribuinte pelo código, sem o CNPJ.
+
+  **Feito (2026-10-08),** com o CNPJ do contribuinte matriz da TMSA, que o Marcelo conferiu no sandbox. O esperado era a
+  empresa `7330`, `codigoCIA` `"001"`, e o contribuinte `9709`, `codigo` `"001"`. A sonda deu "um contribuinte,
+  codigoEmpresa '001', codigoContribuinte '001' (#9709)":
+  - **conferido direto:** o casamento é único, e o `codigoCIA`, o `codigo` e o `#9709` são os esperados;
+  - **a empresa `7330`:** o registro do hub não guarda o `empresaId`, por desenho (D9 da
+    `platform-establishment-resolution`). Ela foi conferida com uma leitura temporária na sonda, revertida em seguida,
+    só dos pares `empresaId`/`codigoCIA` da conta. O `"001"` é só da `7330`, entre as oito empresas, então o
+    contribuinte do `codigoCIA` `"001"` é dela. Essa leitura usou a query exata do hub, com o `$select`, e o sandbox
+    respondeu HTTP 200 em envelope.
 - [x] 6.3 Pela esteira, contra o sandbox:
   - **antes:** tirar a sobreposição do contorno do tenant-a, guardando-a, e salvar o perfil, para a listagem ser chamada;
   - **a prova:** reprocessar uma das cinco NF-e 55 da `Matriz`. Ela é recusada com "o estabelecimento 44278225000180 não
@@ -291,4 +310,29 @@ própria tarefa.
     `1a4bf817-…`. O payload no mock leva `codigoEmpresa 012`, `codigoContribuinte 010` e a referência da nota;
   - **depois:** o perfil voltou ao guardado, e o `GET` deu igual em todos os campos. A única diferença é o
     `outbound.production.clientSecret`, que passou a "configurado" com o segredo de teste: o cofre não tem apagar, e um
-    Client Secret de produção de verdade o sobrescreve pela tela. O mock foi parado. O host desta branch ficou no ar.
+    Client Secret de produção de verdade o sobrescreve pela tela. O mock foi parado. O host desta branch ficou no ar ao fim da prova, e caiu depois, sem erro no log.
+
+## A evidência de ponta a ponta (Marcelo, 2026-10-08)
+
+O banco de dev puxado em 2026-10-08. As cinco NF-e 55 da `Matriz` estão em `IntegrationError` com motivo da plataforma,
+e nenhuma mais por contrato do destino:
+
+| Nota | Campos com erro |
+|---|---|
+| `BRMF06-110000027` | 6 |
+| `BRMF06-110000031` | 6 |
+| `BRMF12-30000001` | 6 |
+| `BRMF21-10000026` | 12 |
+| `BRMF21-10000027` | 9 |
+
+Todas começam por "operacao, tipoPagamento, parceiro.Codigo". O cursor do coletor está limpo, com a marca de 12:28 UTC
+do dia. A `BRMF21-10000026` foi apagada do registro de propósito antes do teste, voltou pelo coletor e despachou. Com
+isso, o registro `Confirmed` contra o mock da 6.4 deixou de existir no banco, e a evidência dela é a que está anotada acima.
+
+**O que esta evidência prova, e o que não prova.** Ela roda com o contorno da sobreposição em vigor: os quatro CNPJs da
+Contoso traduzidos para a TMSA (STATUS, Operação). Com a entrada na tabela, a listagem nem é pedida para essas notas
+(`platform-establishment-resolution`, "Com a entrada, a listagem não é pedida"). Então ela prova o caminho do despacho até
+a validação de conteúdo da Avalara (ADR-0026), e não a listagem: o conserto da forma está provado pela 6.1, pela 6.2 e
+pela 6.3. As cinco foram recusadas pela plataforma, e nenhuma foi aceita na conta da TMSA: pelo item do STATUS, não há
+documento a apagar desta rodada.
+

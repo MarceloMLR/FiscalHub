@@ -296,9 +296,9 @@ publicá-la violada uma pasta ao lado tira a credibilidade dela.
 
 **Nenhum valor novo pode coincidir com um do sandbox:**
 
-- os `empresaId` 7330 e 7407 a 7410, vistos nas chamadas diretas, e o 7411 e o 7412 das fixtures de hoje, que podem vir da
-  mesma conta;
-- os `codigoCIA` de `"001"` a `"005"`, vistos nas chamadas, e o `"Padrão"`, o `"QA"` e o `"SPL"`, do ADR-0033;
+- os `empresaId` 7330 e 7407 a 7413, todos da conta: os pares com o `codigoCIA` foram conferidos em 2026-10-08 (tarefa
+  1.5);
+- os `codigoCIA` de `"001"` a `"005"`, o `"Padrão"`, o `"SPL"` e o `"QA"`, todos da conta;
 - as razões sociais e os `idPortalCompany`.
 
 **As propriedades que os valores inventados preservam:**
