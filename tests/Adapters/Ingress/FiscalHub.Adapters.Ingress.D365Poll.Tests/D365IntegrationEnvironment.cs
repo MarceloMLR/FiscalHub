@@ -43,6 +43,12 @@ internal static class D365IntegrationEnvironment
     public static string AuthJson()
         => $$"""{"tenantId":"{{Read(EntraTenantId)}}","clientId":"{{Read(ClientId)}}","clientSecretRef":"kv:{{SecretName}}"}""";
 
+    /// <summary>
+    /// O <c>auth</c> como objeto, para a conexão montada à mão — o teste da montagem lê os cabeçalhos pelo
+    /// <see cref="D365ODataClient"/> direto, fora do source, e essa conexão também precisa da credencial.
+    /// </summary>
+    public static D365AuthSettings Auth() => new(Read(EntraTenantId), Read(ClientId), $"kv:{SecretName}");
+
     public static string Read(string name) => Environment.GetEnvironmentVariable(name)!;
 
     private static string List(IReadOnlyList<string> names)

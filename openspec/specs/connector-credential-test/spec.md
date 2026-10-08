@@ -95,8 +95,9 @@ O teste do D365 MUST pegar o token pelo client credentials do tenant e, com ele,
 registro da `FSFiscalDocumentBRs`, com `$top=1`, entre empresas, só com a chave. O token prova a credencial, e não a
 permissão. Quem prova a permissão é a leitura.
 
-- **A identidade:** o teste MUST usar a credencial do tenant, e nunca o Azure CLI, nem em desenvolvimento. O teste
-  responde sobre a credencial gravada, e não sobre outra identidade.
+- **A identidade:** o teste MUST usar a credencial gravada no perfil do tenant, e nenhuma outra, em qualquer ambiente do
+  host. O teste responde sobre a credencial gravada, e não sobre quem roda o host: uma identidade da máquina com acesso
+  ao F&O, como uma sessão do Azure CLI, não muda a resposta.
 - **O token novo:** cada teste MUST pedir um token novo ao Entra ID, sem reusar nenhum token em cache, nem o do coletor.
   O teste responde se a credencial funciona **agora**. Um teste que passasse com um segredo já revogado no Entra ID,
   porque reusou um token emitido antes, mentiria para quem está tentando decidir se o problema é a credencial.
@@ -149,9 +150,10 @@ permissão. Quem prova a permissão é a leitura.
 - **THEN** cada teste faz o próprio pedido de token ao Entra ID
 
 #### Scenario: Em desenvolvimento, sem o segredo
-- **WHEN** o host roda em Development, o `az login` está ativo, e o perfil do tenant-a não tem o Client Secret
+- **WHEN** o host roda em Development, quem roda o host tem uma identidade com acesso ao F&O, como uma sessão do Azure
+  CLI, e o perfil do tenant-a não tem o Client Secret
 - **THEN** a resposta diz "Credenciais ou ambiente inválidos", e o log diz que o Client Secret não está configurado
-- **AND** o teste não usa a sessão do Azure CLI
+- **AND** nenhum token é pedido, nem ao Entra ID nem a outra fonte, e nenhuma leitura vai ao F&O
 
 ### Requirement: O teste da Avalara pega o token
 

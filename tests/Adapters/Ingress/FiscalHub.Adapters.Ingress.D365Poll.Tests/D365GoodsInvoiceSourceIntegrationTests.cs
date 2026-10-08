@@ -43,7 +43,7 @@ public class D365GoodsInvoiceSourceIntegrationTests
         IReadOnlyList<JsonElement> headers = await client.GetAllAsync(
             new Uri($"{url.TrimEnd('/')}/data/FSFiscalDocumentBRs?cross-company=true&$select=FiscalDocumentRecId,dataAreaId,Voucher&$filter="
                 + Uri.EscapeDataString($"dataAreaId eq '{company}' and Model eq '55'")),
-            new D365Connection("tenant-a", new Uri(url), Auth: null), default);
+            new D365Connection("tenant-a", new Uri(url), D365IntegrationEnvironment.Auth()), default);
 
         Assert.NotEmpty(headers);
         foreach (JsonElement header in headers)
