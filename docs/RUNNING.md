@@ -706,8 +706,9 @@ dotnet run --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a --cn
   `establishments` do perfil não entra: ela só vale no envio. Uma recusa da listagem sai com o motivo, como no envio.
 - `listing --ids` imprime só os identificadores da conta: os `empresaId` e os `contribuinteId`, sem CNPJ, código ou
   descrição. É a lista de `Fixtures/sandbox/identificadores-da-conta.json`, que o `SandboxFixtureTests` usa para recusar
-  valor real nas fixtures inventadas e no mock. Regrave o arquivo antes de pôr um identificador inventado fora da faixa
-  reservada (`Fixtures/listing/README.md`).
+  valor real nas fixtures inventadas e no mock. A varredura só vê o que a conta tinha na data da gravação, e a falha dela
+  mostra essa data (`recordedAt`): com a lista velha, regrave o arquivo com a saída deste comando. Um identificador
+  inventado novo sai da faixa reservada, que não depende da gravação (`Fixtures/listing/README.md`).
 
 - `--omit` e `--set` mexem só no topo do payload, e podem repetir. O valor do `--set` é JSON quando dá (`1`, `true`,
   `null`), e texto nos outros casos.

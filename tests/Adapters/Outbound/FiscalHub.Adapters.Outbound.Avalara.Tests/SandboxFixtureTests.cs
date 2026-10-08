@@ -193,7 +193,22 @@ public partial class SandboxFixtureTests
             .. mock.Where(real.Contains).Select(id => $"MockComplianceApi: {id}"),
         ];
 
-        Assert.Empty(found);
+        if (found.Count > 0)
+        {
+            Assert.Fail(RealIdentifierFailure(found));
+        }
+    }
+
+    [Fact]
+    public void The_scan_failure_says_when_the_real_list_was_recorded()
+    {
+        // Quem bate na varredura precisa saber se a lista de identificadores reais é de dois dias ou de seis meses: ela só vê o
+        // que a conta tinha na data da gravação.
+        string failure = RealIdentifierFailure(["contribuintes-x.json: 1"]);
+
+        Assert.Contains("contribuintes-x.json: 1", failure);
+        Assert.Contains($"gravada em {RecordedAt():yyyy-MM-dd}", failure);
+        Assert.Contains("listing --tenant tenant-a --ids", failure);   // como regravar
     }
 
     [Fact]
@@ -210,6 +225,23 @@ public partial class SandboxFixtureTests
     }
 
     // Os identificadores reais da conta, como texto: os empresaId e os contribuinteId gravados pela sonda.
+    // A falha da varredura: o que foi achado, de quando é a lista de identificadores reais e como regravá-la.
+    private static string RealIdentifierFailure(IEnumerable<string> found)
+    {
+        DateOnly recordedAt = RecordedAt();
+        int days = DateOnly.FromDateTime(DateTime.UtcNow).DayNumber - recordedAt.DayNumber;
+        return $"Identificador real da conta em valor inventado: {string.Join("; ", found)}. Troque-o por um da faixa reservada "
+            + $"(2.000.000.000 em diante, Fixtures/listing/README.md). A lista de identificadores reais "
+            + $"(Fixtures/sandbox/identificadores-da-conta.json) foi gravada em {recordedAt:yyyy-MM-dd}, há {days} dia(s): ela só "
+            + "vê o que a conta tinha naquela data. Para regravar: dotnet run --project tools/AvalaraSandboxProbe -- listing "
+            + "--tenant tenant-a --ids";
+    }
+
+    private static DateOnly RecordedAt()
+        => DateOnly.ParseExact(
+            (string)JsonNode.Parse(File.ReadAllText(Path.Combine(FixtureDir, "identificadores-da-conta.json")))!["recordedAt"]!,
+            "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
     private static HashSet<string> RealIdentifiers()
     {
         JsonNode ids = JsonNode.Parse(File.ReadAllText(Path.Combine(FixtureDir, "identificadores-da-conta.json")))!;

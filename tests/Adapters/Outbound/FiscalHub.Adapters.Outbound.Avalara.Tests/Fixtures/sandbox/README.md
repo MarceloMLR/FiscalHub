@@ -10,7 +10,7 @@ listagem, curadas à mão no mesmo formato (abaixo). Viram testes de reproduçã
 | `listagem-empresas-top5.json` | `{"value": [...]}`, 5 empresas em ordem de `empresaId`, com o `idPortalCompany` fora do que o hub pede | `GET /taxcompliance/v2/empresa?$top=5&$orderby=empresaId`, em 2026-10-06, no host `api-gateway.sandbox.avalarabrasil.com.br`, pelo Postman do Marcelo |
 | `listagem-empresas-skip2.json` | `{"value": [...]}`, o terceiro e o quarto itens do `top5`: o `$skip` respeitado, e a ordem estável entre requisições | `GET /taxcompliance/v2/empresa?$top=2&$orderby=empresaId&$skip=2`, idem |
 | `listagem-empresas-vazia.json` | `{"value": []}`: a página vazia também vem em envelope | `GET /taxcompliance/v2/empresa?$top=5&$orderby=empresaId&$skip=999`, idem |
-| `identificadores-da-conta.json` | só os identificadores da conta: 8 `empresaId` e 14 `contribuinteId`, sem CNPJ, código ou descrição | `listing --tenant tenant-a --ids` da sonda, em 2026-10-08, no mesmo host. É a lista que o `SandboxFixtureTests` usa para recusar valor real nas fixtures inventadas e no mock (change `platform-listing-shape`, D10) |
+| `identificadores-da-conta.json` | só os identificadores da conta: 8 `empresaId` e 14 `contribuinteId`, sem CNPJ, código ou descrição | `listing --tenant tenant-a --ids` da sonda, em 2026-10-08, no mesmo host. É a lista que o `SandboxFixtureTests` usa para recusar valor real nas fixtures inventadas e no mock (change `platform-listing-shape`, D10). Ela envelhece com a conta: a falha da varredura mostra o `recordedAt`, e quem a vir velha a regrava |
 
 Não exercitados, e por isso sem arquivo (não se fabrica resposta): o aceite, a consulta de status e a recusa de credencial
 pelo hub. Ver `docs/avalara-sandbox-primeiro-envio.md`.
