@@ -120,16 +120,16 @@ Os candidatos de um CNPJ são os contribuintes distintos da plataforma com esse 
   - um candidato ter os códigos completos e o outro não.
 
 #### Scenario: O mesmo CNPJ em duas empresas
-- **WHEN** a plataforma tem o CNPJ `44278225000180` no contribuinte `001` (`#10001`) da empresa `005` (`RESULTA IND E
-  COM`) e no contribuinte `001` (`#20001`) da empresa `QA` (`QA`), e a tabela não o tem
+- **WHEN** a plataforma tem o CNPJ `44278225000180` no contribuinte `001` (`#50001`) da empresa `017` (`EMPRESA
+  EXEMPLO`) e no contribuinte `001` (`#60001`) da empresa `009` (`LABORATORIO`), e a tabela não o tem
 - **THEN** o envio é rejeitado com motivo que cita `44278225000180` e nomeia os dois candidatos, como
-  `empresa '005' (RESULTA IND E COM), contribuinte '001' (#10001)` e `empresa 'QA' (QA), contribuinte '001' (#20001)`
+  `empresa '017' (EMPRESA EXEMPLO), contribuinte '001' (#50001)` e `empresa '009' (LABORATORIO), contribuinte '001' (#60001)`
 - **AND** o `empresaId` não aparece no motivo
 - **AND** nenhuma requisição de envio é feita
 
 #### Scenario: Dois candidatos com o mesmo código na mesma empresa
-- **WHEN** a empresa `005` tem dois contribuintes de código `001` com o mesmo CNPJ, `#10001` e `#10002`
-- **THEN** o motivo nomeia os dois, distintos pelo `#10001` e pelo `#10002`
+- **WHEN** a empresa `017` tem dois contribuintes de código `001` com o mesmo CNPJ, `#50001` e `#50002`
+- **THEN** o motivo nomeia os dois, distintos pelo `#50001` e pelo `#50002`
 
 #### Scenario: O código que coincide com a ordem do CNPJ não desempata
 - **WHEN** o CNPJ `44278225000260` (ordem `0002`) casa com um contribuinte de código `002` e com outro de código `007`

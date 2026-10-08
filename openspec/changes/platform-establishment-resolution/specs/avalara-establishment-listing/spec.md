@@ -27,26 +27,26 @@ A listagem MUST NOT filtrar por tenant: a credencial do tenant já a limita à c
 `subscriptionId`, que é opcional nos dois endpoints.
 
 #### Scenario: Os dois formatos
-- **WHEN** a plataforma devolve `[{"empresaId": 7410, "codigoCIA": "005", "descricao": "RESULTA IND E COM"}]` em empresas,
-  e `{"value": [{"contribuinteId": 10001, "codigo": "001", "cnpj": "94082641000186"}]}` nos contribuintes da empresa `7410`
-- **THEN** o CNPJ `94082641000186` é listado com o código de empresa `005`, a descrição `RESULTA IND E COM` e o código de
-  contribuinte `001`
+- **WHEN** a plataforma devolve `[{"empresaId": 9101, "codigoCIA": "017", "descricao": "EMPRESA EXEMPLO"}]` em empresas,
+  e `{"value": [{"contribuinteId": 50001, "codigo": "031", "cnpj": "11222333000181"}]}` nos contribuintes da empresa `9101`
+- **THEN** o CNPJ `11222333000181` é listado com o código de empresa `017`, a descrição `EMPRESA EXEMPLO` e o código de
+  contribuinte `031`
 
 #### Scenario: O `$select` e o `$orderby` nos dois pedidos
-- **WHEN** a listagem pede as empresas e os contribuintes da empresa `7410`
+- **WHEN** a listagem pede as empresas e os contribuintes da empresa `9101`
 - **THEN** o pedido de empresas leva `$select=empresaId,codigoCIA,descricao` e `$orderby=empresaId`
-- **AND** o de contribuintes leva `empresaId=7410`, `$select=contribuinteId,codigo,cnpj` e `$orderby=contribuinteId`
+- **AND** o de contribuintes leva `empresaId=9101`, `$select=contribuinteId,codigo,cnpj` e `$orderby=contribuinteId`
 
 #### Scenario: Campos além do `$select`
 - **WHEN** a plataforma ignora o `$select` e devolve também `idPortalCompany` nas empresas e `razao` nos contribuintes
 - **THEN** a listagem segue com o mesmo resultado
 
 #### Scenario: Uma empresa com vários contribuintes
-- **WHEN** a empresa `005` tem três contribuintes, com três CNPJs
-- **THEN** os três são listados, cada um com o código de empresa `005` e o próprio código
+- **WHEN** a empresa `017` tem três contribuintes, com três CNPJs
+- **THEN** os três são listados, cada um com o código de empresa `017` e o próprio código
 
 #### Scenario: Uma empresa sem contribuinte
-- **WHEN** a empresa `Padrão` devolve `{"value": []}`
+- **WHEN** a empresa `LAB` devolve `{"value": []}`
 - **THEN** a listagem segue, sem estabelecimento dessa empresa
 
 ### Requirement: Os códigos como texto, como vieram
@@ -58,12 +58,12 @@ Um código que não vem como texto JSON MUST ser tratado como ausente. Ele MUST 
 porque a conversão perderia os zeros à esquerda que o texto teria.
 
 #### Scenario: Os zeros à esquerda
-- **WHEN** o `codigoCIA` é `"005"`
-- **THEN** o payload leva `codigoEmpresa = "005"`, e não `"5"`
+- **WHEN** o `codigoCIA` é `"017"`
+- **THEN** o payload leva `codigoEmpresa = "017"`, e não `"17"`
 
 #### Scenario: O código com acento
-- **WHEN** o `codigoCIA` é `"Padrão"`, e é a empresa do único contribuinte com o CNPJ do estabelecimento próprio
-- **THEN** o payload leva `codigoEmpresa = "Padrão"`
+- **WHEN** o `codigoCIA` é `"Comércio"`, e é a empresa do único contribuinte com o CNPJ do estabelecimento próprio
+- **THEN** o payload leva `codigoEmpresa = "Comércio"`
 
 #### Scenario: O código numérico
 - **WHEN** o `codigo` do único contribuinte com o CNPJ vem como o número JSON `1`
@@ -150,13 +150,13 @@ As duas leituras MUST ser paginadas pelo hub, com `$top` e `$skip`, nos parâmet
 - **AND** as 3 empresas são listadas
 
 #### Scenario: A página curta não encerra
-- **WHEN** o `$top` é 100, o servidor devolve no máximo 10 itens por página, e a empresa `7410` tem 25 contribuintes
-- **THEN** a listagem pede os contribuintes da `7410` com `$skip=0`, `10`, `20` e `25`, e para na página vazia
+- **WHEN** o `$top` é 100, o servidor devolve no máximo 10 itens por página, e a empresa `9101` tem 25 contribuintes
+- **THEN** a listagem pede os contribuintes da `9101` com `$skip=0`, `10`, `20` e `25`, e para na página vazia
 - **AND** os 25 contribuintes são listados, sem nenhum pulado
 
 #### Scenario: Cada empresa começa do zero
-- **WHEN** a listagem passa da empresa `7410` para a `7411`
-- **THEN** o primeiro pedido de contribuintes da `7411` tem `$skip=0`
+- **WHEN** a listagem passa da empresa `9101` para a `9102`
+- **THEN** o primeiro pedido de contribuintes da `9102` tem `$skip=0`
 
 #### Scenario: A falha na segunda página
 - **WHEN** a segunda página dos contribuintes de uma empresa responde HTTP 503

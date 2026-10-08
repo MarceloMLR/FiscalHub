@@ -280,13 +280,17 @@ tarefas 16 a 18). A resposta de cada envio fica na quarta foto, no zip da nota.
       resolvedor e do dispatcher.
   - **Continua aberto:** até a prova numa conta real, com o mesmo CNPJ em duas empresas.
 
-- [ ] **Os campos ordenáveis da listagem de estabelecimentos.** (ADR-0033 §6)
+- [x] **Os campos ordenáveis da listagem de estabelecimentos.** (ADR-0033 §6) — fechado em 2026-10-08, com a prova manual
   - **Falta:** saber se o `empresaId` e o `contribuinteId` são ordenáveis. O `$orderby` está declarado no Swagger nos dois
     endpoints, mas o exemplo da documentação é o `LastModified`.
   - **Prova:** a mesma listagem contra o sandbox com o `Avalara:ListingPageSize` padrão e com 2. As duas têm de dar as
     mesmas empresas e os mesmos contribuintes.
   - **Sintoma:** a recusa do campo (4xx) é alta. O campo ignorado em silêncio deixa a ordem instável: um item pode cair em
     duas páginas ou em nenhuma, e o que falta é truncamento silencioso.
+  - **Fechado em 2026-10-08, com a prova manual (tarefa 6.2 da change `platform-establishment-resolution`):** a mesma
+    resolução pelo host, contra o sandbox, deu "8 empresas em 2 páginas e 14 contribuintes em 16 páginas" com o
+    `ListingPageSize` padrão e "8 empresas em 5 páginas e 14 contribuintes em 19 páginas" com 2. A impressão da
+    listagem inteira foi a mesma nas duas. O `empresaId` e o `contribuinteId` são ordenáveis, e a ordem é estável.
 - [ ] **O `subscriptionId` da listagem.** (ADR-0033, Open Questions do design)
   - **Falta:** saber o que ele escopa. É opcional nos dois endpoints, e a listagem não o manda: a credencial já limita à
     conta.
