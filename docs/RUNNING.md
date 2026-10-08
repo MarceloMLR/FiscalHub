@@ -704,6 +704,10 @@ dotnet run --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a --cn
   páginas de cada endpoint, e, para cada `--cnpj`, o casamento: os códigos e o `#id` do contribuinte único, nenhum, ou os
   candidatos da duplicidade. Nenhum outro conteúdo da listagem é impresso, e nada é gravado em `out/`. A sobreposição
   `establishments` do perfil não entra: ela só vale no envio. Uma recusa da listagem sai com o motivo, como no envio.
+- `listing --ids` imprime só os identificadores da conta: os `empresaId` e os `contribuinteId`, sem CNPJ, código ou
+  descrição. É a lista de `Fixtures/sandbox/identificadores-da-conta.json`, que o `SandboxFixtureTests` usa para recusar
+  valor real nas fixtures inventadas e no mock. Regrave o arquivo antes de pôr um identificador inventado fora da faixa
+  reservada (`Fixtures/listing/README.md`).
 
 - `--omit` e `--set` mexem só no topo do payload, e podem repetir. O valor do `--set` é JSON quando dá (`1`, `true`,
   `null`), e texto nos outros casos.

@@ -1,0 +1,8 @@
+{
+  "exchange": "account-ids",
+  "note": "Os identificadores reais da conta de sandbox do tenant-a, e nada mais: sem CNPJ, sem código e sem descrição. O SandboxFixtureTests recusa qualquer um deles nas fixtures inventadas e no mock (change platform-listing-shape, D10). Regravar pela sonda: dotnet run --project tools/AvalaraSandboxProbe -- listing --tenant tenant-a --ids",
+  "recordedAt": "2026-10-08",
+  "host": "api-gateway.sandbox.avalarabrasil.com.br",
+  "empresaId": [7330, 7407, 7408, 7409, 7410, 7411, 7412, 7413],
+  "contribuinteId": [9709, 9992, 9993, 9994, 9995, 9996, 9997, 9998, 9999, 10000, 10001, 10002, 10003, 10004]
+}
