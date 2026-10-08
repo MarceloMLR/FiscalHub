@@ -18,7 +18,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task One_taxpayer_is_unique_and_known()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
 
@@ -31,7 +31,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task No_taxpayer_is_none_and_unknown()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
 
@@ -43,14 +43,14 @@ public class PlatformEstablishmentResolverTests
     public async Task Two_taxpayers_in_two_companies_are_ambiguous_even_with_the_same_codes()
     {
         var h = new Harness([
-            Taxpayer("44278225000180", "005", "001", "10001"),
+            Taxpayer("44278225000180", "005", "001", "2000010001"),
             Taxpayer("44278225000180", "005", "001", "20001"),   // os mesmos códigos, outra empresa: duas escriturações
         ]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
 
         var ambiguous = Assert.IsType<EstablishmentMatch.Ambiguous>(index.Match("44278225000180"));
-        Assert.Equal(["10001", "20001"], ambiguous.Candidates.Select(c => c.PlatformId));
+        Assert.Equal(["2000010001", "20001"], ambiguous.Candidates.Select(c => c.PlatformId));
         Assert.True(index.Knows("44278225000180"));
     }
 
@@ -58,8 +58,8 @@ public class PlatformEstablishmentResolverTests
     public async Task The_same_taxpayer_listed_twice_is_one_candidate()
     {
         var h = new Harness([
-            Taxpayer("44278225000180", "005", "010", "10001"),
-            Taxpayer("44278225000180", "005", "010", "10001"),
+            Taxpayer("44278225000180", "005", "010", "2000010001"),
+            Taxpayer("44278225000180", "005", "010", "2000010001"),
         ]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
@@ -86,7 +86,7 @@ public class PlatformEstablishmentResolverTests
     {
         // 44278225000260 é a ordem 0002: o "002" coincidir com ela é convenção de alguns clientes, e não regra.
         var h = new Harness([
-            Taxpayer("44278225000260", "005", "002", "10002"),
+            Taxpayer("44278225000260", "005", "002", "2000010002"),
             Taxpayer("44278225000260", "QA", "007", "20007"),
         ]);
 
@@ -98,7 +98,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task The_erp_cnpj_with_a_hyphen_matches_the_platform_digits()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
 
@@ -108,7 +108,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Alphanumeric_cnpj_matches_with_the_same_value_on_both_ends()
     {
-        var h = new Harness([Taxpayer("12.ABC.345/01DE-35", "005", "ALFA", "10009")]);
+        var h = new Harness([Taxpayer("12.ABC.345/01DE-35", "005", "ALFA", "2000010009")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
 
@@ -120,7 +120,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task A_different_case_does_not_match()
     {
-        var h = new Harness([Taxpayer("12abc34501de35", "005", "ALFA", "10009")]);
+        var h = new Harness([Taxpayer("12abc34501de35", "005", "ALFA", "2000010009")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
 
@@ -133,7 +133,7 @@ public class PlatformEstablishmentResolverTests
     [InlineData("./-")]
     public async Task A_taxpayer_without_cnpj_is_left_out(string cnpj)
     {
-        var h = new Harness([Taxpayer(cnpj, "005", "010", "10001")]);
+        var h = new Harness([Taxpayer(cnpj, "005", "010", "2000010001")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
 
@@ -146,7 +146,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task N_resolutions_make_one_call()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         for (int i = 0; i < 50; i++)
         {
@@ -159,7 +159,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Concurrent_resolutions_make_one_call_and_share_the_index()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.Hold();
 
         Task<PlatformEstablishmentIndex>[] resolutions = [.. Enumerable.Range(0, 10).Select(_ => h.Resolver.GetAsync(Profile()))];
@@ -190,7 +190,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task After_the_validity_the_platform_is_listed_again()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         await h.Resolver.GetAsync(Profile());
         h.Clock.Advance(TimeSpan.FromMinutes(9));
@@ -206,7 +206,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Two_tenants_never_share_a_listing()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         await h.Resolver.GetAsync(Profile("tenant-a"));
         await h.Resolver.GetAsync(Profile("tenant-b"));
@@ -218,7 +218,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Two_environments_of_the_same_tenant_never_share_a_listing()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         await h.Resolver.GetAsync(Profile(environment: "Sandbox"));
         await h.Resolver.GetAsync(Profile(environment: "Production"));
@@ -230,7 +230,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task A_transient_failure_is_not_kept()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.FailNext(new HttpRequestException("503"));
 
         await Assert.ThrowsAsync<HttpRequestException>(() => h.Resolver.GetAsync(Profile()));
@@ -243,7 +243,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task A_refusal_is_remembered_within_the_hold_with_the_same_reason()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.FailNext(new DispatchRejectedException("Configuração do conector: a plataforma negou a listagem (HTTP 403)."));
 
         var first = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Resolver.GetAsync(Profile()));
@@ -264,7 +264,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Saving_the_profile_forgets_the_listing_of_the_tenant_in_every_environment()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         await h.Resolver.GetAsync(Profile(environment: "Sandbox"));
         await h.Resolver.GetAsync(Profile(environment: "Production"));
 
@@ -278,7 +278,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Saving_the_profile_forgets_the_remembered_refusal()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.FailNext(new DispatchRejectedException("Configuração do conector: recusa."));
         await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Resolver.GetAsync(Profile()));
 
@@ -294,7 +294,7 @@ public class PlatformEstablishmentResolverTests
     {
         // A listagem em voo começou antes do salvar: ela não pode virar a listagem guardada, e quem chega depois lista de
         // novo, já com o que foi salvo.
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.Hold();
         Task<PlatformEstablishmentIndex> before = h.Resolver.GetAsync(Profile());
 
@@ -309,7 +309,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Saving_the_profile_does_not_touch_other_tenants()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         await h.Resolver.GetAsync(Profile("tenant-a"));
         await h.Resolver.GetAsync(Profile("tenant-b"));
 
@@ -322,7 +322,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task An_adapter_without_listing_cannot_list_and_makes_no_call()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile(outboundAdapter: "ThomsonReuters"));
 
@@ -335,7 +335,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task The_adapter_name_is_compared_exactly()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
         PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile(outboundAdapter: "avalara"));
 
@@ -345,7 +345,7 @@ public class PlatformEstablishmentResolverTests
     [Fact]
     public async Task Cancelling_the_one_who_started_the_listing_does_not_cancel_the_others()
     {
-        var h = new Harness([Taxpayer("44278225000180", "005", "010", "10001")]);
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.Hold();
         using var cts = new CancellationTokenSource();
 

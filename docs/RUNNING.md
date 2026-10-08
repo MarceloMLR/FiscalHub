@@ -163,7 +163,7 @@ plataforma**, casada pelo CNPJ do estabelecimento próprio, sem pontuação e co
 **As recusas,** todas "Configuração do conector: …", sem retentativa:
 
 - **nenhum contribuinte com o CNPJ:** "o estabelecimento 44278225000180 não tem contribuinte cadastrado na plataforma …";
-- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '012' (METALURGICA …), contribuinte '010' (#10001); …".
+- **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '012' (METALURGICA …), contribuinte '010' (#2000010001); …".
 
 **A janela.** A listagem fica guardada por tenant e ambiente, e um lote de notas usa uma só. As opções:
 

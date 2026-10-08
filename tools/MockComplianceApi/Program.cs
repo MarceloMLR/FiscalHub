@@ -369,11 +369,11 @@ internal sealed class PlatformDirectory
     [
         new(8120, "012", "METALURGICA EXEMPLO (mock)", "00000000-0000-4000-8000-000000008120",
         [
-            new(10001, "010", "44278225000180", "CONTOSO MATRIZ (mock)"),
-            new(10002, "007", "44278225000260", "CONTOSO SP-01 (mock)"),
-            new(10003, "021", "44278225000341", "CONTOSO SAL-01 (mock)"),
-            new(10004, "003", "44278225003448", "CONTOSO RJ-01 (mock)"),
-            new(10005, "015", "12345678000190", "EMITENTE DOS XMLS DE EXEMPLO (mock)"),
+            new(2000010001, "010", "44278225000180", "CONTOSO MATRIZ (mock)"),
+            new(2000010002, "007", "44278225000260", "CONTOSO SP-01 (mock)"),
+            new(2000010003, "021", "44278225000341", "CONTOSO SAL-01 (mock)"),
+            new(2000010004, "003", "44278225003448", "CONTOSO RJ-01 (mock)"),
+            new(2000010005, "015", "12345678000190", "EMITENTE DOS XMLS DE EXEMPLO (mock)"),
         ]),
         new(8121, "Comércio", "Comércio de exemplo (mock)", "00000000-0000-4000-8000-000000008121",
         [

@@ -138,7 +138,7 @@ Os candidatos de um CNPJ são os contribuintes distintos da plataforma com esse 
 - **THEN** o envio é rejeitado como duplicidade, nomeando os dois
 
 #### Scenario: O mesmo contribuinte listado duas vezes
-- **WHEN** a listagem traz duas vezes o contribuinte de identificador `10001`, com o mesmo CNPJ
+- **WHEN** a listagem traz duas vezes o contribuinte de identificador `2000010001`, com o mesmo CNPJ
 - **THEN** ele é um candidato só, e o envio segue com os códigos dele
 
 #### Scenario: A sobreposição resolve a duplicidade

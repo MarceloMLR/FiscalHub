@@ -71,12 +71,12 @@ public partial class SandboxFixtureTests
     [Theory]
     [InlineData("""{"cnpj":"11222333000181"}""", true)]
     [InlineData("""{"cnpj":"11.222.333/0001-81"}""", true)]
-    [InlineData("""{"cnpj":"[mascarado]","empresaId":8120,"contribuinteId":10001}""", false)]
+    [InlineData("""{"cnpj":"[mascarado]","empresaId":8120,"contribuinteId":2000010001}""", false)]
     public void The_cnpj_scan_catches_both_spellings(string sample, bool caught) => Assert.Equal(caught, Cnpj().IsMatch(sample));
 
     [Theory]
     [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"EMPRESA DE VERDADE"}]}""", "descricao")]
-    [InlineData("""[{"contribuinteId":10001,"codigo":"010","razao":"CONTRIBUINTE DE VERDADE"}]""", "razao")]
+    [InlineData("""[{"contribuinteId":2000010001,"codigo":"010","razao":"CONTRIBUINTE DE VERDADE"}]""", "razao")]
     [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"[mascarado]","idPortalCompany":"[mascarado]"}]}""", null)]
     [InlineData("""{"value":[]}""", null)]
     public void The_masking_scan_catches_a_value_outside_what_stays(string body, string? caught)

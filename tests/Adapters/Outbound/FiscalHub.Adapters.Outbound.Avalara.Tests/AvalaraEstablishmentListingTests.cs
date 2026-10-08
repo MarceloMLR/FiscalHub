@@ -30,7 +30,7 @@ public class AvalaraEstablishmentListingTests
         IReadOnlyList<PlatformEstablishment> listed = await h.Listing().ListAsync(Profile());
 
         PlatformEstablishment matriz = Assert.Single(listed, e => e.TaxId == "44278225000180");
-        Assert.Equal(("012", "010", "10001"), (matriz.CompanyCode, matriz.EstablishmentCode, matriz.PlatformId));
+        Assert.Equal(("012", "010", "2000010001"), (matriz.CompanyCode, matriz.EstablishmentCode, matriz.PlatformId));
         Assert.Equal(["44278225000180", "44278225000260", "44278225000341", "11222333000181"], listed.Select(e => e.TaxId));
     }
 
@@ -66,7 +66,7 @@ public class AvalaraEstablishmentListingTests
     [Fact]
     public async Task A_numeric_company_code_is_missing_and_never_converted()
     {
-        var platform = new PlatformHandler().WithCompany(8120, null, "sem texto", ("44278225000180", "010", 10001));
+        var platform = new PlatformHandler().WithCompany(8120, null, "sem texto", ("44278225000180", "010", 2000010001));
         platform.Companies[0]["codigoCIA"] = 5;
         var h = new Harness(platform);
 
@@ -80,7 +80,7 @@ public class AvalaraEstablishmentListingTests
     [InlineData("A-8120", "A-8120")]
     public async Task The_company_id_goes_in_the_query_as_it_came(object empresaId, string expected)
     {
-        var h = new Harness(new PlatformHandler().WithCompany(empresaId, "005", "x", ("44278225000180", "010", 10001)));
+        var h = new Harness(new PlatformHandler().WithCompany(empresaId, "005", "x", ("44278225000180", "010", 2000010001)));
 
         await h.Listing().ListAsync(Profile());
 
@@ -121,7 +121,7 @@ public class AvalaraEstablishmentListingTests
 
         PlatformEstablishment only = Assert.Single(await h.Listing().ListAsync(Profile()));
 
-        Assert.Equal(new PlatformEstablishment("44278225000180", "012", "010", "10001", "METALURGICA EXEMPLO (fixture)"), only);
+        Assert.Equal(new PlatformEstablishment("44278225000180", "012", "010", "2000010001", "METALURGICA EXEMPLO (fixture)"), only);
     }
 
     [Fact]
