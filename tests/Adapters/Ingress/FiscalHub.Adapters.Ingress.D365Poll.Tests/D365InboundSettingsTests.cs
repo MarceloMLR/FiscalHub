@@ -65,14 +65,17 @@ public class D365InboundSettingsTests
     }
 
     [Theory]
-    [InlineData("""{"url":"https://erp.example","auth":{"clientId":"c","clientSecretRef":"kv:x"}}""")]
-    [InlineData("""{"url":"https://erp.example","auth":{"tenantId":"t","clientSecretRef":"kv:x"}}""")]
-    [InlineData("""{"url":"https://erp.example","auth":{"tenantId":"t","clientId":"c"}}""")]
-    public void Incomplete_auth_is_a_configuration_error_for_client_credentials(string json)
+    [InlineData("""{"url":"https://erp.example","auth":{"clientId":"c","clientSecretRef":"kv:x"}}""", "Tenant do Entra ID")]
+    [InlineData("""{"url":"https://erp.example","auth":{"tenantId":"t","clientSecretRef":"kv:x"}}""", "Client ID")]
+    [InlineData("""{"url":"https://erp.example","auth":{"tenantId":"t","clientId":"c"}}""", "Client Secret")]
+    public void Incomplete_auth_is_a_configuration_error_for_client_credentials(string json, string missing)
     {
-        D365InboundSettings s = D365InboundSettings.Parse(json);   // o dev com Azure CLI não precisa de auth…
+        // O perfil incompleto se lê, porque a tela grava a URL antes da credencial; a falta vira o motivo na hora do token,
+        // e o motivo nomeia o campo que falta pelo nome da tela.
+        D365InboundSettings s = D365InboundSettings.Parse(json);
 
-        Assert.Throws<ConnectorSettingsException>(() => s.Auth!.RequireComplete());   // …o client credentials precisa
+        var ex = Assert.Throws<ConnectorSettingsException>(() => s.Auth!.RequireComplete());
+        Assert.Equal($"A credencial do ERP está incompleta: falta {missing}. Configure em Configurações → Conectores → Entrada.", ex.Message);
     }
 
     [Fact]

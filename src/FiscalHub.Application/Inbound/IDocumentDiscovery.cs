@@ -9,8 +9,11 @@ public interface IDocumentDiscovery
     /// <summary>Identificador da origem, usado pelo perfil do tenant para selecionar a implementação.</summary>
     string Origin { get; }
 
-    /// <summary>Retorna as referências dos documentos que atendem aos critérios.</summary>
-    Task<IReadOnlyList<DocumentReference>> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default);
+    /// <summary>
+    /// Retorna as referências dos documentos que atendem aos critérios e, quando o escopo resolveu um estabelecimento só, o
+    /// CNPJ dele (<see cref="DiscoveryResult"/>).
+    /// </summary>
+    Task<DiscoveryResult> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default);
 
     /// <summary>
     /// Localiza uma única referência pela chave natural (id da nota), para reprocessar.

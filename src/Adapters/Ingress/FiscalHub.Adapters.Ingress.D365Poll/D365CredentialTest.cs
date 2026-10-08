@@ -14,8 +14,8 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 /// <list type="bullet">
 ///   <item><b>O token novo:</b> cada teste usa uma instância nova da credencial
 ///   (<see cref="ClientCredentialsD365TokenProvider.GetFreshTokenAsync"/>). O cache do coletor não é lido nem trocado.</item>
-///   <item><b>A identidade:</b> sempre a credencial do tenant, e nunca o Azure CLI, nem em desenvolvimento. O teste
-///   responde sobre a credencial gravada.</item>
+///   <item><b>A identidade:</b> sempre a credencial gravada no perfil do tenant, em qualquer ambiente do host. O teste
+///   responde sobre a credencial gravada, e não sobre quem roda o host.</item>
 ///   <item><b>O motivo:</b> texto nosso. Do Entra ID entra só o código <c>AADSTS</c>, e do F&amp;O só o status. Nunca o
 ///   token, o segredo, nem um cabeçalho.</item>
 /// </list>

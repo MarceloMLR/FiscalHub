@@ -27,6 +27,7 @@ internal sealed class SqlExecutionQueries : IExecutionQueries
                 Mode = e.Mode,
                 CompanyCode = e.CompanyCode,
                 BranchCode = e.BranchCode,
+                EstablishmentTaxId = e.EstablishmentTaxId,
                 PeriodStart = e.PeriodStart,
                 PeriodEnd = e.PeriodEnd,
                 DiscoveredCount = e.DiscoveredCount,

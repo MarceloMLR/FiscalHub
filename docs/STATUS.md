@@ -696,7 +696,7 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
   - **O caso:** o teste do D365 lê a `FSFiscalDocumentBRs`. O privilégio do cadastro, o `FiscalEstablishmentEntityView`,
     só aparece faltando no dropdown de empresas, com o 403.
   - **Direção:** o teste ler as duas entidades, se a falta do privilégio padrão aparecer em cliente.
-- [ ] **A coluna Empresa das tabelas de agendamento e de execução mostra o CNPJ da matriz.** (ADR-0034; change
+- [x] **A coluna Empresa das tabelas de agendamento e de execução mostra o CNPJ da matriz.** (ADR-0034; change
   `company-root-in-directory`, design, Risks)
   - **O caso:** a empresa gravada é a que o dropdown oferece, o CNPJ da matriz (`44278225000180`). Numa linha cujo escopo
     é outra filial, como a `SP-01`, o CNPJ exibido não é o do estabelecimento daquelas notas (`44.278.225/0002-60`). A
@@ -718,6 +718,18 @@ entrada a cliente, e não defeitos de hoje: nenhum é alcançável sem essa aber
     - a tabela de agendamentos não muda.
   - **Sintoma (silencioso):** a linha de uma execução da `SP-01` mostra `44.278.225/0001-80`. Quem confere o CNPJ da nota
     contra o da tabela vê dois números diferentes, e nada acusa erro. No dev, a execução 16 (2026-10-05) é um exemplo.
+  **Feito (2026-10-08).** A coluna `EstablishmentTaxId` entrou na `IntegrationExecutions`, anulável, preenchida pela
+  descoberta quando o escopo resolve um estabelecimento só (change `explicit-credential-and-execution-cnpj`, D5 e D6).
+  Conferido na tela Agendamento → Execuções:
+
+  | Execução | Filial | `EstablishmentTaxId` | A coluna Empresa mostra |
+  |---|---|---|---|
+  | 2 | `SP-01` | `44278225000260` | `44.278.225/0002-60` |
+  | 3 | todas | nulo | `44.278.225/0001-80` |
+  | 4 | `SP-01` | nulo | `44.278.225/0001-80` |
+
+  A execução 4 teve o campo anulado de propósito, para reproduzir uma linha gravada antes da coluna. A tabela de
+  agendamentos continua mostrando a empresa gravada, que é o critério: o `GET /schedules` não tem o campo.
 
 ### Operação
 

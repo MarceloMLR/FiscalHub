@@ -66,6 +66,49 @@ public class IntegrationRunnerTests
         });
     }
 
+    // ---------- o estabelecimento que a descoberta resolveu (change explicit-credential-and-execution-cnpj, D5 e D6) ----------
+
+    [Fact]
+    public async Task The_execution_records_the_establishment_the_discovery_resolved()
+    {
+        var store = new FakeExecutionStore();
+        var discovery = new FakeDiscovery("Dynamics365", 2) { EstablishmentTaxId = "44278225000260" };
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), new FakeQueue(), store, Clock);
+
+        await runner.RunAsync(Request(IntegrationMode.Manual) with { CompanyCode = "44278225000180", BranchCode = "SP-01" });
+
+        Assert.Equal("44278225000180", store.Recorded!.CompanyCode);   // o critério continua como foi pedido
+        Assert.Equal("SP-01", store.Recorded.BranchCode);
+        Assert.Equal("44278225000260", store.Recorded.EstablishmentTaxId);   // e o fato, ao lado
+    }
+
+    [Fact]
+    public async Task Without_a_resolved_establishment_the_execution_records_none()
+    {
+        var store = new FakeExecutionStore();
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [new FakeDiscovery("Dynamics365", 2)]), new FakeQueue(), store, Clock);
+
+        await runner.RunAsync(Request(IntegrationMode.ScheduledDaily) with { CompanyCode = "44278225000180", BranchCode = null });
+
+        Assert.Null(store.Recorded!.EstablishmentTaxId);
+    }
+
+    [Fact]
+    public async Task A_branch_without_notes_still_records_its_establishment()
+    {
+        var store = new FakeExecutionStore();
+        var queue = new FakeQueue();
+        var discovery = new FakeDiscovery("Dynamics365", 0) { EstablishmentTaxId = "44278225000260" };
+        var runner = new IntegrationRunner(Resolver("Dynamics365", [discovery]), queue, store, Clock);
+
+        int count = await runner.RunAsync(Request(IntegrationMode.ScheduledOnce) with { CompanyCode = "44278225000180", BranchCode = "SP-01" });
+
+        Assert.Equal(0, count);
+        Assert.Empty(queue.Enqueued);
+        Assert.Equal(0, store.Recorded!.DiscoveredCount);
+        Assert.Equal("44278225000260", store.Recorded.EstablishmentTaxId);
+    }
+
     // ---------- a escolha da descoberta ----------
 
     [Fact]
@@ -156,7 +199,10 @@ public class IntegrationRunnerTests
 
         public List<string> Asked { get; } = [];
 
-        public Task<IReadOnlyList<DocumentReference>> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default)
+        /// <summary>O CNPJ do estabelecimento que este fake diz ter resolvido; <c>null</c> = escopo de mais de um.</summary>
+        public string? EstablishmentTaxId { get; init; }
+
+        public Task<DiscoveryResult> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default)
         {
             Calls++;
             Criteria = criteria;
@@ -167,7 +213,7 @@ public class IntegrationRunnerTests
                 NaturalKey = $"nfe-{i}",
                 Locator = $"nfe/nfe-{i}.xml",
             }).ToList();
-            return Task.FromResult(refs);
+            return Task.FromResult(new DiscoveryResult(refs, EstablishmentTaxId));
         }
 
         public Task<DocumentReference?> FindByKeyAsync(string tenantId, string naturalKey, CancellationToken ct = default)

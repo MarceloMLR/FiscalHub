@@ -24,6 +24,8 @@ namespace FiscalHub.Adapters.Ingress.D365Poll;
 ///   linha quando uma nota do período muda durante a leitura (ADR-0024).</item>
 ///   <item><b>A referência:</b> a mesma que o coletor publica (<see cref="D365HeaderReference"/>), com a origem
 ///   <c>Dynamics365</c>. Todos os modelos entram; o roteamento decide o que é ignorado.</item>
+///   <item><b>O estabelecimento resolvido:</b> com o escopo de um estabelecimento só, o CNPJ dele, do cadastro, vai no
+///   resultado, mesmo sem nota (change explicit-credential-and-execution-cnpj, D5). Com mais de um, ou nenhum, vai vazio.</item>
 /// </list>
 /// </summary>
 internal sealed class D365DocumentDiscovery : IDocumentDiscovery
@@ -51,7 +53,7 @@ internal sealed class D365DocumentDiscovery : IDocumentDiscovery
 
     public string Origin => D365ChangeFeed.OriginName;
 
-    public async Task<IReadOnlyList<DocumentReference>> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default)
+    public async Task<DiscoveryResult> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default)
     {
         string tenantId = criteria.TenantId;
         D365InboundSettings settings = await SettingsAsync(tenantId, ct);
@@ -60,7 +62,7 @@ internal sealed class D365DocumentDiscovery : IDocumentDiscovery
         DateOnly first = DateOnly.FromDateTime(criteria.Start.Date), last = DateOnly.FromDateTime(criteria.End.Date);
         if (last < first)
         {
-            return [];
+            return new DiscoveryResult([]);
         }
 
         IReadOnlyList<D365Establishment>? scope = null;
@@ -75,9 +77,12 @@ internal sealed class D365DocumentDiscovery : IDocumentDiscovery
                 _logger.LogInformation(
                     "Descoberta por período do D365: a empresa '{Company}', filial '{Branch}', não está no cadastro do tenant {Tenant}. Nenhuma nota.",
                     criteria.Company, criteria.Establishment ?? "todas", tenantId);
-                return [];
+                return new DiscoveryResult([]);
             }
         }
+
+        // O fato da execução: o estabelecimento que o escopo resolveu, decidido antes de ler as notas.
+        string? establishmentTaxId = scope is { Count: 1 } ? scope[0].Cnpj : null;
 
         var connection = new D365Connection(tenantId, settings.Url, settings.Auth);
         var found = new List<DocumentReference>();
@@ -110,7 +115,7 @@ internal sealed class D365DocumentDiscovery : IDocumentDiscovery
 
             if (rows.Count < settings.PageSize)
             {
-                return found;
+                return new DiscoveryResult(found, establishmentTaxId);
             }
 
             after = rows[^1].FiscalDocumentRecId;

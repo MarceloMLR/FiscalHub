@@ -24,5 +24,8 @@ internal sealed class IntegrationExecutionRow
 
     public int? ScheduleId { get; set; }
 
+    /// <summary>O CNPJ do estabelecimento que a descoberta resolveu. Anulável: as linhas de antes da coluna ficam nulas.</summary>
+    public string? EstablishmentTaxId { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 }

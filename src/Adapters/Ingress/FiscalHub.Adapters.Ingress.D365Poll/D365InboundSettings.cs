@@ -37,7 +37,10 @@ internal sealed record D365InboundSettings
 
     public IReadOnlyDictionary<string, DocumentType> ModelTypes { get; init; } = DefaultModelTypes;
 
-    /// <summary>Credenciais do client credentials. Opcional quando o host usa o token do Azure CLI (dev).</summary>
+    /// <summary>
+    /// Credenciais do client credentials, a única identidade do conector contra o F&amp;O. O perfil sem elas se lê, porque a
+    /// tela grava a URL antes da credencial: a falta vira o motivo na hora do token.
+    /// </summary>
     public D365AuthSettings? Auth { get; init; }
 
     /// <summary>Lê e valida o JSON de settings. Inválido → <see cref="ConnectorSettingsException"/>.</summary>
@@ -144,14 +147,27 @@ internal sealed record D365InboundSettings
 /// <summary>Credenciais do client credentials no Entra: tenant do Entra, app e a REFERÊNCIA ao segredo.</summary>
 internal sealed record D365AuthSettings(string? TenantId, string? ClientId, string? ClientSecretRef)
 {
-    /// <summary>Exige os três campos (o fluxo client credentials não funciona sem eles).</summary>
+    /// <summary>
+    /// Exige os três campos (o fluxo client credentials não funciona sem eles). O motivo nomeia só os que faltam, pelo nome
+    /// da tela: a referência do segredo é o Client Secret, porque ela só nasce quando a tela grava o segredo (change
+    /// explicit-credential-and-execution-cnpj, D2).
+    /// </summary>
     public (string TenantId, string ClientId, string ClientSecretRef) RequireComplete()
     {
-        if (string.IsNullOrWhiteSpace(TenantId) || string.IsNullOrWhiteSpace(ClientId) || string.IsNullOrWhiteSpace(ClientSecretRef))
+        string[] missing =
+        [
+            .. new[] { ("Tenant do Entra ID", TenantId), ("Client ID", ClientId), ("Client Secret", ClientSecretRef) }
+                .Where(field => string.IsNullOrWhiteSpace(field.Item2))
+                .Select(field => field.Item1),
+        ];
+
+        if (missing.Length > 0)
         {
-            throw new ConnectorSettingsException("auth incompleta: informe tenantId, clientId e clientSecretRef.");
+            string fields = missing.Length == 1 ? missing[0] : $"{string.Join(", ", missing[..^1])} e {missing[^1]}";
+            throw new ConnectorSettingsException(
+                $"A credencial do ERP está incompleta: falta {fields}. Configure em Configurações → Conectores → Entrada.");
         }
 
-        return (TenantId, ClientId, ClientSecretRef);
+        return (TenantId!, ClientId!, ClientSecretRef!);
     }
 }

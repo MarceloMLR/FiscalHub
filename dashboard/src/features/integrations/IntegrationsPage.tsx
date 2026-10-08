@@ -9,7 +9,7 @@ import { useSchedules, useExecutions } from '../schedules/useScheduling';
 import { StatusChip } from '../../components/StatusChip';
 import { FhDataGrid } from '../../components/FhDataGrid';
 import { NativeSelect, Segmented } from '../../components/Controls';
-import { formatBranch, formatCompany } from '../groups/companyCode';
+import { formatBranch, formatCompany, formatExecutionCompany } from '../groups/companyCode';
 import type { GridColDef } from '@mui/x-data-grid';
 import type { CreateScheduleRequest, ExecutionSummary, IntegrationModeName, Schedule } from '../../types';
 
@@ -259,7 +259,8 @@ export function IntegrationsPage() {
 
   const executionColumns: GridColDef<ExecutionSummary>[] = [
     { field: 'mode', headerName: 'Modo', width: 130, headerClassName: 'fhFirstCol', cellClassName: 'fhFirstCol', valueGetter: (_v, row) => MODE_LABEL[row.mode] },
-    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 140, valueGetter: (_v, row) => formatCompany(row.companyCode) },
+    // A empresa da execução é o CNPJ do estabelecimento resolvido, quando gravado; a dos agendamentos é o critério pedido.
+    { field: 'companyCode', headerName: 'Empresa', flex: 1, minWidth: 140, valueGetter: (_v, row) => formatExecutionCompany(row) },
     { field: 'branchCode', headerName: 'Filial', width: 90, valueGetter: (_v, row) => row.branchCode ?? 'Todas' },
     { field: 'periodo', headerName: 'Período', flex: 1, minWidth: 150, sortable: false, valueGetter: (_v, row) => `${row.periodStart} → ${row.periodEnd}` },
     { field: 'discoveredCount', headerName: 'Notas', width: 90, align: 'right', headerAlign: 'right', type: 'number' },

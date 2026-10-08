@@ -4,8 +4,8 @@ namespace FiscalHub.Application.Connectors;
 /// A escolha, por tenant, da implementação de uma porta que depende do ERP: o diretório de empresas e a descoberta por
 /// período (change erp-company-directory-and-card-filters, D2 e D3). Vale a do adapter de entrada do perfil, pela
 /// comparação exata da origem, como na resolução do source. Sem perfil, ou sem implementação para o adapter, vale o
-/// fallback de desenvolvimento, quando o host o registrou: só em Development, no desenho do Azure CLI do D365. O fallback
-/// nunca responde no lugar de uma implementação que existe.
+/// fallback de desenvolvimento, quando o host o registrou: só em Development, por um registro explícito do host. O
+/// fallback nunca responde no lugar de uma implementação que existe.
 /// </summary>
 public static class InboundAdapterChoice
 {

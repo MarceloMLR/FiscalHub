@@ -10,6 +10,8 @@
     XML.
 - **Change OpenSpec:** `openspec/changes/company-root-in-directory`. As capacidades são `company-directory`,
   `period-discovery` e `document-grouping`.
+- **Revisado por:** [ADR-0035](0035-credencial-do-perfil-e-o-cnpj-da-execucao.md). Na "Piora", a coluna Empresa da tabela
+  de execuções passa a mostrar o CNPJ do estabelecimento que a descoberta resolveu, gravado na execução.
 
 ## Contexto
 
@@ -92,6 +94,9 @@ mesma raiz. A identidade fiscal da nota continua sendo o estabelecimento.**
 - **A coluna Empresa das tabelas de agendamento e de execução mostra o CNPJ da matriz.** Numa linha cuja filial não é a
   matriz, o CNPJ exibido não é o do estabelecimento daquelas notas, e antes era. A coluna Filial desambigua, pelo
   código.
+
+  > **Revisado pelo ADR-0035 (2026-10-05).** Na tabela de execuções, a coluna mostra o CNPJ do estabelecimento gravado na
+  > execução, quando a descoberta resolveu um só. A tabela de agendamentos continua com a empresa pedida.
 - **Um código de 8 caracteres que não seja raiz de CNPJ** seria mascarado como raiz. O de 14 caracteres já tinha o mesmo
   risco desde o ADR-0032, aceito pela convenção do hub: a empresa vem do CNPJ.
 

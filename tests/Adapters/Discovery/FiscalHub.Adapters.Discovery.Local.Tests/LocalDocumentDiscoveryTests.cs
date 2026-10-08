@@ -20,7 +20,7 @@ public class LocalDocumentDiscoveryTests
     {
         var discovery = new LocalDocumentDiscovery();
 
-        IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(Junho());
+        IReadOnlyList<DocumentReference> found = (await discovery.DiscoverAsync(Junho())).References;
 
         Assert.Equal(2, found.Count);
         Assert.All(found, r => Assert.StartsWith($"nfe/{r.TenantId}/", r.Locator));   // espaço de entrada do tenant (ADR-0028)
@@ -28,11 +28,22 @@ public class LocalDocumentDiscoveryTests
     }
 
     [Fact]
+    public async Task The_catalog_does_not_know_the_establishment_cnpj()
+    {
+        // O catálogo guarda a raiz e a ordem, e não o CNPJ do estabelecimento: a execução fica sem ele, e a tabela mostra a
+        // empresa (change explicit-credential-and-execution-cnpj, D5).
+        DiscoveryResult result = await new LocalDocumentDiscovery().DiscoverAsync(Junho("12345678", "0001"));
+
+        Assert.Single(result.References);
+        Assert.Null(result.EstablishmentTaxId);
+    }
+
+    [Fact]
     public async Task Filters_by_company()
     {
         var discovery = new LocalDocumentDiscovery();
 
-        IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(Junho(company: "98765432"));
+        IReadOnlyList<DocumentReference> found = (await discovery.DiscoverAsync(Junho(company: "98765432"))).References;
 
         DocumentReference only = Assert.Single(found);
         Assert.StartsWith("35260698765432", only.NaturalKey);
@@ -51,7 +62,7 @@ public class LocalDocumentDiscoveryTests
         Assert.Equal(8, company.Length);
         Assert.Contains(listed.GetProperty("branches").EnumerateArray(), b => b.GetProperty("code").GetString() == "0001");
 
-        IReadOnlyList<DocumentReference> found = await new LocalDocumentDiscovery().DiscoverAsync(Junho(company, "0001"));
+        IReadOnlyList<DocumentReference> found = (await new LocalDocumentDiscovery().DiscoverAsync(Junho(company, "0001"))).References;
 
         Assert.StartsWith(keyPrefix, Assert.Single(found).NaturalKey);
     }
@@ -69,7 +80,7 @@ public class LocalDocumentDiscoveryTests
     {
         var discovery = new LocalDocumentDiscovery();
 
-        IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(Junho() with { DocumentNumber = "456" });
+        IReadOnlyList<DocumentReference> found = (await discovery.DiscoverAsync(Junho() with { DocumentNumber = "456" })).References;
 
         DocumentReference only = Assert.Single(found);   // só a nota nNF 456
         Assert.StartsWith("35260698765432", only.NaturalKey);
@@ -86,7 +97,7 @@ public class LocalDocumentDiscoveryTests
             End = new DateTimeOffset(2026, 1, 31, 0, 0, 0, TimeSpan.Zero),
         };
 
-        Assert.Empty(await discovery.DiscoverAsync(criteria));
+        Assert.Empty((await discovery.DiscoverAsync(criteria)).References);
     }
 
     [Fact]
@@ -94,7 +105,7 @@ public class LocalDocumentDiscoveryTests
     {
         var discovery = new LocalDocumentDiscovery();
 
-        IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(Junho());
+        IReadOnlyList<DocumentReference> found = (await discovery.DiscoverAsync(Junho())).References;
 
         // A origem é a do documento (XML no Blob), não a da descoberta ("Local") — ADR-0025.
         Assert.All(found, r => Assert.Equal("Xml", r.Origin));
@@ -117,6 +128,6 @@ public class LocalDocumentDiscoveryTests
         var discovery = new LocalDocumentDiscovery();
         var criteria = Junho() with { TenantId = "tenant-x" };
 
-        Assert.Empty(await discovery.DiscoverAsync(criteria));
+        Assert.Empty((await discovery.DiscoverAsync(criteria)).References);
     }
 }

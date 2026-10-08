@@ -624,6 +624,16 @@ public class D365ChangeFeedTests
             => Task.FromResult<IReadOnlyList<TenantConnectorProfile>>(Profile is null ? [] : [Profile]);
     }
 
+    /// <summary>O cofre sem nenhum segredo: com o provider de produção, a falta da credencial vira o motivo.</summary>
+    internal sealed class EmptyVault : ISecretStore
+    {
+        public Task<string?> GetAsync(string name, CancellationToken ct = default) => Task.FromResult<string?>(null);
+
+        public Task SetAsync(string name, string value, CancellationToken ct = default) => throw new NotSupportedException();
+
+        public Task<SecretDescription?> DescribeAsync(string name, CancellationToken ct = default) => Task.FromResult<SecretDescription?>(null);
+    }
+
     internal sealed class FakeTokens : ID365TokenProvider
     {
         public List<D365Connection> Connections { get; } = [];

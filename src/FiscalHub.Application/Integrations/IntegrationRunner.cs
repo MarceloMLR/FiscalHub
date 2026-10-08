@@ -9,7 +9,8 @@ namespace FiscalHub.Application.Integrations;
 /// (<see cref="DocumentDiscoveryResolver"/>); sem nenhuma, a execução falha antes de enfileirar ou registrar qualquer coisa.
 /// No host, a fila é a de descoberta, a mesma do coletor, para duas cópias da mesma nota não passarem juntas pela checagem
 /// de idempotência (change erp-company-directory-and-card-filters, D7). Cada referência leva o instante da execução e o
-/// período, para a nota ficar na linha dela no dashboard (D15).
+/// período, para a nota ficar na linha dela no dashboard (D15). A execução grava, ao lado da empresa e da filial pedidas, o
+/// CNPJ do estabelecimento que a descoberta resolveu, quando ela resolveu um só (change explicit-credential-and-execution-cnpj).
 /// </summary>
 public sealed class IntegrationRunner : IIntegrationRunner
 {
@@ -40,7 +41,8 @@ public sealed class IntegrationRunner : IIntegrationRunner
             DocumentNumber = request.DocumentNumber,
         };
 
-        IReadOnlyList<DocumentReference> found = await discovery.DiscoverAsync(criteria, ct);
+        DiscoveryResult discovered = await discovery.DiscoverAsync(criteria, ct);
+        IReadOnlyList<DocumentReference> found = discovered.References;
 
         // Manual = recarga explícita (fura idempotência). Agendado = rede de segurança (dedupe por
         // conteúdo, não reintegra o que o tempo-real já resolveu).
@@ -75,6 +77,7 @@ public sealed class IntegrationRunner : IIntegrationRunner
             PeriodEnd = request.PeriodEnd,
             DiscoveredCount = found.Count,
             ScheduleId = request.ScheduleId,
+            EstablishmentTaxId = discovered.EstablishmentTaxId,
         }, ct);
 
         return found.Count;

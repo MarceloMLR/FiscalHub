@@ -26,6 +26,7 @@ internal sealed class SqlExecutionStore : IExecutionStore
             PeriodEnd = execution.PeriodEnd.ToString("yyyy-MM-dd"),
             DiscoveredCount = execution.DiscoveredCount,
             ScheduleId = execution.ScheduleId,
+            EstablishmentTaxId = execution.EstablishmentTaxId,
             CreatedAt = _clock.GetUtcNow(),
         });
 

@@ -263,6 +263,34 @@ public class D365CompanyDirectoryTests
         Assert.Empty(h.Tokens.Connections);
     }
 
+    [Fact]
+    public async Task Profile_without_auth_fails_with_the_reason_and_without_any_request()
+    {
+        // O provider de produção, e não o falso: o dropdown mostra este motivo no lugar da lista (change
+        // explicit-credential-and-execution-cnpj, D2).
+        var http = new SequencedHttpMessageHandler();
+        var profiles = new FakeProfiles
+        {
+            Profile = new TenantConnectorProfile
+            {
+                TenantId = "tenant-a",
+                Environment = "Sandbox",
+                InboundAdapter = "Dynamics365",
+                InboundSettings = $$"""{"url":"{{Env}}","companies":["brmf"]}""",
+                OutboundAdapter = "Avalara",
+            },
+        };
+        var directory = new D365CompanyDirectory(
+            new HttpClient(http), profiles,
+            new ClientCredentialsD365TokenProvider(new EmptyVault(), new ListLogger<ClientCredentialsD365TokenProvider>()),
+            new D365ChangeFeedOptions(), new FakeTime(DateTimeOffset.UnixEpoch), new ListLogger<D365CompanyDirectory>());
+
+        var ex = await Assert.ThrowsAsync<ConnectorSettingsException>(() => directory.ListCompaniesAsync("tenant-a"));
+
+        Assert.StartsWith("A credencial do ERP não está configurada", ex.Message);
+        Assert.Empty(http.Requests);
+    }
+
     // ---------- apoio ----------
 
     private static NameValueCollection Query(HttpRequestMessage request) => HttpUtility.ParseQueryString(request.RequestUri!.Query);

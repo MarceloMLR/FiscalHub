@@ -42,7 +42,7 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
         },
     ];
 
-    public Task<IReadOnlyList<DocumentReference>> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default)
+    public Task<DiscoveryResult> DiscoverAsync(DiscoveryCriteria criteria, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentReference> matches = Catalog
             .Where(d => d.Tenant == criteria.TenantId)
@@ -60,7 +60,8 @@ internal sealed class LocalDocumentDiscovery : IDocumentDiscovery
             })
             .ToList();
 
-        return Task.FromResult(matches);
+        // O catálogo guarda a raiz e a ordem, e não o CNPJ do estabelecimento: o resultado vai sem ele.
+        return Task.FromResult(new DiscoveryResult(matches));
     }
 
     public Task<DocumentReference?> FindByKeyAsync(string tenantId, string naturalKey, CancellationToken ct = default)
