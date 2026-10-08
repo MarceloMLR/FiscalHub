@@ -14,8 +14,13 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 
 /// <summary>
 /// As respostas reais do sandbox (design D15, change <c>connect-avalara-sandbox</c>): nenhuma fixture carrega credencial ou
-/// token, e cada uma reexercita o dispatcher contra a resposta de verdade. Só a recusa no envio aconteceu (2026-09-27); o
+/// token, e cada uma reexercita o adapter contra a resposta de verdade. No envio, só a recusa aconteceu (2026-09-27); o
 /// aceite, a consulta de status e a recusa de credencial pelo hub não foram exercitados, e não se fabrica resposta.
+/// <para>
+/// A listagem (change <c>platform-listing-shape</c>, D5): as três respostas do <c>/empresa</c> com a query, de 2026-10-06,
+/// curadas à mão. A varredura impõe a curadoria — nenhum CNPJ, e todo valor fora da lista do que fica mascarado —, e a
+/// reprodução lê a primeira página e a vazia reais, e confere a evidência do <c>$skip</c>.
+/// </para>
 /// </summary>
 public partial class SandboxFixtureTests
 {
@@ -24,6 +29,9 @@ public partial class SandboxFixtureTests
     private const string RealRefusalReason = "6 campos com erro: operacao, tipoPagamento, parceiro.Codigo e mais 3";
 
     private static readonly string FixtureDir = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sandbox");
+
+    // O que fica real numa resposta gravada da listagem: a forma e o que o hub lê. O resto sai como "[mascarado]".
+    private static readonly HashSet<string> KeptInListing = ["empresaId", "codigoCIA", "contribuinteId", "codigo"];
 
     // ---------- 18.2: varredura ----------
 
@@ -41,6 +49,41 @@ public partial class SandboxFixtureTests
             Assert.False(Jwt().IsMatch(text), $"{name}: JWT");
             Assert.False(CredentialWithValue().IsMatch(text), $"{name}: access_token ou client_secret com valor");
         }
+    }
+
+    // A curadoria das respostas da listagem é à mão (change platform-listing-shape, D5), então a regra fica aqui, e não em
+    // quem curou: nenhum CNPJ, e todo valor de item fora da lista do que fica mascarado.
+    [Fact]
+    public void No_listing_fixture_carries_a_cnpj_or_a_value_outside_what_stays()
+    {
+        string[] files = Directory.GetFiles(FixtureDir, "listagem-*.json");
+        Assert.NotEmpty(files);   // a varredura não passa no vazio
+
+        foreach (string file in files)
+        {
+            string text = File.ReadAllText(file);
+            string name = Path.GetFileName(file);
+            Assert.False(Cnpj().IsMatch(text), $"{name}: CNPJ");
+            Assert.Empty(Unmasked(JsonNode.Parse(text)!["response"]!["body"]!).Select(property => $"{name}: {property} sem máscara"));
+        }
+    }
+
+    [Theory]
+    [InlineData("""{"cnpj":"11222333000181"}""", true)]
+    [InlineData("""{"cnpj":"11.222.333/0001-81"}""", true)]
+    [InlineData("""{"cnpj":"[mascarado]","empresaId":8120,"contribuinteId":10001}""", false)]
+    public void The_cnpj_scan_catches_both_spellings(string sample, bool caught) => Assert.Equal(caught, Cnpj().IsMatch(sample));
+
+    [Theory]
+    [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"EMPRESA DE VERDADE"}]}""", "descricao")]
+    [InlineData("""[{"contribuinteId":10001,"codigo":"010","razao":"CONTRIBUINTE DE VERDADE"}]""", "razao")]
+    [InlineData("""{"value":[{"empresaId":8120,"codigoCIA":"012","descricao":"[mascarado]","idPortalCompany":"[mascarado]"}]}""", null)]
+    [InlineData("""{"value":[]}""", null)]
+    public void The_masking_scan_catches_a_value_outside_what_stays(string body, string? caught)
+    {
+        string[] expected = caught is null ? [] : [caught];
+
+        Assert.Equal(expected, Unmasked(JsonNode.Parse(body)!));
     }
 
     [Theory]
@@ -98,6 +141,50 @@ public partial class SandboxFixtureTests
         Assert.Equal(6, photoBody["errors"]!.AsObject().Count);
     }
 
+    // ---------- a listagem (change platform-listing-shape, D5) ----------
+
+    [Fact]
+    public async Task The_real_page_and_the_real_empty_page_end_the_reading_with_the_five_companies()
+    {
+        // A primeira página e a vazia, como o sandbox as devolveu com a query: as duas em envelope. O adapter de antes desta
+        // change recusava já a primeira. A vazia veio com $skip=999, e aqui encerra a leitura no $skip=5: a forma é a dela.
+        (_, string firstPage) = RecordedSubmit("listagem-empresas-top5.json");
+        (_, string emptyPage) = RecordedSubmit("listagem-empresas-vazia.json");
+        var platform = new PlatformHandler
+        {
+            Override = r => r.Path == PlatformHandler.CompaniesPath ? PlatformHandler.Json(HttpStatusCode.OK, r.Skip == 0 ? firstPage : emptyPage) : null,
+        };
+        var logger = new CapturingLogger<AvalaraEstablishmentListing>();
+        var listing = new AvalaraEstablishmentListing(
+            new HttpClient(platform), new NoOpAvalaraTokenProvider(), Options.Create(new AvalaraOptions { ListingPageSize = 5 }), logger);
+
+        await listing.ListAsync(ListingProfile());
+
+        Assert.Equal([0, 5], platform.To(PlatformHandler.CompaniesPath).Select(r => r.Skip));
+        Assert.Equal(RecordedIds("listagem-empresas-top5.json"), platform.To(PlatformHandler.TaxpayersPath).Select(r => r.Query["empresaId"]!).Distinct());
+        Assert.Contains("5 empresas em 2 páginas", logger.All);
+    }
+
+    [Fact]
+    public void The_recorded_skip_brings_the_third_and_the_fourth_of_the_first_page()
+    {
+        // A evidência do $skip e da ordem estável, conferível no repositório, e não só no relato. Os identificadores vêm dos
+        // arquivos, e não do teste: um empresaId real só existe no Fixtures/sandbox/.
+        Assert.Equal(RecordedIds("listagem-empresas-top5.json").Skip(2).Take(2), RecordedIds("listagem-empresas-skip2.json"));
+    }
+
+    private static List<string> RecordedIds(string file)
+        => [.. JsonNode.Parse(RecordedSubmit(file).Body)!["value"]!.AsArray().Select(i => i!["empresaId"]!.ToJsonString())];
+
+    private static TenantConnectorProfile ListingProfile() => new()
+    {
+        TenantId = "tenant-a",
+        Environment = "Sandbox",
+        InboundAdapter = "Dynamics365",
+        OutboundAdapter = "Avalara",
+        OutboundSettings = """{"sandbox":{"baseUrl":"https://api-gateway.sandbox.avalarabrasil.com.br/"}}""",
+    };
+
     // O status e o corpo gravados no envelope, como a plataforma devolveu (já redigidos).
     internal static (int Status, string Body) RecordedSubmit(string file)
     {
@@ -107,6 +194,19 @@ public partial class SandboxFixtureTests
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         }));
     }
+
+    // Os valores de item da listagem fora da lista do que fica que não estão mascarados: só o nome da propriedade.
+    private static List<string> Unmasked(JsonNode body)
+    {
+        JsonArray items = body as JsonArray ?? body["value"]?.AsArray() ?? [];
+        return [.. items.Select(i => i!.AsObject())
+            .SelectMany(item => item)
+            .Where(p => !KeptInListing.Contains(p.Key) && !(p.Value is JsonValue v && v.TryGetValue(out string? text) && text == "[mascarado]"))
+            .Select(p => p.Key)];
+    }
+
+    [GeneratedRegex(@"(?<!\d)\d{14}(?!\d)|\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}")]
+    private static partial Regex Cnpj();
 
     [GeneratedRegex(@"Bearer\s+(?!\[redigido\])[A-Za-z0-9\-._~+/]+=*", RegexOptions.IgnoreCase)]
     private static partial Regex BearerWithValue();

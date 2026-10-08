@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -331,7 +332,7 @@ public class DispatchToMockTests
 
     // ---------- o de/para do estabelecimento pela plataforma (platform-establishment-resolution) ----------
 
-    // A conta do mock: a empresa 005 com os quatro estabelecimentos da brmf e o CNPJ dos XMLs, e as empresas de teste.
+    // A conta do mock: a empresa 012 com os quatro estabelecimentos da brmf e o CNPJ dos XMLs, e as empresas de teste.
     // Os códigos não seguem a ordem do CNPJ.
     private static readonly (string Cnpj, string Codigo)[] Brmf =
     [
@@ -341,9 +342,25 @@ public class DispatchToMockTests
         ("442782250034-48", "003"),   // RJ-01
     ];
 
-    // Uma listagem inteira da conta do mock com o $top 2: as empresas (3) em 2 páginas e a vazia; os contribuintes da 005 (5)
-    // em 3 páginas e a vazia, e os da Padrão e da QA (1 cada) em 1 e a vazia.
+    // Uma listagem inteira da conta do mock com o $top 2: as empresas (3) em 2 páginas e a vazia; os contribuintes da 012 (5)
+    // em 3 páginas e a vazia, e os da Comércio e da 009 (1 cada) em 1 e a vazia.
     private static readonly (int Companies, int Taxpayers) OneListingWithTopTwo = (3, 4 + 2 + 2);
+
+    [Fact]
+    public async Task The_mock_lists_companies_like_the_sandbox_in_an_envelope_with_the_query_and_in_an_array_without()
+    {
+        // As chamadas diretas ao sandbox (change platform-listing-shape): com as opções de query, o envelope, inclusive na
+        // página vazia; sem nenhuma opção, o array puro.
+        using Harness h = await Harness.CreateAsync();
+
+        JsonNode withQuery = await h.MockListingPageAsync("taxcompliance/v2/empresa?$top=5&$orderby=empresaId");
+        JsonNode emptyPage = await h.MockListingPageAsync("taxcompliance/v2/empresa?$top=5&$orderby=empresaId&$skip=999");
+        JsonNode withoutQuery = await h.MockListingPageAsync("taxcompliance/v2/empresa");
+
+        Assert.Equal(3, Assert.IsType<JsonObject>(withQuery)["value"]!.AsArray().Count);
+        Assert.Equal("""{"value":[]}""", emptyPage.ToJsonString());
+        Assert.Equal(3, Assert.IsType<JsonArray>(withoutQuery).Count);
+    }
 
     [Fact]
     public async Task The_four_brmf_establishments_resolve_and_dispatch_with_an_empty_table()
@@ -357,7 +374,7 @@ public class DispatchToMockTests
             StoredRow row = h.Store.Rows[Key(cnpj)];
             Assert.Equal(IntegrationStatus.Submitted, row.Status);
             using JsonDocument payload = await h.SentPayloadAsync(row.Receipt!.ExternalId);
-            Assert.Equal("005", payload.RootElement.GetProperty("codigoEmpresa").GetString());
+            Assert.Equal("012", payload.RootElement.GetProperty("codigoEmpresa").GetString());
             Assert.Equal(codigo, payload.RootElement.GetProperty("codigoContribuinte").GetString());   // só com todas as páginas
         }
 
@@ -396,7 +413,7 @@ public class DispatchToMockTests
     public async Task A_duplicate_on_the_platform_is_refused_naming_both_and_nothing_is_posted()
     {
         using Harness h = await Harness.CreateAsync(establishments: "{}");
-        await h.MockListingAsync("contribuintes/adicionar?cnpj=44278225000180&empresa=QA");
+        await h.MockListingAsync("contribuintes/adicionar?cnpj=44278225000180&empresa=009");
 
         h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
         await h.ProcessAsync(OutgoingKey, "35637156582");
@@ -404,8 +421,8 @@ public class DispatchToMockTests
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
         Assert.Contains("o estabelecimento 44278225000180 tem 2 contribuintes na plataforma", row.Reason);
-        Assert.Contains("empresa '005' (RESULTA IND E COM MAQUINAS (mock)), contribuinte '010' (#10001)", row.Reason);
-        Assert.Contains("empresa 'QA' (QA (mock)), contribuinte '001' (#90001)", row.Reason);
+        Assert.Contains("empresa '012' (METALURGICA EXEMPLO (mock)), contribuinte '010' (#10001)", row.Reason);
+        Assert.Contains("empresa '009' (LABORATORIO (mock)), contribuinte '001' (#90001)", row.Reason);
         Assert.Equal(0, h.DocumentPosts);
     }
 
@@ -443,7 +460,7 @@ public class DispatchToMockTests
     public async Task An_alphanumeric_cnpj_on_the_platform_resolves_with_the_same_value()
     {
         using Harness h = await Harness.CreateAsync(establishments: "{}");
-        await h.MockListingAsync("contribuintes/adicionar?cnpj=12ABC34501DE35&empresa=005&codigo=ALFA");
+        await h.MockListingAsync("contribuintes/adicionar?cnpj=12ABC34501DE35&empresa=012&codigo=ALFA");
         JsonObject header = Header();
         header["FiscalEstablishmentCNPJCPF"] = "12.ABC.345/01DE-35";
 
@@ -454,14 +471,14 @@ public class DispatchToMockTests
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.Submitted, row.Status);
         using JsonDocument payload = await h.SentPayloadAsync(row.Receipt!.ExternalId);
-        Assert.Equal("005", payload.RootElement.GetProperty("codigoEmpresa").GetString());
+        Assert.Equal("012", payload.RootElement.GetProperty("codigoEmpresa").GetString());
         Assert.Equal("ALFA", payload.RootElement.GetProperty("codigoContribuinte").GetString());
     }
 
     [Fact]
     public async Task The_table_wins_over_the_platform_and_lists_nothing()
     {
-        // A tabela de sempre do harness traduz a Matriz para 20247332000182; a plataforma tem a Matriz como 005/010.
+        // A tabela de sempre do harness traduz a Matriz para 20247332000182; a plataforma tem a Matriz como 012/010.
         using Harness h = await Harness.CreateAsync();
         h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
 
@@ -702,6 +719,23 @@ public class DispatchToMockTests
         {
             using HttpResponseMessage response = await _mock.CreateClient().PostAsync($"admin/{pathAndQuery}", null);
             response.EnsureSuccessStatusCode();
+        }
+
+        /// <summary>Uma página crua da listagem do mock, com um token emitido por ele, que a listagem exige como o envio.</summary>
+        public async Task<JsonNode> MockListingPageAsync(string pathAndQuery)
+        {
+            using HttpClient client = _mock.CreateClient();
+            using var tokenRequest = new StringContent(
+                """{"grant_type":"client_credentials","client_id":"mock-client","client_secret":"segredo-de-teste"}""", Encoding.UTF8, "application/json");
+            using HttpResponseMessage token = await client.PostAsync("oauth/token", tokenRequest);
+            token.EnsureSuccessStatusCode();
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, pathAndQuery);
+            request.Headers.Authorization = new AuthenticationHeaderValue(
+                "Bearer", (string)JsonNode.Parse(await token.Content.ReadAsStringAsync())!["access_token"]!);
+            using HttpResponseMessage response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
         }
 
         /// <summary>As requisições de listagem que o mock recebeu, por endpoint, cada página contando uma.</summary>

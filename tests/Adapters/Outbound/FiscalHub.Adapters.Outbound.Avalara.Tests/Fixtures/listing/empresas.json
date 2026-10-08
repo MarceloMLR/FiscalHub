@@ -1,5 +1,5 @@
 [
-  { "empresaId": 7410, "codigoCIA": "005", "descricao": "RESULTA IND E COM MAQUINAS (fixture)" },
-  { "empresaId": 7411, "codigoCIA": "Padrão", "descricao": "Empresa padrão (fixture)" },
-  { "empresaId": 7412, "codigoCIA": "QA", "descricao": "QA (fixture)" }
+  { "empresaId": 8120, "codigoCIA": "012", "descricao": "METALURGICA EXEMPLO (fixture)" },
+  { "empresaId": 8121, "codigoCIA": "Comércio", "descricao": "Comércio de exemplo (fixture)" },
+  { "empresaId": 8122, "codigoCIA": "009", "descricao": "LABORATORIO (fixture)" }
 ]
