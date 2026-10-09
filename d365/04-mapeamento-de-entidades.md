@@ -347,9 +347,27 @@ INSSRetained, CSLL, ICMSST, ICMSDiff, INSSCPRB, CBS, IBSCity, IBSState
 
 1. **IBS vem dividido em `IBSCity` e `IBSState`** (municipal e estadual). O `Goods` do domínio precisa
    tratar os dois.
-2. **`CClassTrib`** é o classificador tributário da Reforma, FK → `CClassTribTable_BR.RecId`. Campo
-   obrigatório do layout — entra na projeção, e provavelmente exige entidade de apoio para resolver o
-   código a partir do RecId.
+2. **`CClassTrib`** é o classificador tributário da Reforma. Tanto na `TaxTrans_BR` quanto na
+   `FiscalDocumentTaxTrans_BR` ele é só RecId: o código (`000001`, por exemplo) mora no cadastro
+   `CClassTribTable_BR`, com descrição, CST e redução de base. A tabela é compartilhada entre empresas.
+
+   **Na `FSFiscalDocumentTaxTransBR`, o cClassTrib vem da tabela fiscal** (desde 2026-10-09), com duas junções
+   externas na `CClassTribTable_BR`, uma por campo:
+
+   | Campo da entidade | Origem |
+   |---|---|
+   | `ClassTribRecId` | `FiscalDocumentTaxTrans_BR.CClassTrib` |
+   | `ClassTribCode` | `CClassTribTable_BR.Code`, pelo `CClassTrib` |
+   | `ClassTribSuspension` | `FiscalDocumentTaxTrans_BR.CClassTribSuspension` (RecId) |
+   | `ClassTribSuspensionCode` | `CClassTribTable_BR.Code`, pelo `CClassTribSuspension` |
+
+   Até então a entidade buscava o cClassTrib na `TaxTrans_BR`, passando pela `TaxTrans`: dado contábil numa
+   entidade fiscal. A tabela fiscal é a fonte do que vai na nota (9.3) e tem até um campo de imposto sem
+   contabilização (`NoPostingTaxAmount`). Um imposto sem lançamento na `TaxTrans` chegaria sem classificação pelo
+   caminho antigo. As junções usam `Field`/`RelatedField` explícitos, porque a mesma tabela entra duas vezes.
+
+   **O hub ainda não lê esses campos.** O `$select` dos impostos não os pede, e a montagem deixa o cClassTrib vazio
+   (spec `d365-document-assembly`). Nenhum dos 547 impostos do `fiscosysdev` tem cClassTrib.
 
 > ⚠️ **Imposto Seletivo (IS) não aparece** em `TaxType_BR` nesta versão. Verificar se vem em `OtherTax`,
 > em outra estrutura, ou se ainda não foi implementado.
@@ -405,7 +423,8 @@ performance is required"* e *"Single thread only"* — ~80 campos a mais que as 
 
 ### `FSItemBR` — **escopo reduzido**
 Com NCM, origem e tipo vindo da linha (3.3), sobra: `ItemId`, `DataAreaId`, `Description`, `BOMUnitId`
-(unidade da lista de materiais, e **não** a de estoque: ver 21.3). Avaliar se `CClassTrib` também vive no item.
+(unidade da lista de materiais, e **não** a de estoque: ver 21.3). O `CClassTrib` não vive no item: a `InventTable` e
+as 6 extensões dela não têm o campo (conferido no metadado em 2026-10-09).
 
 ### `FSUnitOfMeasureBR`
 `Symbol`, `Description`, `TranslatedDescription` (se vazia, usa `"Unidade " + símbolo`).
@@ -685,9 +704,9 @@ cache.
 - [ ] O que a entidade do ambiente Volcafe chamava de `MarkupTrans.IdxRecId` — é o `RecId`?
 - [ ] `TaxWithholdTable` tem `TaxWithholdType_BR` para substituir o `Contains()`?
 - [ ] **Imposto Seletivo**: onde aparece? Não está em `TaxType_BR` nesta versão
-- [ ] `CClassTrib` também existe no item (`InventTable`)?
-- [ ] `CClassTribTable_BR` — campos necessários para resolver o código a partir do RecId. Deixou de ser
-      pré-requisito da demonstração (ADR-0026 §7)
+- [x] `CClassTrib` também existe no item (`InventTable`)? **Não** (6).
+- [x] `CClassTribTable_BR` — resolvido sem entidade nova: o código vem por junção na `FSFiscalDocumentTaxTransBR`
+      (4.3). Falta o hub ler os campos; continua fora do caminho da demonstração (ADR-0026 §7)
 - [ ] CT-e (modelo 57) entra no escopo agora?
 
 **Pendências de tradução para o payload da Avalara** (change `connector-not-validator`, design D3). Cada item

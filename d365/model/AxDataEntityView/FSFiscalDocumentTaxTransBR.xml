@@ -50,21 +50,30 @@ public class FSFiscalDocumentTaxTransBR extends common
 			<Name>ClassTribRecId</Name>
 			<CountryRegionCodes>BR</CountryRegionCodes>
 			<DataField>CClassTrib</DataField>
-			<DataSource>TaxTrans_BR</DataSource>
+			<DataSource>FiscalDocumentTaxTrans_BR</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
 			<Name>ClassTribSuspension</Name>
 			<CountryRegionCodes>BR</CountryRegionCodes>
 			<DataField>CClassTribSuspension</DataField>
-			<DataSource>TaxTrans_BR</DataSource>
-		</AxDataEntityViewField>		<AxDataEntityViewField xmlns=""
+			<DataSource>FiscalDocumentTaxTrans_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
 			<Name>ClassTribCode</Name>
 			<CountryRegionCodes>BR</CountryRegionCodes>
 			<DataField>Code</DataField>
 			<DataSource>CClassTribTable_BR</DataSource>
-		</AxDataEntityViewField>		<AxDataEntityViewField xmlns=""
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ClassTribSuspensionCode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Code</DataField>
+			<DataSource>CClassTribSuspensionTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
 			<Name>FiscalDocumentTaxTransRecId</Name>
 			<CountryRegionCodes>BR</CountryRegionCodes>
@@ -372,43 +381,7 @@ public class Metadata extends QueryRun
 						<DynamicFields>Yes</DynamicFields>
 						<IsReadOnly>Yes</IsReadOnly>
 						<Table>TaxTrans</Table>
-						<DataSources>
-							<AxQuerySimpleEmbeddedDataSource>
-								<Name>TaxTrans_BR</Name>
-								<DynamicFields>Yes</DynamicFields>
-								<IsReadOnly>Yes</IsReadOnly>
-								<Table>TaxTrans_BR</Table>
-								<DataSources>
-									<AxQuerySimpleEmbeddedDataSource>
-										<Name>CClassTribTable_BR</Name>
-										<DynamicFields>Yes</DynamicFields>
-										<IsReadOnly>Yes</IsReadOnly>
-										<Table>CClassTribTable_BR</Table>
-										<DataSources />
-										<DerivedDataSources />
-										<Fields />
-										<Ranges />
-										<JoinMode>OuterJoin</JoinMode>
-										<Relations>
-											<AxQuerySimpleDataSourceRelation>
-												<Name>CClassTribTable_BR</Name>
-												<JoinRelationName>CClassTribTable_BR</JoinRelationName>
-											</AxQuerySimpleDataSourceRelation>
-										</Relations>
-									</AxQuerySimpleEmbeddedDataSource>
-								</DataSources>
-								<DerivedDataSources />
-								<Fields />
-								<Ranges />
-								<JoinMode>OuterJoin</JoinMode>
-								<Relations>
-									<AxQuerySimpleDataSourceRelation>
-										<Name>TaxTrans_BR</Name>
-										<JoinRelationName>TaxTrans</JoinRelationName>
-									</AxQuerySimpleDataSourceRelation>
-								</Relations>
-							</AxQuerySimpleEmbeddedDataSource>
-						</DataSources>
+						<DataSources />
 						<DerivedDataSources />
 						<Fields />
 						<Ranges />
@@ -417,6 +390,44 @@ public class Metadata extends QueryRun
 							<AxQuerySimpleDataSourceRelation>
 								<Name>TaxTrans</Name>
 								<JoinRelationName>TaxTrans</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>CClassTribTable_BR</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>CClassTribTable_BR</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>CClassTrib</Field>
+								<JoinDataSource>FiscalDocumentTaxTrans_BR</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>CClassTribSuspensionTable</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>CClassTribTable_BR</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>CClassTribSuspension</Field>
+								<JoinDataSource>FiscalDocumentTaxTrans_BR</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
 							</AxQuerySimpleDataSourceRelation>
 						</Relations>
 					</AxQuerySimpleEmbeddedDataSource>
