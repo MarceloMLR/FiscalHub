@@ -224,7 +224,7 @@ export function ConnectorsPage() {
   return (
     <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: 1, borderColor: 'divider' }}>
-        <Typography variant="h6" sx={{ mb: 0.5 }}>
+        <Typography variant="h6" sx={{ mb: 0.5, fontFamily: 'var(--font-display)' }}>
           Perfil de conector
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>

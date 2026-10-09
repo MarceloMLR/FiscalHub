@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -5,4 +6,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: { port: 5173 },
+  // O Vitest troca todo CSS por string vazia, até o `?raw`. O palette.test.ts lê o tokens.css para conferir o theme.ts
+  // contra ele, então só esse arquivo passa pelo CSS de verdade nos testes.
+  test: { css: { include: [/tokens\.css/] } },
 });

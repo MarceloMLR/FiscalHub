@@ -1,7 +1,7 @@
 import { DataGrid, type DataGridProps } from '@mui/x-data-grid';
 import { ptBR } from '@mui/x-data-grid/locales';
 
-// DataGrid padrão do FiscalHub: estilo v3 (dark-aware), sem toolbar (só o filtro/ordenação nativo
+// DataGrid padrão do FiscosysHub: estilo v3 (dark-aware), sem toolbar (só o filtro/ordenação nativo
 // por coluna), paginação por autoPageSize (linhas por página se ajustam à altura) e as correções de
 // borda (última linha e "filler" não repetem a linha do rodapé). Uma linha só na base.
 const baseSx = {

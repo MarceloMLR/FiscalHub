@@ -110,40 +110,34 @@ function Dashboard() {
           boxSizing: 'border-box',
         }}
       >
-        {/* Marca */}
+        {/* Marca: o lockup da Fiscosys (colorido no claro, branco no escuro) + "Hub", e o tenant embaixo */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
             height: 73,
             padding: '0 14px',
             boxSizing: 'border-box',
             borderBottom: '1px solid var(--border)',
           }}
         >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: 'var(--accent)',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            F
-          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.015em', color: 'var(--ink)' }}>
-              FiscalHub
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+              <img
+                src={mode === 'dark' ? '/brand/logotipo-horizontal-branco.svg' : '/brand/logotipo-horizontal-colorido.svg'}
+                alt="Fiscosys"
+                width={130}
+                height={17}
+                style={{ display: 'block', width: 'auto', height: 17 }}
+              />
+              <span style={{ width: 1, height: 14, background: 'var(--border-strong)' }} />
+              <span
+                style={{ fontFamily: 'var(--font-display)', fontSize: 14.5, fontWeight: 500, lineHeight: 1, color: 'var(--muted)' }}
+              >
+                Hub
+              </span>
             </div>
-            <div className="fh-mono" style={{ fontSize: 10.5, color: 'var(--muted)' }}>
+            <div className="fh-mono" style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 4 }}>
               {user?.tenantId ?? '—'}
             </div>
           </div>
@@ -230,7 +224,7 @@ function Dashboard() {
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)' }}>
               {current.title}
             </div>
             <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 1 }}>{current.subtitle}</div>
@@ -280,7 +274,7 @@ function Dashboard() {
                     height: 32,
                     borderRadius: 8,
                     background: 'var(--accent)',
-                    color: '#fff',
+                    color: 'var(--accent-ink)',
                     display: 'grid',
                     placeItems: 'center',
                     fontSize: 12,
@@ -399,7 +393,7 @@ function NavItem({
         fontWeight: active ? 600 : 500,
         cursor: 'pointer',
         background: active ? 'var(--accent-tint)' : 'transparent',
-        color: active ? 'var(--accent)' : 'var(--text)',
+        color: active ? 'var(--accent-on-tint)' : 'var(--text)',
       }}
       onMouseEnter={(e) => {
         if (!active) e.currentTarget.style.background = 'var(--surface-2)';
@@ -408,7 +402,7 @@ function NavItem({
         if (!active) e.currentTarget.style.background = 'transparent';
       }}
     >
-      <span style={{ display: 'grid', placeItems: 'center', color: active ? 'var(--accent)' : 'var(--muted)' }}>
+      <span style={{ display: 'grid', placeItems: 'center', color: active ? 'var(--accent-on-tint)' : 'var(--muted)' }}>
         {icon}
       </span>
       {children}

@@ -391,7 +391,7 @@ function RoleChip({ role }: { role: UserRole }) {
         padding: '4px 9px',
         borderRadius: 6,
         background: admin ? 'var(--accent-tint)' : 'var(--surface-2)',
-        color: admin ? 'var(--accent)' : 'var(--muted)',
+        color: admin ? 'var(--accent-on-tint)' : 'var(--muted)',
         border: `1px solid ${admin ? 'var(--accent-tint)' : 'var(--border)'}`,
       }}
     >
