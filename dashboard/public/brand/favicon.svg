@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Fiscosys">
+  <rect width="128" height="128" rx="26" fill="#001a72"/>
+  <g transform="translate(16.00 27.99) scale(0.86572)" fill="#fcfcfc">
+    <rect x="88.73" y="0" width="22.17" height="34.18"/>
+    <path d="m88.73,59.8c0,1.58-.49,2.83-1.48,3.74-.99.91-2.24,1.15-4.06,1.15H28.98l-1.26,18.48h83.17v-34.17h-22.17v10.8Z"/>
+    <polygon points="0 83.18 22.17 83.12 22.17 49 0 49 0 83.18"/>
+    <path d="m22.17,23.53c0-1.58.49-2.83,1.48-3.74.99-.91,2.39-1.31,4.21-1.31h52.79L83.17,0H0s0,12.38,0,17.68v16.5h22.17v-10.65Z"/>
+    <rect x="22.17" y="34.18" width="66.56" height="14.82"/>
+  </g>
+</svg>

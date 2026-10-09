@@ -1,0 +1,157 @@
+/* Painel de marca do login — FiscosysHub.
+   Seis camadas tiradas do manual: gradiente 2474 C escurecendo na diagonal,
+   dois brilhos 285 C que derivam, o grid modular (só colunas), a marca d'água
+   do símbolo, seis trilhas de fluxo e dois nós.
+   As trilhas SÃO as réguas horizontais do grid: por isso o grid não desenha
+   horizontais, senão apareceria uma linha parada a poucos pixels de uma que anda. */
+
+.fh-login-brand {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(162deg, #001a72 0%, #001a72 40%, #00103f 100%);
+}
+
+.fh-login-brand > .fh-login-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.fh-login-brand > .fh-login-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Brilhos ── */
+.fh-login-glow-a {
+  background: radial-gradient(640px 560px at 10% 4%, rgba(0, 114, 206, 0.55) 0%, rgba(0, 114, 206, 0) 62%);
+  animation: fhLoginDriftA 26s ease-in-out infinite alternate;
+}
+.fh-login-glow-b {
+  background: radial-gradient(560px 520px at 74% 64%, rgba(0, 114, 206, 0.24) 0%, rgba(0, 114, 206, 0) 70%);
+  animation: fhLoginDriftB 34s ease-in-out infinite alternate;
+}
+@keyframes fhLoginDriftA {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(34px, 26px, 0) scale(1.1); }
+}
+@keyframes fhLoginDriftB {
+  from { transform: translate3d(0, 0, 0) scale(1.06); }
+  to   { transform: translate3d(-28px, -34px, 0) scale(1); }
+}
+
+/* ── Grid modular: só as colunas ── */
+.fh-login-grid {
+  background-image: repeating-linear-gradient(to right, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 48px);
+  -webkit-mask-image: radial-gradient(130% 95% at 18% 12%, #000 0%, rgba(0, 0, 0, 0.35) 45%, transparent 76%);
+  mask-image: radial-gradient(130% 95% at 18% 12%, #000 0%, rgba(0, 0, 0, 0.35) 45%, transparent 76%);
+}
+
+/* ── Marca d'água: parada, de propósito ── */
+.fh-login-watermark {
+  position: absolute;
+  right: -112px;
+  bottom: -64px;
+  width: 520px;
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Trilhas de fluxo ──
+   O pulso é o background da própria linha, não um elemento por cima:
+   é o que garante que a luz corra exatamente sobre a linha fixa.
+   As posições são percentuais, mas o bloco de conteúdo é centrado na vertical: quanto mais baixa a janela, mais os
+   cards descem em porcentagem, e a headline sobe. Os dois grupos são espelho um do outro (10/18/27 e 73/82/90) e
+   deixam livre a faixa de 27% a 73%, que cobre o conteúdo de 760 a 1080 px de altura. */
+.fh-login-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.055);
+  background-image: linear-gradient(90deg,
+    rgba(90, 170, 255, 0) 0%,
+    rgba(90, 170, 255, 0.85) 60%,
+    rgba(226, 242, 255, 1) 86%,
+    rgba(226, 242, 255, 0) 100%);
+  background-repeat: no-repeat;
+  background-size: 170px 100%;
+  background-position: -190px 0;
+  animation: fhLoginRun linear infinite;
+}
+@keyframes fhLoginRun {
+  from { background-position: -190px 0; }
+  to   { background-position: calc(100% + 190px) 0; }
+}
+.fh-login-t1 { top: 10%; animation-duration: 9s;   animation-delay: 0s; }
+.fh-login-t2 { top: 18%; animation-duration: 13s;  animation-delay: -4s; }
+.fh-login-t3 { top: 27%; animation-duration: 7.5s; animation-delay: -2s; }
+.fh-login-t4 { top: 73%; animation-duration: 11s;  animation-delay: -6s; }
+.fh-login-t5 { top: 82%; animation-duration: 8.5s; animation-delay: -1s; }
+.fh-login-t6 { top: 90%; animation-duration: 14s;  animation-delay: -9s; }
+
+/* ── Nós: onde o hub toca a nota ── */
+.fh-login-node {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  margin: -2px 0 0 -2px;
+  border-radius: 999px;
+  background: rgba(174, 191, 230, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.18);
+  animation: fhLoginBlink 6s ease-in-out infinite;
+}
+.fh-login-n1 { top: 27%; left: 28%; } /* acompanha a t3 */
+.fh-login-n2 { top: 73%; left: 72%; animation-delay: -3s; } /* acompanha a t4 */
+@keyframes fhLoginBlink {
+  0%, 100% { opacity: 0.35; box-shadow: 0 0 0 3px rgba(0, 114, 206, 0.12); }
+  50%      { opacity: 0.9;  box-shadow: 0 0 0 7px rgba(0, 114, 206, 0.05); }
+}
+
+/* ── Tracejado entre os cards: a nota indo do ERP ao compliance ── */
+.fh-login-flow {
+  align-self: center;
+  width: 16px;
+  height: 1px;
+  flex-shrink: 0;
+  background-image: repeating-linear-gradient(to right, #8ea1d2 0 3px, rgba(142, 161, 210, 0) 3px 7px);
+  background-size: 7px 1px;
+  animation: fhLoginMarch 2.4s linear infinite;
+}
+.fh-login-flow-2 { animation-delay: -1.2s; }
+@keyframes fhLoginMarch {
+  to { background-position: 7px 0; }
+}
+
+/* ── Quem pediu menos movimento, recebe menos movimento.
+      Gradiente, grid e marca d'água ficam: a tela continua bonita parada. ── */
+@media (prefers-reduced-motion: reduce) {
+  .fh-login-glow-a,
+  .fh-login-glow-b,
+  .fh-login-flow,
+  .fh-login-track,
+  .fh-login-node {
+    animation: none;
+  }
+  .fh-login-track { background-image: none; }
+}
+
+/* ── Autofill do Chrome no formulário, que é sempre claro: a regra global do tokens.css usaria var(--surface), escura
+      quando o app ficou no tema escuro. O !important é preciso porque o IconInput põe o box-shadow inline (o anel de
+      foco, ou none), e inline vence a folha. No foco, o anel vai junto com o fundo. ── */
+.fh-login-input:-webkit-autofill,
+.fh-login-input:-webkit-autofill:hover,
+.fh-login-input:-webkit-autofill:focus,
+.fh-login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+  -webkit-text-fill-color: #001a72;
+  caret-color: #001a72;
+}
+.fh-login-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px #e6f0fb !important;
+  box-shadow: 0 0 0 1000px #fff inset, 0 0 0 3px #e6f0fb !important;
+}

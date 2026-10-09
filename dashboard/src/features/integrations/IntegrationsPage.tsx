@@ -272,7 +272,7 @@ export function IntegrationsPage() {
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ink)' }}>
             {activeCount}
           </span>
           <span style={{ fontSize: 14, color: 'var(--muted)' }}>agendamentos ativos</span>
@@ -509,13 +509,13 @@ function Radio({ checked, onClick, children }: { checked: boolean; onClick: () =
           width: 14,
           height: 14,
           borderRadius: 999,
-          border: `${checked ? 4 : 1}px solid ${checked ? 'var(--accent)' : 'var(--border-strong)'}`,
+          border: `${checked ? 4 : 1}px solid ${checked ? 'var(--accent-on-tint)' : 'var(--border-strong)'}`,
           background: 'var(--surface)',
           flexShrink: 0,
           boxSizing: 'border-box',
         }}
       />
-      <span style={{ fontSize: 13, fontWeight: checked ? 600 : 500, color: checked ? 'var(--accent)' : 'var(--text)', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 13, fontWeight: checked ? 600 : 500, color: checked ? 'var(--accent-on-tint)' : 'var(--text)', whiteSpace: 'nowrap' }}>
         {children}
       </span>
     </div>

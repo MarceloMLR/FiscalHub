@@ -8,24 +8,27 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { api } from '../../api/client';
 import { useAuth } from './AuthContext';
+import './login.css';
 
-// Cores fixas do login (composição de marca, independente do tema claro/escuro do app).
+// Cores fixas do login (composição de marca, independente do tema claro/escuro do app). O fundo do painel de marca
+// não está aqui: o gradiente e as camadas animadas moram no login.css.
 const C = {
-  brandBg: '#0e2a35',
-  brandText: '#e8eef1',
-  brandMuted: '#93a8b2',
-  brandFaint: '#6f8892',
+  brandText: '#fcfcfc',
+  brandMuted: '#aebfe6',
+  brandFaint: '#8ea1d2',
+  // Não é duplicata do brandMuted: o rótulo do StepCard fica sobre o glow-b e o fundo translúcido do card, e o parágrafo não.
+  stepLabel: '#c3cfec',
   cardBorder: 'rgba(255,255,255,0.12)',
   cardBg: 'rgba(255,255,255,0.035)',
   page: '#f5f7f9',
-  ink: '#0b1220',
+  ink: '#001a72',
   text: '#33415c',
   muted: '#6b7788',
   faint: '#9aa5b4',
   border: '#cfd7e0',
-  accent: '#0b5c7a',
-  accentHover: '#094a63',
-  ring: '#e6f1f6',
+  accent: '#0072ce',
+  accentHover: '#005ba9',
+  ring: '#e6f0fb',
   okText: '#17864a',
   okBg: '#e7f5ec',
   okBorder: '#c3e5d1',
@@ -92,15 +95,31 @@ export function LoginPage() {
       {/* ── Painel de marca ── */}
       <div
         className="fh-login-brand"
-        style={{ width: '44%', maxWidth: 620, background: C.brandBg, color: C.brandText, display: 'flex', flexDirection: 'column', padding: '40px 48px', boxSizing: 'border-box' }}
+        style={{ flex: '1 1 auto', minWidth: 0, color: C.brandText, display: 'flex', flexDirection: 'column', padding: '40px 48px', boxSizing: 'border-box' }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 9, background: '#2f7f97', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 15, fontWeight: 700 }}>F</div>
-          <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.018em' }}>FiscalHub</div>
+        <div className="fh-login-layer fh-login-glow-a" />
+        <div className="fh-login-layer fh-login-glow-b" />
+        <div className="fh-login-layer fh-login-grid" />
+        <img className="fh-login-watermark" src="/brand/simbolo-branco.svg" alt="" />
+        <div className="fh-login-layer">
+          <div className="fh-login-track fh-login-t1" />
+          <div className="fh-login-track fh-login-t2" />
+          <div className="fh-login-track fh-login-t3" />
+          <div className="fh-login-track fh-login-t4" />
+          <div className="fh-login-track fh-login-t5" />
+          <div className="fh-login-track fh-login-t6" />
+          <div className="fh-login-node fh-login-n1" />
+          <div className="fh-login-node fh-login-n2" />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 22, maxWidth: 460 }}>
-          <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.02em' }}>
+        <div className="fh-login-content" style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+          <img src="/brand/logotipo-horizontal-branco.svg" alt="Fiscosys" style={{ height: 21, display: 'block' }} />
+          <span style={{ width: 1, height: 17, background: 'rgba(255,255,255,0.3)' }} />
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 17, fontWeight: 500, color: C.brandMuted, lineHeight: 1 }}>Hub</span>
+        </div>
+
+        <div className="fh-login-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 22, maxWidth: 460 }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.02em' }}>
             Do ERP ao compliance,<br />com rastreabilidade em cada nota.
           </div>
           <div style={{ fontSize: 14, lineHeight: 1.6, color: C.brandMuted, maxWidth: 400 }}>
@@ -108,18 +127,18 @@ export function LoginPage() {
           </div>
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, marginTop: 6 }}>
             <StepCard label="Entrada" value="ERP" />
-            <Dash />
-            <StepCard label="Conector" value="FiscalHub" />
-            <Dash />
+            <div className="fh-login-flow" />
+            <StepCard label="Conector" value="FiscosysHub" />
+            <div className="fh-login-flow fh-login-flow-2" />
             <StepCard label="Saída" value="Plataforma Compliance" />
           </div>
         </div>
 
-        <div style={{ fontSize: 12, color: C.brandFaint }}>© 2026 FiscalHub · Middleware de integração fiscal</div>
+        <div className="fh-login-content" style={{ fontSize: 12, color: C.brandFaint }}>© 2026 Fiscosys · Middleware de integração fiscal</div>
       </div>
 
-      {/* ── Formulário ── */}
-      <div style={{ flex: 1, background: C.page, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, boxSizing: 'border-box' }}>
+      {/* ── Formulário: 45% da largura (no mínimo 420 px); o painel de marca fica com o resto, ligeiramente maior ── */}
+      <div className="fh-login-form" style={{ flex: '0 0 max(420px, 45%)', background: C.page, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, boxSizing: 'border-box' }}>
         <div style={{ width: '100%', maxWidth: 372, display: 'flex', flexDirection: 'column', gap: 18 }}>
           {info && (
             <Banner tone="ok" icon={<CheckCircleOutlineIcon sx={{ fontSize: 16, color: C.okText }} />}>
@@ -215,7 +234,7 @@ const linkBtn: CSSProperties = { fontSize: 12.5, fontWeight: 500, color: C.accen
 function Head({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-      <div style={{ fontSize: 23, fontWeight: 700, letterSpacing: '-0.02em', color: C.ink }}>{title}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 23, fontWeight: 700, letterSpacing: '-0.02em', color: C.ink }}>{title}</div>
       <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.5 }}>{subtitle}</div>
     </div>
   );
@@ -268,14 +287,10 @@ function PrimaryButton({ disabled, children }: { disabled?: boolean; children: R
 function StepCard({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ flex: 1, border: `1px solid ${C.cardBorder}`, background: C.cardBg, borderRadius: 10, padding: '12px 13px', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.brandFaint }}>{label}</div>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: C.stepLabel }}>{label}</div>
       <div style={{ fontSize: 13.5, fontWeight: 600, color: '#fff', lineHeight: 1.25 }}>{value}</div>
     </div>
   );
-}
-
-function Dash() {
-  return <div style={{ alignSelf: 'center', width: 16, borderTop: `1px dashed ${C.brandFaint}`, flexShrink: 0 }} />;
 }
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
@@ -294,6 +309,7 @@ function IconInput({ left, right, ...props }: InputHTMLAttributes<HTMLInputEleme
       <span style={{ position: 'absolute', left: 11, display: 'grid', placeItems: 'center', color: C.faint, pointerEvents: 'none' }}>{left}</span>
       <input
         {...props}
+        className="fh-login-input"
         onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
         onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
         style={{
