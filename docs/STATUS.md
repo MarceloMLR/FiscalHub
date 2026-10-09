@@ -1,53 +1,125 @@
-# STATUS — FiscalHub
+# STATUS — FiscalHub / FiscosysHub
 
 Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expediente.
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-10-05
+**Última atualização:** 2026-10-09
+
+> **Nome:** a empresa é a **Fiscosys** e o produto de exibição é o **FiscosysHub**. Os namespaces C#
+> continuam `FiscalHub.*` de propósito — nome de exibição e namespace são coisas diferentes.
 
 ## Ferramentas da sessão
 
 - **`gh` CLI autenticado** — o Claude cria PR, mostra o diff e mergeia (sempre com aval do Marcelo).
+  Auto-aprovação de PR é recusada com HTTP 422: quem aprova é o Marcelo, na interface.
 - **Windows MCP (PowerShell)** — o Claude roda `dotnet build`/`dotnet test` e comandos git direto.
 - **Azure MCP** — consulta de recursos, Bicep, best practices e **preços** (útil na fase de infra).
 
 ## Onde estamos
 
-**Núcleo (Marco 1) completo e testado, sem Azure:** domínio `GoodsInvoice` (NF-e 55) com a Reforma
-(IBS/CBS/IS), envelope fino, 5 portas, esteira `ProcessAsync` (idempotência → busca → validação →
-envio → registro), `NfeXmlParser`, `GoodsInvoiceToAvalara`, `GoodsInvoiceValidator`.
+**24 projetos (22 fora de `tools/`) · 27 specs · 35 ADRs · 14 changes arquivadas.**
 
-**Adapters e infra reais:**
-- `XmlGoodsInvoiceSource` — lê XML do Blob via `IBlobReader`.
-- `AvalaraComplianceDispatcher` + mock, tradução de status, 204, **token cache** por tenant (semáforo).
-- `SqlProcessingStore` — EF Core, idempotência por índice único `(TenantId, NaturalKey)`.
-- Composição no `FiscalHub.Host` + `docker-compose` (Azurite + SQL).
+**Núcleo:** domínio `GoodsInvoice` (NF-e 55) com a Reforma (IBS/CBS/IS), envelope fino, portas, esteira
+`ProcessAsync` (idempotência → busca → validação → envio → registro), `NfeXmlParser`,
+`GoodsInvoiceToAvalara`, `GoodsInvoiceValidator`.
 
-**E2E local (Etapa 1) RODANDO:** `POST /ingest` → lê XML do Blob → valida → despacha pro mock → grava
-`Submitted` no SQL. Idempotência confirmada ao vivo (2º POST não duplica linha).
+**Entrada — Dynamics 365 F&O (adapter real):** descoberta por polling com change tracking, feed de
+mudanças por janela de data, montagem do documento a partir das entidades fiscais, diretório de empresas
+como porta, descoberta por período, normalização de identificadores. A integração automática tem painel
+próprio na tela, com rebobinar e teste de credencial.
 
-**35 testes verdes. 5 ADRs.** `gh` + Windows MCP em uso (Claude roda build/test/git/docker).
+**Saída — Avalara (adapter real):** contrato de documento, autenticação por tenant com cache de token,
+listagem de estabelecimentos, de-para de estabelecimento pela plataforma, foto da resposta no blob,
+desfecho do despacho. **Já houve envio real contra o sandbox da Avalara.**
+
+**Mensageria:** Service Bus com gatilho de esteira e de descoberta, e **dead-letter visível** — a mensagem
+esgotada vira registro rastreável, sem reprocessar.
+
+**Ciclo assíncrono — fechado só em parte:** o `StatusPoller` consulta os documentos em voo pelo id externo
+e, quando a plataforma responde "ainda processando" até o limite, marca `Unconfirmed`. **Quando a consulta
+FALHA** (401, 5xx), a exceção é engolida sem contar a tentativa e o documento fica `Submitted` para sempre —
+ver "Defeitos conhecidos" abaixo.
+
+**Chamados de suporte:** abertura a partir das notas selecionadas, com os logs de rastreabilidade zipados
+por nota e um resumo de cada uma na descrição. Dois gateways: Local (mock de dev, em uso) e Freshdesk —
+este **não funciona hoje** pelo caminho de configuração documentado, ver "Defeitos conhecidos".
+
+**Dashboard React completo:** Fiscal (cards, grupos, detalhe, filtros de período e modelo), Agendamento
+(imediata, diária D-1, agendada, execuções), Configurações (perfil de conector, adapters, módulos),
+Usuários (CRUD e dados do tenant), módulos reservados, login, tema claro e escuro — e a **identidade
+visual Fiscosys**, aplicada na change `rebrand-dashboard-to-fiscosys`.
+
+**Multi-tenant:** JWT com escopo por tenant, perfil de conector por tenant, segredos por referência ao
+cofre, limite de tenant em todas as consultas.
 
 ## Próximos passos
 
-1. **Etapa 2 — Service Bus:** emulador do Service Bus + trigger (a casca chama `ProcessAsync`) +
-   ingresso (drop de XML no Blob → Event Grid → enfileira). Retry/DLQ nativos.
-2. Poll worker de status (limite de consulta + status `Unconfirmed` — ver brief).
-3. Roteamento por tipo no composition root; Dashboard React.
-4. Marco 2: CT-e (57) e NFS-e como tipos novos (prova de extensibilidade).
+1. **Corrigir os defeitos conhecidos D1, D2 e D3.** Cada um vai numa change própria, com o teste antes, e o D1 vai
+   primeiro. As specs retroativas `integration-status-poll`, `dead-letter-visibility` e `support-ticket` saíram na
+   change `document-implemented-capabilities`. A correção de cada defeito entra nelas por delta.
+2. **Marco 2 — CT-e (57) e NFS-e.** O `d365-document-assembly` é só NF-e 55; 57 e SE já aparecem como
+   filtro em `document-grouping`, `period-discovery` e `d365-change-feed`, mas não têm montagem. É a prova
+   de extensibilidade que o ADR-0001 promete.
+3. **Contábil e Inventário.** Hoje são painéis reservados (`module-navigation`). Cada um é outro domínio,
+   com outro modelo, outras portas e outros adapters.
+4. **Restringir acesso por módulo.** O `module-navigation` registra que hoje é apresentação, e não
+   permissão: "Restringir o acesso por módulo é outra fatia."
+5. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
+   exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
 
 ## Decisões recentes
 
 - Estilo de envio: chamada direta no pipeline (fila de saída fica como evolução) — ADR-0004.
 - 204 no `CheckStatus` = ainda pendente (`Submitted`), não erro.
-- Poll terá limite (deadline + tentativas) e status `Unconfirmed` para "sem retorno da plataforma"
-  (≠ rejeição de negócio) — a implementar.
+- `Unconfirmed` (poll sem resposta), `DeadLettered` (falha de processamento) e `IntegrationError` (recusa
+  da plataforma) são estados próprios, e nenhum dos três bloqueia a reentrada. **No dashboard os três somam
+  no mesmo card "Com erro"** — se separá-los é desejável do ponto de vista do usuário é decisão em aberto.
+- A paleta do dashboard vive em três lugares (`tokens.css`, `theme.ts` e o objeto `C` do login) e um teste,
+  `dashboard/src/theme/palette.test.ts`, impede que divirjam.
 - Commits em PT (sem acento); código/identificadores em inglês; termos fiscais BR mantidos.
+
+## Defeitos conhecidos
+
+Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Documentados na change
+`document-implemented-capabilities`; a correção é change à parte, com teste antes.
+
+- **D1 — o poll trava para todos os tenants.** `StatusPoller.cs:38-42` engole a exceção da consulta antes de
+  gravar, então a tentativa não é contada e o limite nunca move o documento para `Unconfirmed`. Agravante:
+  `SqlProcessingStore.ListPendingAsync` **não filtra por tenant** e pega os 50 mais antigos por ordem de
+  inserção. Cinquenta documentos travados na cabeça da fila param o poll de todo mundo. Dois comentários no
+  código afirmam o contrário do que ele faz. **Prioridade alta.**
+- **D2 — mensagem envenenada na dead-letter.** `DeadLetterTriggerService` só chama `CompleteMessageAsync`
+  depois do `HandleAsync`. Corpo que não desserializa lança, a mensagem nunca é concluída e volta a ser
+  entregue sem fim, com uma linha de log por tentativa. **Prioridade alta.**
+- **D3 — Freshdesk não resolve o segredo.** O seed grava `apiKeyRef` (`kv:…`) e o `FreshdeskSettings` tem o
+  campo com o comentário "resolvida upstream", mas nada resolve: o gateway lê só `apiKey` e falha com
+  "'apiKey' ausente". É o padrão de referência ao cofre do `connector-secret-references` não aplicado aqui.
+  Nunca apareceu porque o dev usa o adapter `Local`. **Agrava:** abrir chamado é função exposta ao usuário — o
+  `TicketModal` abre pelo detalhe da nota (`NoteDialog`) e pela seleção do grupo (`GroupModal`) — mas
+  Configurações → Conectores não tem os campos de chamados: o provider só entra pelo `PUT /connector`. Quem
+  configurar o Freshdesk pelo caminho oficial vê o botão funcionar na tela e o chamado falhar, sem tela onde
+  corrigir.
+- **D4 — menores, aceitos por ora.** O teto de 20 MB está repetido entre o serviço e o `Program.cs`; a
+  descrição do chamado sempre diz que os logs seguem anexados, mesmo sem anexo.
+- **D5 — menores, que entram nas correções acima.** O `StatusPollerOptions` é registrado com `new` e não lê
+  configuração: vai junto com o D1. Um `DeadLetterReason` vazio (não nulo) grava motivo vazio: vai junto com
+  o D2.
+
+> Os gateways Freshdesk e Local **não têm nenhum teste**. Foi por isso que o D3 sobreviveu.
+
+## Riscos e pendências de higiene
+
+- **Rotacionar o client secret do D365** usado nos testes de dev. Ele foi colado numa conversa e deve ser
+  considerado exposto.
+- **Conferir o `establishments` no banco de dev.** O seed está com `{}`, mas houve uma sobreposição
+  temporária em runtime mapeando os quatro CNPJs da Contoso para um contribuinte único da TMSA. Se ainda
+  estiver gravada, tirar quando a Avalara registrar os CNPJs reais.
+- **Um commit de D365 entrou no PR do rebrand** (`bc31f7d`, a `FSFiscalDocumentTaxTransBR` e o
+  `cClassTrib`). Não tem change própria no OpenSpec, e um revert do PR #75 o levaria junto.
 
 ## Threads abertas
 
-- Documento na DLQ não grava `IntegrationError` no store — resolver na fatia de dashboard/DLQ.
 - Seção "como construí com agentes" no README (narrativa do diferencial).
 - (Opcional) mock simular 204 num primeiro GET, para demonstrar o fluxo assíncrono localmente.
 
