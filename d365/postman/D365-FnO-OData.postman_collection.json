@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7f1a2c0-9d3e-4a6b-9e21-fiscalhub0d365",
     "name": "D365 F&O OData — FiscalHub",
-    "description": "Consulta de data entities do Dynamics 365 Finance & Operations via OData.\n\n- URL do ambiente em variável (`environmentUrl`).\n- Token do Entra ID (OAuth2 client_credentials) obtido AUTOMATICAMENTE por um pre-request script na collection e reaproveitado até expirar.\n- Pasta `OData`: requests genéricos ($metadata, service document, query por entidade, filtro por empresa, $count).\n- Pasta `FiscalHub — entidades (14)`: uma requisição por entidade custom do FiscalHub, com teste de HTTP 200 e formato OData. Rode a pasta inteira pelo Runner para o smoke test completo.\n- Pasta `FiscalHub — regressão`: testes de $count que travam defeitos já encontrados.\n- Pasta `FiscalHub — contábil (3)`: lançamentos, plano de contas e centro de custo, com teste de publicação e o aceite estrutural das junções.\n- Pasta `FiscalHub — inventário (3)`: saldo atual, movimentos e armazéns, com teste de publicação, aceite estrutural das junções e o saldo na data de corte por dois caminhos.\n\nAntes de usar: preencha `tenantId`, `clientId`, `clientSecret` e `environmentUrl` (no Environment 'FiscosysDev' ou nas variáveis da collection). Veja o README.md em d365/postman/.",
+    "description": "Consulta de data entities do Dynamics 365 Finance & Operations via OData.\n\n- URL do ambiente em variável (`environmentUrl`).\n- Token do Entra ID (OAuth2 client_credentials) obtido AUTOMATICAMENTE por um pre-request script na collection e reaproveitado até expirar.\n- Pasta `OData`: requests genéricos ($metadata, service document, query por entidade, filtro por empresa, $count).\n- Pasta `FiscalHub — entidades (14)`: uma requisição por entidade custom do FiscalHub, com teste de HTTP 200 e formato OData. Rode a pasta inteira pelo Runner para o smoke test completo.\n- Pasta `FiscalHub — regressão`: testes de $count que travam defeitos já encontrados.\n- Pasta `FiscalHub — contábil (3)`: lançamentos, plano de contas e centro de custo, com teste de publicação e o aceite estrutural das junções.\n- Pasta `FiscalHub — inventário (3)`: saldo atual, movimentos e armazéns, com teste de publicação, aceite estrutural das junções e o saldo na data de corte por dois caminhos.\n- Pasta `FiscalHub — reforma e notas referenciadas`: os campos da reforma (por $select, que falha com 400 num pacote antigo) e a FSFiscalDocumentReferencedBR.\n\nAntes de usar: preencha `tenantId`, `clientId`, `clientSecret` e `environmentUrl` (no Environment 'FiscosysDev' ou nas variáveis da collection). Veja o README.md em d365/postman/.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -2809,6 +2809,387 @@
               "pm.test('Status 200', () => pm.response.to.have.status(200));"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "FiscalHub — reforma e notas referenciadas",
+      "description": "Os campos da reforma e a entidade de notas referenciadas, acrescentados em 2026-10-14 (d365/04, secao 4.4).\n\nCada request faz $select dos campos novos: se o pacote no ambiente for anterior, o OData responde HTTP 400 (propriedade desconhecida) e o teste de status falha. Rode depois do build, do deploy e do sync.\n\n- Publicacao: FSFiscalDocumentReferencedBRs no service document.\n- FSFiscalDocumentReferencedBRs: smoke test e os 24 campos.\n- Cabecalho: local da prestacao do servico (e o IBGE direto) e o motivo de nao informar o NIF.\n- Linhas: NBS e indicador da operacao.\n- Impostos da nota: NoPostingTaxAmount (CBS/IBS na transicao), CST da cClassTrib e da suspensao, reducao da base.\n- Impostos contabeis: NoPostingTaxAmount.\n- TaxServiceCodeEntities (padrao): natureza de rendimento dos retidos; exige o privilegio TaxServiceCodeEntityView na role.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Vale para todos os requests desta pasta",
+              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscosysHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
+              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FiscosysHubIntegration (privilegios FSFiscalDocumentReferencedBRView e TaxServiceCodeEntityView)').to.not.include(pm.response.code));",
+              "pm.test('Status 200 (400 = campo novo ainda nao publicado)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Publicação — FSFiscalDocumentReferencedBRs no service document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data"
+              ]
+            },
+            "description": "Confere se a entidade nova de notas referenciadas aparece na lista de entity sets do OData. Se faltar, o build, o deploy ou o sync nao chegou ao ambiente: o sync sozinho nao publica entidade nova."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Reforma] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const nomes = (Array.isArray(j.value) ? j.value : []).map(r => r.name);",
+                  "pm.test('FSFiscalDocumentReferencedBRs publicada', () => pm.expect(nomes, 'FSFiscalDocumentReferencedBRs nao esta no service document: faca build, deploy e sync do FiscosysHubIntegration').to.include('FSFiscalDocumentReferencedBRs'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "FSFiscalDocumentReferencedBRs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentReferencedBRs?cross-company=true&$top={{top}}",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentReferencedBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                }
+              ]
+            },
+            "description": "Notas referenciadas (FiscalDocumentReferenced_BR): a nota de debito, de credito, de devolucao ou complementar aponta para a original, na nota inteira ou por linha. A original vem pela ReferencedFiscalDocument (nota do sistema) ou pela ExternalFiscalDocument (nota de fora, com chave e numero).\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Reforma] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Reforma] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "const esperados = [\"FiscalDocumentReferencedRecId\",\"FiscalDocumentRecId\",\"FiscalDocumentLineRecId\",\"FiscalDocumentSourceText\",\"ReferencedFiscalDocumentRecId\",\"ReferencedAccessKey\",\"ReferencedFiscalDocumentNumber\",\"ReferencedFiscalDocumentSeries\",\"ReferencedModel\",\"ReferencedFiscalDocumentDate\",\"ReferencedDirection\",\"ReferencedFiscalDocumentIssuer\",\"ReferencedFiscalDocumentAccountType\",\"ReferencedFiscalDocumentAccountNum\",\"ExternalFiscalDocumentRecId\",\"ExternalAccessKey\",\"ExternalFiscalDocumentNumber\",\"ExternalFiscalDocumentSeries\",\"ExternalModel\",\"ExternalIssueDate\",\"ExternalDirection\",\"ExternalFiscalDocumentIssuer\",\"ExternalFiscalDocumentAccountType\",\"ExternalFiscalDocumentAccountNum\"];",
+                  "pm.test('Campos expostos pela entidade', function () {",
+                  "  if (rows.length === 0) { console.warn('[Reforma] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                  "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                  "  pm.expect(faltando, 'campos ausentes (mapeamento errado ou entidade antiga no ambiente): ' + faltando.join(', ')).to.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cabeçalho: local da prestação e NIF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentBRs?cross-company=true&$top={{top}}&$select=FiscalDocumentRecId,Model,CityWhereServicePerformed,CityWhereServicePerformedIBGECode,IsServiceLocationForeign,ServiceLocationDomestic,ServiceLocationDomesticIBGECode,ServiceLocationNonDomestic,MissingNIFReasonType",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                },
+                {
+                  "key": "$select",
+                  "value": "FiscalDocumentRecId,Model,CityWhereServicePerformed,CityWhereServicePerformedIBGECode,IsServiceLocationForeign,ServiceLocationDomestic,ServiceLocationDomesticIBGECode,ServiceLocationNonDomestic,MissingNIFReasonType"
+                }
+              ]
+            },
+            "description": "Campos novos do cabecalho: o IBGE direto do municipio da prestacao (a juncao da LogisticsAddresssCity agora tem os campos explicitos), o grupo de local da prestacao da NFS-e Nacional e o motivo de nao informar o NIF."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Reforma] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Reforma] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "pm.test('Municipio da prestacao resolve o IBGE', function () {",
+                  "  const sem = rows.filter(r => r.CityWhereServicePerformed && r.CityWhereServicePerformed !== 0 && !r.CityWhereServicePerformedIBGECode);",
+                  "  pm.expect(sem.length, sem.length + ' notas com CityWhereServicePerformed preenchido e sem IBGE: a juncao da LogisticsAddresssCity nao resolveu').to.equal(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Linhas: NBS e indicador da operação",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentLineBRs?cross-company=true&$top={{top}}&$select=FiscalDocumentLineRecId,ServiceCode,NBSCode,IndOpCode",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentLineBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                },
+                {
+                  "key": "$select",
+                  "value": "FiscalDocumentLineRecId,ServiceCode,NBSCode,IndOpCode"
+                }
+              ]
+            },
+            "description": "Codigo NBS e indicador da operacao da linha (extensao da FiscalDocumentLine_BR), pelos codigos das tabelas NBSCodes_BR e IndOpCodes_BR."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Reforma] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Reforma] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Impostos da nota: CBS/IBS, CST e redução",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentTaxTransBRs?cross-company=true&$top={{top}}&$select=FiscalDocumentTaxTransRecId,FiscalTaxType,TaxAmount,NoPostingTaxAmount,ClassTribCode,ClassTribCSTCode,ClassTribSuspensionCode,ClassTribSuspensionCSTCode,ClassTribTaxBaseDeductionRate",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentTaxTransBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                },
+                {
+                  "key": "$select",
+                  "value": "FiscalDocumentTaxTransRecId,FiscalTaxType,TaxAmount,NoPostingTaxAmount,ClassTribCode,ClassTribCSTCode,ClassTribSuspensionCode,ClassTribSuspensionCSTCode,ClassTribTaxBaseDeductionRate"
+                }
+              ]
+            },
+            "description": "Na transicao de 2026, CBS e IBS sao No posting: o TaxAmount vem zero e o valor fica no NoPostingTaxAmount. O CST vem da cClassTrib (CSTTable_BR), e a suspensao tem o seu."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Reforma] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Reforma] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Impostos contábeis: NoPostingTaxAmount",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSTaxTransBRs?cross-company=true&$top={{top}}&$select=TaxTransRecId,TaxType,TaxAmount,NoPostingTaxAmount",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSTaxTransBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                },
+                {
+                  "key": "$select",
+                  "value": "TaxTransRecId,TaxType,TaxAmount,NoPostingTaxAmount"
+                }
+              ]
+            },
+            "description": "O mesmo valor de CBS/IBS do lado contabil (TaxTrans.NoPostingTaxAmount)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Reforma] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Reforma] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Natureza de rendimento (TaxServiceCodeEntities, padrão)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/TaxServiceCodeEntities?cross-company=true&$top={{top}}&$select=ServiceCode,IncomeCode",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "TaxServiceCodeEntities"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "{{top}}"
+                },
+                {
+                  "key": "$select",
+                  "value": "ServiceCode,IncomeCode"
+                }
+              ]
+            },
+            "description": "Entidade padrao da Microsoft: codigo de servico e natureza de rendimento (REINF) usada nos impostos retidos. O codigo nao e unico (a chave inclui pais, UF e cidade). Exige o privilegio padrao TaxServiceCodeEntityView na role FiscosysHubIntegration."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Reforma] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Reforma] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

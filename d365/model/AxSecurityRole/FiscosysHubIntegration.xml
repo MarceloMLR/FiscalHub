@@ -75,6 +75,12 @@
 		<AxSecurityPrivilegeReference>
 			<Name>FiscalEstablishmentEntityView</Name>
 		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSFiscalDocumentReferencedBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>TaxServiceCodeEntityView</Name>
+		</AxSecurityPrivilegeReference>
 	</Privileges>
 	<SubRoles />
 </AxSecurityRole>

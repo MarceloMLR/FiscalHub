@@ -144,6 +144,20 @@ O que cada parte testa:
 traria o próprio dia. O request filtra com `ge` na data de corte e o script descarta o dia; o teste confere que nenhum movimento
 ficou de fora.
 
+## Pasta `FiscalHub — reforma e notas referenciadas`
+
+Os campos da reforma e a `FSFiscalDocumentReferencedBR`, acrescentados em 2026-10-14 (`d365/04`, seção 4.4). Rode
+depois do build, do deploy e do sync.
+
+- **Publicação:** a `FSFiscalDocumentReferencedBRs` no service document.
+- **`FSFiscalDocumentReferencedBRs`:** smoke test e os 24 campos. Os campos só são conferidos quando há linha, e o
+  fiscosysdev não tem nota referenciada.
+- **Cabeçalho, linhas, impostos da nota e impostos contábeis:** `$select` dos campos novos. Num pacote antigo o OData
+  responde **400** (propriedade desconhecida), e o teste de status falha com essa dica. No cabeçalho, toda nota com
+  `CityWhereServicePerformed` precisa trazer o IBGE.
+- **`TaxServiceCodeEntities`** (entidade padrão): natureza de rendimento. Um 403 aqui é o `TaxServiceCodeEntityView`
+  que falta na role.
+
 ## Pasta `FiscalHub — diretório e descoberta por período`
 
 O que o hub lê do D365 para a integração manual e o agendamento (change `erp-company-directory-and-card-filters`):

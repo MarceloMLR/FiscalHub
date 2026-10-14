@@ -12,13 +12,13 @@ exposta no OData; cada implementador cria uma entidade pública com nome variáv
 Em vez de customizar o adapter por cliente, **nós publicamos** entidades de **nome fixo** (prefixo `FS`)
 como projeção sobre as tabelas padrão. O adapter sempre lê o mesmo nome.
 
-## As 22 entidades
+## As 23 entidades
 
 Todas públicas, somente leitura, sem Data Management, no modelo `FiscosysHubIntegration`:
 
 | Grupo | Entidades |
 |---|---|
-| Documento | `FSFiscalDocumentBR`, `FSFiscalDocumentLineBR` |
+| Documento | `FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSFiscalDocumentReferencedBR` |
 | Impostos e encargos da nota | `FSFiscalDocumentTaxTransBR`, `FSFiscalDocumentMiscChargeBR` |
 | Contábil (fora da montagem) | `FSTaxTransBR`, `FSTaxWithholdBR`, `FSMarkupTransBR`, `FSTaxTableBR` |
 | Cadastros | `FSFiscalDocModelBR`, `FSItemBR`, `FSUnitOfMeasureBR`, `FSAddressCityBR`, `FSCountryRegionBR`, `FSPostalAddressBR` |
@@ -37,6 +37,11 @@ registration no F&O.
 privilégios e os nomes no OData não mudaram. Num ambiente que já tem o pacote antigo, ele sai antes do deploy do novo
 (os objetos têm o mesmo nome e não convivem em dois módulos), e a role nova precisa ser atribuída de novo ao usuário da
 app.
+
+**Reforma e notas referenciadas (14/10/2026).** Campos novos em quatro entidades (CBS/IBS sem contabilização, CST da
+cClassTrib, local da prestação do serviço com IBGE, motivo do NIF, NBS e indicador da operação), a entidade nova
+`FSFiscalDocumentReferencedBR` e o privilégio padrão `TaxServiceCodeEntityView` na role, para a natureza de rendimento
+dos retidos. O detalhe está no `04`, seção 4.4.
 
 **A entidade padrão que o hub também lê.** O diretório de empresas e a descoberta por período (ADR-0032) leem a
 `FiscalEstablishments`, a entidade padrão da Microsoft sobre o cadastro de estabelecimentos fiscais, e não uma `FS*`: a
@@ -95,8 +100,8 @@ forma, em vez de misturar documentos em uma pasta comum.
 
 A antiga fase 2 (CoC + business event disparando no status) **saiu do roadmap**. Dois motivos:
 não cobre todos os caminhos de escrita, então nunca poderia ser a garantia (ADR-0023); e exige X++
-no pacote, que hoje é **metadado puro** — 22 entidades, 22 privilégios, uma role (que referencia também o
-privilégio padrão `FiscalEstablishmentEntityView`), zero código.
+no pacote, que hoje é **metadado puro** — 23 entidades, 23 privilégios, uma role (que referencia também os
+privilégios padrão `FiscalEstablishmentEntityView` e `TaxServiceCodeEntityView`), zero código.
 
 Evento só compra **latência**, e com poll de 10s a detecção fica em 5s na média. Para despachar nota
 já aprovada, isso não é gargalo.

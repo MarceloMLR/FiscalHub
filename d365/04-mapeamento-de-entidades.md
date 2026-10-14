@@ -65,8 +65,9 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 | 20 | `FSInventOnHandBR` | `InventSum` | saldo atual — Parte III (22.1) |
 | 21 | `FSInventTransBR` | `InventTrans` + `InventDim` + `InventTransOrigin` | movimentos depois da data — Parte III (22.2) |
 | 22 | `FSInventLocationBR` | `InventLocation` → estabelecimento fiscal | armazém, estabelecimento e propriedade — Parte III (22.3) |
+| 23 | `FSFiscalDocumentReferencedBR` | `FiscalDocumentReferenced_BR` + nota original | notas referenciadas (4.4) |
 
-Todas criadas, publicadas e validadas contra o ambiente.
+Todas criadas, publicadas e validadas contra o ambiente, menos a 23 e os campos da 4.4 (escritos em 2026-10-14, falta publicar).
 Todas `IsReadOnly = Yes` e `Is Public = Yes`.
 **Data management só na `FSFiscalDocumentBR`**, e talvez nem isso (seção 8).
 
@@ -369,10 +370,62 @@ INSSRetained, CSLL, ICMSST, ICMSDiff, INSSCPRB, CBS, IBSCity, IBSState
    **O hub ainda não lê esses campos.** O `$select` dos impostos não os pede, e a montagem deixa o cClassTrib vazio
    (spec `d365-document-assembly`). Nenhum dos 547 impostos do `fiscosysdev` tem cClassTrib.
 
-> ⚠️ **Imposto Seletivo (IS) não aparece** em `TaxType_BR` nesta versão. Verificar se vem em `OtherTax`,
-> em outra estrutura, ou se ainda não foi implementado.
+> ⚠️ **Imposto Seletivo (IS) não aparece** em `TaxType_BR` na 10.0.47. A Microsoft o prevê para a onda de 2027.
 
-O legado **não mapeia nada disso** — é pré-Reforma.
+O legado da Superior **não mapeia nada disso**. O da Vestacy mapeia CBS e IBS (4.4).
+
+### 4.4 Reforma, notas referenciadas e o legado da Vestacy (2026-10-14)
+
+O legado fiscal da Vestacy (`CallFiscalCompletoAsync`) e uma varredura do metadado da 10.0.47 (build 10.0.2527.160)
+mostraram dados que o D365 já tem e o pacote não expunha. Entraram todos de uma vez, antes do primeiro cliente.
+**XML escrito em 2026-10-14; falta build, deploy, sync e o aceite.**
+
+| Entidade | Campo novo | Origem | Para quê |
+|---|---|---|---|
+| `FSFiscalDocumentTaxTransBR` | `NoPostingTaxAmount` | `FiscalDocumentTaxTrans_BR.NoPostingTaxAmount` | valor de CBS/IBS: na transição de 2026 eles são "No posting", o `TaxAmount` vem zero e o valor fica aqui (o legado da Vestacy lê o da `TaxTrans`) |
+| | `ClassTribCSTCode` | `CSTTable_BR.Code`, pela `CClassTribTable_BR.CSTTable` | CST de IBS/CBS (o legado lê da cClassTrib) |
+| | `ClassTribSuspensionCSTCode` | o mesmo, pela cClassTrib de suspensão | CST da desoneração |
+| | `ClassTribTaxBaseDeductionRate` | `CClassTribTable_BR.TaxBaseDeductionRate` | redução da base da classificação |
+| `FSTaxTransBR` | `NoPostingTaxAmount` | `TaxTrans.NoPostingTaxAmount` | o mesmo valor do lado contábil |
+| `FSFiscalDocumentBR` | `CityWhereServicePerformedIBGECode` | `LogisticsAddressCity.IBGECode_BR`, pelo `CityWhereServicePerformed` | IBGE do município da prestação, sem segunda consulta |
+| | `IsServiceLocationForeign`, `ServiceLocationDomestic`, `ServiceLocationNonDomestic` | extensão da `FiscalDocument_BR` (ApplicationSuite) | grupo "local da prestação" da NFS-e Nacional |
+| | `ServiceLocationDomesticIBGECode` | `LogisticsAddressCity.IBGECode_BR`, pelo `ServiceLocationDomestic_BR` | IBGE do local da prestação no país |
+| | `MissingNIFReasonType` | extensão da `FiscalDocument_BR` | motivo de não informar o NIF do estrangeiro |
+| `FSFiscalDocumentLineBR` | `NBSCode` | `NBSCodes_BR.NBSCode`, pelo `NBSCode_BR` da linha | código NBS |
+| | `IndOpCode` | `IndOpCodes_BR.IndOpCode`, pelo `IndOpCode_BR` da linha | indicador da operação (NFS-e) |
+
+**A junção do município da prestação mudou.** A fonte `LogisticsAddresssCity` da `FSFiscalDocumentBR` existia sem campo,
+com `JoinRelationName` `LogisticsAddressCity`, enquanto a relação da tabela se chama `LogisticsAddresssCity` (três "s").
+Passou a ter `Field`/`JoinDataSource`/`RelatedField` explícitos (`CityWhereServicePerformed` → `RecId`). O aceite
+confere que toda nota com município da prestação traz o IBGE.
+
+**Entidade nova: `FSFiscalDocumentReferencedBR`** (`FiscalDocumentReferenced_BR`). A nota de débito, de crédito, de
+devolução ou complementar aponta para a original, na nota inteira ou numa linha (`FiscalDocumentLineRecId` é a linha da
+nota que referencia). A original vem por um de dois caminhos, cada um com junção externa:
+
+- `ReferencedFiscalDocument` → `FiscalDocument_BR` (nota do sistema): campos `Referenced*` com chave, número, série,
+  modelo, data, direção, emissor, tipo e conta.
+- `ExternalReferencedFiscalDocument` → `ExternalFiscalDocument_BR` (nota de fora, digitada como referência fiscal):
+  campos `External*` com os mesmos dados.
+
+O hub filtra por `FiscalDocumentRecId`. A finalidade (`Purpose`: `DebitNote` = 5, `CreditNote` = 6) e o tipo da nota
+(`DebitCreditNoteType`: multa e juros, adiantamento, perda de estoque, devolução, cancelamento de crédito, devolução
+parcial) já estavam na `FSFiscalDocumentBR`. O fiscosysdev não tem nota referenciada.
+
+**Entidade padrão: `TaxServiceCodeEntities`.** A natureza de rendimento (REINF) dos impostos retidos vem do código de
+serviço (`IncomeCode`, de `IncomeClassification_BR`). A role referencia o privilégio padrão `TaxServiceCodeEntityView`,
+como já fazia com a `FiscalEstablishments`. O código de serviço não é único (a chave da `TaxServiceCode_BR` inclui país,
+UF e cidade), por isso não entrou como junção na linha. No fiscosysdev: 2 códigos (14.06 e 7.10), sem natureza.
+
+**O que não existe na 10.0.47** (nada a expor): Imposto Seletivo (IS), crédito presumido de IBS/CBS, devolução
+personalizada, compra governamental, tributação monofásica, CIB, e a chave de 50 posições da NFS-e autorizada (a doc da
+Microsoft manda guardar numa extensão; o `AccessKey` tem 45 posições). A 10.0.47 sai de suporte em 2026-11-20: depois de
+atualizar o ambiente, repetir a varredura.
+
+**O hub ainda não lê nenhum desses campos.** É trabalho do hub, separado do pacote.
+
+**Aceite:** pasta `FiscalHub — reforma e notas referenciadas` do Postman. Cada request faz `$select` dos campos novos, e
+um pacote antigo responde 400.
 
 ---
 
@@ -447,7 +500,9 @@ tenant sem hardcode.
 conta contábil está comentado e a conta vem do `FinancialLedgerDimensionDisplayValue`. Se a dimensão
 resolve, saem do escopo.
 
-**`TaxServiceCodeEntities`** — a query devolve o valor que o código já tinha. Provável descarte.
+**`TaxServiceCodeEntities`** — no legado da Superior, a query devolvia o valor que o código já tinha. No da Vestacy,
+dá a natureza de rendimento dos retidos: entra como entidade padrão, com o privilégio `TaxServiceCodeEntityView` na role
+(4.4).
 
 **`FiscalEstablishments`** — a entidade padrão da Microsoft sobre o cadastro de estabelecimentos fiscais. **O hub a lê
 desde 2026-10-02** (ADR-0032, change `erp-company-directory-and-card-filters`), para duas coisas:
@@ -479,7 +534,7 @@ Os dados do cabeçalho continuam desnormalizados (2.5): a montagem não consulta
 
 ## 8. Change tracking e data management
 
-**Estado atual (implementado e validado):** as 22 entidades (as 16 fiscais e as 6 do contábil e do inventário) estão com
+**Estado atual (implementado e validado):** as 23 entidades (as 17 fiscais e as 6 do contábil e do inventário) estão com
 `DataManagementEnabled = No` e **sem staging table** — ver `05`, seção 4. O cabeçalho expõe o campo
 de data como **`SysModifiedDateTime`** (alias de `ModifiedDateTime`, seguindo a convenção das
 entidades padrão da Microsoft); ver `05`, seção 5.

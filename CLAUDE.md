@@ -109,15 +109,16 @@ Antes de criar abstração nova, procure a porta/analógico que já existe (`gre
 
 O conector do ERP é um **hook fino e genérico**, propositalmente burro:
 
-- **22 data entities** OData com prefixo `FS`, todas públicas, somente leitura e sem Data Management. A lista
+- **23 data entities** OData com prefixo `FS`, todas públicas, somente leitura e sem Data Management. A lista
   completa está em `d365/README.md`.
-  - **16 fiscais** (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR`…): expõem a nota e os cadastros
+  - **17 fiscais** (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR`…): expõem a nota e os cadastros
     dela.
   - **6 do contábil e do inventário** (Partes II e III do `04`): o hub ainda não as lê. Contábil e Inventário são
     fatias próprias (ADR-0031).
 - **Uma entidade padrão da Microsoft:** o hub também lê a `FiscalEstablishments` (o cadastro de estabelecimentos), para o
   diretório de empresas e a descoberta por período (ADR-0032). Não é `FS*`: a Microsoft a publica com nome fixo. A role
-  `FiscosysHubIntegration` referencia o privilégio padrão dela, o `FiscalEstablishmentEntityView`.
+  `FiscosysHubIntegration` referencia o privilégio padrão dela, o `FiscalEstablishmentEntityView`. Ela também referencia o
+  `TaxServiceCodeEntityView`, da `TaxServiceCodeEntities` (natureza de rendimento dos retidos), que o hub ainda não lê.
 - **Descoberta por polling** sobre a `FSFiscalDocumentBR` é a **garantia** (ADR-0023). O hub
   pergunta o que mudou; o ERP não precisa avisar.
 - **Business event** + **CoC** continuam previstos como **otimizador de latência opcional**, não
