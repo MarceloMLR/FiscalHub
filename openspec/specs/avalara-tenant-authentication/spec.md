@@ -8,55 +8,31 @@ endereço de outro ambiente ou de outro tenant.
 
 ## Requirements
 
-### Requirement: Credencial por tenant e por ambiente
-
-A credencial MUST vir das settings de saída do tenant, na seção do ambiente ativo. A seção traz:
-
-- a URL base do ambiente (`baseUrl`);
-- o identificador do cliente (`clientId`);
-- a referência ao segredo (`clientSecretRef`);
-- opcionalmente, o endpoint de token (`tokenUrl`). Sem ele, o endpoint é a URL base mais o caminho de token
-  da plataforma.
-
-Nenhuma configuração global do adapter fornece credencial ou URL. Faltando a URL base, o identificador ou a
-referência, o envio MUST ser rejeitado como configuração do conector, nomeando os campos e o caminho, sem
-nenhuma requisição.
-
-#### Scenario: Dois tenants, duas credenciais
-- **WHEN** o tenant-a e o tenant-b enviam notas, cada um com `clientId` e `clientSecretRef` próprios
-- **THEN** o pedido de token de cada um leva o próprio `clientId` e o próprio segredo, ao endpoint da própria
-  seção
-
-#### Scenario: Troca de ambiente
-- **WHEN** o tenant-a passa o ambiente ativo de Sandbox para Production
-- **THEN** o envio seguinte usa a credencial e as URLs da seção `production`
-
-#### Scenario: Seção sem credencial
-- **WHEN** a seção do ambiente ativo não tem `clientId` nem o Client Secret configurado
-- **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que nomeia
-  `clientId` e o Client Secret em `OutboundSettings.<ambiente>` e aponta a tela de conectores
-- **AND** nenhuma requisição é feita
-
-#### Scenario: Seção sem URL base
-- **WHEN** a seção do ambiente ativo tem credencial, mas não tem `baseUrl`
-- **THEN** o documento é registrado como rejeitado, com motivo de configuração que nomeia `baseUrl`
-- **AND** nenhuma requisição é feita, e não há fallback para outra URL
-
 ### Requirement: A credencial só vai ao endereço do próprio ambiente
 
-O pedido de token e o token MUST ir só às URLs da mesma seção do mesmo tenant. As URLs MUST usar `https`.
-A exceção é o endereço de loopback, que é o mock local. Uma URL fora disso MUST ser rejeitada como
-configuração do conector, antes de qualquer requisição.
+O pedido de token MUST ir só ao endpoint de token da conta de plataforma do próprio tenant, e o token, só às URLs base
+dos conectores dessa conta. As URLs MUST usar `https`. A exceção é o endereço de loopback, que é o mock local. Uma URL
+fora disso MUST ser rejeitada como configuração do conector, antes de qualquer requisição — e já é recusada na
+gravação (`platform-account-connectors`), o que esta regra repete na leitura para o que chegou ao banco por outro
+caminho.
+
+Como cada instância atende um ambiente só, não existe caminho em que a credencial de uma instância alcance o endereço
+configurado em outra.
 
 #### Scenario: URL sem TLS fora do loopback
-- **WHEN** a seção do ambiente ativo traz `"baseUrl": "http://sandbox.exemplo.com/"`
-- **THEN** o documento é registrado como rejeitado, com motivo de configuração que cita a exigência de
-  `https`
+- **WHEN** a base da versão que a integração usa, gravada por SQL, é `http://sandbox.exemplo.com/`
+- **THEN** o documento é registrado como rejeitado, com motivo de configuração que cita a exigência de `https`
 - **AND** nenhuma requisição é feita
 
+#### Scenario: Endpoint de token sem TLS
+- **WHEN** o `tokenUrl` da conta, gravado por SQL, é `http://login.exemplo.com/oauth/token`
+- **THEN** o documento é registrado como rejeitado, com motivo de configuração que cita a exigência de `https`
+- **AND** nenhuma requisição é feita, nem ao endpoint de token
+
 #### Scenario: Mock local
-- **WHEN** a seção traz `"baseUrl": "http://localhost:5100/"`
-- **THEN** a URL é aceita
+- **WHEN** a base da versão que a integração usa é `http://localhost:5100/`, e o `tokenUrl` da conta é
+  `http://localhost:5100/oauth/token`
+- **THEN** as duas URLs são aceitas
 
 ### Requirement: Autenticação real por padrão
 
@@ -84,10 +60,15 @@ O token MUST ser reusado enquanto for válido além da margem de renovação, e 
 concorrência, cada credencial MUST ter uma única busca em andamento. O cache MUST distinguir:
 
 - o tenant;
-- o ambiente;
-- o endpoint de token;
+- a conta de plataforma;
+- o endpoint de token da conta;
 - o identificador do cliente;
 - a versão do segredo. A rotação do segredo gera um token novo.
+
+**O cache MUST NOT distinguir o conector.** A credencial e o endpoint de token são da conta, e dois conectores sob ela
+compartilham o token: chavear por conector, ou por um endpoint derivado da base de cada um, faria a plataforma receber
+dois pedidos para a mesma credencial, sem motivo. **O ambiente também não entra na chave**, porque a instância é de um
+ambiente só.
 
 Dois tenants nunca compartilham um token, nem com credenciais idênticas. Um token sem validade informada
 MUST ser usado na requisição e não entrar no cache.
@@ -95,6 +76,10 @@ MUST ser usado na requisição e não entrar no cache.
 #### Scenario: Reuso
 - **WHEN** o tenant-a envia duas notas seguidas, e o token vale por mais tempo que a margem
 - **THEN** o endpoint de token é chamado uma vez
+
+#### Scenario: Dois conectores compartilham o token
+- **WHEN** dois conectores do tenant-a, sob a mesma conta, fazem requisições seguidas dentro da validade do token
+- **THEN** o endpoint de token é chamado uma vez, e os dois usam o mesmo token
 
 #### Scenario: Renovação dentro da margem
 - **WHEN** o token do tenant-a vence em menos tempo que a margem de renovação
@@ -171,8 +156,8 @@ endpoint de token. Uma credencial nova (outro `clientId` ou outro segredo) não 
 ### Requirement: Salvar o perfil esquece a recusa e os tokens do tenant
 
 Gravar o perfil de conector de um tenant pela tela de conectores MUST esquecer, na hora, a recusa lembrada
-e os tokens em cache daquele tenant, em todos os ambientes. Isso vale mesmo dentro do intervalo, e mesmo
-quando a credencial gravada é igual à anterior, porque a correção pode ter sido feita do lado da
+e os tokens em cache daquele tenant, em todas as contas e todos os conectores. Isso vale mesmo dentro do intervalo, e
+mesmo quando a credencial gravada é igual à anterior, porque a correção pode ter sido feita do lado da
 plataforma. Os outros tenants MUST NOT ser afetados. Uma gravação recusada na validação, antes de qualquer
 escrita, não esquece nada.
 
@@ -215,6 +200,9 @@ do envio. Quem freia o botão é o endpoint de teste. O resultado do teste MUST 
   intervalo. Assim, as notas em voo não viram, cada uma, uma tentativa de login com a credencial errada.
 - **Os outros tenants:** MUST NOT ser afetados.
 
+O teste é da **conta**, e não de um conector: é a credencial da conta que ele troca por um token, no endpoint de token
+da conta.
+
 #### Scenario: Liberação do lado da plataforma, provada pelo teste
 - **WHEN** o endpoint de token recusou a credencial do tenant-a no envio, a plataforma liberou o cliente, e o Admin
   testa a credencial dentro do intervalo, sem mudar nada
@@ -222,10 +210,63 @@ do envio. Quem freia o botão é o endpoint de teste. O resultado do teste MUST 
 - **AND** o envio seguinte do tenant-a pede token na hora, sem esperar o intervalo
 
 #### Scenario: Recusa no teste vale para o envio
-- **WHEN** o teste da credencial do tenant-a no `Sandbox` é recusado, e uma nota do tenant-a vai ser enviada logo
-  depois no `Sandbox`
+- **WHEN** o teste da credencial da conta `Avalara` do tenant-a é recusado, e uma nota do tenant-a vai ser enviada logo
+  depois
 - **THEN** o envio falha com a recusa lembrada, sem pedir token
 
 #### Scenario: Outro tenant não é afetado pelo teste
 - **WHEN** o tenant-a e o tenant-b têm credenciais recusadas, e o teste do tenant-a dá certo
 - **THEN** o envio seguinte do tenant-b continua falhando com a recusa lembrada, sem pedir token
+
+### Requirement: Credencial da conta de plataforma, URL base da versão da integração
+
+A credencial e o endpoint de token MUST vir da **conta de plataforma** do tenant, e a URL base, do **conector** do
+adapter que despacha (`platform-account-connectors`). O ambiente é o da instância, e não um campo do perfil.
+
+- **Na conta:** o identificador do cliente (`clientId`), a referência ao segredo (`clientSecretRef`) e o endpoint de
+  token (`tokenUrl`). O endpoint de token é **obrigatório**: não existe derivação a partir da URL base de um conector,
+  nem de caminho de token na configuração do host. A credencial é da conta, e o endereço que a troca por um token
+  também.
+- **No conector:** o mapa de URLs base, com uma entrada por versão de API declarada pelo adapter, e o resto das
+  settings do produto. Cada integração declara **qual versão usa**, e o envio toma a base dessa versão. A chave da versão
+  escolhe a base e não entra na URL (`platform-account-connectors`).
+
+A credencial é uma só para todos os conectores da conta: o token emitido vale para todos os produtos daquela
+plataforma naquele ambiente (ADR-0036 §2). Como o endpoint de token é da conta, ele é o mesmo para todos os conectores
+dela, qualquer que seja a versão de base que cada integração usa.
+
+Nenhuma configuração global do adapter fornece credencial ou URL. Faltando o `clientId`, a referência do segredo, o
+`tokenUrl` ou a URL base da versão que a integração usa, o envio MUST ser rejeitado como configuração do conector,
+nomeando os campos e o lugar deles — a conta ou o conector —, sem nenhuma requisição.
+
+#### Scenario: Dois tenants, duas credenciais
+- **WHEN** o tenant-a e o tenant-b enviam notas, cada um com a sua conta, com `clientId` e `clientSecretRef` próprios
+- **THEN** o pedido de token de cada um leva o próprio `clientId` e o próprio segredo, ao endpoint da própria conta
+
+#### Scenario: Dois conectores, um token
+- **WHEN** o tenant-a tem dois conectores sob a mesma conta, e os dois precisam falar com a plataforma
+- **THEN** os dois usam a credencial da conta
+- **AND** o endpoint de token não é chamado uma vez por conector
+
+#### Scenario: Conta sem credencial
+- **WHEN** a conta de plataforma do tenant não tem `clientId` nem o Client Secret configurado
+- **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que nomeia `clientId` e o
+  Client Secret na conta e aponta a tela de conectores
+- **AND** nenhuma requisição é feita
+
+#### Scenario: Conta sem endpoint de token
+- **WHEN** a conta de plataforma do tenant tem `clientId` e o Client Secret configurados, e não tem `tokenUrl`
+- **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que nomeia o `tokenUrl` na
+  conta e aponta a tela de conectores
+- **AND** nenhuma requisição é feita, nem a um endpoint de token montado a partir da URL base do conector
+
+#### Scenario: Conector sem URL base
+- **WHEN** a conta tem credencial, mas o conector não tem base para a versão que a integração do despacho usa
+- **THEN** o documento é registrado como rejeitado, com motivo de configuração que nomeia a versão, a integração e o
+  conector
+- **AND** nenhuma requisição é feita, e não há fallback para outra URL
+
+#### Scenario: Produção é outra instância
+- **WHEN** o cliente precisa integrar em produção
+- **THEN** isso é outra instância, com o próprio cofre e a própria credencial de produção
+- **AND** nenhuma troca de ambiente acontece dentro de uma instância

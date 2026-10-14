@@ -23,7 +23,7 @@ Quando a plataforma responde ao envio com HTTP 400 ou 422, o documento MUST ser 
 As respostas de autenticação no envio têm regra própria:
 
 - **403:** o documento MUST ser registrado como impossibilidade do lado do conector (a credencial não tem
-  acesso), sem retentativa. O motivo cita o tenant, o ambiente e o texto da plataforma.
+  acesso), sem retentativa. O motivo cita o tenant, o ambiente da instância e o texto da plataforma.
 - **401 com token recém-emitido:** o mesmo desfecho do 403. O token acabou de ser emitido e mesmo assim foi
   recusado, e outra tentativa não muda isso.
 - **401 com token do cache:** o token é invalidado (`avalara-tenant-authentication`), e a mensagem segue o
@@ -86,7 +86,7 @@ Regras para extrair o motivo:
 #### Scenario: Credencial sem acesso
 - **WHEN** a plataforma responde ao envio com HTTP 403 e o corpo `{"message":"cliente sem acesso à empresa"}`
 - **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que cita o
-  tenant, o ambiente e "cliente sem acesso à empresa"
+  tenant, o ambiente da instância e "cliente sem acesso à empresa"
 - **AND** foi feita uma única requisição de envio, e a mensagem não volta para a fila
 
 #### Scenario: Token recém-emitido recusado
@@ -97,8 +97,9 @@ Regras para extrair o motivo:
 #### Scenario: Caminho de envio inexistente
 - **WHEN** a plataforma responde 404 ao envio
 - **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que diz que o caminho de
-  envio não existe nessa URL e aponta as duas partes dela: a URL base do ambiente, no perfil do tenant (tela de
-  conectores), e o caminho de envio, na configuração do host (`Avalara:DocumentsPath`)
+  envio não existe nessa URL e aponta as duas partes dela, as duas na tela de conectores: a URL base da versão que a
+  integração usa, no conector, e o caminho da integração
+- **AND** o motivo não cita `Avalara:DocumentsPath`
 - **AND** foi feita uma única requisição de envio, e a mensagem não volta para a fila
 
 #### Scenario: Documento ainda não indexado na consulta
@@ -144,10 +145,12 @@ rejeitado.
 
 Antes de qualquer requisição à plataforma, nos casos a seguir:
 
-- falta configuração do tenant, incluindo a credencial, a referência do segredo, o segredo resolvido e a
-  URL do ambiente, ou a entrada da tabela de estabelecimentos tem um código faltando;
+- falta configuração do tenant: na conta de plataforma, a credencial, a referência do segredo, o segredo resolvido ou
+  o endpoint de token; no perfil, o conector do adapter que despacha, a integração que a operação precisa, o caminho
+  dela (a integração inativa) ou a URL base da versão que ela usa; ou a entrada da tabela de estabelecimentos do
+  conector tem um código faltando (`platform-account-connectors`);
 - um campo exigido pelo contrato não pode ser representado;
-- a URL do ambiente não é aceita;
+- uma URL da conta ou do conector não é aceita;
 - o endpoint de token recusa a credencial.
 
 Depois da listagem de estabelecimentos da plataforma, e antes do envio (`platform-establishment-resolution`):
@@ -162,8 +165,8 @@ Depois da listagem de estabelecimentos da plataforma, e antes do envio (`platfor
 Depois da requisição de envio, como na rejeição síncrona:
 
 - a plataforma nega a credencial (403, ou 401 com token recém-emitido);
-- o caminho de envio não existe na URL montada (404 no envio). O motivo aponta a URL base do perfil e o
-  `Avalara:DocumentsPath` do host, que são as duas partes da URL.
+- o caminho de envio não existe na URL montada (404 no envio). O motivo aponta as duas partes da URL, as duas na tela
+  de conectores: a URL base da versão que a integração usa, no conector, e o caminho da integração.
 
 O motivo MUST identificar o problema como do conector (configuração ou contrato do destino). A mensagem da
 fila MUST ser concluída sem retentativa.
@@ -171,10 +174,16 @@ fila MUST ser concluída sem retentativa.
 Depois de corrigida a causa, o reprocessamento manual do documento MUST enviá-lo normalmente.
 
 #### Scenario: Tenant sem os códigos da empresa
-- **WHEN** a esteira envia uma nota de um tenant cujo destino não sabe listar, e cujas settings de saída não têm a tabela
-  de estabelecimentos no ambiente ativo
+- **WHEN** a esteira envia uma nota de um tenant cujo destino não sabe listar, e cujo conector não tem a tabela de
+  estabelecimentos
 - **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que nomeia o
   que falta
+- **AND** nenhuma requisição é feita à plataforma
+
+#### Scenario: Integração sem caminho
+- **WHEN** a esteira envia uma nota de um tenant cuja integração de notas fiscais está ligada e com o caminho em branco
+- **THEN** o documento é registrado como rejeitado, com motivo de configuração do conector que nomeia a integração e
+  aponta a tela de conectores
 - **AND** nenhuma requisição é feita à plataforma
 
 #### Scenario: Estabelecimento sem contribuinte na plataforma
@@ -270,3 +279,25 @@ A resposta inteira fica na foto da resposta do envio (`platform-response-trace`)
   sucesso sem identificador e que o documento não será reenviado
 - **AND** foi feita uma única requisição de envio, e a mensagem não volta para a fila
 - **AND** a foto da resposta do envio traz `{"protocolo":"123"}`
+
+### Requirement: O envio e a consulta de status usam o caminho da integração
+
+O envio de um documento e a consulta de status dele MUST montar a URL com a base da versão que a integração usa, no
+conector do próprio adapter, e o **caminho da integração** (`platform-account-connectors`):
+
+- **o envio:** a base da versão, mais o caminho da integração;
+- **a consulta de status:** a base da versão, mais o caminho da integração, o identificador que a plataforma devolveu e
+  `/status`.
+
+A configuração do host (`Avalara:DocumentsPath`) MUST NOT entrar na URL do envio nem na da consulta. Ela só preenche, uma
+vez, o caminho que a migração deixou à espera (`platform-account-connectors`).
+
+#### Scenario: O caminho do envio vem da integração, e não do host
+- **WHEN** a integração de notas fiscais do tenant-a tem o caminho `taxcompliance/v2/fiscal/dfe`, e o host tem
+  `Avalara:DocumentsPath` = `documents`
+- **THEN** o envio vai à base da versão da integração mais `taxcompliance/v2/fiscal/dfe`
+- **AND** nenhuma requisição vai a um caminho `documents`
+
+#### Scenario: A consulta de status segue o caminho da integração
+- **WHEN** a nota foi enviada pela integração de caminho `taxcompliance/v2/fiscal/dfe` e recebeu o identificador `abc`
+- **THEN** a consulta de status vai à base da versão da integração mais `taxcompliance/v2/fiscal/dfe/abc/status`
