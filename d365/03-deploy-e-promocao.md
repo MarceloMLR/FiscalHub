@@ -32,8 +32,8 @@ Confirmado no **Power Platform Admin Center** (o ambiente `FiscosysDev`):
   Package** no VS (ou por pipeline). É **imutável e versionado**.
 
 Gerar o package no VS: **Extensions → Dynamics 365 → Deploy → Create Deployment Package** →
-seleciona o model `FiscalHubIntegration` → pasta de saída + nome versionado. (Já foi gerado:
-`dynamicsax-fiscalhubintegration.<versão>.nupkg` / `AXDeployablePackage_<timestamp>.zip`.)
+seleciona o model `FiscosysHubIntegration` → pasta de saída + nome versionado. (Já foi gerado:
+`dynamicsax-fiscosyshubintegration.<versão>.nupkg` / `AXDeployablePackage_<timestamp>.zip`.)
 
 ---
 

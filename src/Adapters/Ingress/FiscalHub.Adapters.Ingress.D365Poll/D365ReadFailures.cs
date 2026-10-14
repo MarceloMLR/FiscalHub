@@ -44,7 +44,7 @@ internal static class D365ReadFailures
             case ChangeFeedThrottledException:
                 return $"O F&O pediu espera (throttling) na leitura {what.Description}. Tente de novo em instantes.";
             case HttpRequestException { StatusCode: HttpStatusCode.Forbidden }:
-                return $"O F&O negou a leitura {what.Description} (HTTP 403). A role FSFiscalHubIntegration precisa do privilégio "
+                return $"O F&O negou a leitura {what.Description} (HTTP 403). A role FiscosysHubIntegration precisa do privilégio "
                     + $"{what.Privilege}, com deploy no ambiente, e a role precisa estar atribuída ao app.";
             case HttpRequestException { StatusCode: HttpStatusCode.Unauthorized }:
                 return $"O F&O não aceitou o token na leitura {what.Description} (HTTP 401). Confira se o app está cadastrado no "

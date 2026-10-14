@@ -123,7 +123,7 @@ O motivo MUST NOT conter o token, o segredo, nem um cabeçalho com valor.
 
 #### Scenario: A role sem o privilégio
 - **WHEN** o F&O responde 403 à leitura do cadastro de estabelecimentos
-- **THEN** a falha diz que a role `FSFiscalHubIntegration` precisa do privilégio `FiscalEstablishmentEntityView`
+- **THEN** a falha diz que a role `FiscosysHubIntegration` precisa do privilégio `FiscalEstablishmentEntityView`
 - **AND** nenhuma empresa é listada
 
 #### Scenario: O perfil sem a URL do ERP

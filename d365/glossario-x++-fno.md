@@ -35,7 +35,7 @@ Referência rápida dos termos que usamos no FiscalHub (entidades + business eve
 - **Staging table** — tabela intermediária do **DMF** (import/export). Read-only pro OData **não precisa** dela.
 - **View** — projeção read-only (view SQL).
 - **State Machine** — máquina de estados que controla um campo de status e suas transições permitidas.
-- **Model** — container dos **seus** objetos (ex.: `FiscalHubIntegration`). **Package** — unidade que empacota model(s) e vira o deployable. **Layer** — conceito antigo de camada (`USR` = user layer, onde ficam customizações).
+- **Model** — container dos **seus** objetos (ex.: `FiscosysHubIntegration`). **Package** — unidade que empacota model(s) e vira o deployable. **Layer** — conceito antigo de camada (`USR` = user layer, onde ficam customizações).
 
 ## 4. Funções intrínsecas (referências seguras)
 

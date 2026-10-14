@@ -39,13 +39,13 @@ usa `FiscalDocument_BR`, mas pode variar por versão/customização.
 
 ---
 
-## 2. Criar um Model próprio (`FiscalHubIntegration`)
+## 2. Criar um Model próprio (`FiscosysHubIntegration`)
 
 Um *model* é o container do nosso código; criar o nosso separa a customização do padrão e permite
 exportar o pacote depois.
 
 1. **Dynamics 365 → Model Management → Create model**.
-2. Nome do model: `FiscalHubIntegration`.
+2. Nome do model: `FiscosysHubIntegration`.
 3. Marque **Create new package** (pacote próprio — importante pra exportar limpo depois).
 4. Em **Select referenced packages**, marque o package que contém a `FiscalDocument_BR` (do passo 1, ex.:
    `ApplicationSuite`) e `ApplicationPlatform`/`ApplicationFoundation` se pedir. Sem essa referência, a
@@ -57,7 +57,7 @@ exportar o pacote depois.
 ## 3. Criar o projeto do Visual Studio
 
 Se não criou junto: **File → New → Project → Finance Operations → Finance Operations Project**. Associe ao
-model `FiscalHubIntegration`. Salve.
+model `FiscosysHubIntegration`. Salve.
 
 ---
 

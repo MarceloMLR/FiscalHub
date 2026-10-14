@@ -14,7 +14,7 @@ como projeção sobre as tabelas padrão. O adapter sempre lê o mesmo nome.
 
 ## As 22 entidades
 
-Todas públicas, somente leitura, sem Data Management, no modelo `FiscalHubIntegration`:
+Todas públicas, somente leitura, sem Data Management, no modelo `FiscosysHubIntegration`:
 
 | Grupo | Entidades |
 |---|---|
@@ -28,9 +28,15 @@ Todas públicas, somente leitura, sem Data Management, no modelo `FiscalHubInteg
 
 O entity set no OData é o nome no plural: `/data/FSFiscalDocumentBRs`.
 
-Segurança: privilégio de leitura por entidade + a role `FSFiscalHubIntegration`
-("FiscalHub - integração (somente leitura)"), que precisa ser atribuída ao usuário da app
+Segurança: privilégio de leitura por entidade + a role `FiscosysHubIntegration`
+("FiscosysHub - integração (somente leitura)"), que precisa ser atribuída ao usuário da app
 registration no F&O.
+
+**Nome do pacote (14/10/2026).** O pacote e o modelo se chamavam `FiscalHubIntegration`, e a role,
+`FSFiscalHubIntegration`. Os dois viraram `FiscosysHubIntegration` antes do primeiro cliente. As entidades, os
+privilégios e os nomes no OData não mudaram. Num ambiente que já tem o pacote antigo, ele sai antes do deploy do novo
+(os objetos têm o mesmo nome e não convivem em dois módulos), e a role nova precisa ser atribuída de novo ao usuário da
+app.
 
 **A entidade padrão que o hub também lê.** O diretório de empresas e a descoberta por período (ADR-0032) leem a
 `FiscalEstablishments`, a entidade padrão da Microsoft sobre o cadastro de estabelecimentos fiscais, e não uma `FS*`: a

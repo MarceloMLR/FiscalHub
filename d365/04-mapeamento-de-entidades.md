@@ -34,7 +34,7 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 `TaxTrans`, `TaxTrans_BR`, `MarkupTrans`, `TaxTable` e `TaxWithholdTrans` estão em
 `ApplicationSuite\Foundation\AxTable`.
 
-> O model `FiscalHubIntegration` precisa referenciar **`FiscalBooks`** além de `ApplicationSuite`.
+> O model `FiscosysHubIntegration` precisa referenciar **`FiscalBooks`** além de `ApplicationSuite`.
 > O guia `01-criar-e-publicar-data-entity.md` menciona só `ApplicationSuite` — corrigir.
 
 ---
@@ -351,7 +351,7 @@ INSSRetained, CSLL, ICMSST, ICMSDiff, INSSCPRB, CBS, IBSCity, IBSState
    `FiscalDocumentTaxTrans_BR` ele é só RecId: o código (`000001`, por exemplo) mora no cadastro
    `CClassTribTable_BR`, com descrição, CST e redução de base. A tabela é compartilhada entre empresas.
 
-   **Na `FSFiscalDocumentTaxTransBR`, o cClassTrib vem da tabela fiscal** (desde 2026-10-09), com duas junções
+   **Na `FSFiscalDocumentTaxTransBR`, o cClassTrib vem da tabela fiscal** (publicado em 2026-10-14), com duas junções
    externas na `CClassTribTable_BR`, uma por campo:
 
    | Campo da entidade | Origem |
@@ -470,7 +470,7 @@ Os dados do cabeçalho continuam desnormalizados (2.5): a montagem não consulta
 - **Por que a da Microsoft, e não uma `FS*`:** as nossas existem porque a Microsoft não publica entidade sobre a
   `FiscalDocument_BR` (ADR-0022). Esta ela publica, pública e com nome fixo, verificada contra o fiscosysdev em
   2026-10-01. Uma `FS*` por cima seria um contrato a mais, sem ganho.
-- **A segurança:** a role `FSFiscalHubIntegration` referencia o privilégio padrão `FiscalEstablishmentEntityView` (Read).
+- **A segurança:** a role `FiscosysHubIntegration` referencia o privilégio padrão `FiscalEstablishmentEntityView` (Read).
   Ele exige build e deploy, e não sync: nenhuma tabela nem entidade nossa mudou.
 - **O que ficou fora de propósito (`07`, passo 5):** `IE`, `CCM` e `FiscalEstablishmentGroup`. Nada no hub os usa, e
   campo lido é contrato.
@@ -805,7 +805,7 @@ exatamente o que a `GeneralJournalAccountEntryEntity` padrão (não pública) fa
 **Chaves.** `GeneralJournalEntry` tem índice único `JournalNumber + FiscalCalendarYear + Ledger`. `MainAccount` tem
 chave alternativa `MainAccountId + LedgerChartOfAccounts`.
 
-**Referências do model.** O descritor do `FiscalHubIntegration` já referencia `GeneralLedger`, `Ledger`, `Dimensions` e
+**Referências do model.** O descritor do `FiscosysHubIntegration` já referencia `GeneralLedger`, `Ledger`, `Dimensions` e
 `Directory`. Nada a acrescentar.
 
 ## 14. O que a medição mostrou (passo 3)
@@ -1020,7 +1020,7 @@ cria no primeiro uso. No `brmf`, 20 de 20.
 | `OperatingUnits` | substituída pela `FSCostCenterBR` (14.3) |
 | `FiscalEstablishments` | a empresa vem do `dataAreaId`, não do CNPJ lido em memória |
 | `MainAccounts` | substituída pela `FSMainAccountBR`, que filtra pelo plano da empresa |
-| `GeneralJournal*BiEntities` | usadas para medir. São projeções de análise, sem `dataAreaId` (a de linha calcula um JSON de dimensões por linha) e não entram no papel `FSFiscalHubIntegration` |
+| `GeneralJournal*BiEntities` | usadas para medir. São projeções de análise, sem `dataAreaId` (a de linha calcula um JSON de dimensões por linha) e não entram no papel `FiscosysHubIntegration` |
 
 ## 16. Custo da montagem (passo 4)
 

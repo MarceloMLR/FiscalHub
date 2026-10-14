@@ -53,7 +53,7 @@ Um token válido do Entra **não basta**: o app precisa estar **mapeado a um usu
 
 ## Pasta `FiscalHub — entidades (14)`
 
-Uma requisição por entidade custom do pacote `FiscalHubIntegration`. Cada uma faz
+Uma requisição por entidade custom do pacote `FiscosysHubIntegration`. Cada uma faz
 `GET /data/{entitySet}?cross-company=true&$top={{top}}` e valida:
 
 - **HTTP 200**
@@ -153,7 +153,7 @@ O que o hub lê do D365 para a integração manual e o agendamento (change `erp-
 | `FiscalEstablishments (diretorio)` | `FiscalEstablishments`, a entidade **padrão da Microsoft** | os quatro campos (`dataAreaId`, `FiscalEstablishmentId`, `CNPJ`, `Name`) e que todo estabelecimento tem CNPJ e código |
 | `Descoberta por periodo (FSFiscalDocumentBRs pelo dia fiscal)` | `FSFiscalDocumentBRs` | que toda nota tem o dia fiscal entre `periodoInicio` e `periodoFim`, é do `estabelecimento`, e vem na ordem do `FiscalDocumentRecId` |
 
-- **O diretório não é entidade do pacote.** A role `FSFiscalHubIntegration` referencia o privilégio padrão
+- **O diretório não é entidade do pacote.** A role `FiscosysHubIntegration` referencia o privilégio padrão
   `FiscalEstablishmentEntityView`. Um `403` no primeiro request é esse privilégio sem deploy, ou a role não atribuída ao
   app. O console diz isso.
 - **A empresa do hub** é o `CNPJ` sem ponto, barra, hífen e espaço, com as letras. O console mostra cada uma.
@@ -174,7 +174,7 @@ Invoke-RestMethod -Uri "https://fiscosysdev.operations.dynamics.com/data/FSFisca
 ```
 
 Isso usa **sua** identidade (delegada), não a do app. Serve para validar que a entidade existe e
-responde — **não** valida se a role `FiscalHub - integração (somente leitura)` foi atribuída ao
+responde — **não** valida se a role `FiscosysHub - integração (somente leitura)` foi atribuída ao
 usuário de integração. Esse teste só a autenticação por `client_credentials` faz.
 
 ## Dicas

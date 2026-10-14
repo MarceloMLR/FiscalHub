@@ -381,7 +381,7 @@
     },
     {
       "name": "FiscalHub — entidades (14)",
-      "description": "Uma requisição por entidade custom do pacote FiscalHubIntegration. Cada uma valida HTTP 200 e formato OData, e loga a quantidade de linhas no console.\n\nRode a pasta inteira pelo Runner (Run folder) para o smoke test completo das 14 entidades.",
+      "description": "Uma requisição por entidade custom do pacote FiscosysHubIntegration. Cada uma valida HTTP 200 e formato OData, e loga a quantidade de linhas no console.\n\nRode a pasta inteira pelo Runner (Run folder) para o smoke test completo das 14 entidades.",
       "item": [
         {
           "name": "FSFiscalDocumentBRs",
@@ -413,7 +413,7 @@
                 }
               ]
             },
-            "description": "Cabecalho da nota fiscal (FiscalDocument_BR). Raiz da descoberta por polling.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Cabecalho da nota fiscal (FiscalDocument_BR). Raiz da descoberta por polling.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -447,7 +447,7 @@
                 }
               ]
             },
-            "description": "Linhas da nota fiscal (FiscalDocumentLine_BR), com snapshot de NCM/origem/tipo.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Linhas da nota fiscal (FiscalDocumentLine_BR), com snapshot de NCM/origem/tipo.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -481,7 +481,7 @@
                 }
               ]
             },
-            "description": "Impostos por linha (TaxTrans + TaxTrans_BR). ICMS, IPI, PIS, COFINS, IBS/CBS.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Impostos por linha (TaxTrans + TaxTrans_BR). ICMS, IPI, PIS, COFINS, IBS/CBS.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -515,7 +515,7 @@
                 }
               ]
             },
-            "description": "Impostos retidos na fonte (TaxWithholdTrans).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Impostos retidos na fonte (TaxWithholdTrans).\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -549,7 +549,7 @@
                 }
               ]
             },
-            "description": "Cadastro de codigos de imposto (TaxTable).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Cadastro de codigos de imposto (TaxTable).\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -583,7 +583,7 @@
                 }
               ]
             },
-            "description": "Encargos: frete, seguro e despesas acessorias (MarkupTrans). Usar CalculatedAmount, nao Value.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Encargos: frete, seguro e despesas acessorias (MarkupTrans). Usar CalculatedAmount, nao Value.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -617,7 +617,7 @@
                 }
               ]
             },
-            "description": "Modelos de documento fiscal (55, 57, 65, SE, NFS-e).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Modelos de documento fiscal (55, 57, 65, SE, NFS-e).\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -651,7 +651,7 @@
                 }
               ]
             },
-            "description": "Itens / produtos.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Itens / produtos.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -685,7 +685,7 @@
                 }
               ]
             },
-            "description": "Unidades de medida.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Unidades de medida.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -719,7 +719,7 @@
                 }
               ]
             },
-            "description": "Municipios com codigo IBGE.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Municipios com codigo IBGE.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -753,7 +753,7 @@
                 }
               ]
             },
-            "description": "Paises com codigo BACEN.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Paises com codigo BACEN.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -787,7 +787,7 @@
                 }
               ]
             },
-            "description": "Enderecos postais.\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Enderecos postais.\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -821,7 +821,7 @@
                 }
               ]
             },
-            "description": "Clientes (CustTable + DirPartyTable).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Clientes (CustTable + DirPartyTable).\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         },
@@ -855,7 +855,7 @@
                 }
               ]
             },
-            "description": "Fornecedores (VendTable + DirPartyTable).\n\nEntidade custom do FiscalHub (pacote FiscalHubIntegration). Somente leitura."
+            "description": "Fornecedores (VendTable + DirPartyTable).\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
           },
           "response": []
         }
@@ -1019,7 +1019,7 @@
                   "const rows = Array.isArray(j.value) ? j.value : [];",
                   "const nomes = rows.map(r => r.name);",
                   "['FSGeneralJournalLineBRs', 'FSMainAccountBRs', 'FSCostCenterBRs'].forEach(function (e) {",
-                  "  pm.test(e + ' publicada', () => pm.expect(nomes, e + ' nao esta no service document: faca build, deploy e sync do FiscalHubIntegration').to.include(e));",
+                  "  pm.test(e + ' publicada', () => pm.expect(nomes, e + ' nao esta no service document: faca build, deploy e sync do FiscosysHubIntegration').to.include(e));",
                   "});"
                 ]
               }
@@ -1767,8 +1767,8 @@
             "type": "text/javascript",
             "exec": [
               "// Vale para todos os requests desta pasta",
-              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscalHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
-              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FSFiscalHubIntegration com os privilegios contabeis').to.not.include(pm.response.code));",
+              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscosysHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
+              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FiscosysHubIntegration com os privilegios contabeis').to.not.include(pm.response.code));",
               "pm.test('Status 200', () => pm.response.to.have.status(200));"
             ]
           }
@@ -1812,7 +1812,7 @@
                   "const rows = Array.isArray(j.value) ? j.value : [];",
                   "const nomes = rows.map(r => r.name);",
                   "['FSInventOnHandBRs', 'FSInventTransBRs', 'FSInventLocationBRs'].forEach(function (e) {",
-                  "  pm.test(e + ' publicada', () => pm.expect(nomes, e + ' nao esta no service document: faca build, deploy e sync do FiscalHubIntegration').to.include(e));",
+                  "  pm.test(e + ' publicada', () => pm.expect(nomes, e + ' nao esta no service document: faca build, deploy e sync do FiscosysHubIntegration').to.include(e));",
                   "});"
                 ]
               }
@@ -2804,8 +2804,8 @@
             "type": "text/javascript",
             "exec": [
               "// Vale para todos os requests desta pasta",
-              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscalHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
-              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FSFiscalHubIntegration com os privilegios de inventario').to.not.include(pm.response.code));",
+              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscosysHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
+              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FiscosysHubIntegration com os privilegios de inventario').to.not.include(pm.response.code));",
               "pm.test('Status 200', () => pm.response.to.have.status(200));"
             ]
           }
@@ -2814,7 +2814,7 @@
     },
     {
       "name": "FiscalHub — diretório e descoberta por período",
-      "description": "O que o hub le do D365 para a integracao manual e o agendamento (change erp-company-directory-and-card-filters):\n\n- FiscalEstablishments: o diretorio de empresas e filiais, pela entidade padrao da Microsoft. Exige o privilegio FiscalEstablishmentEntityView na role FSFiscalHubIntegration.\n- Descoberta por periodo: as notas de um estabelecimento pelo dia fiscal (FiscalDocumentDate), com as variaveis periodoInicio, periodoFim e estabelecimento.",
+      "description": "O que o hub le do D365 para a integracao manual e o agendamento (change erp-company-directory-and-card-filters):\n\n- FiscalEstablishments: o diretorio de empresas e filiais, pela entidade padrao da Microsoft. Exige o privilegio FiscalEstablishmentEntityView na role FiscosysHubIntegration.\n- Descoberta por periodo: as notas de um estabelecimento pelo dia fiscal (FiscalDocumentDate), com as variaveis periodoInicio, periodoFim e estabelecimento.",
       "item": [
         {
           "name": "FiscalEstablishments (diretorio)",
@@ -2850,7 +2850,7 @@
                 }
               ]
             },
-            "description": "A leitura do diretorio de empresas (change erp-company-directory-and-card-filters, design D1): a entidade padrao da Microsoft, com os quatro campos. A empresa do hub e o CNPJ sem pontuacao, e a filial e o FiscalEstablishmentId. Um 403 aqui e o privilegio FiscalEstablishmentEntityView que falta na role FSFiscalHubIntegration, ou a role que nao esta atribuida ao app."
+            "description": "A leitura do diretorio de empresas (change erp-company-directory-and-card-filters, design D1): a entidade padrao da Microsoft, com os quatro campos. A empresa do hub e o CNPJ sem pontuacao, e a filial e o FiscalEstablishmentId. Um 403 aqui e o privilegio FiscalEstablishmentEntityView que falta na role FiscosysHubIntegration, ou a role que nao esta atribuida ao app."
           },
           "event": [
             {
@@ -2858,7 +2858,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (pm.response.code === 403) { console.warn('[Diretorio] 403: a role FSFiscalHubIntegration precisa do privilegio FiscalEstablishmentEntityView, com deploy, e a role precisa estar atribuida ao app.'); }",
+                  "if (pm.response.code === 403) { console.warn('[Diretorio] 403: a role FiscosysHubIntegration precisa do privilegio FiscalEstablishmentEntityView, com deploy, e a role precisa estar atribuida ao app.'); }",
                   "if (pm.response.code !== 200) { console.warn('[Diretorio] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
                   "let j = {};",
                   "try { j = pm.response.json(); } catch (e) {}",

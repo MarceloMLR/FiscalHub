@@ -1,7 +1,7 @@
 # Fase 6 - Receita: criar ou alterar uma entidade editando o XML na mao
 
 Este documento existe para quem chega sem contexto nenhum e precisa criar uma entidade nova
-no modelo `FiscalHubIntegration`. Ele cobre o caminho que a gente usa de verdade: **editar o
+no modelo `FiscosysHubIntegration`. Ele cobre o caminho que a gente usa de verdade: **editar o
 arquivo `.xml` diretamente, com o Visual Studio fechado**.
 
 O caminho do assistente do Visual Studio esta na fase 1 (`01-criar-e-publicar-data-entity.md`).
@@ -19,13 +19,13 @@ Esta e a primeira coisa que ninguem adivinha. O mesmo arquivo precisa ficar iden
    d365\model\AxDataEntityView\<Nome>.xml
 
 2. no metadado do UDE (o que o build le):
-   C:\CustomXppMetadata*\FiscalHubIntegration\FiscalHubIntegration\AxDataEntityView\<Nome>.xml
+   C:\CustomXppMetadata*\FiscosysHubIntegration\FiscosysHubIntegration\AxDataEntityView\<Nome>.xml
 ```
 
 Existe um terceiro caminho, o "espelho", e nele voce **nao** grava:
 
 ```
-C:\CustomXppMetadata*\FiscalHubIntegration\XppMetadata\FiscalHubIntegration\AxDataEntityView\<Nome>.xml
+C:\CustomXppMetadata*\FiscosysHubIntegration\XppMetadata\FiscosysHubIntegration\AxDataEntityView\<Nome>.xml
 ```
 
 Quem escreve ali e o build: sao stubs gerados a partir do item 2. As tres entidades contabeis foram gravadas so nos
@@ -51,7 +51,7 @@ pull. Grave nos dois.
 O projeto do Visual Studio nao e versionado e vive em outro lugar:
 
 ```
-C:\Users\<voce>\Desktop\Projects 2026\Dynamics365\FiscalHubIntegration\FiscalHubIntegration.rnrproj
+C:\Users\<voce>\Desktop\Projects 2026\Dynamics365\FiscosysHubIntegration\FiscosysHubIntegration.rnrproj
 ```
 
 Repare no **2026** - o repositorio esta em `Projects 2027`. Sao pastas diferentes.
@@ -133,9 +133,27 @@ dificil de adivinhar e a mais facil de copiar.
 
 Exemplo real: ao ligar `TaxTrans_BR` sob `TaxTrans` na `FSFiscalDocumentTaxTransBR`, o bloco veio
 copiado da `FSTaxTransBR`, que ja fazia essa ligacao em producao. Funcionou de primeira.
+(Essa juncao saiu da entidade em 2026-10-14, quando o cClassTrib passou a vir da tabela fiscal: ver `04`, 4.3.)
 
 Quando nao houver exemplo, a convencao observada e: **o nome da relacao e o nome da tabela
 relacionada**. Funcionou nas cinco vezes em que foi testada, inclusive com a `CClassTribTable_BR`.
+
+Quando a mesma tabela entra duas vezes na entidade, ou quando a tabela pai tem mais de uma relacao
+para ela, nao confie no nome: escreva a juncao com os campos dos dois lados. `Field` e o campo da
+fonte pai, `JoinDataSource` e o nome da fonte pai e `RelatedField` e o campo da tabela filha:
+
+```xml
+<AxQuerySimpleDataSourceRelation>
+  <Name>QueryDataSourceRelation1</Name>
+  <Field>CClassTribSuspension</Field>
+  <JoinDataSource>FiscalDocumentTaxTrans_BR</JoinDataSource>
+  <RelatedField>RecId</RelatedField>
+</AxQuerySimpleDataSourceRelation>
+```
+
+Exemplo real: a `FSFiscalDocumentTaxTransBR` liga a `CClassTribTable_BR` duas vezes, uma pela
+classificacao (`CClassTrib`) e outra pela suspensao (`CClassTribSuspension`). Publicada em
+2026-10-14; a contagem seguiu em 547. A `FSInventLocationBR` usa o mesmo formato.
 
 ## 6. Propriedades da entidade
 
@@ -148,7 +166,7 @@ relacionada**. Funcionou nas cinco vezes em que foi testada, inclusive com a `CC
 ```
 
 Entidade nova tambem precisa de um privilegio de leitura em `AxSecurityPrivilege\` e da inclusao
-dele na role `FSFiscalHubIntegration` (`AxSecurityRole\FSFiscalHubIntegration.xml`). Sem isso,
+dele na role `FiscosysHubIntegration` (`AxSecurityRole\FiscosysHubIntegration.xml`). Sem isso,
 o OData responde 401 para o usuario da integracao.
 
 ## 7. Build, deploy e sync

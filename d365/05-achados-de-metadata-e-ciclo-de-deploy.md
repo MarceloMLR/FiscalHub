@@ -1,7 +1,7 @@
 # Fase 5 — Achados de metadata das entidades e ciclo de deploy
 
 Registro do que quebrou, por que quebrou e como se detecta, durante a publicação e validação das
-14 entidades do pacote `FiscalHubIntegration` no ambiente `fiscosysdev`.
+14 entidades do pacote `FiscosysHubIntegration` no ambiente `fiscosysdev`.
 
 Tudo aqui foi verificado contra o ambiente real via OData, não inferido do legado nem da
 documentação. Quando a conclusão mudou no meio do caminho, o doc registra a versão final e diz o
@@ -60,7 +60,7 @@ O RecId cru de uma `LedgerDimension` **tem** que ficar Private ou Internal. Quem
 ### Como auditar
 
 ```powershell
-$m = "<model store>\FiscalHubIntegration\FiscalHubIntegration\AxDataEntityView"
+$m = "<model store>\FiscosysHubIntegration\FiscosysHubIntegration\AxDataEntityView"
 Get-ChildItem "$m\*.xml" | ForEach-Object {
   $x = [xml](Get-Content $_.FullName)
   $priv = @($x.AxDataEntityView.Fields.AxDataEntityViewField |
@@ -467,8 +467,8 @@ Solution Explorer não mostra o que não está nela. O arquivo de projeto fica *
 metadados:
 
 ```
-metadados: C:\CustomXppMetadata<hash>\FiscalHubIntegration\FiscalHubIntegration\Ax*
-projeto:   ...\Dynamics365\FiscalHubIntegration\FiscalHubIntegration\FiscalHubIntegration.rnrproj
+metadados: C:\CustomXppMetadata<hash>\FiscosysHubIntegration\FiscosysHubIntegration\Ax*
+projeto:   ...\Dynamics365\FiscosysHubIntegration\FiscosysHubIntegration\FiscosysHubIntegration.rnrproj
 ```
 
 Cada item entra como um `<Content Include="AxDataEntityView\<Nome>">` com `<Name>` e `<Link>`. Pela
