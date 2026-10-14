@@ -117,6 +117,11 @@ Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Docu
   estiver gravada, tirar quando a Avalara registrar os CNPJs reais.
 - **Um commit de D365 entrou no PR do rebrand** (`bc31f7d`, a `FSFiscalDocumentTaxTransBR` e o
   `cClassTrib`). Não tem change própria no OpenSpec, e um revert do PR #75 o levaria junto.
+- **Pin temporário do `System.Security.Cryptography.Pkcs` 9.0.21** no `FiscalHub.Infrastructure.csproj` (2026-10-14).
+  O `Microsoft.Data.SqlClient` 6.1.1, que o EF Core SqlServer 10.0.10 traz, puxa o 9.0.4, com a GHSA-846f-f764-76mx
+  (alta) e a GHSA-2fmv-rv2c-59x7 (moderada), de negação de serviço, e a auditoria do NuGet derrubava o build limpo.
+  **Remover quando o SqlClient trouxer o 9.0.21 ou maior transitivamente** — confira com
+  `dotnet list package --include-transitive`. Até lá, a referência direta segura o pacote: é dívida, e não decisão.
 
 ## Threads abertas
 
