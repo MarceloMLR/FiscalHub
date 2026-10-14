@@ -298,10 +298,8 @@ public class D365GoodsInvoiceSourceTests
             Profiles.Profile = new TenantConnectorProfile
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = settings ?? $$"""{"url":"{{Env}}","companies":["brmf"]}""",
-                OutboundAdapter = "Avalara",
             };
             Source = new D365GoodsInvoiceSource(
                 new HttpClient(Http), Profiles, new D365ChangeFeedTests.FakeTokens(), new D365ChangeFeedOptions(),

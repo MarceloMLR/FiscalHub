@@ -27,10 +27,8 @@ public class D365GoodsInvoiceSourceIntegrationTests
             Profile = new TenantConnectorProfile
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = $$"""{"url":"{{url}}","companies":["{{company}}"],"auth":{{D365IntegrationEnvironment.AuthJson()}}}""",
-                OutboundAdapter = "Avalara",
             },
         };
         var source = new D365GoodsInvoiceSource(

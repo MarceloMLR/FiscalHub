@@ -24,6 +24,7 @@ import {
 import { LoginPage } from './features/auth/LoginPage';
 import { useAuth } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
+import { environmentBadge } from './features/environment';
 import { useThemeMode } from './theme/ThemeModeProvider';
 
 type View = ModuleView | 'settings' | 'users';
@@ -68,8 +69,8 @@ function Dashboard() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = user?.role === 'Admin';
-  const env = info?.environment ?? 'Sandbox';
-  const isProd = /produ|production/i.test(env);
+  // O ambiente da instância, como o /info o diz; sem ele, o selo não afirma nenhum (D6).
+  const badge = environmentBadge(info?.environment);
   // O selo mostra o estado, e não só o ligado: aparece quando o adapter de entrada varre, verde ligado e vermelho
   // desligado, e some para adapter que não varre. Enquanto o /info não chega (ou se falhou), não afirma nada.
   const scans = info?.inboundScans === true;
@@ -173,34 +174,40 @@ function Dashboard() {
           )}
         </nav>
 
-        {/* Ambiente ativo */}
+        {/* Ambiente da instância */}
         <div style={{ marginTop: 'auto', padding: 12 }}>
-          <div
-            style={{
-              border: '1px solid var(--border)',
-              borderRadius: 9,
-              padding: '11px 13px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 9,
-            }}
-          >
-            <div className="fh-label" style={{ fontSize: 10.5, letterSpacing: '0.09em' }}>
-              Ambiente ativo
+          {(badge || scans) && (
+            <div
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: 9,
+                padding: '11px 13px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 9,
+              }}
+            >
+              {badge && (
+                <>
+                  <div className="fh-label" style={{ fontSize: 10.5, letterSpacing: '0.09em' }}>
+                    Ambiente ativo
+                  </div>
+                  <EnvPill isProd={badge.isProd} label={badge.label} />
+                </>
+              )}
+              {scans && (
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600,
+                    color: automatic ? 'var(--ok-text)' : 'var(--error-text)',
+                  }}
+                >
+                  <RadioButtonCheckedIcon sx={{ fontSize: 12 }} />
+                  {automatic ? 'Integração automática ligada' : 'Integração automática desligada'}
+                </div>
+              )}
             </div>
-            <EnvPill isProd={isProd} label={isProd ? 'Produção' : 'Sandbox'} />
-            {scans && (
-              <div
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600,
-                  color: automatic ? 'var(--ok-text)' : 'var(--error-text)',
-                }}
-              >
-                <RadioButtonCheckedIcon sx={{ fontSize: 12 }} />
-                {automatic ? 'Integração automática ligada' : 'Integração automática desligada'}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </aside>
 

@@ -7,8 +7,6 @@ import MenuItem from '@mui/material/MenuItem';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import FormGroup from '@mui/material/FormGroup';
-import Checkbox from '@mui/material/Checkbox';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Alert from '@mui/material/Alert';
@@ -19,33 +17,41 @@ import { api } from '../../api/client';
 import { useConnector } from './useConnector';
 import { AutomaticIntegrationPanel } from './AutomaticIntegrationPanel';
 import { CredentialTestButton } from './CredentialTestButton';
+import { ConnectorPanel } from './ConnectorPanel';
+import { connectorList, selectedConnector } from './connectorPanelRows';
 import {
+  ACCOUNT_FIELDS,
+  CONNECTOR_ADAPTERS,
   INBOUND_ADAPTERS,
-  OUTBOUND_ADAPTERS,
-  ENVIRONMENTS,
   CREDENTIAL_TEST_ADAPTERS,
   SCANNING_INBOUND_ADAPTERS,
+  fieldPlaceholder,
   type AdapterField,
 } from './adapterSchemas';
-import type { ModuleName, SecretStatus } from '../../types';
+import { useInfo } from '../useInfo';
+import type { SecretStatus } from '../../types';
 import {
   SECRET_MASK,
+  accountSecretPrefix,
   asObj,
   buildConnectorPayload,
+  connectorSecretPrefix,
   formFromProfile,
   hasPendingEdit,
+  fieldPending,
   getPath,
   parseObj,
+  platformTestBlocker,
   setPath,
-  splitOutbound,
+  shownAccount,
+  withAccount,
+  withConnector,
+  type AccountForm,
+  type ConnectorEntry,
   type ConnectorForm,
   type Json,
   type Typed,
 } from './connectorPayload';
-import { DEFAULT_MODULES, MODULE_VIEWS } from '../modules/modules';
-
-// Os módulos que o Admin marca, na ordem da barra lateral (o Agendamento não é módulo: aparece sempre).
-const MODULE_CHOICES = MODULE_VIEWS.flatMap((m) => (m.module ? [{ module: m.module, label: m.label }] : []));
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -62,18 +68,20 @@ interface FieldsProps {
   schema: AdapterField[];
   values: Json;
   onChange: (v: Json) => void;
-  prefix: string; // caminho do segredo no mapa `secrets` (ex.: 'outbound.sandbox.')
+  prefix: string; // caminho do segredo no mapa `secrets` (ex.: 'platform.Avalara.')
   secrets: Record<string, SecretStatus>;
   typed: Typed;
   onType: (t: Typed) => void;
+  environment: string | undefined; // o ambiente da instância (/info), para os exemplos que dependem dele
 }
 
 // Renderiza os campos de um adapter num grid. Segredo é campo de senha, sem preenchimento: mostra se
 // está configurado e quando, e só manda um valor novo quando digitado. A máscara do segredo configurado é PLACEHOLDER, e
 // nunca valor: o valor é só o digitado, e o payload só o leva quando não é vazio (connectorPayload, D3).
-function Fields({ schema, values, onChange, prefix, secrets, typed, onType }: FieldsProps) {
+function Fields({ schema, values, onChange, prefix, secrets, typed, onType, environment }: FieldsProps) {
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+    // Duas colunas a partir de 900px; abaixo, uma: um GUID ou uma URL cortados no meio não se leem.
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
       {schema.map((f) =>
         f.secret ? (
           <TextField
@@ -104,8 +112,11 @@ function Fields({ schema, values, onChange, prefix, secrets, typed, onType }: Fi
             size="small"
             value={getPath(values, f.key)}
             onChange={(e) => onChange(setPath(values, f.key, e.target.value))}
-            placeholder={f.placeholder}
-            sx={{ gridColumn: f.key === 'baseUrl' || f.key === 'url' ? '1 / -1' : undefined }}
+            placeholder={fieldPlaceholder(f, environment)}
+            // O obrigatório vazio tem a marca de pendência, como o segredo não configurado e a integração sem caminho.
+            helperText={fieldPending(f, values) ?? undefined}
+            FormHelperTextProps={{ sx: { color: 'warning.main' } }}
+            sx={{ gridColumn: f.wide ? '1 / -1' : undefined }}
           />
         ),
       )}
@@ -116,45 +127,31 @@ function Fields({ schema, values, onChange, prefix, secrets, typed, onType }: Fi
 export function ConnectorsPage() {
   const qc = useQueryClient();
   const { data, isLoading, isError } = useConnector();
+  const { data: info } = useInfo();
 
   const [tab, setTab] = useState(0);
-  const [environment, setEnvironment] = useState('Sandbox');
   const [inboundAdapter, setInboundAdapter] = useState('Dynamics365');
-  const [outboundAdapter, setOutboundAdapter] = useState('Avalara');
   const [inboundValues, setInboundValues] = useState<Json>({});
-  const [outboundRest, setOutboundRest] = useState<Json>({});
-  const [sandboxValues, setSandboxValues] = useState<Json>({});
-  const [productionValues, setProductionValues] = useState<Json>({});
+  // A saída é a conta de plataforma e os conectores sob ela (change platform-account-and-connectors). A tela mostra a conta
+  // da plataforma escolhida e o conector do adapter de mesmo nome; as outras contas e os outros conectores, e os campos
+  // que a tela não mostra (establishments…), ficam aqui e voltam intactos. O ambiente é da instância (D6).
+  const [platform, setPlatform] = useState('Avalara');
+  const [accounts, setAccounts] = useState<AccountForm[]>([]);
+  // O conector escolhido na lista do painel (grupo 7). Nulo: o do adapter de mesmo nome da plataforma.
+  const [selectedAdapter, setSelectedAdapter] = useState<string | null>(null);
   const [typed, setTyped] = useState<Typed>({});
-  const [modules, setModules] = useState<ModuleName[]>(DEFAULT_MODULES);
-
-  const loadOutbound = (json: string) => {
-    const { outboundRest: rest, sandboxValues: sandbox, productionValues: production } = splitOutbound(json);
-    setOutboundRest(rest);
-    setSandboxValues(sandbox);
-    setProductionValues(production);
-  };
 
   useEffect(() => {
     if (!data) {
       return;
     }
     const loaded = formFromProfile(data);
-    setEnvironment(loaded.environment);
     setInboundAdapter(loaded.inboundAdapter);
-    setOutboundAdapter(loaded.outboundAdapter);
     setInboundValues(loaded.inboundValues);
-    setOutboundRest(loaded.outboundRest);
-    setSandboxValues(loaded.sandboxValues);
-    setProductionValues(loaded.productionValues);
+    setPlatform(loaded.platform);
+    setAccounts(loaded.accounts);
     setTyped({});
-    setModules(loaded.modules);
   }, [data]);
-
-  // Marcar e desmarcar mantém a ordem da barra lateral. O último marcado não se desmarca: o servidor recusa a lista
-  // vazia, porque a ausência já quer dizer "só o Fiscal" (D2).
-  const toggleModule = (module: ModuleName, on: boolean) =>
-    setModules((current) => MODULE_CHOICES.map((c) => c.module).filter((m) => (m === module ? on : current.includes(m))));
 
   // Trocar de adapter começa de settings vazias: as do adapter anterior são de outro schema. Voltar ao
   // adapter gravado recupera as settings gravadas.
@@ -172,22 +169,22 @@ export function ConnectorsPage() {
   const setAutomatic = (on: boolean) =>
     setInboundValues((v) => ({ ...v, poll: { ...asObj(v.poll), enabled: on } }));
 
-  const changeOutbound = (name: string) => {
-    setOutboundAdapter(name);
-    loadOutbound(name === data?.outboundAdapter ? data.outboundSettings : '{}');
-    dropTyped('outbound.');
-  };
-
   const form: ConnectorForm = {
-    environment,
     inboundAdapter,
     inboundValues,
-    outboundAdapter,
-    outboundRest,
-    sandboxValues,
-    productionValues,
-    modules,
+    platform,
+    accounts,
   };
+
+  // Trocar de plataforma mostra a conta dela, e não apaga a da anterior: um tenant tem uma conta por plataforma. A conta
+  // nova só entra no payload na primeira edição, e o segredo digitado fica no caminho da própria plataforma.
+  const account = shownAccount(form);
+  const connectors = connectorList(account);
+  const connector = selectedConnector(account, selectedAdapter);
+  const setAccountValues = (values: Json) => setAccounts(withAccount(form, { ...account, values }).accounts);
+  const setConnectorValues = (values: Json) =>
+    setAccounts(withAccount(form, withConnector(account, { ...connector, values })).accounts);
+  const setConnector = (entry: ConnectorEntry) => setAccounts(withAccount(form, withConnector(account, entry)).accounts);
 
   const save = useMutation({
     mutationFn: () => api.saveConnector(buildConnectorPayload(form, typed)),
@@ -214,7 +211,6 @@ export function ConnectorsPage() {
     );
   }
 
-  const outSchema = OUTBOUND_ADAPTERS[outboundAdapter] ?? [];
   // As opções da integração automática aparecem assim que o interruptor é ligado na tela, sem esperar o salvar: ligar,
   // salvar e só então ver o que ajustar seria contraintuitivo (revisão de 2026-10-01, D6).
   const showPanel = scans && automatic;
@@ -233,25 +229,9 @@ export function ConnectorsPage() {
           estão configurados e quando.
         </Typography>
 
-        <TextField
-          select
-          label="Ambiente ativo"
-          size="small"
-          value={environment}
-          onChange={(e) => setEnvironment(e.target.value)}
-          sx={{ minWidth: 220, mb: 2 }}
-        >
-          {ENVIRONMENTS.map((e) => (
-            <MenuItem key={e} value={e}>
-              {e}
-            </MenuItem>
-          ))}
-        </TextField>
-
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2.5 }}>
           <Tab label="Entrada (ERP)" />
           <Tab label="Saída (compliance)" />
-          <Tab label="Módulos" />
         </Tabs>
 
         {tab === 0 && (
@@ -287,6 +267,7 @@ export function ConnectorsPage() {
               secrets={data.secrets ?? {}}
               typed={typed}
               onType={setTyped}
+              environment={info?.environment}
             />
             {CREDENTIAL_TEST_ADAPTERS.inbound.has(inboundAdapter) && <CredentialTestButton side="inbound" pending={pending} />}
           </Box>
@@ -298,74 +279,65 @@ export function ConnectorsPage() {
               select
               label="Plataforma"
               size="small"
-              value={outboundAdapter}
-              onChange={(e) => changeOutbound(e.target.value)}
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
               sx={{ minWidth: 220 }}
             >
-              {Object.keys(OUTBOUND_ADAPTERS).map((name) => (
+              {Object.keys(CONNECTOR_ADAPTERS).map((name) => (
                 <MenuItem key={name} value={name}>
                   {name}
                 </MenuItem>
               ))}
             </TextField>
 
-            <Typography variant="subtitle2" color="text.secondary">
-              Sandbox
+            <Typography variant="subtitle2">Conta de plataforma</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
+              A credencial é da conta, e vale para todos os conectores dela. O endpoint de token é obrigatório.
             </Typography>
             <Fields
-              schema={outSchema}
-              values={sandboxValues}
-              onChange={setSandboxValues}
-              prefix="outbound.sandbox."
+              schema={ACCOUNT_FIELDS}
+              values={account.values}
+              onChange={setAccountValues}
+              prefix={accountSecretPrefix(platform)}
               secrets={data.secrets ?? {}}
               typed={typed}
               onType={setTyped}
+              environment={info?.environment}
             />
-            {CREDENTIAL_TEST_ADAPTERS.outbound.has(outboundAdapter) && (
-              <CredentialTestButton side="outbound" environment="Sandbox" pending={pending} />
+            {CREDENTIAL_TEST_ADAPTERS.platform.has(platform) && (
+              <CredentialTestButton side="platform" pending={pending} blocked={platformTestBlocker(data, platform)} />
             )}
 
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
-              Produção
+            <Typography variant="subtitle2" sx={{ mt: 1 }}>
+              Conectores
             </Typography>
-            <Fields
-              schema={outSchema}
-              values={productionValues}
-              onChange={setProductionValues}
-              prefix="outbound.production."
-              secrets={data.secrets ?? {}}
-              typed={typed}
-              onType={setTyped}
-            />
-            {CREDENTIAL_TEST_ADAPTERS.outbound.has(outboundAdapter) && (
-              <CredentialTestButton side="outbound" environment="Production" pending={pending} />
-            )}
-          </Box>
-        )}
-
-        {tab === 2 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            <Typography variant="body2" color="text.secondary">
-              Escolha os módulos que aparecem no menu Integrações.
+            <Typography variant="body2" color="text.secondary" sx={{ mt: -1.5 }}>
+              Os conectores da conta. Os módulos ligados aparecem no menu Integrações. Cada integração tem o caminho do
+              endpoint, relativo à URL base da versão que ela usa; sem caminho, ela fica inativa.
             </Typography>
-            <FormGroup>
-              {MODULE_CHOICES.map((c) => {
-                const checked = modules.includes(c.module);
-                return (
-                  <FormControlLabel
-                    key={c.module}
-                    control={
-                      <Checkbox
-                        checked={checked}
-                        disabled={checked && modules.length === 1}
-                        onChange={(e) => toggleModule(c.module, e.target.checked)}
-                      />
-                    }
-                    label={c.label}
+            <ConnectorPanel
+              connectors={connectors}
+              selected={connector}
+              onSelect={setSelectedAdapter}
+              onChange={setConnector}
+              connection={
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    As URLs base, por versão da API. A versão escolhe a base, e não entra na URL.
+                  </Typography>
+                  <Fields
+                    schema={CONNECTOR_ADAPTERS[connector.adapter] ?? []}
+                    values={connector.values}
+                    onChange={setConnectorValues}
+                    prefix={connectorSecretPrefix(connector.adapter)}
+                    secrets={data.secrets ?? {}}
+                    typed={typed}
+                    onType={setTyped}
+                    environment={info?.environment}
                   />
-                );
-              })}
-            </FormGroup>
+                </Box>
+              }
+            />
           </Box>
         )}
 

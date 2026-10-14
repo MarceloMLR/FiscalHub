@@ -24,8 +24,8 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 ///   vazia. A página igual à anterior (o <c>$skip</c> ignorado) e o teto de páginas são recusa de contrato.</item>
 ///   <item><b>Tudo ou nada:</b> qualquer falha, em qualquer página de qualquer empresa, lança, e nada parcial é devolvido. A
 ///   listagem parcial esconderia a duplicidade que estivesse justamente na empresa que falhou.</item>
-///   <item><b>A credencial e o token do envio,</b> pela mesma seção do ambiente ativo. O corpo é redigido antes de virar
-///   motivo, e o log diz só as contagens.</item>
+///   <item><b>A credencial e o token do envio,</b> da mesma conta de plataforma, e a base do mesmo conector. O corpo é
+///   redigido antes de virar motivo, e o log diz só as contagens.</item>
 /// </list>
 /// </summary>
 internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListing
@@ -39,14 +39,17 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
     private readonly HttpClient _http;
     private readonly IAvalaraTokenProvider _tokens;
     private readonly AvalaraOptions _options;
+    private readonly IInstanceEnvironment _instance;
     private readonly ILogger<AvalaraEstablishmentListing> _logger;
 
     public AvalaraEstablishmentListing(
-        HttpClient http, IAvalaraTokenProvider tokens, IOptions<AvalaraOptions> options, ILogger<AvalaraEstablishmentListing> logger)
+        HttpClient http, IAvalaraTokenProvider tokens, IOptions<AvalaraOptions> options, IInstanceEnvironment instance,
+        ILogger<AvalaraEstablishmentListing> logger)
     {
         _http = http;
         _tokens = tokens;
         _options = options.Value;
+        _instance = instance;
         _logger = logger;
     }
 
@@ -54,7 +57,7 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
 
     public async Task<IReadOnlyList<PlatformEstablishment>> ListAsync(TenantConnectorProfile profile, CancellationToken ct = default)
     {
-        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(profile.TenantId, profile);
+        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(profile.TenantId, profile, _instance);
 
         var companies = new ListPath(
             "a listagem de empresas", "da listagem de empresas", _options.CompaniesPath, "Avalara:CompaniesPath", CompaniesSelect);
@@ -148,7 +151,7 @@ internal sealed class AvalaraEstablishmentListing : IPlatformEstablishmentListin
                 throw AvalaraOutboundSettings.Rejected(
                     $"a plataforma negou {list.Label} ao tenant '{settings.TenantId}' no ambiente '{settings.Environment}' "
                     + $"(HTTP {status}{(status == 401 ? ", com token recém-emitido" : string.Empty)}): {PlatformMessage.Extract(body, status)}. "
-                    + $"Sem a listagem, a tradução do estabelecimento vai em OutboundSettings.{settings.Environment}.establishments.");
+                    + "Sem a listagem, a tradução do estabelecimento vai na tabela establishments do conector 'Avalara'.");
 
             // Token do cache vencido ou revogado: descarta, e a próxima tentativa pede outro (retry nativo).
             case HttpStatusCode.Unauthorized:

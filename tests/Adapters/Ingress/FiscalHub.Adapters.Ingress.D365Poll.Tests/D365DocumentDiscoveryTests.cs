@@ -471,10 +471,8 @@ public class D365DocumentDiscoveryTests
             Profile = new TenantConnectorProfile
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = $$"""{"url":"{{Env}}","companies":["brmf"]}""",
-                OutboundAdapter = "Avalara",
             },
         };
         var discovery = new D365DocumentDiscovery(
@@ -521,10 +519,8 @@ public class D365DocumentDiscoveryTests
             Profiles.Profile = new TenantConnectorProfile
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = settings ?? $$"""{"url":"{{Env}}","companies":["brmf"]}""",
-                OutboundAdapter = "Avalara",
             };
             Discovery = new D365DocumentDiscovery(new HttpClient(Http), Profiles, Tokens, new D365ChangeFeedOptions(), new FakeTime(DateTimeOffset.UnixEpoch), Logger);
         }

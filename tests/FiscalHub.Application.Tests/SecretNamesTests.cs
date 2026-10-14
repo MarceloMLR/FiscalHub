@@ -40,8 +40,11 @@ public class SecretNamesTests
     public void Name_is_derived_from_tenant_settings_path_and_field()
     {
         Assert.Equal(
-            "fh-tenant-a--outbound--sandbox--clientsecret",
-            SecretNames.For("tenant-a", ConnectorSettingsKind.Outbound, ["sandbox"], "clientSecret"));
+            "fh-tenant-a--platform--avalara--clientsecret",
+            SecretNames.For("tenant-a", ConnectorSettingsKind.Platform, ["Avalara"], "clientSecret"));
+        Assert.Equal(
+            "fh-tenant-a--connector--avalara--auth--apikey",
+            SecretNames.For("tenant-a", ConnectorSettingsKind.Connector, ["Avalara", "auth"], "apiKey"));
         Assert.Equal(
             "fh-tenant-a--inbound--auth--clientsecret",
             SecretNames.For("tenant-a", ConnectorSettingsKind.Inbound, ["auth"], "clientSecret"));
@@ -53,7 +56,7 @@ public class SecretNamesTests
     [Fact]
     public void Derived_name_is_a_valid_vault_name_in_the_tenant_prefix()
     {
-        string name = SecretNames.For("tenant-a", ConnectorSettingsKind.Outbound, ["production"], "clientSecret");
+        string name = SecretNames.For("tenant-a", ConnectorSettingsKind.Platform, ["avalara"], "clientSecret");
 
         Assert.True(SecretReference.TryParse(SecretReference.Of(name), out _));
         Assert.True(SecretNames.IsConnectorSecret(name));
@@ -63,7 +66,7 @@ public class SecretNamesTests
     [Fact]
     public void Tenant_prefix_is_exact_so_one_tenant_never_owns_another_tenants_secret()
     {
-        string ofTenantA = SecretNames.For("tenant-a", ConnectorSettingsKind.Outbound, ["sandbox"], "clientSecret");
+        string ofTenantA = SecretNames.For("tenant-a", ConnectorSettingsKind.Platform, ["avalara"], "clientSecret");
 
         // Com hífen simples, "fh-tenant-" seria prefixo de "fh-tenant-a-…" e o tenant "tenant" levaria o segredo.
         Assert.False(SecretNames.BelongsTo(ofTenantA, "tenant"));
@@ -80,20 +83,20 @@ public class SecretNamesTests
     public void Segment_outside_the_rule_is_refused(string tenant, string pathSegment, string field)
     {
         Assert.Throws<ArgumentException>(
-            () => SecretNames.For(tenant, ConnectorSettingsKind.Outbound, [pathSegment], field));
+            () => SecretNames.For(tenant, ConnectorSettingsKind.Connector, [pathSegment], field));
     }
 
     [Fact]
     public void Name_longer_than_the_vault_accepts_is_refused()
     {
         Assert.Throws<ArgumentException>(
-            () => SecretNames.For("tenant-a", ConnectorSettingsKind.Outbound, [new string('a', 120)], "clientSecret"));
+            () => SecretNames.For("tenant-a", ConnectorSettingsKind.Connector, [new string('a', 120)], "clientSecret"));
     }
 
     [Fact]
     public void Only_the_connector_prefix_is_a_connector_secret()
     {
-        Assert.True(SecretNames.IsConnectorSecret("fh-tenant-a--outbound--sandbox--clientsecret"));
+        Assert.True(SecretNames.IsConnectorSecret("fh-tenant-a--platform--avalara--clientsecret"));
         Assert.False(SecretNames.IsConnectorSecret("jwt-signing-key"));
         Assert.False(SecretNames.IsConnectorSecret("avalara-a-sandbox-secret"));
     }

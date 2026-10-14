@@ -108,9 +108,7 @@ public class InboundSourceResolverTests
             => Task.FromResult(profiles.Where(p => p.Tenant == tenantId).Select(p => (TenantConnectorProfile?)new TenantConnectorProfile
             {
                 TenantId = p.Tenant,
-                Environment = "Sandbox",
                 InboundAdapter = p.Adapter,
-                OutboundAdapter = "Avalara",
             }).FirstOrDefault());
 
         public Task UpsertAsync(TenantConnectorProfile profile, CancellationToken ct = default) => throw new NotSupportedException();

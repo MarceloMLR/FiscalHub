@@ -20,7 +20,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         var unique = Assert.IsType<EstablishmentMatch.Unique>(index.Match("44278225000180"));
         Assert.Equal(("005", "010"), (unique.Establishment.CompanyCode, unique.Establishment.EstablishmentCode));
@@ -33,7 +33,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.IsType<EstablishmentMatch.None>(index.Match("44278225000341"));
         Assert.False(index.Knows("44278225000341"));
@@ -47,7 +47,7 @@ public class PlatformEstablishmentResolverTests
             Taxpayer("44278225000180", "005", "001", "20001"),   // os mesmos códigos, outra empresa: duas escriturações
         ]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         var ambiguous = Assert.IsType<EstablishmentMatch.Ambiguous>(index.Match("44278225000180"));
         Assert.Equal(["2000010001", "20001"], ambiguous.Candidates.Select(c => c.PlatformId));
@@ -62,7 +62,7 @@ public class PlatformEstablishmentResolverTests
             Taxpayer("44278225000180", "005", "010", "2000010001"),
         ]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.IsType<EstablishmentMatch.Unique>(index.Match("44278225000180"));
     }
@@ -76,7 +76,7 @@ public class PlatformEstablishmentResolverTests
             Taxpayer("44278225000180", "005", "010", platformId: null),
         ]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.Equal(2, Assert.IsType<EstablishmentMatch.Ambiguous>(index.Match("44278225000180")).Candidates.Count);
     }
@@ -90,7 +90,7 @@ public class PlatformEstablishmentResolverTests
             Taxpayer("44278225000260", "QA", "007", "20007"),
         ]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.IsType<EstablishmentMatch.Ambiguous>(index.Match("44278225000260"));
     }
@@ -100,7 +100,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.IsType<EstablishmentMatch.Unique>(index.Match("442782250001-80"));
     }
@@ -110,7 +110,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("12.ABC.345/01DE-35", "005", "ALFA", "2000010009")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         var unique = Assert.IsType<EstablishmentMatch.Unique>(index.Match("12.ABC.345/01DE-35"));
         Assert.Equal("12ABC34501DE35", unique.Establishment.TaxId);
@@ -122,7 +122,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("12abc34501de35", "005", "ALFA", "2000010009")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.IsType<EstablishmentMatch.None>(index.Match("12ABC34501DE35"));
     }
@@ -135,7 +135,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer(cnpj, "005", "010", "2000010001")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.IsType<EstablishmentMatch.None>(index.Match(cnpj));
         Assert.False(index.Knows(""));
@@ -150,7 +150,7 @@ public class PlatformEstablishmentResolverTests
 
         for (int i = 0; i < 50; i++)
         {
-            await h.Resolver.GetAsync(Profile());
+            await Resolve(h.Resolver, Profile());
         }
 
         Assert.Equal(1, h.Listing.Calls);
@@ -162,7 +162,7 @@ public class PlatformEstablishmentResolverTests
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.Hold();
 
-        Task<PlatformEstablishmentIndex>[] resolutions = [.. Enumerable.Range(0, 10).Select(_ => h.Resolver.GetAsync(Profile()))];
+        Task<PlatformEstablishmentIndex>[] resolutions = [.. Enumerable.Range(0, 10).Select(_ => Resolve(h.Resolver, Profile()))];
         h.Listing.Release();
         PlatformEstablishmentIndex[] indexes = await Task.WhenAll(resolutions);
 
@@ -176,7 +176,7 @@ public class PlatformEstablishmentResolverTests
         var h = new Harness([]);
         h.Listing.Hold();
 
-        Task<PlatformEstablishmentIndex>[] resolutions = [.. Enumerable.Range(0, 10).Select(_ => h.Resolver.GetAsync(Profile()))];
+        Task<PlatformEstablishmentIndex>[] resolutions = [.. Enumerable.Range(0, 10).Select(_ => Resolve(h.Resolver, Profile()))];
         h.Listing.Release(new HttpRequestException("503"));
 
         foreach (Task<PlatformEstablishmentIndex> resolution in resolutions)
@@ -192,15 +192,29 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        await h.Resolver.GetAsync(Profile());
+        await Resolve(h.Resolver, Profile());
         h.Clock.Advance(TimeSpan.FromMinutes(9));
-        await h.Resolver.GetAsync(Profile());
+        await Resolve(h.Resolver, Profile());
         Assert.Equal(1, h.Listing.Calls);
 
         h.Clock.Advance(TimeSpan.FromMinutes(1));   // 10 minutos: a validade padrão venceu
-        await h.Resolver.GetAsync(Profile());
+        await Resolve(h.Resolver, Profile());
 
         Assert.Equal(2, h.Listing.Calls);
+    }
+
+    [Fact]
+    public async Task Without_the_connector_of_the_dispatching_adapter_there_is_no_listing()
+    {
+        // O adapter que despacha acha o próprio conector na coleção do tenant, pelo nome exato; sem ele, o destino é tratado
+        // como o que não lista, e a plataforma não é chamada.
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
+        TenantConnectorProfile withoutConnector = Profile() with { Accounts = [new PlatformAccount { Platform = "Avalara" }] };
+
+        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(withoutConnector, "Avalara");
+
+        Assert.False(index.CanList);
+        Assert.Equal(0, h.Listing.Calls);
     }
 
     [Fact]
@@ -208,23 +222,26 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        await h.Resolver.GetAsync(Profile("tenant-a"));
-        await h.Resolver.GetAsync(Profile("tenant-b"));
-        await h.Resolver.GetAsync(Profile("tenant-a"));
+        await Resolve(h.Resolver, Profile("tenant-a"));
+        await Resolve(h.Resolver, Profile("tenant-b"));
+        await Resolve(h.Resolver, Profile("tenant-a"));
 
         Assert.Equal(["tenant-a", "tenant-b"], h.Listing.Tenants);
     }
 
     [Fact]
-    public async Task Two_environments_of_the_same_tenant_never_share_a_listing()
+    public async Task Two_adapters_of_the_same_tenant_never_share_a_listing()
     {
+        // A chave é o tenant e o adapter — o conector —, e não o ambiente, que é o da instância (change
+        // platform-account-and-connectors, D6).
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        await h.Resolver.GetAsync(Profile(environment: "Sandbox"));
-        await h.Resolver.GetAsync(Profile(environment: "Production"));
-        await h.Resolver.GetAsync(Profile(environment: "SANDBOX"));   // o ambiente, em minúsculas, é a chave
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Avalara"));
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Outra"));
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Avalara"));
 
-        Assert.Equal(2, h.Listing.Calls);
+        Assert.Equal(1, h.Listing.Calls);
+        Assert.Equal(1, h.Other.Calls);
     }
 
     [Fact]
@@ -233,8 +250,8 @@ public class PlatformEstablishmentResolverTests
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.FailNext(new HttpRequestException("503"));
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => h.Resolver.GetAsync(Profile()));
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        await Assert.ThrowsAsync<HttpRequestException>(() => Resolve(h.Resolver, Profile()));
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.Equal(2, h.Listing.Calls);
         Assert.True(index.Knows("44278225000180"));
@@ -246,33 +263,34 @@ public class PlatformEstablishmentResolverTests
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.FailNext(new DispatchRejectedException("Configuração do conector: a plataforma negou a listagem (HTTP 403)."));
 
-        var first = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Resolver.GetAsync(Profile()));
+        var first = await Assert.ThrowsAsync<DispatchRejectedException>(() => Resolve(h.Resolver, Profile()));
         for (int i = 0; i < 20; i++)
         {
-            var again = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Resolver.GetAsync(Profile()));
+            var again = await Assert.ThrowsAsync<DispatchRejectedException>(() => Resolve(h.Resolver, Profile()));
             Assert.Equal(first.Reason, again.Reason);
         }
 
         Assert.Equal(1, h.Listing.Calls);
 
         h.Clock.Advance(TimeSpan.FromMinutes(5));   // o intervalo padrão passou: uma chamada nova
-        await h.Resolver.GetAsync(Profile());
+        await Resolve(h.Resolver, Profile());
 
         Assert.Equal(2, h.Listing.Calls);
     }
 
     [Fact]
-    public async Task Saving_the_profile_forgets_the_listing_of_the_tenant_in_every_environment()
+    public async Task Saving_the_profile_forgets_the_listing_of_the_tenant_in_every_adapter()
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
-        await h.Resolver.GetAsync(Profile(environment: "Sandbox"));
-        await h.Resolver.GetAsync(Profile(environment: "Production"));
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Avalara"));
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Outra"));
 
         await h.Resolver.ProfileSavedAsync("tenant-a");
-        await h.Resolver.GetAsync(Profile(environment: "Sandbox"));
-        await h.Resolver.GetAsync(Profile(environment: "Production"));
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Avalara"));
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Outra"));
 
-        Assert.Equal(4, h.Listing.Calls);
+        Assert.Equal(2, h.Listing.Calls);
+        Assert.Equal(2, h.Other.Calls);
     }
 
     [Fact]
@@ -280,13 +298,32 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.FailNext(new DispatchRejectedException("Configuração do conector: recusa."));
-        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Resolver.GetAsync(Profile()));
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => Resolve(h.Resolver, Profile()));
 
         await h.Resolver.ProfileSavedAsync("tenant-a");
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile());
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile());
 
         Assert.True(index.Knows("44278225000180"));
         Assert.Equal(2, h.Listing.Calls);
+    }
+
+    [Fact]
+    public async Task Saving_the_profile_forgets_the_remembered_refusal_of_every_connector_of_the_tenant()
+    {
+        // Salvar esquece a recusa de todos os conectores do tenant (5.8), e não só a do que despacha: a correção pode ter
+        // sido feita em qualquer um deles.
+        var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
+        h.Listing.FailNext(new DispatchRejectedException("Configuração do conector: recusa."));
+        h.Other.FailNext(new DispatchRejectedException("Configuração do conector: outra recusa."));
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => Resolve(h.Resolver, Profile(outboundAdapter: "Avalara")));
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => Resolve(h.Resolver, Profile(outboundAdapter: "Outra")));
+
+        await h.Resolver.ProfileSavedAsync("tenant-a");
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Avalara"));
+        await Resolve(h.Resolver, Profile(outboundAdapter: "Outra"));
+
+        Assert.Equal(2, h.Listing.Calls);
+        Assert.Equal(2, h.Other.Calls);
     }
 
     [Fact]
@@ -296,12 +333,12 @@ public class PlatformEstablishmentResolverTests
         // novo, já com o que foi salvo.
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
         h.Listing.Hold();
-        Task<PlatformEstablishmentIndex> before = h.Resolver.GetAsync(Profile());
+        Task<PlatformEstablishmentIndex> before = Resolve(h.Resolver, Profile());
 
         await h.Resolver.ProfileSavedAsync("tenant-a");
         h.Listing.Release();
         await before;
-        await h.Resolver.GetAsync(Profile());
+        await Resolve(h.Resolver, Profile());
 
         Assert.Equal(2, h.Listing.Calls);
     }
@@ -310,11 +347,11 @@ public class PlatformEstablishmentResolverTests
     public async Task Saving_the_profile_does_not_touch_other_tenants()
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
-        await h.Resolver.GetAsync(Profile("tenant-a"));
-        await h.Resolver.GetAsync(Profile("tenant-b"));
+        await Resolve(h.Resolver, Profile("tenant-a"));
+        await Resolve(h.Resolver, Profile("tenant-b"));
 
         await h.Resolver.ProfileSavedAsync("tenant-a");
-        await h.Resolver.GetAsync(Profile("tenant-b"));
+        await Resolve(h.Resolver, Profile("tenant-b"));
 
         Assert.Equal(2, h.Listing.Calls);
     }
@@ -324,7 +361,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile(outboundAdapter: "ThomsonReuters"));
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile(outboundAdapter: "ThomsonReuters"));
 
         Assert.False(index.CanList);
         Assert.False(index.Knows("44278225000180"));
@@ -337,7 +374,7 @@ public class PlatformEstablishmentResolverTests
     {
         var h = new Harness([Taxpayer("44278225000180", "005", "010", "2000010001")]);
 
-        PlatformEstablishmentIndex index = await h.Resolver.GetAsync(Profile(outboundAdapter: "avalara"));
+        PlatformEstablishmentIndex index = await Resolve(h.Resolver, Profile(outboundAdapter: "avalara"));
 
         Assert.False(index.CanList);
     }
@@ -349,8 +386,8 @@ public class PlatformEstablishmentResolverTests
         h.Listing.Hold();
         using var cts = new CancellationTokenSource();
 
-        Task<PlatformEstablishmentIndex> first = h.Resolver.GetAsync(Profile(), cts.Token);
-        Task<PlatformEstablishmentIndex> second = h.Resolver.GetAsync(Profile());
+        Task<PlatformEstablishmentIndex> first = Resolve(h.Resolver, Profile(), cts.Token);
+        Task<PlatformEstablishmentIndex> second = Resolve(h.Resolver, Profile());
         await cts.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
         h.Listing.Release();
@@ -390,13 +427,18 @@ public class PlatformEstablishmentResolverTests
         Assert.Throws<InvalidOperationException>(() => new PlatformEstablishmentResolver([], options, TimeProvider.System));
     }
 
-    private static TenantConnectorProfile Profile(string tenant = "tenant-a", string environment = "Sandbox", string outboundAdapter = "Avalara") => new()
+    // O perfil com a conta e o conector do adapter: é o adapter desse conector que despacha, e é ele que o resolvedor recebe
+    // (change platform-account-and-connectors, D9).
+    private static TenantConnectorProfile Profile(string tenant = "tenant-a", string outboundAdapter = "Avalara") => new()
     {
         TenantId = tenant,
-        Environment = environment,
         InboundAdapter = "Dynamics365",
-        OutboundAdapter = outboundAdapter,
+        Accounts = [new PlatformAccount { Platform = outboundAdapter, Connectors = [new PlatformConnector { Adapter = outboundAdapter }] }],
     };
+
+    private static Task<PlatformEstablishmentIndex> Resolve(
+        PlatformEstablishmentResolver resolver, TenantConnectorProfile profile, CancellationToken ct = default)
+        => resolver.GetAsync(profile, profile.Accounts.Single().Connectors.Single().Adapter, ct);
 
     private static PlatformEstablishment Taxpayer(string taxId, string? company, string? code, string? platformId)
         => new(taxId, company, code, platformId, CompanyName: null);
@@ -406,23 +448,27 @@ public class PlatformEstablishmentResolverTests
         public Harness(PlatformEstablishment[] establishments)
         {
             Listing = new FakeListing(establishments);
-            Resolver = new PlatformEstablishmentResolver([Listing], new PlatformEstablishmentOptions(), Clock);
+            Other = new FakeListing(establishments, adapter: "Outra");
+            Resolver = new PlatformEstablishmentResolver([Listing, Other], new PlatformEstablishmentOptions(), Clock);
         }
 
         public StubClock Clock { get; } = new(Now);
 
         public FakeListing Listing { get; }
 
+        /// <summary>A listagem de um segundo adapter, que só os testes de dois conectores usam.</summary>
+        public FakeListing Other { get; }
+
         public PlatformEstablishmentResolver Resolver { get; }
     }
 
-    private sealed class FakeListing(PlatformEstablishment[] establishments) : IPlatformEstablishmentListing
+    private sealed class FakeListing(PlatformEstablishment[] establishments, string adapter = "Avalara") : IPlatformEstablishmentListing
     {
         private TaskCompletionSource? _gate;
         private Exception? _gateFailure;
         private Exception? _nextFailure;
 
-        public string Adapter => "Avalara";
+        public string Adapter => adapter;
 
         public int Calls { get; private set; }
 

@@ -1,9 +1,9 @@
 namespace FiscalHub.Adapters.Outbound.Avalara;
 
 /// <summary>
-/// Configuração do adapter Avalara: só a forma da API da plataforma, igual para todos os clientes. A URL e a
-/// credencial são do tenant, na seção do ambiente ativo das settings de saída (ADR-0027) — nenhuma opção global as
-/// fornece. Mantida pública para permitir o bind no composition root.
+/// Configuração do adapter Avalara: só a forma da API da plataforma, igual para todos os clientes. As URLs e a
+/// credencial são do tenant — a credencial e o endpoint de token na conta de plataforma, as URLs base no conector
+/// (ADR-0027, ADR-0036) —, e nenhuma opção global as fornece. Mantida pública para permitir o bind no composition root.
 /// </summary>
 public sealed class AvalaraOptions
 {
@@ -12,9 +12,6 @@ public sealed class AvalaraOptions
 
     /// <summary>Caminho do endpoint de envio, relativo à URL base do tenant. O valor real é conferido no teste manual.</summary>
     public string DocumentsPath { get; set; } = "documents";
-
-    /// <summary>Caminho do endpoint de token, relativo à URL base, quando a seção não traz <c>tokenUrl</c>.</summary>
-    public string TokenPath { get; set; } = "oauth/token";
 
     /// <summary>
     /// Caminho da listagem de empresas, relativo à URL base (change <c>platform-establishment-resolution</c>, D6). O padrão é

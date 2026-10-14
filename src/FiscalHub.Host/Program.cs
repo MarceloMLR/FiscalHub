@@ -31,12 +31,18 @@ using FiscalHub.Infrastructure.Secrets;
 using FiscalHub.Application.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 var cfg = builder.Configuration;
+
+// O ambiente da plataforma é da instância (ADR-0036 §3): vem de Connector:Environment, e o host não sobe sem ele, nem com
+// um valor fora de Sandbox e Production — sem padrão silencioso. Não é o IHostEnvironment (change
+// platform-account-and-connectors, D6).
+builder.Services.AddSingleton<IInstanceEnvironment>(InstanceEnvironment.From(cfg[InstanceEnvironment.ConfigurationKey]));
 
 // Auth (JWT próprio): a chave/issuer/audience vêm da config. O host emite o token no /auth/login e
 // valida o Bearer nas demais rotas. Em produção a chave é um segredo (Key Vault), não o appsettings.
@@ -94,8 +100,10 @@ establishmentOptions.Validate();
 builder.Services.AddSingleton(establishmentOptions);
 builder.Services.AddSingleton<PlatformEstablishmentResolver>();
 builder.Services.AddSingleton<IConnectorProfileObserver>(sp => sp.GetRequiredService<PlatformEstablishmentResolver>());
-// Autenticado por padrão: URL e credencial vêm da seção do ambiente ativo do tenant, e o segredo, do cofre (ADR-0027).
-// A seção Avalara (opcional) só ajusta a forma da API — DocumentsPath, TokenPath, margens —, a mesma que a sonda lê.
+// Autenticado por padrão: a credencial e o endpoint de token vêm da conta de plataforma do tenant, a URL base e o caminho
+// da integração, do conector, e o segredo, do cofre (ADR-0027). A seção Avalara (opcional) só ajusta a forma da API — os
+// caminhos da listagem, as margens — e o DocumentsPath, que só preenche, uma vez, o caminho da integração de notas que a
+// migração deixou à espera (D10).
 builder.Services.AddAvalaraComplianceDispatcher(options => cfg.GetSection("Avalara").Bind(options));
 builder.Services.AddSupportTicketAdapters();   // chamados: Freshdesk (real) + Local (mock dev)
 builder.Services.AddScoped<DocumentTraceQuery>();   // fotos de um documento, só para o tenant de quem está logado (ADR-0028)
@@ -214,6 +222,13 @@ app.UseAuthorization();
 
 // Dev local: cria o schema no SQL, o container no Blob, sobe um XML de exemplo e semeia os usuários.
 await app.Services.MigrateProcessingSchemaAsync();
+
+// O caminho da integração de notas que a migração deixou à espera (D10): preenchido uma vez, com o Avalara:DocumentsPath —
+// o mesmo que o envio usava antes desta mudança, inclusive o padrão do código —, em qualquer ambiente, sem depender do seed.
+// Preenchido, o caminho é da tela, e o DocumentsPath deixa de valer para ele.
+await app.Services.FillPendingIntegrationPathAsync(
+    AvalaraServiceCollectionExtensions.AdapterName, ConnectorIntegrations.Invoices,
+    app.Services.GetRequiredService<IOptions<AvalaraOptions>>().Value.DocumentsPath);
 await LocalSeed.RunAsync(app.Services);
 // Usuários, tenants e perfis sempre; a demonstração (notas, execuções, agendamentos) só com Seed:DemoData = true, por
 // escolha explícita: sem a chave, não entra, e limpar a base e subir o host não a traz de volta (docs/RUNNING.md §10).
@@ -643,25 +658,17 @@ app.MapGet("/companies", async (CompanyDirectoryQuery directory, CancellationTok
 app.MapGet("/companies/{code}/branches", async (string code, CompanyDirectoryQuery directory, CancellationToken ct) =>
     DirectoryResponse(await directory.ListBranchesAsync(code, ct)));
 
-// Ambiente do conector e integração automática do tenant logado. A integração automática não é campo gravado: é
-// derivada do perfil (adapter que varre e poll.enabled), com as origens dos feeds registrados, as mesmas que o poller
-// consome (ADR-0029). O inboundScans diz se o adapter varre: é o que faz o selo aparecer, verde ou vermelho, ou sumir.
+// O ambiente da instância e a integração automática do tenant logado. O ambiente é o da instância, sem padrão (D6). A
+// integração automática não é campo gravado: é derivada do perfil (adapter que varre e poll.enabled), com as origens dos
+// feeds registrados, as mesmas que o poller consome (ADR-0029). O inboundScans diz se o adapter varre: é o que faz o selo
+// aparecer, verde ou vermelho, ou sumir. Os módulos montam a barra lateral, para qualquer papel: apresentação, e não
+// permissão.
 app.MapGet("/info", async (
-    IConnectorProfileStore profiles, IEnumerable<IDocumentChangeFeed> feeds, ITenantContext tenant, CancellationToken ct) =>
-{
-    TenantConnectorProfile? profile = await profiles.GetAsync(tenant.TenantId, ct);
-    string[] scanning = [.. feeds.Select(f => f.Origin)];
-    return Results.Ok(new
-    {
-        environment = profile?.Environment ?? cfg["Connector:Environment"] ?? "Sandbox",
-        automaticIntegration = AutomaticIntegration.IsOn(profile, scanning),
-        inboundScans = AutomaticIntegration.Scans(profile, scanning),
-        // Os módulos montam a barra lateral, para qualquer papel. Apresentação, e não permissão (D2).
-        modules = TenantModules.Of(profile),
-    });
-});
+    IConnectorProfileStore profiles, IEnumerable<IDocumentChangeFeed> feeds, IInstanceEnvironment instance, ITenantContext tenant,
+    CancellationToken ct) =>
+    Results.Ok(InstanceInfo.For(instance, await profiles.GetAsync(tenant.TenantId, ct), feeds.Select(f => f.Origin))));
 
-// Perfil de conector do tenant (config de adapters/ambiente/settings). Só Admin lê e edita. O segredo entra pela tela
+// Perfil de conector do tenant (config de adapters e settings; o ambiente é da instância). Só Admin lê e edita. O segredo entra pela tela
 // como campo de escrita e vai para o cofre; a leitura diz só "configurado" e a data (ADR-0027).
 app.MapGet("/connector", async (ConnectorProfileService connector, CancellationToken ct) =>
     await connector.GetAsync(ct) is { } view ? Results.Ok(view) : Results.NotFound())
@@ -693,18 +700,19 @@ app.MapGet("/connector/automatic", async (AutomaticIntegrationPanelQuery panels,
         : Results.NotFound())
     .RequireAuthorization(policy => policy.RequireRole("Admin"));
 
-// Testar a credencial GRAVADA de um lado (D9): a requisição não leva credencial, só o lado e, na saída, o ambiente. A
-// resposta tem só a mensagem curta da tela; o motivo detalhado (o código AADSTS, o status HTTP, o campo que falta) vai
-// para o log. Nunca o token nem o segredo.
+// Testar a credencial GRAVADA de um lado (D9): a requisição não leva credencial, só o lado. O ambiente é o da instância,
+// e um corpo antigo que ainda o mande tem o campo ignorado (change platform-account-and-connectors, D6). A resposta tem só
+// a mensagem curta da tela; o motivo detalhado (o código AADSTS, o status HTTP, o campo que falta) vai para o log. Nunca o
+// token nem o segredo.
 app.MapPost("/connector/test", async (
     CredentialTestRequest req, ConnectorCredentialTestService tests, ITenantContext tenant, ILogger<ConnectorCredentialTestService> log,
     CancellationToken ct) =>
 {
-    CredentialTestReply reply = await tests.TestAsync(req.Side ?? string.Empty, req.Environment, ct);
+    CredentialTestReply reply = await tests.TestAsync(req.Side ?? string.Empty, ct);
     if (reply.Log is { } entry)
     {
-        log.LogInformation("Teste de credencial do tenant {Tenant} ({Adapter} {Environment}): {Verdict}{Brake}. {Detail}",
-            tenant.TenantId, entry.Adapter, entry.Environment ?? "entrada", entry.Verdict, entry.FromBrake ? ", pelo freio" : string.Empty,
+        log.LogInformation("Teste de credencial do tenant {Tenant} ({Adapter}, ambiente {Environment}): {Verdict}{Brake}. {Detail}",
+            tenant.TenantId, entry.Adapter, entry.Environment, entry.Verdict, entry.FromBrake ? ", pelo freio" : string.Empty,
             entry.Detail);
     }
 
@@ -844,7 +852,7 @@ public sealed record UpdateTenantRequest(string Name, string? Cnpj);
 public sealed record RewindRequest(DateTimeOffset Watermark);
 
 // O lado ("inbound" ou "outbound") e, na saída, o ambiente. Nenhum campo de credencial: o teste usa a gravada.
-public sealed record CredentialTestRequest(string? Side, string? Environment);
+public sealed record CredentialTestRequest(string? Side);
 
 /// <summary>Corpo do POST /support/tickets/estimate — só as notas, pra estimar o tamanho dos logs.</summary>
 public sealed record EstimateTicketRequest(IReadOnlyList<string>? NaturalKeys);

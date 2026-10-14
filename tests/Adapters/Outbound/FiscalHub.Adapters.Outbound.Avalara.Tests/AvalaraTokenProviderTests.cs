@@ -10,15 +10,16 @@ using Microsoft.Extensions.Options;
 namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 
 /// <summary>
-/// Especifica o token por credencial (ADR-0027): a credencial vem da seção do ambiente ativo e o segredo, do cofre; o
-/// cache distingue tenant, ambiente, endpoint, cliente e a versão do segredo; uma única busca por credencial sob
-/// concorrência, reuso enquanto válido e renovação na margem. A recusa da credencial é lembrada por um intervalo, e
-/// salvar o perfil a esquece na hora (<c>Forget</c>).
+/// Especifica o token por credencial (ADR-0027): a credencial e o endpoint de token vêm da conta de plataforma, e o
+/// segredo, do cofre; o cache distingue tenant, conta, endpoint de token, cliente e a versão do segredo — e não o conector
+/// nem o ambiente (change platform-account-and-connectors, D6 e D11); uma única busca por credencial sob concorrência,
+/// reuso enquanto válido e renovação na margem. A recusa da credencial é lembrada por um intervalo, e salvar o perfil a
+/// esquece na hora (<c>Forget</c>).
 /// </summary>
 public class AvalaraTokenProviderTests
 {
-    private const string SecretA = "fh-tenant-a--outbound--sandbox--clientsecret";
-    private const string SecretB = "fh-tenant-b--outbound--sandbox--clientsecret";
+    private const string SecretA = "fh-tenant-a--platform--avalara--clientsecret";
+    private const string SecretB = "fh-tenant-b--platform--avalara--clientsecret";
 
     // ---------- cache ----------
 
@@ -86,23 +87,71 @@ public class AvalaraTokenProviderTests
         h.Secrets.Values[SecretB] = "segredo-b";
 
         await h.Provider.GetTokenAsync(h.Settings("tenant-a"));
-        await h.Provider.GetTokenAsync(h.Settings("tenant-b", clientId: "id-b", baseUrl: "https://avalara-b/"));
+        await h.Provider.GetTokenAsync(h.Settings("tenant-b", clientId: "id-b", tokenUrl: "https://avalara-b/oauth/token"));
 
         Assert.Equal(("https://avalara-a/oauth/token", "id-a", "segredo-a"), h.Endpoint.Requests[0].Summary);
         Assert.Equal(("https://avalara-b/oauth/token", "id-b", "segredo-b"), h.Endpoint.Requests[1].Summary);
     }
 
     [Fact]
-    public async Task Environment_change_fetches_a_new_token_from_the_new_section()
+    public async Task The_environment_is_not_part_of_the_cache_key()
+    {
+        // A instância atende um ambiente só (change platform-account-and-connectors, D6): a mesma credencial, lida com
+        // qualquer ambiente como contexto, é uma entrada só no cache.
+        var h = new Harness();
+
+        AvalaraAccessToken first = await h.Provider.GetTokenAsync(h.Settings("tenant-a", environment: "Sandbox"));
+        AvalaraAccessToken second = await h.Provider.GetTokenAsync(h.Settings("tenant-a", environment: "Production"));
+
+        Assert.Equal(1, h.Endpoint.Calls);
+        Assert.Equal(first.Value, second.Value);
+    }
+
+    [Fact]
+    public async Task Two_connectors_of_the_same_account_share_one_token()
+    {
+        // O conector não entra na chave (4.7): a credencial é da conta, e o token emitido vale para todos os produtos dela.
+        // Duas leituras da mesma conta com conectores diferentes — outra base, outra tabela — pedem um token só.
+        var h = new Harness();
+
+        AvalaraAccessToken first = await h.Provider.GetTokenAsync(
+            h.Settings("tenant-a", connector: AvalaraProfiles.Connector("https://avalara-a/")));
+        AvalaraAccessToken second = await h.Provider.GetTokenAsync(
+            h.Settings("tenant-a", connector: AvalaraProfiles.Connector("https://outro-produto-a/", ""","establishments":{}""")));
+
+        Assert.Equal(1, h.Endpoint.Calls);
+        Assert.Equal(first.Value, second.Value);
+    }
+
+    [Fact]
+    public async Task Another_token_endpoint_of_the_account_is_another_token()
     {
         var h = new Harness();
-        h.Secrets.Values["fh-tenant-a--outbound--production--clientsecret"] = "segredo-prod";
 
         await h.Provider.GetTokenAsync(h.Settings("tenant-a"));
-        await h.Provider.GetTokenAsync(h.Settings("tenant-a", environment: "Production", clientId: "id-prod", baseUrl: "https://avalara-prod/"));
+        await h.Provider.GetTokenAsync(h.Settings("tenant-a", tokenUrl: "https://login.avalara-a/connect/token"));
 
         Assert.Equal(2, h.Endpoint.Calls);
-        Assert.Equal(("https://avalara-prod/oauth/token", "id-prod", "segredo-prod"), h.Endpoint.Requests[1].Summary);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task Account_without_token_url_is_rejected_with_no_request_to_an_endpoint_built_from_the_base(string? tokenUrl)
+    {
+        // Antes, o endpoint era a URL base mais o Avalara:TokenPath. Agora não há derivação (D11): nem pedido, nem cofre.
+        var h = new Harness();
+        AvalaraOutboundSettings settings = Read("tenant-a", AvalaraProfiles.Account("tenant-a", AvalaraProfiles.Connector("https://avalara-a/"), tokenUrl: tokenUrl));
+
+        string reason = (await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(settings))).Reason;
+        CredentialTestOutcome probe = await h.Provider.ProbeAsync(settings);
+
+        Assert.Contains("tokenUrl", reason);
+        Assert.Contains("Endpoint de token", reason);
+        Assert.Equal(CredentialTestVerdict.Incomplete, probe.Verdict);
+        Assert.Contains("tokenUrl", probe.Reason);
+        Assert.Equal(0, h.Endpoint.Calls);
+        Assert.Equal(0, h.Secrets.GetCount);
     }
 
     [Fact]
@@ -223,7 +272,7 @@ public class AvalaraTokenProviderTests
 
         Assert.StartsWith("Configuração do conector:", reason);
         Assert.Contains("'tenant-a'", reason);
-        Assert.Contains("'sandbox'", reason);
+        Assert.Contains("'Sandbox'", reason);
         Assert.Contains($"HTTP {(int)status}", reason);
         Assert.Contains("invalid_client", reason);
         Assert.Contains("Client authentication failed", reason);
@@ -378,13 +427,13 @@ public class AvalaraTokenProviderTests
         }
 
         AvalaraOutboundSettings settings = situation == "sem-referencia"
-            ? Read("tenant-a", """{"sandbox":{"baseUrl":"https://avalara-a/","clientId":"id-a"}}""")
+            ? Read("tenant-a", AvalaraProfiles.Account("tenant-a", AvalaraProfiles.Connector("https://avalara-a/"), withSecret: false))
             : h.Settings("tenant-a");
 
         string reason = (await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(settings))).Reason;
 
-        Assert.Contains("OutboundSettings.sandbox.clientSecret", reason);
-        Assert.Contains("Configurações → Conectores → Avalara → Sandbox → Client Secret", reason);
+        Assert.Contains("o Client Secret da conta de plataforma 'Avalara'", reason);
+        Assert.Contains("Configurações → Conectores → Avalara → Client Secret", reason);
         Assert.Equal(0, h.Endpoint.Calls);
         if (situation != "sem-referencia")
         {
@@ -398,8 +447,10 @@ public class AvalaraTokenProviderTests
         var h = new Harness();
         h.Secrets.Values[SecretA] = "segredo-a";
 
-        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(
-            Read("tenant-b", $$$"""{"sandbox":{"baseUrl":"https://avalara-b/","clientId":"id-b","clientSecretRef":"kv:{{{SecretA}}}"}}""")));
+        PlatformAccount foreign = AvalaraProfiles.Account("tenant-b", AvalaraProfiles.Connector("https://avalara-b/"), clientId: "id-b")
+            with { ClientSecretRef = SecretReference.Of(SecretA) };
+
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(Read("tenant-b", foreign)));
 
         Assert.Equal(0, h.Secrets.GetCount);
         Assert.Equal(0, h.Endpoint.Calls);
@@ -435,21 +486,43 @@ public class AvalaraTokenProviderTests
     }
 
     [Fact]
+    public async Task Forget_drops_the_token_and_the_refusals_of_every_connector_of_the_tenant()
+    {
+        // Salvar o perfil esquece os tokens e as recusas de todos os conectores do tenant (5.8): o token da conta, que os
+        // conectores dela compartilham, e a recusa de outra credencial.
+        var h = new Harness();
+        h.Endpoint.RefusedClientIds.Add("id-antigo");
+        AvalaraOutboundSettings first = h.Settings("tenant-a", connector: AvalaraProfiles.Connector("https://avalara-a/"));
+        AvalaraOutboundSettings second = h.Settings("tenant-a", connector: AvalaraProfiles.Connector("https://outro-produto-a/"));
+        AvalaraOutboundSettings refused = h.Settings("tenant-a", clientId: "id-antigo", tokenUrl: "https://login.avalara-a/connect/token");
+        await h.Provider.GetTokenAsync(first);
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(refused));
+        h.Endpoint.RefusedClientIds.Clear();   // a plataforma liberou o cliente
+
+        h.Provider.Forget("tenant-a");
+        AvalaraAccessToken shared = await h.Provider.GetTokenAsync(second);
+        AvalaraAccessToken freed = await h.Provider.GetTokenAsync(refused);
+
+        Assert.Equal(4, h.Endpoint.Calls);   // nada do que estava guardado respondeu
+        Assert.True(shared.IsFresh);
+        Assert.True(freed.IsFresh);
+    }
+
+    [Fact]
     public async Task Forget_leaves_the_other_tenants_alone()
     {
         var h = new Harness();
-        h.Endpoint.RefusedClientIds.Add("id-b-prod");
+        h.Endpoint.RefusedClientIds.Add("id-b-errado");
         h.Secrets.Values[SecretB] = "segredo-b";
-        h.Secrets.Values["fh-tenant-b--outbound--production--clientsecret"] = "segredo-b-prod";
-        AvalaraOutboundSettings bSandbox = h.Settings("tenant-b", clientId: "id-b", baseUrl: "https://avalara-b/");
-        AvalaraOutboundSettings bProduction = h.Settings("tenant-b", environment: "Production", clientId: "id-b-prod", baseUrl: "https://avalara-b-prod/");
-        await h.Provider.GetTokenAsync(bSandbox);
-        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(bProduction));
+        AvalaraOutboundSettings bRight = h.Settings("tenant-b", clientId: "id-b");
+        AvalaraOutboundSettings bWrong = h.Settings("tenant-b", clientId: "id-b-errado");
+        await h.Provider.GetTokenAsync(bRight);
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(bWrong));
         await h.Provider.GetTokenAsync(h.Settings("tenant-a"));
 
         h.Provider.Forget("tenant-a");
-        AvalaraAccessToken cached = await h.Provider.GetTokenAsync(bSandbox);
-        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(bProduction));
+        AvalaraAccessToken cached = await h.Provider.GetTokenAsync(bRight);
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(bWrong));
 
         Assert.Equal(3, h.Endpoint.Calls);   // nada de novo para o tenant-b
         Assert.False(cached.IsFresh);
@@ -486,19 +559,18 @@ public class AvalaraTokenProviderTests
     }
 
     [Fact]
-    public async Task Successful_probe_forgets_the_refusals_of_the_tenant_in_every_environment()
+    public async Task Successful_probe_forgets_the_refusals_of_every_credential_of_the_tenant()
     {
         var h = new Harness();
-        h.Endpoint.RefusedClientIds.Add("id-a-prod");
-        h.Secrets.Values["fh-tenant-a--outbound--production--clientsecret"] = "segredo-a-prod";
-        AvalaraOutboundSettings production = h.Settings("tenant-a", environment: "Production", clientId: "id-a-prod");
-        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(production));
+        h.Endpoint.RefusedClientIds.Add("id-a-antigo");
+        AvalaraOutboundSettings old = h.Settings("tenant-a", clientId: "id-a-antigo");
+        await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Provider.GetTokenAsync(old));
         h.Endpoint.RefusedClientIds.Clear();
 
-        await h.Provider.ProbeAsync(h.Settings("tenant-a"));   // o teste do Sandbox dá certo
-        await h.Provider.GetTokenAsync(production);
+        await h.Provider.ProbeAsync(h.Settings("tenant-a"));   // o teste da credencial atual dá certo
+        await h.Provider.GetTokenAsync(old);
 
-        Assert.Equal(3, h.Endpoint.Calls);   // a recusa de Produção foi esquecida, como no salvar do perfil
+        Assert.Equal(3, h.Endpoint.Calls);   // a recusa da outra credencial foi esquecida, como no salvar do perfil
     }
 
     [Fact]
@@ -570,6 +642,7 @@ public class AvalaraTokenProviderTests
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
         Assert.Contains($"HTTP {(int)status}", outcome.Reason);
+        Assert.Contains("Confira o endpoint de token da conta", outcome.Reason);   // e não a URL base de um conector
     }
 
     [Fact]
@@ -581,6 +654,7 @@ public class AvalaraTokenProviderTests
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
         Assert.Contains("não existe", outcome.Reason);
+        Assert.Contains("Confira o endpoint de token da conta", outcome.Reason);
     }
 
     [Fact]
@@ -613,7 +687,7 @@ public class AvalaraTokenProviderTests
         CredentialTestOutcome outcome = await h.Provider.ProbeAsync(h.Settings("tenant-a"));
 
         Assert.Equal(CredentialTestVerdict.Incomplete, outcome.Verdict);
-        Assert.Contains("clientSecret", outcome.Reason);
+        Assert.Contains("Client Secret", outcome.Reason);
         Assert.Equal(0, h.Endpoint.Calls);
     }
 
@@ -624,12 +698,12 @@ public class AvalaraTokenProviderTests
     {
         var h = new Harness();
         AvalaraAccessToken token = await h.Provider.GetTokenAsync(h.Settings("tenant-a"));
-        var credential = new AvalaraResolvedCredential("tenant-a", "sandbox", new Uri("https://avalara-a/oauth/token"), "id-a", "segredo-a");
+        var credential = new AvalaraResolvedCredential("tenant-a", "Sandbox", new Uri("https://avalara-a/oauth/token"), "id-a", "segredo-a");
 
         Assert.DoesNotContain(token.Value, token.ToString());
         Assert.Contains("tenant-a", token.ToString());
         Assert.DoesNotContain("segredo-a", credential.ToString());
-        Assert.Contains("sandbox", credential.ToString());
+        Assert.Contains("Sandbox", credential.ToString());
     }
 
     [Fact]
@@ -641,15 +715,13 @@ public class AvalaraTokenProviderTests
 
     // ---------- apoio ----------
 
-    private static AvalaraOutboundSettings Read(string tenant, string outbound, string environment = "Sandbox")
+    private static AvalaraOutboundSettings Read(string tenant, PlatformAccount account, string environment = "Sandbox")
         => AvalaraOutboundSettings.Read(tenant, new TenantConnectorProfile
         {
             TenantId = tenant,
-            Environment = environment,
             InboundAdapter = "Xml",
-            OutboundAdapter = "Avalara",
-            OutboundSettings = outbound,
-        });
+            Accounts = [account],
+        }, InstanceEnvironment.From(environment));
 
     private sealed class Harness
     {
@@ -668,17 +740,15 @@ public class AvalaraTokenProviderTests
         public AvalaraTokenProvider Provider => _provider ??= new AvalaraTokenProvider(
             new HttpClient(Endpoint), Secrets, Options.Create(new AvalaraOptions()), Clock, Logger);
 
+        // A conta Avalara do tenant, com o endpoint de token em https://avalara-{letra}/oauth/token, e o conector Avalara.
         public AvalaraOutboundSettings Settings(
-            string tenant, string environment = "Sandbox", string? clientId = null, string? baseUrl = null, string? tokenUrl = null)
+            string tenant, string environment = "Sandbox", string? clientId = null, string? tokenUrl = null, string? connector = null)
         {
-            string section = environment.ToLowerInvariant();
-            string token = tokenUrl is null ? string.Empty : $",\"tokenUrl\":\"{tokenUrl}\"";
-            string url = baseUrl ?? $"https://avalara-{tenant[^1]}/";
-            string id = clientId ?? $"id-{tenant[^1]}";
-            return Read(tenant, $$$"""
-                {"{{{section}}}":{"baseUrl":"{{{url}}}","clientId":"{{{id}}}",
-                  "clientSecretRef":"kv:fh-{{{tenant}}}--outbound--{{{section}}}--clientsecret"{{{token}}}}}
-                """, environment);
+            string letter = tenant[^1..];
+            PlatformAccount account = AvalaraProfiles.Account(
+                tenant, connector ?? AvalaraProfiles.Connector($"https://avalara-{letter}/"), clientId ?? $"id-{letter}",
+                tokenUrl ?? $"https://avalara-{letter}/oauth/token");
+            return Read(tenant, account, environment);
         }
     }
 

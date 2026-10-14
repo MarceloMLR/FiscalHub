@@ -10,8 +10,9 @@ public sealed class CredentialTestOptions
 
 /// <summary>
 /// O freio do botão de teste (change <c>module-navigation-and-integration-panel</c>, D12): lembra um teste recusado por
-/// <see cref="CredentialTestOptions.RefusalHold"/>, por tenant e por adapter, e, na saída, por ambiente, porque Sandbox e
-/// Produção são duas credenciais.
+/// <see cref="CredentialTestOptions.RefusalHold"/>, por tenant e por adapter. O ambiente não entra na chave: a instância
+/// atende um só, e o Sandbox e a Produção são credenciais de instâncias diferentes (change
+/// <c>platform-account-and-connectors</c>, D6).
 /// <para>Por que no botão, e não no provedor de token do D365: o coletor tenta uma vez por intervalo, e uma pessoa clica
 /// quantas vezes quiser. E cada teste é um pedido real ao emissor do token, porque nenhum reusa cache.</para>
 /// <para>Lembra só a recusa. Um sucesso lembrado seria o teste que mente, só que no freio. Salvar o perfil esquece o freio
@@ -30,9 +31,9 @@ public sealed class CredentialTestBrake : IConnectorProfileObserver
     }
 
     /// <summary>A recusa lembrada, se ainda vale.</summary>
-    public bool TryHeld(string tenantId, string adapter, string? environment, out string reason, out DateTimeOffset until)
+    public bool TryHeld(string tenantId, string adapter, out string reason, out DateTimeOffset until)
     {
-        var key = new Key(tenantId, adapter, environment);
+        var key = new Key(tenantId, adapter);
         if (_refusals.TryGetValue(key, out Refusal? refusal))
         {
             if (refusal.Until > _clock.GetUtcNow())
@@ -49,10 +50,10 @@ public sealed class CredentialTestBrake : IConnectorProfileObserver
     }
 
     /// <summary>Lembra a recusa, e devolve até quando ela vale.</summary>
-    public DateTimeOffset Remember(string tenantId, string adapter, string? environment, string reason)
+    public DateTimeOffset Remember(string tenantId, string adapter, string reason)
     {
         DateTimeOffset until = _clock.GetUtcNow() + _options.RefusalHold;
-        _refusals[new Key(tenantId, adapter, environment)] = new Refusal(reason, until);
+        _refusals[new Key(tenantId, adapter)] = new Refusal(reason, until);
         return until;
     }
 
@@ -66,7 +67,7 @@ public sealed class CredentialTestBrake : IConnectorProfileObserver
         return Task.CompletedTask;
     }
 
-    private sealed record Key(string TenantId, string Adapter, string? Environment);
+    private sealed record Key(string TenantId, string Adapter);
 
     private sealed record Refusal(string Reason, DateTimeOffset Until);
 }

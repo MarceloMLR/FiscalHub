@@ -300,9 +300,9 @@ export const api = {
   automaticPanel: () => getJson<AutomaticPanel>('/connector/automatic'),
   // Volta a marca para o instante (ISO). 400 = não é anterior à marca ou está no futuro; 409 = o coletor está lendo,
   // ou não há marca. As mensagens vêm do servidor.
-  // Testa a credencial GRAVADA de um lado (na saída, de um ambiente). A requisição não leva credencial nenhuma.
-  testConnector: (side: 'inbound' | 'outbound', environment?: 'Sandbox' | 'Production') =>
-    sendAdmin<CredentialTestResult>('POST', '/connector/test', { side, environment }),
+  // Testa a credencial GRAVADA de um lado. A requisição não leva credencial nenhuma, nem ambiente: é o da instância.
+  // Na conta de plataforma, o lado é 'platform': o teste é da conta, e não de um conector.
+  testConnector: (side: 'inbound' | 'platform') => sendAdmin<CredentialTestResult>('POST', '/connector/test', { side }),
   rewindAutomatic: (watermark: string) =>
     sendAdmin<{ watermark: string; message: string }>('POST', '/connector/automatic/rewind', { watermark }),
   saveConnector: async (body: ConnectorProfileRequest): Promise<void> => {

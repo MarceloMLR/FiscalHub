@@ -67,6 +67,68 @@ namespace FiscalHub.Infrastructure.Migrations
                     b.ToTable("ChangeFeedCursors", (string)null);
                 });
 
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorIntegrationRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BatchSize")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Endpoint")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ModuleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ModuleId");
+
+                    b.HasIndex("TenantId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("ConnectorIntegrations", (string)null);
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorModuleRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ConnectorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectorId", "Module")
+                        .IsUnique();
+
+                    b.ToTable("ConnectorModules", (string)null);
+                });
+
             modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorProfileRow", b =>
                 {
                     b.Property<int>("Id")
@@ -75,30 +137,12 @@ namespace FiscalHub.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Environment")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<string>("InboundAdapter")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("InboundSettings")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Modules")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("OutboundAdapter")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("OutboundSettings")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -120,6 +164,34 @@ namespace FiscalHub.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("ConnectorProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Adapter")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Settings")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId", "Adapter")
+                        .IsUnique();
+
+                    b.ToTable("Connectors", (string)null);
                 });
 
             modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.IntegrationExecutionRow", b =>
@@ -193,6 +265,44 @@ namespace FiscalHub.Infrastructure.Migrations
                     b.HasKey("Resource");
 
                     b.ToTable("Leases", (string)null);
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.PlatformAccountRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ClientSecretRef")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TokenUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Platform")
+                        .IsUnique();
+
+                    b.ToTable("PlatformAccounts", (string)null);
                 });
 
             modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ProcessedDocument", b =>
@@ -423,6 +533,48 @@ namespace FiscalHub.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorIntegrationRow", b =>
+                {
+                    b.HasOne("FiscalHub.Infrastructure.Persistence.ConnectorModuleRow", null)
+                        .WithMany("Integrations")
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorModuleRow", b =>
+                {
+                    b.HasOne("FiscalHub.Infrastructure.Persistence.ConnectorRow", null)
+                        .WithMany("Modules")
+                        .HasForeignKey("ConnectorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorRow", b =>
+                {
+                    b.HasOne("FiscalHub.Infrastructure.Persistence.PlatformAccountRow", null)
+                        .WithMany("Connectors")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorModuleRow", b =>
+                {
+                    b.Navigation("Integrations");
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.ConnectorRow", b =>
+                {
+                    b.Navigation("Modules");
+                });
+
+            modelBuilder.Entity("FiscalHub.Infrastructure.Persistence.PlatformAccountRow", b =>
+                {
+                    b.Navigation("Connectors");
                 });
 #pragma warning restore 612, 618
         }

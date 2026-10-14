@@ -12,8 +12,17 @@ namespace FiscalHub.Adapters.Outbound.Avalara;
 /// <summary>Registro no DI do adapter Avalara. Único ponto público — os tipos do adapter ficam internal.</summary>
 public static class AvalaraServiceCollectionExtensions
 {
-    /// <summary>O nome do adapter, como o perfil o grava: o do teste de credencial e o da listagem.</summary>
-    internal const string AdapterName = "Avalara";
+    /// <summary>
+    /// O nome do adapter, como o perfil o grava: a chave do conector, o do teste de credencial e o da listagem. Público para
+    /// o host preencher, uma vez, o caminho da integração de notas dos conectores dele (D10).
+    /// </summary>
+    public const string AdapterName = "Avalara";
+
+    /// <summary>
+    /// A plataforma a que o adapter pertence: a da conta. Coincide com o nome do adapter porque a Avalara tem um adapter só;
+    /// com o AvaTax, a plataforma continua <c>Avalara</c> e os adapters são dois (D17).
+    /// </summary>
+    internal const string PlatformName = "Avalara";
 
     internal const string ListingClientName = "avalara-listing";
 
@@ -21,8 +30,9 @@ public static class AvalaraServiceCollectionExtensions
 
     /// <summary>
     /// Registra o <c>IComplianceDispatcher&lt;GoodsInvoice&gt;</c> da Avalara como typed client (<c>IHttpClientFactory</c>),
-    /// autenticado por padrão: o token vem da credencial do tenant no ambiente ativo, com o segredo lido do
-    /// <see cref="ISecretStore"/> (ADR-0027). Os clientes HTTP não têm URL base — toda URI é absoluta, da seção do tenant.
+    /// autenticado por padrão: o token vem da credencial do tenant, com o segredo lido do <see cref="ISecretStore"/>
+    /// (ADR-0027). Os clientes HTTP não têm URL base — toda URI é absoluta, das settings do tenant. O ambiente é o da
+    /// instância (<see cref="IInstanceEnvironment"/>), que o host registra; o adapter não presume um.
     /// Salvar o perfil do tenant esquece a recusa lembrada e os tokens dele (<see cref="IConnectorProfileObserver"/>).
     /// </summary>
     public static IServiceCollection AddAvalaraComplianceDispatcher(
@@ -56,6 +66,7 @@ public static class AvalaraServiceCollectionExtensions
             sp.GetRequiredService<TimeProvider>(),
             sp.GetRequiredService<ILogger<AvalaraTokenProvider>>()));
         services.AddSingleton<IConnectorProfileObserver, AvalaraProfileObserver>();
+        services.AddSingleton<IAdapterDeclaration, AvalaraDeclaration>();   // o que o adapter atende: a gravação do perfil confere contra isso
         services.AddSingleton<IConnectorCredentialTest, AvalaraCredentialTest>();   // o botão de testar a credencial (D10)
 
         // A Avalara sabe listar os estabelecimentos da plataforma: o de/para sem cadastro manual (platform-establishment-resolution).
@@ -65,6 +76,7 @@ public static class AvalaraServiceCollectionExtensions
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(ListingClientName),
             sp.GetRequiredService<IAvalaraTokenProvider>(),
             sp.GetRequiredService<IOptions<AvalaraOptions>>(),
+            sp.GetRequiredService<IInstanceEnvironment>(),
             sp.GetRequiredService<ILogger<AvalaraEstablishmentListing>>()));
 
         services.AddHttpClient<IComplianceDispatcher<GoodsInvoice>, AvalaraComplianceDispatcher>().RedactLoggedHeaders(_ => true);

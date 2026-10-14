@@ -163,15 +163,32 @@ public class AvalaraEstablishmentListingTests
     }
 
     [Fact]
-    public async Task Every_request_carries_the_bearer_of_the_active_section()
+    public async Task The_version_is_a_label_and_the_listing_goes_to_the_base_plus_the_path_with_no_doubled_prefix()
     {
+        // A base da v2 é a raiz do host, como a plataforma a publica, e o prefixo da API fica no caminho (D4). Se a chave
+        // da versão entrasse na URL, a listagem iria a ".../v2/taxcompliance/v2/empresa".
         var h = new Harness(PlatformHandler.FromFixtures());
+        TenantConnectorProfile profile = AvalaraProfiles.Profile(
+            AvalaraProfiles.Connector("https://api.exemplo.com/", ""","establishments":{}"""));
 
-        await h.Listing().ListAsync(Profile(environment: "Production"));
+        await h.Listing().ListAsync(profile);
 
-        Assert.All(h.Platform.Requests, r => Assert.Equal("Bearer tok-prod", r.Authorization));
-        Assert.All(h.Platform.Requests, r => Assert.Equal("avalara-a-prod", r.Uri.Host));   // a URL base da seção ativa
-        Assert.All(h.Tokens.Asked, s => Assert.Equal("production", s.Environment));
+        Assert.All(h.Platform.Requests, r => Assert.Equal("api.exemplo.com", r.Uri.Host));
+        Assert.Contains(h.Platform.Requests, r => r.Path == "/taxcompliance/v2/empresa");
+        Assert.Contains(h.Platform.Requests, r => r.Path == "/taxcompliance/v2/contribuinte");
+        Assert.All(h.Platform.Requests, r => Assert.StartsWith("/taxcompliance/v2/", r.Path));
+    }
+
+    [Fact]
+    public async Task Every_request_carries_the_bearer_and_goes_to_the_base_url_of_the_settings()
+    {
+        var h = new Harness(PlatformHandler.FromFixtures(), environment: "Production");
+
+        await h.Listing().ListAsync(Profile());
+
+        Assert.All(h.Platform.Requests, r => Assert.Equal("Bearer tok-a", r.Authorization));
+        Assert.All(h.Platform.Requests, r => Assert.Equal("avalara-a", r.Uri.Host));   // a URL base da v2 do conector
+        Assert.All(h.Tokens.Asked, s => Assert.Equal("Production", s.Environment));    // o ambiente da instância, só contexto
     }
 
     [Fact]
@@ -179,16 +196,16 @@ public class AvalaraEstablishmentListingTests
     {
         var endpoint = new AvalaraTokenProviderTests.TokenEndpointStub();
         var secrets = new AvalaraTokenProviderTests.FakeSecrets();
-        secrets.Values["fh-tenant-a--outbound--sandbox--clientsecret"] = "segredo-a";
+        secrets.Values[AvalaraProfiles.SecretOf("tenant-a")] = "segredo-a";
         var provider = new AvalaraTokenProvider(
             new HttpClient(endpoint), secrets, Options.Create(new AvalaraOptions()), new AvalaraTokenProviderTests.FakeClock(),
             new CapturingLogger<AvalaraTokenProvider>());
         var platform = PlatformHandler.FromFixtures();
         var listing = new AvalaraEstablishmentListing(
-            new HttpClient(platform), provider, Options.Create(new AvalaraOptions()), new CapturingLogger<AvalaraEstablishmentListing>());
+            new HttpClient(platform), provider, Options.Create(new AvalaraOptions()), Sandbox, new CapturingLogger<AvalaraEstablishmentListing>());
 
         await listing.ListAsync(Profile());
-        AvalaraAccessToken submitToken = await provider.GetTokenAsync(AvalaraOutboundSettings.Read("tenant-a", Profile()));   // o que o envio pede
+        AvalaraAccessToken submitToken = await provider.GetTokenAsync(AvalaraOutboundSettings.Read("tenant-a", Profile(), Sandbox));   // o que o envio pede
 
         Assert.Equal(1, endpoint.Calls);
         Assert.All(platform.Requests, r => Assert.Equal($"Bearer {submitToken.Value}", r.Authorization));
@@ -549,10 +566,10 @@ public class AvalaraEstablishmentListingTests
 
         Assert.StartsWith("Configuração do conector: a plataforma negou a listagem", ex.Reason);
         Assert.Contains("tenant 'tenant-a'", ex.Reason);
-        Assert.Contains("ambiente 'sandbox'", ex.Reason);
+        Assert.Contains("ambiente 'Sandbox'", ex.Reason);
         Assert.Contains($"HTTP {(int)status}", ex.Reason);
         Assert.Contains("sem permissão para listar empresas", ex.Reason);
-        Assert.Contains("OutboundSettings.sandbox.establishments", ex.Reason);
+        Assert.Contains("na tabela establishments do conector 'Avalara'", ex.Reason);
         Assert.Empty(h.Tokens.Invalidated);
     }
 
@@ -569,7 +586,7 @@ public class AvalaraEstablishmentListingTests
 
         Assert.StartsWith("Configuração do conector: o caminho da listagem", ex.Reason);
         Assert.Contains("HTTP 404 em GET https://avalara-a/", ex.Reason);
-        Assert.Contains("OutboundSettings.sandbox.baseUrl", ex.Reason);
+        Assert.Contains("a URL base da v2 do conector 'Avalara'", ex.Reason);
         Assert.Contains($"'{relative}', em {option}", ex.Reason);
         Assert.DoesNotContain("$top", ex.Reason);   // a URL sem a query
     }
@@ -648,19 +665,16 @@ public class AvalaraEstablishmentListingTests
     {
         var h = new Harness(PlatformHandler.FromFixtures());
 
-        Assert.Equal(new AvalaraCredentialTest(h.Tokens).Adapter, h.Listing().Adapter);
+        Assert.Equal(new AvalaraCredentialTest(h.Tokens, Sandbox).Adapter, h.Listing().Adapter);
     }
 
-    private static TenantConnectorProfile Profile(string environment = "Sandbox") => new()
+    private static readonly IInstanceEnvironment Sandbox = InstanceEnvironment.From("Sandbox");
+
+    private static TenantConnectorProfile Profile() => new()
     {
         TenantId = "tenant-a",
-        Environment = environment,
         InboundAdapter = "Dynamics365",
-        OutboundAdapter = "Avalara",
-        OutboundSettings = """
-            {"sandbox":{"baseUrl":"https://avalara-a/","clientId":"id-a","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret"},
-             "production":{"baseUrl":"https://avalara-a-prod/","clientId":"id-a","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret"}}
-            """,
+        Accounts = [AvalaraProfiles.Account("tenant-a", AvalaraProfiles.Connector("https://avalara-a/"))],
     };
 
     // A plataforma das fixtures com as páginas de empresas cruas: a primeira, e a que vem depois dela. A forma vem do corpo
@@ -674,7 +688,7 @@ public class AvalaraEstablishmentListingTests
         return platform;
     }
 
-    private sealed class Harness(PlatformHandler platform)
+    private sealed class Harness(PlatformHandler platform, string environment = "Sandbox")
     {
         public PlatformHandler Platform { get; } = platform;
 
@@ -687,10 +701,10 @@ public class AvalaraEstablishmentListingTests
         private ListingTokens? _tokens;
 
         public AvalaraEstablishmentListing Listing(AvalaraOptions? options = null)
-            => new(new HttpClient(Platform), Tokens, Options.Create(options ?? new AvalaraOptions()), Logger);
+            => new(new HttpClient(Platform), Tokens, Options.Create(options ?? new AvalaraOptions()), InstanceEnvironment.From(environment), Logger);
     }
 
-    /// <summary>Token falso por ambiente: guarda as seções pedidas e os tokens invalidados.</summary>
+    /// <summary>Token falso: guarda as settings pedidas e os tokens invalidados.</summary>
     private sealed class ListingTokens(bool fresh) : IAvalaraTokenProvider
     {
         public List<AvalaraOutboundSettings> Asked { get; } = [];
@@ -700,8 +714,7 @@ public class AvalaraEstablishmentListingTests
         public Task<AvalaraAccessToken> GetTokenAsync(AvalaraOutboundSettings settings, CancellationToken ct = default)
         {
             Asked.Add(settings);
-            string value = settings.Environment == "production" ? "tok-prod" : "tok-a";
-            return Task.FromResult(new AvalaraAccessToken(settings.TenantId, settings.Environment, value, fresh, key: null));
+            return Task.FromResult(new AvalaraAccessToken(settings.TenantId, settings.Environment, "tok-a", fresh, key: null));
         }
 
         public void Invalidate(AvalaraAccessToken token) => Invalidated.Add(token);

@@ -55,8 +55,8 @@ dotnet run --project tools/MockComplianceApi --urls http://localhost:5100
 ```
 
 O mock imita a plataforma no que já foi verificado no sandbox: responde no caminho de envio do sandbox
-(`taxcompliance/v2/fiscal/dfe`, o do `appsettings.Development.json`) e em `/documents`, exige o token que ele emite, e
-recusa a credencial com HTTP 400 e `{"error": "<texto livre>"}`.
+(`taxcompliance/v2/fiscal/dfe`, o da integração de notas que o seed grava) e em `/documents`, exige o token que ele
+emite, e recusa a credencial com HTTP 400 e `{"error": "<texto livre>"}`.
 
 ## 3. Rodar o host
 
@@ -66,6 +66,12 @@ Em **outro** terminal:
 dotnet run --project src/FiscalHub.Host --urls http://localhost:5200
 ```
 
+**O ambiente é da instância** (ADR-0036): cada host atende um ambiente da plataforma de compliance, e ele vem de
+`Connector:Environment`, que o `appsettings.json` traz como `Sandbox`. O host **não sobe** sem a chave, nem com um valor que
+não seja `Sandbox` ou `Production`, e a mensagem nomeia a chave. Não é o ambiente do ASP.NET: um host em Development
+aponta para o Sandbox da plataforma. Para um host de produção, a chave vem da configuração da instância
+(`Connector__Environment=Production`).
+
 No startup o host cria o schema no SQL e sobe os XMLs de NF-e de exemplo no Blob, no espaço de entrada do
 tenant-a (`nfe/tenant-a/nfe-exemplo.xml` e `nfe/tenant-a/nfe-exemplo-2.xml`). A rota `GET http://localhost:5200/` mostra
 que está no ar.
@@ -74,6 +80,18 @@ As migrações rodam na subida (`Migrate`), e o log mostra cada uma aplicada. Du
 
 - **`WidenBranchCode`:** alarga o `BranchCode` para 20, porque a filial do D365 é o código do estabelecimento.
 - **`RenameRealTimeTrigger`:** troca o modo `RealTime` por `Automatic` nos documentos já processados.
+
+**O harness de migração.** Os testes comuns usam SQLite em memória e não executam migração nenhuma. As migrações são
+provadas por um teste de integração contra o `sql` do `docker compose`, num banco descartável por teste, que ele cria e
+apaga. É opt-in, e fica pulado sem a variável:
+
+```powershell
+$env:FISCALHUB_SQL_HARNESS = "Server=localhost,1433;User Id=sa;Password=Local_Dev_123!;TrustServerCertificate=true"
+dotnet test tests/FiscalHub.Infrastructure.Tests --filter "FullyQualifiedName~Migrations"
+```
+
+A variável leva a connection string do servidor, sem o banco. Pulado não é prova: uma migração nova só está provada com a
+saída de uma execução com o SQL Server no ar.
 
 ### O dashboard
 
@@ -131,20 +149,51 @@ O que a tela mostra, e que parece defeito mas não é:
 
 ### O Client Secret, pela tela
 
-Todo envio leva o token da credencial do tenant, no ambiente ativo (ADR-0027). Não há modo "sem autenticação" no host.
-A credencial vem das `OutboundSettings` (`baseUrl`, `clientId` e, fora da tela, o `tokenUrl` opcional), e o **segredo é
-digitado na tela**, até contra o mock:
+Todo envio leva o token da credencial da **conta de plataforma** do tenant (ADR-0027, ADR-0036). Não há modo "sem
+autenticação" no host. A conta tem o Client ID, o Client Secret e o endpoint de token; os conectores abaixo dela têm as
+URLs base. O **segredo é digitado na tela**, até contra o mock:
 
 1. Abra o dashboard, entre como `admin@fiscalhub.local` e vá em **Configurações → Conectores → Saída (compliance)**.
-2. Na seção **Sandbox**, digite qualquer valor no **Client Secret** (o mock aceita qualquer um não vazio) e salve.
-3. O campo volta vazio, com a máscara (uma fileira de bolinhas) e "configurado em <data>". O valor foi para o cofre, e o perfil guarda
-   só a referência `kv:fh-tenant-a--outbound--sandbox--clientsecret`. O `GET /connector` nunca devolve o valor.
+2. No bloco **Conta de plataforma**, digite qualquer valor no **Client Secret** (o mock aceita qualquer um não vazio) e
+   salve.
+3. O campo volta vazio, com a máscara (uma fileira de bolinhas) e "configurado em <data>". O valor foi para o cofre, e a
+   conta guarda só a referência `kv:fh-tenant-a--platform--avalara--clientsecret`. O `GET /connector` nunca devolve o
+   valor.
    - **A máscara é placeholder, e não valor.** Salvar sem digitar no campo não manda o segredo, e o do cofre fica.
    - **A defesa do servidor:** um valor feito só de `*`, `•`, `●` ou `∗` é recusado com 400, sem tocar o cofre.
 
-Sem isso, o envio é rejeitado com "Configuração do conector: o Client Secret do ambiente 'sandbox' do tenant 'tenant-a'
-não está configurado … Configure em Configurações → Conectores → Avalara → Sandbox → Client Secret." Depois de reiniciar
-o emulador, digite de novo.
+Sem isso, o envio é rejeitado com "Configuração do conector: o Client Secret da conta de plataforma 'Avalara' do tenant
+'tenant-a', no ambiente 'Sandbox' da instância, não está configurado … Configure em Configurações → Conectores → Avalara →
+Client Secret." Depois de reiniciar o emulador, digite de novo.
+
+**O endpoint de token é da conta, e é obrigatório** para enviar e para testar. O hub não o deriva da URL base do
+conector, e o `Avalara:TokenPath` não existe mais. O seed grava o do mock (`http://localhost:5100/oauth/token`). Um banco
+migrado de antes da conta de plataforma fica com o campo vazio quando as settings antigas não o tinham, e a tela o marca:
+"Sem o endpoint de token, o conector não despacha". Enquanto a conta gravada não tem o Client ID, o Client Secret ou o
+endpoint de token, o **Testar credencial** fica desabilitado, dizendo o que falta.
+
+### O conector: as bases, os módulos e o caminho de cada integração
+
+Abaixo da conta, a lista de conectores e o painel do conector escolhido, com três abas (ADR-0037):
+
+- **Conexão:** as URLs base, uma por versão da API. As notas usam a `v2`; o Contábil e o Inventário, a `v1`. A versão
+  escolhe a base, e não entra na URL.
+- **Módulos e integrações:** os módulos que o adapter declara e as integrações de cada um. O menu Integrações mostra os
+  módulos ligados nos conectores do tenant; o tenant sem conector nenhum mostra só o Fiscal. O módulo que o adapter não
+  declara aparece apagado, dizendo que aquele conector não o atende.
+- **Endpoints:** o caminho de cada integração ligada, relativo à base da versão dela, e o tamanho do lote onde a API
+  aceita lote.
+
+**O envio de notas** vai à base da `v2` mais o caminho da integração de notas fiscais — no seed,
+`taxcompliance/v2/fiscal/dfe`, que o mock atende —, e a consulta de status vai ao mesmo caminho mais `/{id}/status`. A
+integração ligada sem caminho fica inativa: a nota é rejeitada como configuração do conector, sem requisição nenhuma.
+Desligar o Fiscal tem o mesmo efeito. Uma integração ligada sem a base da versão dela não grava: o 400 nomeia a versão e
+as integrações que a usam.
+
+**O `Avalara:DocumentsPath` não entra mais na URL.** A migração deixa o caminho da integração de notas à espera (nulo), e
+a tela mostra "À espera do caminho que o host preenche na subida". Na subida seguinte, o host o preenche, uma vez, com o
+`Avalara:DocumentsPath`. Daí em diante o caminho é só da tela, e o caminho em branco que alguém gravou não é preenchido de
+novo.
 
 ### Os estabelecimentos: a plataforma lista, a tabela sobrepõe
 
@@ -155,7 +204,7 @@ plataforma**, casada pelo CNPJ do estabelecimento próprio, sem pontuação e co
   paginados até a página vazia;
 - **o payload:** leva o `codigoCIA` da empresa e o `codigo` do único contribuinte com o CNPJ.
 
-**A tabela `establishments`** das `OutboundSettings`, por ambiente, virou sobreposição opcional:
+**A tabela `establishments`** das settings do conector virou sobreposição opcional:
 
 - **com a entrada:** quando ela tem o CNPJ, ganha, e a listagem nem é chamada;
 - **sem a tabela:** ela é a sobreposição vazia, e não um erro.
@@ -165,7 +214,7 @@ plataforma**, casada pelo CNPJ do estabelecimento próprio, sem pontuação e co
 - **nenhum contribuinte com o CNPJ:** "o estabelecimento 44278225000180 não tem contribuinte cadastrado na plataforma …";
 - **mais de um:** o hub não escolhe, e nomeia os candidatos: "empresa '012' (METALURGICA …), contribuinte '010' (#2000010001); …".
 
-**A janela.** A listagem fica guardada por tenant e ambiente, e um lote de notas usa uma só. As opções:
+**A janela.** A listagem fica guardada por tenant e conector, e um lote de notas usa uma só. As opções:
 
 | Opção | Padrão | O que é |
 |---|---|---|
@@ -208,18 +257,19 @@ Invoke-RestMethod "http://localhost:5100/admin/contribuintes" | ConvertTo-Json -
 
 Depois de mudar a conta no mock, salve o perfil na tela para o hub reler, como faria depois de cadastrar na plataforma.
 
-**O seed de um banco novo** traz a tabela vazia no `sandbox` do tenant-a: o mock lista, e o caminho automático é o padrão.
+**O seed de um banco novo** traz a tabela vazia no conector `Avalara` do tenant-a: o mock lista, e o caminho automático é
+o padrão.
 
-**Num banco criado antes desta mudança,** o seed não roda de novo. A tabela antiga traduz a Matriz (`44278225000180`) e o
-CNPJ dos XMLs (`12345678000190`) para `20247332000182`, e continua valendo como sobreposição. Para exercitar o caminho
-automático, esvazie a tabela pelo mesmo padrão de SQL por arquivo das `InboundSettings` (seção 6). O SQL grava só a
-referência do segredo, cujo valor continua sendo digitado na tela.
+**Num banco criado antes da listagem pela plataforma,** o seed não roda de novo. A tabela antiga traduz a Matriz
+(`44278225000180`) e o CNPJ dos XMLs (`12345678000190`) para `20247332000182`, e continua valendo como sobreposição — a
+migração da conta de plataforma a levou, como estava, para as settings do conector. Para exercitar o caminho automático,
+esvazie a tabela pelo mesmo padrão de SQL por arquivo das `InboundSettings` (seção 6). O SQL troca só a tabela, e o
+resto das settings do conector fica.
 
 ```powershell
-$out = '{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}'
-"UPDATE ConnectorProfiles SET OutboundSettings = N'$out' WHERE TenantId = 'tenant-a';" | Set-Content -Encoding ascii set-outbound.sql
-docker cp set-outbound.sql fiscalhub-sql-1:/tmp/set-outbound.sql
-docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/set-outbound.sql
+'UPDATE c SET Settings = JSON_MODIFY(c.Settings, ''$.establishments'', JSON_QUERY(''{}'')) FROM Connectors c JOIN PlatformAccounts a ON a.Id = c.AccountId WHERE a.TenantId = ''tenant-a'' AND c.Adapter = ''Avalara'';' | Set-Content -Encoding ascii set-establishments.sql
+docker cp set-establishments.sql fiscalhub-sql-1:/tmp/set-establishments.sql
+docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Local_Dev_123!" -C -d FiscalHub -i /tmp/set-establishments.sql
 ```
 
 Depois do SQL, salve o perfil na tela, ou espere a validade, para o hub esquecer a listagem guardada.
@@ -535,7 +585,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5100/admin/token/aceitar
 ```
 
 Com a recusa, a nota é rejeitada com "Configuração do conector: a plataforma recusou a credencial do tenant 'tenant-a'
-no ambiente 'sandbox' (HTTP 400: client_id invalid). Confira o Client ID e o Client Secret na tela de conectores.", e
+no ambiente 'Sandbox' (HTTP 400: client_id invalid). Confira o Client ID e o Client Secret na tela de conectores.", e
 nenhum documento é enviado. É a forma do sandbox: HTTP 400 com `{"error": "<texto livre>"}`, e o texto não aponta o campo
 certo (um `client_secret` errado volta como "client_id invalid"). Por isso a mensagem manda conferir o Client ID **e** o
 Client Secret (ADR-0027 §3). A recusa fica lembrada por 5
@@ -612,9 +662,11 @@ $antes = Invoke-RestMethod -Uri http://localhost:5200/connector -Headers $auth
 $antes | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 "$env:TEMP\connector-antes.json"
 ```
 
-b) **Salve pela tela.** Em **Configurações → Conectores → Saída**, na seção **Sandbox** do tenant-a: a URL base do
-   sandbox, o Client ID e o Client Secret. A URL do token não está na tela: o hub a monta pela URL base mais
-   `oauth/token`. Se o sandbox exigir outra, ela vai no `tokenUrl` da seção, por SQL.
+b) **Salve pela tela.** Em **Configurações → Conectores → Saída (compliance)** do tenant-a:
+   - **na conta de plataforma:** o Client ID, o Client Secret e o endpoint de token do sandbox, a URL inteira. O hub não
+     a deriva da URL base;
+   - **no painel do conector:** na aba **Conexão**, a URL base da `v2` do sandbox; na aba **Endpoints**, confira o caminho
+     da integração de notas fiscais (`taxcompliance/v2/fiscal/dfe`).
 
 c) **Faça o `GET` de novo e compare** o que tem de sobreviver:
 
@@ -622,12 +674,12 @@ c) **Faça o `GET` de novo e compare** o que tem de sobreviver:
 $depois = Invoke-RestMethod -Uri http://localhost:5200/connector -Headers $auth
 $depois | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 "$env:TEMP\connector-depois.json"
 $in0 = $antes.inboundSettings | ConvertFrom-Json;   $in1 = $depois.inboundSettings | ConvertFrom-Json
-$out0 = $antes.outboundSettings | ConvertFrom-Json; $out1 = $depois.outboundSettings | ConvertFrom-Json
+$conector = { param($p) ($p.accounts | Where-Object platform -eq 'Avalara').connectors | Where-Object adapter -eq 'Avalara' }
+$out0 = (& $conector $antes).settings | ConvertFrom-Json; $out1 = (& $conector $depois).settings | ConvertFrom-Json
 $itens = @(
   @('inbound.companies', $in0.companies, $in1.companies),
   @('inbound.poll', $in0.poll, $in1.poll),
-  @('outbound.sandbox.establishments', $out0.sandbox.establishments, $out1.sandbox.establishments),
-  @('outbound.production.establishments', $out0.production.establishments, $out1.production.establishments)
+  @('connector.Avalara.establishments', $out0.establishments, $out1.establishments)
 )
 foreach ($i in $itens) {
   $a = ConvertTo-Json -InputObject $i[1] -Depth 10 -Compress
@@ -636,7 +688,7 @@ foreach ($i in $itens) {
 }
 ```
 
-Os quatro têm de sair `ok`. A única diferença admitida é no `inbound.poll`, e só no `enabled`, se o interruptor
+Os três têm de sair `ok`. A única diferença admitida é no `inbound.poll`, e só no `enabled`, se o interruptor
 **Integração automática** foi mexido nesse mesmo salvar. **Se algum sumir ou mudar, o teste para aqui:** o problema é da tela de conectores (ou do
 `PUT /connector`), e não da Avalara. Não siga para a premissa de autenticação; restaure o perfil pelo arquivo de antes (ou
 pelo SQL da seção 3) e registre o achado.
@@ -644,14 +696,15 @@ pelo SQL da seção 3) e registre o achado.
 d) **Confira o caminho do segredo:**
 
 - a tela mostra "configurado em <data>", e o `GET /connector` não traz o valor, nem parte dele, nem a referência (no
-  `$depois`, o `secrets."outbound.sandbox.clientSecret"` tem `configured: true` e a data);
-- a linha do perfil no SQL tem só o `clientSecretRef` `kv:fh-tenant-a--outbound--sandbox--clientsecret`;
-- um `PUT /connector` feito à mão com `clientSecretRef` no corpo dá 400.
+  `$depois`, o `secrets."platform.Avalara.clientSecret"` tem `configured: true` e a data);
+- a linha da conta no SQL (`PlatformAccounts`) tem só o `ClientSecretRef` `kv:fh-tenant-a--platform--avalara--clientsecret`;
+- um `PUT /connector` feito à mão com `clientSecretRef` na conta dá 400.
 
-e) **Teste a credencial pela tela.** Em **Configurações**, a seção **Sandbox** e a **Produção** da Avalara, e a aba do
-   ERP (`Dynamics365`), têm o botão **Testar credencial**.
+e) **Teste a credencial pela tela.** Em **Configurações**, o bloco da conta de plataforma, na saída, e a aba do ERP
+   (`Dynamics365`) têm o botão **Testar credencial**.
    - **O que ele testa:** a credencial **gravada**, lida do cofre no servidor. Com uma edição pendente, ele pede para
-     salvar antes.
+     salvar antes. Com a conta gravada sem o Client ID, o Client Secret ou o endpoint de token, ele fica desabilitado,
+     dizendo o que falta.
    - **O token é sempre novo,** nunca o do cache. Um teste que reusasse o cache passaria com um segredo já revogado.
    - **Na Avalara:** para no token. A permissão só aparece no primeiro envio.
    - **No D365:** pega um token do Entra ID e lê a `FSFiscalDocumentBRs` com `$top=1`, porque o token prova a
@@ -660,7 +713,7 @@ e) **Teste a credencial pela tela.** Em **Configurações**, a seção **Sandbox
      do ar, mostra "Não foi possível conectar agora…". Nunca token nem segredo.
    - **O motivo detalhado:** fica no log do host, na linha `Teste de credencial do tenant … (Dynamics365 entrada): Refused.
      O Entra ID recusou a credencial (AADSTS7000215)…`. Ela traz o código AADSTS, o status HTTP ou o campo que falta.
-   - **O freio:** um teste recusado fica lembrado por 5 minutos, por tenant e por adapter, e na Avalara por ambiente.
+   - **O freio:** um teste recusado fica lembrado por 5 minutos, por tenant e por adapter.
      Nesse intervalo, o clique devolve o motivo lembrado sem ir à plataforma. Salvar o perfil libera. Um teste da
      Avalara que dá certo também libera o envio, sem esperar a recusa lembrada.
 
@@ -674,9 +727,10 @@ dotnet run --project tools/AvalaraSandboxProbe -- token --tenant tenant-a
 
 Ela diz se obteve o token, os campos da resposta e o `expires_in`, e nunca imprime o token. No primeiro envio, confira
 que o caminho de envio existe. Se ele não existir, a nota é rejeitada na hora, sem retentativa, com "o caminho de envio
-não existe nessa URL", e o motivo aponta as duas partes da URL: a URL base do sandbox, na tela, e o
-`Avalara:DocumentsPath`, no `appsettings`. O caminho certo entra ali, sem código, e a nota é reprocessada. Um fluxo
-estruturalmente outro (escopo ou audiência obrigatórios, token por empresa, mTLS) para o teste.
+não existe nessa URL", e o motivo aponta as duas partes da URL, as duas na tela de conectores: a URL base da versão, no
+conector, e o caminho da integração de notas fiscais. O caminho certo entra ali, sem código, e a nota é reprocessada. O
+`Avalara:DocumentsPath` do `appsettings` não entra mais na URL: ele só preenche, uma vez, o caminho que a migração deixou
+à espera. Um fluxo estruturalmente outro (escopo ou audiência obrigatórios, token por empresa, mTLS) para o teste.
 
 **3. Corrigir pela tela.** Com um Client Secret errado de propósito, a primeira nota é rejeitada com o motivo da
 plataforma. Salve o certo na tela e reprocesse: o token é pedido na hora, sem esperar os 5 minutos da recusa lembrada.
@@ -688,15 +742,17 @@ uma, e a aba Resposta.
 `avalara.response.status.json`. Anote toda foto com `redactions > 0`: é sinal de que a plataforma ecoou algo sensível.
 Confira também que o log do host não tem token, segredo nem valor de cabeçalho.
 
-> **Espere o poll fechar antes de trocar de ambiente.** A consulta de status usa a seção do ambiente **ativo**. Um
-> documento enviado ao sandbox e ainda em consulta, depois da troca para Production, seria consultado no endereço e
-> com a credencial de produção.
+> **Espere o poll fechar antes de trocar a URL base ou o caminho.** A consulta de status usa a base e o caminho
+> gravados **agora** no conector. Um documento enviado ao sandbox e ainda em consulta, depois de a base apontar para
+> outro endereço, seria consultado lá, com a credencial da conta. O ambiente não se troca no perfil: ele é da instância
+> (`Connector:Environment`), e produção é outra instância, com outro banco e outro cofre.
 
 ## 9. Sonda do sandbox (`tools/AvalaraSandboxProbe`)
 
 É a ferramenta do teste manual e do experimento do campo omitido, e não a esteira (ADR-0027 §9). Usa a configuração do
-Host (o banco de dev, o cofre e a seção `Avalara`), o perfil do tenant e o segredo gravado pela tela. Só **lê**: nunca
-grava no cofre nem no banco. Tudo o que grava em `tools/AvalaraSandboxProbe/out/` sai redigido, e a pasta está no
+Host (o banco de dev, o cofre e a seção `Avalara`), a conta de plataforma e o conector do tenant, e o segredo gravado
+pela tela. O token vem do endpoint de token da conta; o `send` e o `get` vão à base da `v2` mais o caminho da integração
+de notas fiscais, como o envio. Só **lê**: nunca grava no cofre nem no banco. Tudo o que grava em `tools/AvalaraSandboxProbe/out/` sai redigido, e a pasta está no
 `.gitignore`.
 
 ```powershell
@@ -756,9 +812,10 @@ docker exec fiscalhub-sql-1 /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 
   -Q "DELETE FROM ProcessedDocuments; DELETE FROM IntegrationExecutions; DELETE FROM ScheduledIntegrations;"
 ```
 
-**`ConnectorProfiles`, `Users` e `Tenants` NÃO entram nessa limpeza.** Apagar `ConnectorProfiles` perde a configuração dos
-conectores (as URLs, os `establishments`, o `poll` e as referências dos segredos gravados na tela); apagar `Users` ou
-`Tenants` tira o login. O seed os recria na próxima subida, mas com os valores de fábrica, e os segredos do cofre
+**A configuração dos conectores, `Users` e `Tenants` NÃO entram nessa limpeza.** Apagar `ConnectorProfiles`,
+`PlatformAccounts`, `Connectors`, `ConnectorModules` ou `ConnectorIntegrations` perde a configuração (as URLs, os
+`establishments`, o `poll`, os caminhos das integrações e as referências dos segredos gravados na tela); apagar `Users`
+ou `Tenants` tira o login. O seed os recria na próxima subida, mas com os valores de fábrica, e os segredos do cofre
 deixam de ter quem os referencie.
 
 - **As fotos de demonstração** no Blob (container `traces`) ficam. Sem a linha no SQL, elas não aparecem no dashboard.

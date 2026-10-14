@@ -64,7 +64,7 @@ public class AvalaraDispatcherPlatformCodesTests
 
         Assert.Equal(
             $"Configuração do conector: o estabelecimento {Issuer} não tem contribuinte cadastrado na plataforma (tenant 'tenant-a', "
-            + "ambiente 'sandbox'). Cadastre-o na plataforma, ou traduza-o em OutboundSettings.sandbox.establishments. Se o cadastro "
+            + "ambiente 'Sandbox'). Cadastre-o na plataforma, ou traduza-o na tabela establishments do conector 'Avalara'. Se o cadastro "
             + "acabou de ser feito, salve o perfil do conector (Configurações → Conectores) para o hub reler a plataforma, e "
             + "reprocesse a nota.",
             ex.Reason);
@@ -82,9 +82,9 @@ public class AvalaraDispatcherPlatformCodesTests
 
         Assert.Equal(
             $"Configuração do conector: o estabelecimento {Issuer} tem 2 contribuintes na plataforma (tenant 'tenant-a', ambiente "
-            + "'sandbox'), e o hub não escolhe entre eles: empresa '012' (METALURGICA EXEMPLO...), contribuinte '001' (#2000010001); "
-            + "empresa '009' (LABORATORIO), contribuinte '001' (#20001). Remova a duplicidade na plataforma, ou traduza o estabelecimento em "
-            + "OutboundSettings.sandbox.establishments.",
+            + "'Sandbox'), e o hub não escolhe entre eles: empresa '012' (METALURGICA EXEMPLO...), contribuinte '001' (#2000010001); "
+            + "empresa '009' (LABORATORIO), contribuinte '001' (#20001). Remova a duplicidade na plataforma, ou traduza o estabelecimento na "
+            + "tabela establishments do conector 'Avalara'.",
             ex.Reason);
         Assert.DoesNotContain("8120", ex.Reason);   // o empresaId não acrescenta nada legível
         Assert.Equal(0, h.Posts);
@@ -154,8 +154,8 @@ public class AvalaraDispatcherPlatformCodesTests
         var ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => h.Dispatcher().SubmitAsync(Own(), Context()));
 
         Assert.Equal(
-            $"Configuração do conector: o tenant 'tenant-a', no ambiente 'sandbox', não tem tradução para o estabelecimento {Issuer} "
-            + "(faltam codigoEmpresa e codigoContribuinte em OutboundSettings.sandbox.establishments).",
+            $"Configuração do conector: o tenant 'tenant-a', no ambiente 'Sandbox' da instância, não tem tradução para o estabelecimento {Issuer} "
+            + "(faltam codigoEmpresa e codigoContribuinte na tabela establishments do conector 'Avalara').",
             ex.Reason);
         Assert.Empty(h.Platform.Requests);
     }
@@ -181,7 +181,7 @@ public class AvalaraDispatcherPlatformCodesTests
 
         Assert.Contains($"emitente {Issuer}", ex.Reason);
         Assert.Contains($"destinatário {Recipient}", ex.Reason);
-        Assert.Contains("pela tradução em OutboundSettings.sandbox.establishments ou pela plataforma", ex.Reason);
+        Assert.Contains("pela tradução na tabela establishments do conector 'Avalara' ou pela plataforma", ex.Reason);
         Assert.Equal(0, h.Posts);
     }
 
@@ -257,6 +257,8 @@ public class AvalaraDispatcherPlatformCodesTests
         Operation = DocumentStatus.Issued,
     };
 
+    private static readonly IInstanceEnvironment Sandbox = InstanceEnvironment.From("Sandbox");
+
     private sealed class Harness
     {
         private readonly Tokens _tokens = new();
@@ -266,7 +268,8 @@ public class AvalaraDispatcherPlatformCodesTests
         {
             Platform = platform;
             IPlatformEstablishmentListing[] listings = withListing
-                ? [new AvalaraEstablishmentListing(new HttpClient(platform), _tokens, Options.Create(new AvalaraOptions()), new CapturingLogger<AvalaraEstablishmentListing>())]
+                ? [new AvalaraEstablishmentListing(
+                    new HttpClient(platform), _tokens, Options.Create(new AvalaraOptions()), Sandbox, new CapturingLogger<AvalaraEstablishmentListing>())]
                 : [];
             _resolver = new PlatformEstablishmentResolver(listings, new PlatformEstablishmentOptions(), TimeProvider.System);
         }
@@ -281,19 +284,10 @@ public class AvalaraDispatcherPlatformCodesTests
         public AvalaraComplianceDispatcher Dispatcher(string? establishments = null)
         {
             string table = establishments is null ? string.Empty : $",\"establishments\":{establishments}";
-            var profile = new TenantConnectorProfile
-            {
-                TenantId = "tenant-a",
-                Environment = "Sandbox",
-                InboundAdapter = "Dynamics365",
-                OutboundAdapter = "Avalara",
-                OutboundSettings = $$$"""
-                    {"sandbox":{"baseUrl":"https://avalara-a/","clientId":"id-a","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret"{{{table}}}}}
-                    """,
-            };
+            TenantConnectorProfile profile = AvalaraProfiles.Profile(AvalaraProfiles.Connector("https://avalara-a/", table));
             return new AvalaraComplianceDispatcher(
                 new HttpClient(Platform), Options.Create(new AvalaraOptions()), _tokens, new NoOpProcessingTrace(), new OneProfile(profile),
-                _resolver, new CapturingLogger<AvalaraComplianceDispatcher>(), TimeProvider.System);
+                _resolver, Sandbox, new CapturingLogger<AvalaraComplianceDispatcher>(), TimeProvider.System);
         }
 
         public JsonNode Submitted() => JsonNode.Parse(Platform.SubmittedBodies.Last())!;

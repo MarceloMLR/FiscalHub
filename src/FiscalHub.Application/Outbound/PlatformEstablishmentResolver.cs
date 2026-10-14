@@ -9,7 +9,7 @@ public sealed class PlatformEstablishmentOptions
     public const string Section = "PlatformEstablishments";
 
     /// <summary>
-    /// A validade da listagem, por tenant e ambiente: a janela de despacho. Um cadastro novo na plataforma aparece em
+    /// A validade da listagem, por tenant e adapter: a janela de despacho. Um cadastro novo na plataforma aparece em
     /// minutos, e um lote de milhares de notas usa uma listagem.
     /// </summary>
     public TimeSpan CacheDuration { get; set; } = TimeSpan.FromMinutes(10);
@@ -39,18 +39,20 @@ public sealed class PlatformEstablishmentOptions
 
 /// <summary>
 /// O de/para do estabelecimento pela plataforma (change <c>platform-establishment-resolution</c>, D2 e D8): escolhe a
-/// listagem pelo adapter de saída do perfil, pela comparação exata do nome, e devolve o índice da plataforma para o tenant
-/// e ambiente. A regra é a mesma para qualquer destino que liste; quem escreve o motivo da recusa é o adapter, que sabe o
-/// vocabulário da plataforma.
+/// listagem pelo adapter que despacha, pela comparação exata do nome, desde que o tenant tenha o conector desse adapter
+/// (change <c>platform-account-and-connectors</c>, D9), e devolve o índice da plataforma para o tenant e o conector. A
+/// regra é a mesma para qualquer destino que liste; quem escreve o motivo da recusa é o adapter, que sabe o
+/// vocabulário da plataforma. O ambiente não entra na chave: a instância atende um só (change
+/// <c>platform-account-and-connectors</c>, D6).
 /// <list type="bullet">
-///   <item><b>A janela:</b> a listagem fica guardada por tenant e ambiente pela <see cref="PlatformEstablishmentOptions.CacheDuration"/>,
+///   <item><b>A janela:</b> a listagem fica guardada por tenant e adapter pela <see cref="PlatformEstablishmentOptions.CacheDuration"/>,
 ///   com vencimento absoluto. Dentro dela, toda resolução usa a mesma listagem.</item>
 ///   <item><b>A busca única:</b> uma listagem em voo por chave. Quem chega durante ela recebe o mesmo desfecho, sucesso ou
 ///   falha. Ela não leva o <see cref="CancellationToken"/> de quem a começou: cada um aguarda com o seu.</item>
 ///   <item><b>A falha:</b> não fica guardada, salvo a recusa permanente (<see cref="DispatchRejectedException"/>), lembrada
 ///   pela <see cref="PlatformEstablishmentOptions.RefusalHold"/> — sem isso, uma credencial que não lista viraria uma
 ///   tentativa por nota, o padrão que bloqueia conta (ADR-0027 §7).</item>
-///   <item><b>O salvar do perfil</b> esquece a listagem, a busca em voo e a recusa do tenant, em todos os ambientes. Uma
+///   <item><b>O salvar do perfil</b> esquece a listagem, a busca em voo e a recusa do tenant, em todos os adapters. Uma
 ///   busca que já estava em voo entrega o resultado a quem esperava por ela, mas não vira a listagem guardada.</item>
 /// </list>
 /// Singleton, e por processo, como o token da Avalara.
@@ -76,20 +78,22 @@ public sealed class PlatformEstablishmentResolver : IConnectorProfileObserver
     }
 
     /// <summary>
-    /// O índice da plataforma para o tenant e o ambiente ativo do perfil. Sem listagem declarada pelo adapter de saída,
-    /// <see cref="PlatformEstablishmentIndex.Unsupported"/>, sem chamada. A recusa da listagem chega como
-    /// <see cref="DispatchRejectedException"/>; a indisponibilidade, como a exceção que veio.
+    /// O índice da plataforma para o tenant e o conector do <paramref name="adapter"/> que despacha. Sem listagem declarada
+    /// por esse adapter, ou sem o conector dele no tenant, <see cref="PlatformEstablishmentIndex.Unsupported"/>, sem
+    /// chamada. A recusa da listagem chega como <see cref="DispatchRejectedException"/>; a indisponibilidade, como a
+    /// exceção que veio.
     /// </summary>
-    public async Task<PlatformEstablishmentIndex> GetAsync(TenantConnectorProfile profile, CancellationToken ct = default)
+    public async Task<PlatformEstablishmentIndex> GetAsync(TenantConnectorProfile profile, string adapter, CancellationToken ct = default)
     {
         IPlatformEstablishmentListing? listing = _listings.FirstOrDefault(
-            l => string.Equals(l.Adapter, profile.OutboundAdapter, StringComparison.Ordinal));
-        if (listing is null)
+            l => string.Equals(l.Adapter, adapter, StringComparison.Ordinal));
+        bool hasConnector = profile.Accounts.Any(a => a.Connectors.Any(c => string.Equals(c.Adapter, adapter, StringComparison.Ordinal)));
+        if (listing is null || !hasConnector)
         {
             return PlatformEstablishmentIndex.Unsupported;
         }
 
-        var key = new Key(profile.TenantId, profile.Environment.ToLowerInvariant());
+        var key = new Key(profile.TenantId, listing.Adapter);
         DateTimeOffset now = _clock.GetUtcNow();
         if (_cache.TryGetValue(key, out Cached? cached) && cached.ExpiresAt > now)
         {
@@ -172,7 +176,7 @@ public sealed class PlatformEstablishmentResolver : IConnectorProfileObserver
 
     private long Generation(string tenantId) => _generations.TryGetValue(tenantId, out long generation) ? generation : 0;
 
-    private sealed record Key(string TenantId, string Environment);
+    private sealed record Key(string TenantId, string Adapter);
 
     private sealed record Cached(PlatformEstablishmentIndex Index, DateTimeOffset ExpiresAt);
 

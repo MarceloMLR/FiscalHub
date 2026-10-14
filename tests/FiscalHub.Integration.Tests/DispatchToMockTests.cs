@@ -34,7 +34,7 @@ public class DispatchToMockTests
     private const string ImportKey = "brmf|BRMF06-110000031";
 
     // O caminho de envio do sandbox, o mesmo do appsettings.Development.json.
-    private const string SandboxDocumentsPath = "taxcompliance/v2/fiscal/dfe";
+    private const string SandboxInvoicesPath = "taxcompliance/v2/fiscal/dfe";
 
     [Fact]
     public async Task Recorded_d365_note_is_sent_with_the_new_contract_and_confirmed()
@@ -219,7 +219,7 @@ public class DispatchToMockTests
     [Fact]
     public async Task The_mock_answers_on_the_sandbox_submit_path_like_the_platform()
     {
-        using Harness h = await Harness.CreateAsync(documentsPath: SandboxDocumentsPath);
+        using Harness h = await Harness.CreateAsync(invoicesPath: SandboxInvoicesPath);
         h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
 
         await h.ProcessAsync(OutgoingKey, "35637156582");
@@ -227,14 +227,14 @@ public class DispatchToMockTests
 
         Assert.Equal(IntegrationStatus.Submitted, h.Store.Rows[OutgoingKey].Status);
         Assert.Equal(IntegrationStatus.Confirmed, h.Store.Polled[OutgoingKey].Status);
-        Assert.All(h.DocumentPaths, p => Assert.StartsWith("/" + SandboxDocumentsPath, p));   // envio e consulta
+        Assert.All(h.DocumentPaths, p => Assert.StartsWith("/" + SandboxInvoicesPath, p));   // envio e consulta, pelo caminho da integração
         Assert.Equal(2, h.DocumentPaths.Count);
     }
 
     [Fact]
     public async Task Wrong_submit_path_is_a_configuration_rejection_after_a_single_post()
     {
-        using Harness h = await Harness.CreateAsync(documentsPath: "taxcompliance/v1/caminho-errado");
+        using Harness h = await Harness.CreateAsync(invoicesPath: "taxcompliance/v1/caminho-errado");
         h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
 
         await h.ProcessAsync(OutgoingKey, "35637156582");
@@ -242,8 +242,9 @@ public class DispatchToMockTests
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);                            // e não a dead-letter
         Assert.Contains("o caminho de envio não existe nessa URL", row.Reason);
-        Assert.Contains("OutboundSettings.sandbox.baseUrl", row.Reason);
-        Assert.Contains("Avalara:DocumentsPath", row.Reason);
+        Assert.Contains("a URL base da v2 do conector 'Avalara'", row.Reason);
+        Assert.Contains("o caminho da integração de notas fiscais ('taxcompliance/v1/caminho-errado'", row.Reason);
+        Assert.DoesNotContain("Avalara:DocumentsPath", row.Reason);
         Assert.Contains("taxcompliance/v1/caminho-errado", row.Reason);
         Assert.Equal(1, h.DocumentPosts);
     }
@@ -253,7 +254,7 @@ public class DispatchToMockTests
     {
         // A recusa real do sandbox (2026-09-27), gravada pela quarta foto, no lugar da resposta do mock ao envio. A esteira
         // registra IntegrationError com o motivo dela, depois de um único POST, sem exceção — ou seja, sem dead-letter.
-        using Harness h = await Harness.CreateAsync(documentsPath: SandboxDocumentsPath, recordedSubmit: RecordedSubmit("recusa-no-envio.json"));
+        using Harness h = await Harness.CreateAsync(invoicesPath: SandboxInvoicesPath, recordedSubmit: RecordedSubmit("recusa-no-envio.json"));
         h.ServeNote("35637156582", "postaladdress-22565428565", "city-22565694955", "postaladdress-22565441071", "city-22565694958");
 
         await h.ProcessAsync(OutgoingKey, "35637156582");   // não lança
@@ -275,8 +276,8 @@ public class DispatchToMockTests
 
         StoredRow row = h.Store.Rows[OutgoingKey];
         Assert.Equal(IntegrationStatus.IntegrationError, row.Status);
-        Assert.Contains("OutboundSettings.sandbox.clientSecret", row.Reason);
-        Assert.Contains("Configurações → Conectores → Avalara → Sandbox → Client Secret", row.Reason);
+        Assert.Contains("o Client Secret da conta de plataforma 'Avalara'", row.Reason);
+        Assert.Contains("Configurações → Conectores → Avalara → Client Secret", row.Reason);
         Assert.Equal(0, h.TokenRequests);
         Assert.Equal(0, h.DocumentPosts);
     }
@@ -547,6 +548,7 @@ public class DispatchToMockTests
         private InMemoryProfiles _profiles = null!;
         private ConnectorProfileService _profileService = null!;
         private string _establishments = ContosoEstablishments;
+        private string _invoicesPath = "documents";
         private DocumentPipeline<GoodsInvoice> _pipeline = null!;
         private StatusPoller<GoodsInvoice> _poller = null!;
 
@@ -566,12 +568,13 @@ public class DispatchToMockTests
 
         /// <summary>O host em memória, com o perfil do tenant-a gravado pelo caso de uso da tela (o segredo vai ao cofre).</summary>
         public static async Task<Harness> CreateAsync(
-            string? clientSecret = Secret, IProcessingTrace? trace = null, string documentsPath = "documents", (int Status, string Body)? recordedSubmit = null,
+            string? clientSecret = Secret, IProcessingTrace? trace = null, string invoicesPath = "documents", (int Status, string Body)? recordedSubmit = null,
             string? establishments = null, int listingPageSize = 100)
         {
             var h = new Harness();
             h._toMock.RecordedSubmit = recordedSubmit;
             h._establishments = establishments ?? ContosoEstablishments;
+            h._invoicesPath = invoicesPath;
             var profiles = new InMemoryProfiles();
             h._profiles = profiles;
             trace ??= new NoTrace();
@@ -579,12 +582,11 @@ public class DispatchToMockTests
             var services = new ServiceCollection();
             services.AddSingleton<IConnectorProfileStore>(profiles);
             services.AddSingleton<ISecretStore, InMemorySecrets>();
+            services.AddSingleton<IInstanceEnvironment>(InstanceEnvironment.From("Sandbox"));   // como o Host: de Connector:Environment
             services.AddSingleton(trace);
-            services.AddAvalaraComplianceDispatcher(o =>   // a composição padrão: autenticada
-            {
-                o.DocumentsPath = documentsPath;
-                o.ListingPageSize = listingPageSize;
-            });
+            // A composição padrão: autenticada. O Avalara:DocumentsPath fica no padrão, que o envio não lê mais: o caminho é o
+            // da integração de notas, gravado no conector.
+            services.AddAvalaraComplianceDispatcher(o => o.ListingPageSize = listingPageSize);
             // O resolvedor do de/para do estabelecimento, como o Host o registra: singleton, e observador do salvar do perfil.
             services.AddSingleton(new PlatformEstablishmentOptions());
             services.AddSingleton(TimeProvider.System);
@@ -594,7 +596,8 @@ public class DispatchToMockTests
             h._services = services.BuildServiceProvider();
 
             h._profileService = new ConnectorProfileService(
-                profiles, h._services.GetRequiredService<ISecretStore>(), h._services.GetServices<IConnectorProfileObserver>(), new Tenant("tenant-a"));
+                profiles, h._services.GetRequiredService<ISecretStore>(), h._services.GetServices<IConnectorProfileObserver>(),
+                h._services.GetServices<IAdapterDeclaration>(), new Tenant("tenant-a"));
             ConnectorProfileSaveResult saved = await h.SaveProfileAsync(clientSecret);
             Assert.Equal(ConnectorProfileSaveStatus.Saved, saved.Status);
 
@@ -610,18 +613,29 @@ public class DispatchToMockTests
             return h;
         }
 
-        /// <summary>Grava o perfil como a tela: o Client Secret, quando vem, é campo de escrita e vai para o cofre.</summary>
+        /// <summary>
+        /// Grava o perfil como a tela: a conta Avalara, com o Client Secret — quando vem, é campo de escrita e vai para o
+        /// cofre — e o endpoint de token do mock; e o conector Avalara, com a base do mock e a tradução de estabelecimentos.
+        /// </summary>
         public Task<ConnectorProfileSaveResult> SaveProfileAsync(string? clientSecret)
-        {
-            string secret = clientSecret is null ? string.Empty : $",\"clientSecret\":\"{clientSecret}\"";
-            return _profileService.SaveAsync(new ConnectorProfileRequest(
-                "Sandbox",
-                "Dynamics365",
-                """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]}""",
-                "Avalara",
-                // O mock em memória em loopback, com a tradução de estabelecimentos do teste.
-                $$$"""{"sandbox":{"baseUrl":"http://localhost/","clientId":"mock-client"{{{secret}}},"establishments":{{{_establishments}}}}}"""));
-        }
+            => _profileService.SaveAsync(new ConnectorProfileRequest(
+                InboundAdapter: "Dynamics365",
+                InboundSettings: """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]}""",
+                Accounts:
+                [
+                    new PlatformAccountRequest(
+                        Platform: "Avalara", ClientId: "mock-client", ClientSecret: clientSecret, TokenUrl: "http://localhost/oauth/token",
+                        // O mock em memória em loopback, com a tradução de estabelecimentos do teste, e o Fiscal com a
+                        // integração de notas no caminho do teste.
+                        Connectors:
+                        [
+                            new PlatformConnectorRequest(
+                                "Avalara",
+                                $$$"""{"baseUrls":{"v2":"http://localhost/"},"establishments":{{{_establishments}}}}""",
+                                [TenantModules.Fiscal],
+                                [new ConnectorIntegrationRequest(ConnectorIntegrations.Invoices, _invoicesPath)]),
+                        ]),
+                ]));
 
         public void ServeNote(string recId, params string[] reference) => ServeNote(recId, withAccounting: false, reference);
 

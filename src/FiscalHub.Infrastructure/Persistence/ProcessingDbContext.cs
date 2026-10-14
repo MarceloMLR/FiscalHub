@@ -15,6 +15,10 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
 
     public DbSet<ConnectorProfileRow> ConnectorProfiles => Set<ConnectorProfileRow>();
 
+    public DbSet<PlatformAccountRow> PlatformAccounts => Set<PlatformAccountRow>();
+
+    public DbSet<ConnectorRow> Connectors => Set<ConnectorRow>();
+
     public DbSet<TenantRow> Tenants => Set<TenantRow>();
 
     public DbSet<ChangeFeedCursorRow> ChangeFeedCursors => Set<ChangeFeedCursorRow>();
@@ -85,11 +89,46 @@ internal sealed class ProcessingDbContext(DbContextOptions<ProcessingDbContext> 
         conn.HasKey(c => c.Id);
         conn.HasIndex(c => c.TenantId).IsUnique();   // um perfil por tenant
         conn.Property(c => c.TenantId).HasMaxLength(100);
-        conn.Property(c => c.Environment).HasMaxLength(20);
         conn.Property(c => c.InboundAdapter).HasMaxLength(50);
-        conn.Property(c => c.OutboundAdapter).HasMaxLength(50);
         conn.Property(c => c.SupportAdapter).HasMaxLength(50);
-        conn.Property(c => c.Modules).HasMaxLength(200);
+
+        // A conta de plataforma e os conectores dela (ADR-0036): uma conta por plataforma, por tenant, e um conector por
+        // adapter, dentro da conta. A validação da gravação é a regra; os índices são a rede de segurança.
+        var account = modelBuilder.Entity<PlatformAccountRow>();
+        account.ToTable("PlatformAccounts");
+        account.HasKey(a => a.Id);
+        account.HasIndex(a => new { a.TenantId, a.Platform }).IsUnique();
+        account.Property(a => a.TenantId).HasMaxLength(100);
+        account.Property(a => a.Platform).HasMaxLength(50);
+        account.Property(a => a.ClientId).HasMaxLength(200);
+        account.Property(a => a.ClientSecretRef).HasMaxLength(200);   // kv: e um nome de até 127 caracteres
+        account.Property(a => a.TokenUrl).HasMaxLength(500);
+        account.HasMany(a => a.Connectors).WithOne().HasForeignKey(c => c.AccountId).OnDelete(DeleteBehavior.Cascade);
+
+        var connector = modelBuilder.Entity<ConnectorRow>();
+        connector.ToTable("Connectors");
+        connector.HasKey(c => c.Id);
+        connector.HasIndex(c => new { c.AccountId, c.Adapter }).IsUnique();
+        connector.Property(c => c.Adapter).HasMaxLength(50);
+        connector.HasMany(c => c.Modules).WithOne().HasForeignKey(m => m.ConnectorId).OnDelete(DeleteBehavior.Cascade);
+
+        // Os módulos e as integrações ligados no conector (D3): o que o perfil liga é dado consultável, e não blob. A regra
+        // de um conector por integração, por tenant, é a validação da gravação; o índice em (tenant, chave) é a rede de
+        // segurança, e por isso a linha da integração repete o tenant.
+        var module = modelBuilder.Entity<ConnectorModuleRow>();
+        module.ToTable("ConnectorModules");
+        module.HasKey(m => m.Id);
+        module.HasIndex(m => new { m.ConnectorId, m.Module }).IsUnique();
+        module.Property(m => m.Module).HasMaxLength(50);
+        module.HasMany(m => m.Integrations).WithOne().HasForeignKey(i => i.ModuleId).OnDelete(DeleteBehavior.Cascade);
+
+        var integration = modelBuilder.Entity<ConnectorIntegrationRow>();
+        integration.ToTable("ConnectorIntegrations");
+        integration.HasKey(i => i.Id);
+        integration.HasIndex(i => new { i.TenantId, i.Key }).IsUnique();
+        integration.Property(i => i.TenantId).HasMaxLength(100);
+        integration.Property(i => i.Key).HasMaxLength(50);
+        integration.Property(i => i.Endpoint).HasMaxLength(500);
 
         var tnt = modelBuilder.Entity<TenantRow>();
         tnt.ToTable("Tenants");

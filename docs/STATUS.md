@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-10-09
+**Última atualização:** 2026-10-14
 
 > **Nome:** a empresa é a **Fiscosys** e o produto de exibição é o **FiscosysHub**. Os namespaces C#
 > continuam `FiscalHub.*` de propósito — nome de exibição e namespace são coisas diferentes.
@@ -18,7 +18,7 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 
 ## Onde estamos
 
-**24 projetos (22 fora de `tools/`) · 27 specs · 35 ADRs · 14 changes arquivadas.**
+**24 projetos (22 fora de `tools/`) · 27 specs · 39 ADRs · 14 changes arquivadas.**
 
 **Núcleo:** domínio `GoodsInvoice` (NF-e 55) com a Reforma (IBS/CBS/IS), envelope fino, portas, esteira
 `ProcessAsync` (idempotência → busca → validação → envio → registro), `NfeXmlParser`,
@@ -29,9 +29,11 @@ mudanças por janela de data, montagem do documento a partir das entidades fisca
 como porta, descoberta por período, normalização de identificadores. A integração automática tem painel
 próprio na tela, com rebobinar e teste de credencial.
 
-**Saída — Avalara (adapter real):** contrato de documento, autenticação por tenant com cache de token,
-listagem de estabelecimentos, de-para de estabelecimento pela plataforma, foto da resposta no blob,
-desfecho do despacho. **Já houve envio real contra o sandbox da Avalara.**
+**Saída — Avalara (adapter real):** a conta de plataforma (a credencial e o endpoint de token, com cache de
+token por conta) e o conector sob ela (URLs base por versão, módulos e integrações que o adapter declara, o
+caminho e o lote por integração); contrato de documento, listagem de estabelecimentos, de-para de
+estabelecimento pela plataforma, foto da resposta no blob, desfecho do despacho. **Já houve envio real contra
+o sandbox da Avalara**, na forma de antes da conta de plataforma.
 
 **Mensageria:** Service Bus com gatilho de esteira e de descoberta, e **dead-letter visível** — a mensagem
 esgotada vira registro rastreável, sem reprocessar.
@@ -46,26 +48,38 @@ por nota e um resumo de cada uma na descrição. Dois gateways: Local (mock de d
 este **não funciona hoje** pelo caminho de configuração documentado, ver "Defeitos conhecidos".
 
 **Dashboard React completo:** Fiscal (cards, grupos, detalhe, filtros de período e modelo), Agendamento
-(imediata, diária D-1, agendada, execuções), Configurações (perfil de conector, adapters, módulos),
+(imediata, diária D-1, agendada, execuções), Configurações (a entrada, a conta de plataforma e o painel do
+conector, com módulos, integrações e caminhos),
 Usuários (CRUD e dados do tenant), módulos reservados, login, tema claro e escuro — e a **identidade
 visual Fiscosys**, aplicada na change `rebrand-dashboard-to-fiscosys`.
 
 **Multi-tenant:** JWT com escopo por tenant, perfil de conector por tenant, segredos por referência ao
-cofre, limite de tenant em todas as consultas.
+cofre, limite de tenant em todas as consultas. **O ambiente é da instância** (`Connector:Environment`): uma
+instância por (cliente, ambiente). As duas instâncias por cliente ainda não foram provisionadas no Azure.
 
 ## Próximos passos
 
 1. **Corrigir os defeitos conhecidos D1, D2 e D3.** Cada um vai numa change própria, com o teste antes, e o D1 vai
    primeiro. As specs retroativas `integration-status-poll`, `dead-letter-visibility` e `support-ticket` saíram na
    change `document-implemented-capabilities`. A correção de cada defeito entra nelas por delta.
-2. **Marco 2 — CT-e (57) e NFS-e.** O `d365-document-assembly` é só NF-e 55; 57 e SE já aparecem como
+2. **Arquivar a `platform-account-and-connectors` (ADR-0036 e ADR-0037).** A forma do conector está entregue e
+   verificada, inclusive o ponta a ponta contra o sandbox real da Avalara, com as provas na sessão de 2026-10-13/14,
+   abaixo. Falta o archive, que ajusta à mão o `Purpose` do `module-navigation` antes de rodar (a ordem está na tarefa
+   8.3).
+3. **As filas por integração e as telas repaginadas (ADR-0037 §4, ADR-0039).** Fila própria por integração, barra
+   lateral por conector, a carga como linha, o erro por motivo, e a visão técnica restrita ao Admin — a primeira
+   permissão de verdade do produto, que é do servidor e não da tela.
+4. **O wizard de provisionamento (ADR-0039).** Cinco passos, três deles condicionais. É conveniência sobre uma
+   configuração que já funciona pelo painel do conector; vale muito, não bloqueia ninguém.
+5. **AvaTax (ADR-0038).** Cálculo e emissão, os estados novos do ciclo de vida, o cancelamento e a carta de correção.
+6. **Marco 2 — CT-e (57) e NFS-e.** O `d365-document-assembly` é só NF-e 55; 57 e SE já aparecem como
    filtro em `document-grouping`, `period-discovery` e `d365-change-feed`, mas não têm montagem. É a prova
    de extensibilidade que o ADR-0001 promete.
-3. **Contábil e Inventário.** Hoje são painéis reservados (`module-navigation`). Cada um é outro domínio,
+7. **Contábil e Inventário.** Hoje são painéis reservados (`module-navigation`). Cada um é outro domínio,
    com outro modelo, outras portas e outros adapters.
-4. **Restringir acesso por módulo.** O `module-navigation` registra que hoje é apresentação, e não
+8. **Restringir acesso por módulo.** O `module-navigation` registra que hoje é apresentação, e não
    permissão: "Restringir o acesso por módulo é outra fatia."
-5. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
+9. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
    exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
 
 ## Decisões recentes
@@ -77,6 +91,32 @@ cofre, limite de tenant em todas as consultas.
   no mesmo card "Com erro"** — se separá-los é desejável do ponto de vista do usuário é decisão em aberto.
 - A paleta do dashboard vive em três lugares (`tokens.css`, `theme.ts` e o objeto `C` do login) e um teste,
   `dashboard/src/theme/palette.test.ts`, impede que divirjam.
+- **O desenho das telas está no canvas "FiscosysHub — as telas do produto"** (23 artboards), referência visual dos
+  ADRs 0037 e 0039: os três módulos do Tax Compliance, o AvaTax em quatro estados de nota e dois papéis, o
+  provisionamento em cinco passos e a edição por abas.
+- **Conector → módulo → integração (ADR-0037).** A integração é a unidade que tem endpoint, fila e tamanho de lote. O
+  adapter declara o que sabe fazer e onde há lote; o perfil liga o que o cliente contratou. A recusa numa carga é **por
+  registro**: um lote de 100 com um registro ruim carrega os outros 99.
+- **Uma esteira, três estilos de saída (ADR-0038).** Despacho e confirmação, chamada síncrona e carga em lote. O
+  cálculo tem documento e estado, e "Calculado" quer dizer que o resultado **voltou ao ERP**, não que a Avalara
+  respondeu. A carta de correção é evento, não estado.
+- **Tax Compliance e AvaTax se encontram no ERP, não no hub (ADR-0038 §5).** A mesma nota física tem dois registros,
+  com ciclos de vida diferentes, e isso é correto.
+- **O Admin é a Fiscosys, não o cliente (ADR-0039).** As telas de provisionamento são internas, e a visão técnica —
+  JSONs do conector e logs — é restrita no servidor, e não só escondida na tela.
+- **A Avalara é uma conta, não um destino (ADR-0036).** O cliente tem um client id/secret **por ambiente**, e o
+  mesmo token serve o Tax Compliance e o AvaTax. Logo a credencial pertence à conta de plataforma, e os conectores
+  abaixo dela só guardam `baseUrl` e settings do produto. Cálculo e mensageria do AvaTax são **capacidades de um
+  conector**, não dois conectores.
+- **O ambiente vira o deploy (ADR-0036, revisando o 0020).** Uma instância por **(cliente, ambiente)**:
+  `tmsa.fiscosyshub.com.br` e `tmsa.sandbox.fiscosyshub.com.br`, com grupos de recurso separados. O `Environment`
+  sai do perfil, o `outboundSettings` perde o aninhamento `sandbox`/`production`, e o caminho do segredo deixa de
+  dizer `outbound.sandbox.clientSecret`.
+- **O emissor do AvaTax é o mesmo fluxo da esteira; o cálculo é que não cabe (ADR-0036).** Emissor: o hub monta o
+  JSON a partir do ERP e a Avalara emite — despacho assíncrono, poll, painel, mais os verbos de cancelamento e
+  carta de correção. Cálculo é síncrono, dentro da transação, sem documento e sem ciclo: porta própria quando
+  existir. **O ADR-0026 sobrevive** — quem julga conteúdo continua sendo a plataforma —, mas na emissão o erro sai
+  no mundo, perante a SEFAZ, e não só no nosso registro.
 - Commits em PT (sem acento); código/identificadores em inglês; termos fiscais BR mantidos.
 
 ## Defeitos conhecidos
@@ -114,9 +154,21 @@ Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Docu
   considerado exposto.
 - **Conferir o `establishments` no banco de dev.** O seed está com `{}`, mas houve uma sobreposição
   temporária em runtime mapeando os quatro CNPJs da Contoso para um contribuinte único da TMSA. Se ainda
-  estiver gravada, tirar quando a Avalara registrar os CNPJs reais.
+  estiver gravada, tirar quando a Avalara registrar os CNPJs reais. **Em 2026-10-14 ela continuava gravada**,
+  agora nas settings do conector `Avalara` do tenant-a, para onde a migração da conta de plataforma a levou.
 - **Um commit de D365 entrou no PR do rebrand** (`bc31f7d`, a `FSFiscalDocumentTaxTransBR` e o
   `cClassTrib`). Não tem change própria no OpenSpec, e um revert do PR #75 o levaria junto.
+- **Pin temporário do `System.Security.Cryptography.Pkcs` 9.0.21** no `FiscalHub.Infrastructure.csproj` (2026-10-14).
+  O `Microsoft.Data.SqlClient` 6.1.1, que o EF Core SqlServer 10.0.10 traz, puxa o 9.0.4, com a GHSA-846f-f764-76mx
+  (alta) e a GHSA-2fmv-rv2c-59x7 (moderada), de negação de serviço, e a auditoria do NuGet derrubava o build limpo.
+  **Remover quando o SqlClient trouxer o 9.0.21 ou maior transitivamente** — confira com
+  `dotnet list package --include-transitive`. Até lá, a referência direta segura o pacote: é dívida, e não decisão.
+- **A `FSFiscalDocumentTaxTransBRs` respondeu 400 de forma intermitente no fiscosysdev** (2026-10-14, na 9.5 da
+  `platform-account-and-connectors`): "Cannot select a record in Sub Query (Subquery)", na busca de
+  `brmf|BRMF06-110000027`. A mensagem foi retentada até o limite e a nota virou `DeadLettered` com
+  `MaxDeliveryCountExceeded`; a segunda tentativa, na mesma nota, funcionou. O pacote de metadados vai para o
+  cliente com essa entidade — a mesma do commit acima, sem change própria. E o motivo genérico da dead-letter
+  escondeu que a causa foi o ERP: é caso vivo para a change do defeito da dead-letter.
 
 ## Threads abertas
 
@@ -1273,3 +1325,61 @@ saída.
 - **O host da prova anterior seguia de pé** (desde 2026-10-01 11:52) e travava o `bin` do host. O `dotnet build` da
   solução falhava ao copiar as DLLs. A verificação foi o host compilado em outra saída, mais cada projeto de teste com o
   próprio `dotnet test`.
+
+---
+
+## Sessão 2026-10-13/14 — A conta de plataforma e os conectores (change `platform-account-and-connectors`)
+
+**Entregue (ADR-0036 e ADR-0037), com a verificação final inteira e as 67 tarefas feitas.** O ponta a ponta contra o
+sandbox real da Avalara (9.5) fechou com o Marcelo digitando o Client Secret na tela. Falta o archive, em PR à parte.
+
+- **O ambiente é da instância.** Vem de `Connector:Environment` (`Sandbox` ou `Production`), sem padrão: o host não
+  sobe sem ele. Saiu do perfil, das settings, do nome do segredo, do cache de token e do teste de credencial. O selo do
+  dashboard lê o `/info`, e não afirma ambiente antes de ele responder.
+- **A conta de plataforma e os conectores.** A credencial é da conta: Client ID, Client Secret e o endpoint de token,
+  obrigatório e sem derivação da URL base. O conector, identificado pelo adapter, guarda as URLs base por versão e o
+  resto das settings. O segredo vai a `fh-{tenant}--platform--{plataforma}--clientsecret`, e o cache de token é por
+  conta. A plataforma, o adapter, o módulo e a integração são gravados como o adapter os declara.
+- **Módulos e integrações.** Viraram linhas sob o conector. A Avalara declara o Fiscal (notas, `v2`), o Contábil e o
+  Inventário (`v1`, com lote). No máximo um conector por integração no tenant. O envio vai à base da versão mais o
+  caminho da integração, e o `Avalara:DocumentsPath` só preenche, uma vez, o caminho que a migração deixa à espera. O
+  `/info` deriva os módulos dos conectores; o tenant sem conector mostra o Fiscal.
+- **A tela.** O bloco da conta, com a marca de pendência no Client ID e no endpoint de token, e o "Testar credencial"
+  desabilitado dizendo o que falta. O painel do conector, do canvas do ADR-0039: a lista e três abas (Conexão, Módulos e
+  integrações, Endpoints). A aba "Módulos" do cliente saiu.
+- **Três migrações**, cada uma na sua transação: `MoveEnvironmentToInstance` (irreversível),
+  `AddPlatformAccountsAndConnectors` e `AddConnectorModulesAndIntegrations`, com `Down` que recusa o que a forma anterior
+  não comporta. O `Up` das três recusa o dado ambíguo em vez de adivinhar, e o pré-voo só de leitura
+  `docs/preflight/platform-account-and-connectors.sql` acha essas linhas antes do deploy.
+
+**As provas** (o detalhe de cada uma está nas tarefas da change):
+
+- **As migrações:** cada tarefa de migração tem a saída do harness contra o `sql` do compose (3.7, 3.12, 4.3, 6.3 e
+  6.10). As travas do `Up` têm a remediação provada, e o pré-voo, provado no harness, roda sem linha no banco de dev.
+- **Teste antes, ou mutação:** os testes das tarefas "Teste primeiro" falharam antes do código. Os escritos depois
+  passaram pelo vermelho invertendo o comportamento de produção. O único que sobreviveu à inversão, o da leitura do lote
+  (6.6), foi reescrito até ela o derrubar.
+- **A guarda:** `dotnet build` com 0 warnings e `dotnet test` verde a cada grupo de código; `npm test` e `npm run build`
+  a cada grupo de tela; `openspec validate --all --strict` com 28 de 28.
+- **A verificação final (2026-10-14):** a solução inteira com 0 warnings e a suíte verde com o harness ligado; `npm test`
+  105 de 105. As três migrações num `Migrate` só, a partir da forma de antes, num teste novo que pegou as três inversões,
+  uma por migração. E a migração sobre uma cópia do backup da base de dev de antes da M1: o pré-voo deu zero linhas
+  contra dado real, o estado final bateu campo a campo com a forma de antes, a primeira subida preencheu o caminho, e a
+  cópia foi apagada, com o `.bak` intacto.
+- **O banco de dev,** migrado pelo Marcelo em 2026-10-14: backup, pré-voo sem linha, as três migrações aplicadas, o
+  caminho da integração de notas preenchido pelo host nos dois tenants, e a barra lateral com os três módulos.
+- **A tela,** conferida pelo Marcelo no navegador: a conta, as marcas de pendência e o botão de testar; o painel em
+  1360px, com a lista ao lado das abas, e em 800px, empilhado.
+
+**Achados:**
+
+- **O ponta a ponta contra o mock não tem tenant pronto.** O tenant-a de dev aponta para o sandbox real
+  (`api-gateway.sandbox.avalarabrasil.com.br`); o tenant-b aponta para o mock, mas só tem usuário Viewer. Criar um Admin
+  no tenant-b ou repontar o tenant-a é decisão do Marcelo.
+- **O módulo apagado não aparece com dado real:** a Avalara declara os três módulos. A prova do "apagado, com o motivo"
+  é o teste com uma declaração que só tem o Fiscal.
+- **Os ADRs 0036 e 0037 ganharam nota de revisão** com os desvios: só a credencial da conta é recusada no conector; a
+  conta guarda o endpoint de token; só a primeira migração é irreversível; o agendamento e o `poll.enabled` ficaram para
+  as fatias deles; a tela mostra todas as bases declaradas; o tenant sem conector mostra o Fiscal.
+- **O `Purpose` do `module-navigation`** ainda fala dos módulos "marcados pelo Admin em Configurações". O delta não o
+  troca: ajusta-se à mão no archive.

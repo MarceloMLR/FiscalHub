@@ -26,7 +26,7 @@ internal sealed partial class D365CredentialTest(ClientCredentialsD365TokenProvi
 
     public ConnectorSettingsKind Side => ConnectorSettingsKind.Inbound;
 
-    public async Task<CredentialTestOutcome> TestAsync(TenantConnectorProfile profile, string? environment, CancellationToken ct = default)
+    public async Task<CredentialTestOutcome> TestAsync(TenantConnectorProfile profile, CancellationToken ct = default)
     {
         D365InboundSettings settings;
         try

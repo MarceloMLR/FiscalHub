@@ -1,10 +1,14 @@
 namespace FiscalHub.Application.Connectors;
 
-/// <summary>Qual das settings do perfil de conector guarda o campo de segredo.</summary>
+/// <summary>
+/// O escopo do segredo no perfil de conector: as settings de entrada, a conta de plataforma, as settings de um conector,
+/// ou as de chamados. O nome do segredo começa por ele (change <c>platform-account-and-connectors</c>, D1).
+/// </summary>
 public enum ConnectorSettingsKind
 {
     Inbound,
-    Outbound,
+    Platform,
+    Connector,
     Support,
 }
 

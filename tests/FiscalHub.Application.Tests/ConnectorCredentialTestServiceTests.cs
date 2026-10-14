@@ -7,9 +7,10 @@ namespace FiscalHub.Application.Tests;
 
 /// <summary>
 /// Especifica o teste de credencial (spec connector-credential-test, design D9 e D12): a credencial gravada do tenant
-/// logado, o adapter escolhido pelo lado, e o freio no endpoint. O freio lembra só a recusa, por 5 minutos, por tenant e
-/// por adapter, e na saída também por ambiente. O salvar do perfil o esquece. A resposta diz só se funcionou, o motivo e,
-/// com o freio, quando um novo teste é aceito.
+/// logado, o adapter escolhido pelo lado — a entrada, ou a conta de plataforma —, e o freio no endpoint. O freio lembra só
+/// a recusa, por 5 minutos, por tenant e por lado — sem ambiente, que é o da instância (change
+/// platform-account-and-connectors, D6). O salvar do perfil o esquece. A resposta diz só se funcionou, o motivo e, com o
+/// freio, quando um novo teste é aceito.
 /// </summary>
 public class ConnectorCredentialTestServiceTests
 {
@@ -20,34 +21,96 @@ public class ConnectorCredentialTestServiceTests
     {
         var h = new Harness();
 
-        CredentialTestReply reply = await h.Service.TestAsync("inbound", null);
+        CredentialTestReply reply = await h.Service.TestAsync("inbound");
 
         Assert.Equal(CredentialTestStatus.Tested, reply.Status);
         Assert.True(reply.Result!.Worked);
-        Assert.Equal([("tenant-a", null)], h.D365.Calls);   // o perfil gravado do tenant do login, sem ambiente na entrada
+        Assert.Equal(["tenant-a"], h.D365.Calls);   // o perfil gravado do tenant do login
         Assert.Empty(h.Avalara.Calls);
     }
 
     [Fact]
-    public async Task Outbound_goes_with_the_environment_normalized()
+    public async Task Platform_side_tests_the_account_case_insensitive_and_needs_no_environment()
     {
         var h = new Harness();
 
-        await h.Service.TestAsync("OUTBOUND", "production");
+        CredentialTestReply reply = await h.Service.TestAsync("PLATFORM");
 
-        Assert.Equal([("tenant-a", "Production")], h.Avalara.Calls);
+        Assert.Equal(CredentialTestStatus.Tested, reply.Status);
+        Assert.Equal(["tenant-a"], h.Avalara.Calls);
+        Assert.Equal("Avalara", reply.Log!.Adapter);   // a plataforma da conta gravada
+    }
+
+    [Fact]
+    public async Task The_old_outbound_side_still_tests_the_account()
+    {
+        // Uma tela que não recarregou ainda manda "outbound": o lado é o da conta, e não um conector.
+        var h = new Harness();
+
+        CredentialTestReply reply = await h.Service.TestAsync("outbound");
+
+        Assert.Equal(CredentialTestStatus.Tested, reply.Status);
+        Assert.Equal(["tenant-a"], h.Avalara.Calls);
+    }
+
+    [Fact]
+    public async Task Tenant_without_a_platform_account_is_unsupported()
+    {
+        var h = new Harness(platforms: []);
+
+        CredentialTestReply reply = await h.Service.TestAsync("platform");
+
+        Assert.Equal(CredentialTestStatus.Unsupported, reply.Status);
+        Assert.Contains("conta de plataforma", reply.Problem);
+        Assert.Empty(h.Avalara.Calls);
+    }
+
+    [Fact]
+    public async Task Platform_without_a_test_is_unsupported()
+    {
+        var h = new Harness(platforms: ["Sovos"]);
+
+        CredentialTestReply reply = await h.Service.TestAsync("platform");
+
+        Assert.Equal(CredentialTestStatus.Unsupported, reply.Status);
+        Assert.Contains("Sovos", reply.Problem);
+        Assert.Empty(h.Avalara.Calls);
+    }
+
+    [Fact]
+    public async Task The_platform_is_found_by_the_exact_name()
+    {
+        // A conta "avalara" não é a da Avalara: a comparação é exata, como a do conector (D9).
+        var h = new Harness(platforms: ["avalara"]);
+
+        CredentialTestReply reply = await h.Service.TestAsync("platform");
+
+        Assert.Equal(CredentialTestStatus.Unsupported, reply.Status);
+        Assert.Contains("avalara", reply.Problem);
+        Assert.Empty(h.Avalara.Calls);
+    }
+
+    [Fact]
+    public async Task With_two_accounts_the_one_whose_platform_has_a_test_is_tested()
+    {
+        var h = new Harness(platforms: ["Sovos", "Avalara"]);
+
+        CredentialTestReply reply = await h.Service.TestAsync("platform");
+
+        Assert.Equal(CredentialTestStatus.Tested, reply.Status);
+        Assert.Equal("Avalara", reply.Log!.Adapter);
+        Assert.Equal(["tenant-a"], h.Avalara.Calls);
     }
 
     [Theory]
-    [InlineData("support", null)]
-    [InlineData("erp", null)]
-    [InlineData("outbound", null)]        // a saída tem duas credenciais: o ambiente é obrigatório
-    [InlineData("outbound", "Staging")]
-    public async Task Invalid_side_or_environment_is_refused_without_testing(string side, string? environment)
+    [InlineData("support")]
+    [InlineData("erp")]
+    [InlineData("")]
+    public async Task Invalid_side_is_refused_without_testing(string side)
     {
         var h = new Harness();
 
-        CredentialTestReply reply = await h.Service.TestAsync(side, environment);
+        CredentialTestReply reply = await h.Service.TestAsync(side);
 
         Assert.Equal(CredentialTestStatus.Invalid, reply.Status);
         Assert.Empty(h.D365.Calls);
@@ -59,7 +122,7 @@ public class ConnectorCredentialTestServiceTests
     {
         var h = new Harness(inboundAdapter: "iScala");
 
-        CredentialTestReply reply = await h.Service.TestAsync("inbound", null);
+        CredentialTestReply reply = await h.Service.TestAsync("inbound");
 
         Assert.Equal(CredentialTestStatus.Unsupported, reply.Status);
         Assert.Contains("iScala", reply.Problem);
@@ -70,7 +133,7 @@ public class ConnectorCredentialTestServiceTests
     {
         var h = new Harness(tenant: "tenant-sem-perfil");
 
-        CredentialTestReply reply = await h.Service.TestAsync("inbound", null);
+        CredentialTestReply reply = await h.Service.TestAsync("inbound");
 
         Assert.Equal(CredentialTestStatus.Unsupported, reply.Status);
     }
@@ -81,9 +144,9 @@ public class ConnectorCredentialTestServiceTests
         var h = new Harness();
         h.D365.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "O Entra ID recusou a credencial (AADSTS7000215).");
 
-        CredentialTestReply first = await h.Service.TestAsync("inbound", null);
+        CredentialTestReply first = await h.Service.TestAsync("inbound");
         h.Clock.Advance(TimeSpan.FromMinutes(2));
-        CredentialTestReply second = await h.Service.TestAsync("inbound", null);
+        CredentialTestReply second = await h.Service.TestAsync("inbound");
 
         Assert.False(first.Result!.Worked);
         Assert.Equal(Now.AddMinutes(5), first.Result.RetryAt);   // o freio já vale: diz quando um novo teste é aceito
@@ -96,14 +159,29 @@ public class ConnectorCredentialTestServiceTests
     }
 
     [Fact]
+    public async Task The_platform_brake_has_no_environment()
+    {
+        // Antes, Sandbox e Produção eram duas chaves do freio; agora a instância tem um ambiente só, e a credencial da conta
+        // é uma: o segundo teste dentro do intervalo cai no freio.
+        var h = new Harness();
+        h.Avalara.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "recusada");
+
+        await h.Service.TestAsync("platform");
+        CredentialTestReply second = await h.Service.TestAsync("platform");
+
+        Assert.True(second.Log!.FromBrake);
+        Assert.Single(h.Avalara.Calls);
+    }
+
+    [Fact]
     public async Task After_the_hold_the_test_calls_the_adapter_again()
     {
         var h = new Harness();
         h.D365.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "recusada");
 
-        await h.Service.TestAsync("inbound", null);
+        await h.Service.TestAsync("inbound");
         h.Clock.Advance(TimeSpan.FromMinutes(6));
-        await h.Service.TestAsync("inbound", null);
+        await h.Service.TestAsync("inbound");
 
         Assert.Equal(2, h.D365.Calls.Count);
     }
@@ -117,8 +195,8 @@ public class ConnectorCredentialTestServiceTests
         var h = new Harness();
         h.D365.Next = new CredentialTestOutcome(verdict, "motivo");
 
-        CredentialTestReply first = await h.Service.TestAsync("inbound", null);
-        await h.Service.TestAsync("inbound", null);
+        CredentialTestReply first = await h.Service.TestAsync("inbound");
+        await h.Service.TestAsync("inbound");
 
         Assert.Null(first.Result!.RetryAt);
         Assert.Equal(2, h.D365.Calls.Count);   // indisponível, incompleto e sucesso não travam o botão
@@ -129,28 +207,44 @@ public class ConnectorCredentialTestServiceTests
     {
         var h = new Harness();
         h.Avalara.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "recusada");
-        await h.Service.TestAsync("outbound", "Sandbox");
+        await h.Service.TestAsync("platform");
 
         await h.Brake.ProfileSavedAsync("tenant-a");   // o observador do perfil, chamado pelo salvar
-        await h.Service.TestAsync("outbound", "Sandbox");
+        await h.Service.TestAsync("platform");
 
         Assert.Equal(2, h.Avalara.Calls.Count);
     }
 
     [Fact]
-    public async Task Brake_of_one_adapter_environment_or_tenant_does_not_touch_the_others()
+    public async Task Saving_the_profile_forgets_the_brake_of_both_sides()
     {
+        // O salvar esquece o freio de tudo o que o tenant testa (5.8): a entrada e a conta de plataforma.
         var h = new Harness();
         h.D365.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "recusada");
         h.Avalara.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "recusada");
-        await h.Service.TestAsync("inbound", null);
-        await h.Service.TestAsync("outbound", "Sandbox");
+        await h.Service.TestAsync("inbound");
+        await h.Service.TestAsync("platform");
 
-        await h.Service.TestAsync("outbound", "Production");   // outra credencial do mesmo adapter
-        await h.ForTenant("tenant-c").TestAsync("inbound", null);   // outro tenant, mesmo adapter
+        await h.Brake.ProfileSavedAsync("tenant-a");
+        await h.Service.TestAsync("inbound");
+        await h.Service.TestAsync("platform");
 
-        Assert.Equal([("tenant-a", "Sandbox"), ("tenant-a", "Production")], h.Avalara.Calls);
-        Assert.Equal([("tenant-a", null), ("tenant-c", null)], h.D365.Calls);
+        Assert.Equal(2, h.D365.Calls.Count);
+        Assert.Equal(2, h.Avalara.Calls.Count);
+    }
+
+    [Fact]
+    public async Task Brake_of_one_adapter_or_tenant_does_not_touch_the_others()
+    {
+        var h = new Harness();
+        h.D365.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "recusada");
+        await h.Service.TestAsync("inbound");
+
+        await h.Service.TestAsync("platform");                  // o outro lado do mesmo tenant
+        await h.ForTenant("tenant-c").TestAsync("inbound");    // outro tenant, mesmo adapter
+
+        Assert.Equal(["tenant-a"], h.Avalara.Calls);
+        Assert.Equal(["tenant-a", "tenant-c"], h.D365.Calls);
     }
 
     [Fact]
@@ -158,10 +252,10 @@ public class ConnectorCredentialTestServiceTests
     {
         var h = new Harness();
         h.D365.Next = new CredentialTestOutcome(CredentialTestVerdict.Refused, "recusada");
-        await h.Service.TestAsync("inbound", null);
+        await h.Service.TestAsync("inbound");
 
         await h.Brake.ProfileSavedAsync("tenant-c");
-        await h.Service.TestAsync("inbound", null);
+        await h.Service.TestAsync("inbound");
 
         Assert.Single(h.D365.Calls);
     }
@@ -178,11 +272,23 @@ public class ConnectorCredentialTestServiceTests
         var h = new Harness();
         h.Avalara.Next = new CredentialTestOutcome(verdict, "A plataforma recusou a credencial (HTTP 400: client_id invalid).");
 
-        CredentialTestReply reply = await h.Service.TestAsync("outbound", "Sandbox");
+        CredentialTestReply reply = await h.Service.TestAsync("platform");
 
         Assert.Equal(worked, reply.Result!.Worked);
         Assert.Equal(message, reply.Result.Reason);
         Assert.Equal(new CredentialTestLog("Avalara", "Sandbox", verdict, "A plataforma recusou a credencial (HTTP 400: client_id invalid).", false), reply.Log);
+    }
+
+    [Fact]
+    public async Task The_log_carries_the_environment_of_the_instance_on_both_sides()
+    {
+        var h = new Harness(environment: "Production");
+
+        CredentialTestReply inbound = await h.Service.TestAsync("inbound");
+        CredentialTestReply platform = await h.Service.TestAsync("platform");
+
+        Assert.Equal("Production", inbound.Log!.Environment);
+        Assert.Equal("Production", platform.Log!.Environment);
     }
 
     [Fact]
@@ -198,10 +304,15 @@ public class ConnectorCredentialTestServiceTests
     private sealed class Harness
     {
         private readonly Profiles _profiles;
+        private readonly IInstanceEnvironment _instance;
 
-        public Harness(string tenant = "tenant-a", string inboundAdapter = "Dynamics365")
+        // As contas de plataforma de cada tenant, pela plataforma; sem a lista, só a Avalara.
+        public Harness(
+            string tenant = "tenant-a", string inboundAdapter = "Dynamics365", string environment = "Sandbox", string[]? platforms = null)
         {
-            _profiles = new Profiles([Profile("tenant-a", inboundAdapter), Profile("tenant-c", inboundAdapter)]);
+            string[] accounts = platforms ?? ["Avalara"];
+            _profiles = new Profiles([Profile("tenant-a", inboundAdapter, accounts), Profile("tenant-c", inboundAdapter, accounts)]);
+            _instance = InstanceEnvironment.From(environment);
             Brake = new CredentialTestBrake(new CredentialTestOptions(), Clock);
             Service = ForTenant(tenant);
         }
@@ -210,21 +321,20 @@ public class ConnectorCredentialTestServiceTests
 
         public FakeTest D365 { get; } = new("Dynamics365", ConnectorSettingsKind.Inbound);
 
-        public FakeTest Avalara { get; } = new("Avalara", ConnectorSettingsKind.Outbound);
+        public FakeTest Avalara { get; } = new("Avalara", ConnectorSettingsKind.Platform);
 
         public CredentialTestBrake Brake { get; }
 
         public ConnectorCredentialTestService Service { get; }
 
         public ConnectorCredentialTestService ForTenant(string tenant)
-            => new(_profiles, [D365, Avalara], Brake, new Tenant(tenant));
+            => new(_profiles, [D365, Avalara], Brake, _instance, new Tenant(tenant));
 
-        private static TenantConnectorProfile Profile(string tenant, string inboundAdapter) => new()
+        private static TenantConnectorProfile Profile(string tenant, string inboundAdapter, string[] platforms) => new()
         {
             TenantId = tenant,
-            Environment = "Sandbox",
             InboundAdapter = inboundAdapter,
-            OutboundAdapter = "Avalara",
+            Accounts = [.. platforms.Select(p => new PlatformAccount { Platform = p })],
         };
     }
 
@@ -236,11 +346,11 @@ public class ConnectorCredentialTestServiceTests
 
         public CredentialTestOutcome Next { get; set; } = new(CredentialTestVerdict.Worked, "funcionou");
 
-        public List<(string Tenant, string? Environment)> Calls { get; } = [];
+        public List<string> Calls { get; } = [];
 
-        public Task<CredentialTestOutcome> TestAsync(TenantConnectorProfile profile, string? environment, CancellationToken ct = default)
+        public Task<CredentialTestOutcome> TestAsync(TenantConnectorProfile profile, CancellationToken ct = default)
         {
-            Calls.Add((profile.TenantId, environment));
+            Calls.Add(profile.TenantId);
             return Task.FromResult(Next);
         }
     }

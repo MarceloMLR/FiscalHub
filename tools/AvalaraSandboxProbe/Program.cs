@@ -67,7 +67,9 @@ await using (AsyncServiceScope scope = sp.CreateAsyncScope())
     profile = await scope.ServiceProvider.GetRequiredService<IConnectorProfileStore>().GetAsync(tenant);
 }
 
-AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(tenant, profile);
+// O ambiente é o da instância, na mesma chave do Host (Connector:Environment): sem ela, a sonda não presume um.
+IInstanceEnvironment instance = InstanceEnvironment.From(cfg[InstanceEnvironment.ConfigurationKey]);
+AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(tenant, profile, instance);
 var tokenExchange = new CapturingHandler(new HttpClientHandler());
 var provider = new AvalaraTokenProvider(
     new HttpClient(tokenExchange), secrets, Options.Create(options), TimeProvider.System, NullLogger<AvalaraTokenProvider>.Instance);
@@ -94,7 +96,7 @@ catch (DispatchRejectedException ex)
 // ---- token: a verificação da premissa de autenticação (design D13) ----
 async Task<int> TokenAsync()
 {
-    Console.WriteLine($"Tenant {tenant}, ambiente {settings.Environment}: pedido de token a {settings.TokenEndpoint(options.TokenPath)}");
+    Console.WriteLine($"Tenant {tenant}, ambiente {settings.Environment}: pedido de token a {settings.TokenEndpoint}");
     string? secret = await secrets.GetAsync(settings.Credential.SecretName);   // só para redigir o que for gravado
 
     AvalaraAccessToken? token = null;
@@ -166,7 +168,7 @@ async Task<int> SendAsync()
     Save($"{label}.payload.json", payload.ToJsonString(Json.Indented));
 
     AvalaraAccessToken token = await provider.GetTokenAsync(settings);
-    using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(settings.BaseUri, options.DocumentsPath))
+    using var request = new HttpRequestMessage(HttpMethod.Post, settings.SubmitUri)
     {
         Content = new StringContent(payload.ToJsonString(), Encoding.UTF8, "application/json"),
     };
@@ -200,7 +202,7 @@ async Task PollAsync(string label, string id, AvalaraAccessToken token)
     for (int attempt = 1; attempt <= attempts; attempt++)
     {
         await Task.Delay(interval);
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(settings.BaseUri, $"{options.DocumentsPath}/{Uri.EscapeDataString(id)}/status"));
+        using var request = new HttpRequestMessage(HttpMethod.Get, settings.StatusUri(id));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
         using HttpResponseMessage response = await http.SendAsync(request);
         (string body, int redactions) = SensitiveText.Redact(await response.Content.ReadAsStringAsync(), [token.Value]);
@@ -227,7 +229,7 @@ async Task<int> GetAsync()
     string id = parsed.Required("id");
     AvalaraAccessToken token = await provider.GetTokenAsync(settings);
 
-    using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(settings.BaseUri, $"{options.DocumentsPath}/{Uri.EscapeDataString(id)}"));
+    using var request = new HttpRequestMessage(HttpMethod.Get, new Uri($"{settings.SubmitUri.AbsoluteUri.TrimEnd('/')}/{Uri.EscapeDataString(id)}"));
     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Value);
     using HttpResponseMessage response = await http.SendAsync(request);
     (string body, int redactions) = SensitiveText.Redact(await response.Content.ReadAsStringAsync(), [token.Value]);
@@ -243,7 +245,7 @@ async Task<int> GetAsync()
 // Com --ids, imprime só os identificadores da conta, a lista do Fixtures/sandbox/identificadores-da-conta.json (D10).
 async Task<int> ListingAsync()
 {
-    var listing = new AvalaraEstablishmentListing(http, provider, Options.Create(options), new ConsoleLogger<AvalaraEstablishmentListing>());
+    var listing = new AvalaraEstablishmentListing(http, provider, Options.Create(options), instance, new ConsoleLogger<AvalaraEstablishmentListing>());
     if (parsed.Value("ids") is not null)
     {
         return await IdsAsync(listing);
@@ -254,7 +256,7 @@ async Task<int> ListingAsync()
     PlatformEstablishmentIndex index;
     try
     {
-        index = await resolver.GetAsync(profile!);
+        index = await resolver.GetAsync(profile!, settings.Platform);
     }
     catch (HttpRequestException ex)
     {
