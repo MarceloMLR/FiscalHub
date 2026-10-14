@@ -153,10 +153,8 @@ public class ChangeFeedRewindTests
                 _profiles.Items.Add(new TenantConnectorProfile
                 {
                     TenantId = tenant,
-                    Environment = "Sandbox",
                     InboundAdapter = inboundAdapter,
                     InboundSettings = """{"poll":{"enabled":true}}""",
-                    OutboundAdapter = "Avalara",
                 });
             }
 

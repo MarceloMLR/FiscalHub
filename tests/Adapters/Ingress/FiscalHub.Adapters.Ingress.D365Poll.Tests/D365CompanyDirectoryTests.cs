@@ -274,10 +274,8 @@ public class D365CompanyDirectoryTests
             Profile = new TenantConnectorProfile
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = $$"""{"url":"{{Env}}","companies":["brmf"]}""",
-                OutboundAdapter = "Avalara",
             },
         };
         var directory = new D365CompanyDirectory(
@@ -325,10 +323,8 @@ public class D365CompanyDirectoryTests
                 Profile = new TenantConnectorProfile
                 {
                     TenantId = "tenant-a",
-                    Environment = "Sandbox",
                     InboundAdapter = "Dynamics365",
                     InboundSettings = settings ?? $$"""{"url":"{{Env}}","companies":["brmf"]}""",
-                    OutboundAdapter = "Avalara",
                 },
             };
             Directory = new D365CompanyDirectory(new HttpClient(Http), profiles, Tokens, new D365ChangeFeedOptions(), new FakeTime(DateTimeOffset.UnixEpoch), Logger);

@@ -121,8 +121,8 @@ export interface TenantInfo {
 }
 
 // Perfil de conector do tenant (GET/PUT /connector) — tela admin de Conectores. A leitura vem sem os
-// segredos e sem as referências: `secrets` diz, por caminho (`outbound.sandbox.clientSecret`), se o
-// segredo está no cofre e quando foi gravado (ADR-0027).
+// segredos e sem as referências: `secrets` diz, por caminho (`platform.Avalara.clientSecret`,
+// `connector.Avalara.apiKey`), se o segredo está no cofre e quando foi gravado (ADR-0027).
 // Os módulos do tenant (GET /info, GET /connector): montam a barra lateral. Apresentação, e não permissão.
 export type ModuleName = 'Fiscal' | 'Contabil' | 'Inventario';
 
@@ -163,27 +163,77 @@ export interface SecretStatus {
   updatedOn: string | null;
 }
 
+// Uma integração ligada na leitura: a chave, o módulo dela, o caminho (nulo é o que espera o host preencher, uma vez) e,
+// só onde a API aceita lote, o tamanho dele. `withoutPath` diz que ela está sem caminho — inativa, e pendente na tela.
+export interface ConnectorIntegration {
+  key: string;
+  module: ModuleName;
+  endpoint: string | null;
+  batchSize?: number;
+  withoutPath: boolean;
+}
+
+// Um conector da conta: o adapter, que é a chave, as settings do produto (as URLs base por versão, establishments…), e o
+// que ele liga: os módulos e as integrações.
+export interface PlatformConnector {
+  adapter: string;
+  settings: string;
+  modules: ModuleName[];
+  integrations: ConnectorIntegration[];
+}
+
+// Uma integração na gravação. O caminho ausente mantém o gravado (o que espera o host continua esperando); vazio, é a
+// integração inativa. O lote só vai onde a API aceita.
+export interface ConnectorIntegrationRequest {
+  key: string;
+  endpoint?: string;
+  batchSize?: number;
+}
+
+// Um conector na gravação: os módulos e as integrações substituem os gravados.
+export interface PlatformConnectorRequest {
+  adapter: string;
+  settings: string;
+  modules?: ModuleName[];
+  integrations?: ConnectorIntegrationRequest[];
+}
+
+// A conta de plataforma na leitura (change platform-account-and-connectors): a credencial é dela, e não de um conector. O
+// estado do Client Secret vem no mapa `secrets`, em `platform.<plataforma>.clientSecret`.
+export interface PlatformAccount {
+  platform: string;
+  clientId: string | null;
+  tokenUrl: string | null;
+  connectors: PlatformConnector[];
+}
+
+// O ambiente não está aqui: é da instância, e vem do GET /info (change platform-account-and-connectors, D6).
 export interface ConnectorProfile {
   tenantId: string;
-  environment: string;
   inboundAdapter: string;
   inboundSettings: string;
-  outboundAdapter: string;
-  outboundSettings: string;
   supportAdapter: string | null;
   supportSettings: string;
   secrets: Record<string, SecretStatus>;
   modules: ModuleName[];
+  accounts: PlatformAccount[];
 }
 
+// A conta na gravação. O Client Secret é campo de escrita: só vai quando digitado; ausente, o servidor mantém o gravado.
+export interface PlatformAccountRequest {
+  platform: string;
+  clientId: string | null;
+  clientSecret?: string;
+  tokenUrl: string | null;
+  connectors: PlatformConnectorRequest[];
+}
+
+// Sem a lista de módulos do tenant: os módulos são do conector (D7), e o servidor recusa o campo com 400.
 export interface ConnectorProfileRequest {
-  environment: string;
   inboundAdapter: string;
   inboundSettings: string | null;
-  outboundAdapter: string;
-  outboundSettings: string | null;
-  // Ausente mantém os gravados.
-  modules?: ModuleName[];
+  // Ausente mantém as gravadas; presente, substitui: a conta ou o conector que não vem sai.
+  accounts?: PlatformAccountRequest[];
 }
 
 // Modo de uma execução/agendamento (espelha IntegrationMode do backend).

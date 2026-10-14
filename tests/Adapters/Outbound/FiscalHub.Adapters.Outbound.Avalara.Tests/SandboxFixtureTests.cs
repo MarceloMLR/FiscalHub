@@ -118,10 +118,10 @@ public partial class SandboxFixtureTests
         var handler = new RecordedHandler(status, body);
         var trace = new PhotoTrace();
         var dispatcher = new AvalaraComplianceDispatcher(
-            new HttpClient(handler), Options.Create(new AvalaraOptions { DocumentsPath = "taxcompliance/v2/fiscal/dfe" }),
+            new HttpClient(handler), Options.Create(new AvalaraOptions()),
             new NoOpAvalaraTokenProvider(), trace, new OneProfile(),
             new PlatformEstablishmentResolver([], new PlatformEstablishmentOptions(), TimeProvider.System),
-            new CapturingLogger<AvalaraComplianceDispatcher>(), TimeProvider.System);
+            InstanceEnvironment.From("Sandbox"), new CapturingLogger<AvalaraComplianceDispatcher>(), TimeProvider.System);
 
         DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(Invoice(), Context()));
 
@@ -156,7 +156,8 @@ public partial class SandboxFixtureTests
         };
         var logger = new CapturingLogger<AvalaraEstablishmentListing>();
         var listing = new AvalaraEstablishmentListing(
-            new HttpClient(platform), new NoOpAvalaraTokenProvider(), Options.Create(new AvalaraOptions { ListingPageSize = 5 }), logger);
+            new HttpClient(platform), new NoOpAvalaraTokenProvider(), Options.Create(new AvalaraOptions { ListingPageSize = 5 }),
+            InstanceEnvironment.From("Sandbox"), logger);
 
         await listing.ListAsync(ListingProfile());
 
@@ -293,10 +294,8 @@ public partial class SandboxFixtureTests
     private static TenantConnectorProfile ListingProfile() => new()
     {
         TenantId = "tenant-a",
-        Environment = "Sandbox",
         InboundAdapter = "Dynamics365",
-        OutboundAdapter = "Avalara",
-        OutboundSettings = """{"sandbox":{"baseUrl":"https://api-gateway.sandbox.avalarabrasil.com.br/"}}""",
+        Accounts = [AvalaraProfiles.Account("tenant-a", AvalaraProfiles.Connector("https://api-gateway.sandbox.avalarabrasil.com.br/"))],
     };
 
     // O status e o corpo gravados no envelope, como a plataforma devolveu (já redigidos).
@@ -379,14 +378,11 @@ public partial class SandboxFixtureTests
     private sealed class OneProfile : IConnectorProfileStore
     {
         public Task<TenantConnectorProfile?> GetAsync(string tenantId, CancellationToken ct = default)
-            => Task.FromResult<TenantConnectorProfile?>(new TenantConnectorProfile
-            {
-                TenantId = tenantId,
-                Environment = "Sandbox",
-                InboundAdapter = "Dynamics365",
-                OutboundAdapter = "Avalara",
-                OutboundSettings = """{"sandbox":{"baseUrl":"https://api-gateway.sandbox.avalarabrasil.com.br","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}}}""",
-            });
+            => Task.FromResult<TenantConnectorProfile?>(AvalaraProfiles.Profile(
+                AvalaraProfiles.Connector(
+                    "https://api-gateway.sandbox.avalarabrasil.com.br",
+                    ""","establishments":{"44278225000180":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"}}"""),
+                tenantId: tenantId, invoicesPath: "taxcompliance/v2/fiscal/dfe"));   // o caminho de envio da URL do cliente
 
         public Task UpsertAsync(TenantConnectorProfile profile, CancellationToken ct = default) => Task.CompletedTask;
 

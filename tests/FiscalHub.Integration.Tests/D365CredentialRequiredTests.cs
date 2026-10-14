@@ -77,10 +77,8 @@ public class D365CredentialRequiredTests
             _profile = new TenantConnectorProfile
             {
                 TenantId = Tenant,
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = $$$"""{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]{{{auth}}},"poll":{"enabled":true,"intervalSeconds":60,"overlapSeconds":300,"startFrom":"2015-01-01T00:00:00Z"}}""",
-                OutboundAdapter = "Avalara",
             };
 
             var services = new ServiceCollection();

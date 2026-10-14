@@ -10,7 +10,7 @@ public enum CredentialTestStatus
     /// <summary>O tenant não tem perfil, ou o adapter gravado não tem teste.</summary>
     Unsupported,
 
-    /// <summary>O lado ou o ambiente pedido não existe.</summary>
+    /// <summary>O lado pedido não existe.</summary>
     Invalid,
 }
 
@@ -22,19 +22,21 @@ public enum CredentialTestStatus
 public sealed record CredentialTestResult(bool Worked, string Reason, DateTimeOffset? RetryAt);
 
 /// <summary>
-/// O que o host registra de cada teste: o adapter, o ambiente, o veredito e o motivo detalhado (o código AADSTS, o status
-/// HTTP, o campo que falta). É o diagnóstico que a mensagem curta da tela não carrega. Sem segredo nem token.
+/// O que o host registra de cada teste: o adapter, o ambiente da instância, o veredito e o motivo detalhado (o código
+/// AADSTS, o status HTTP, o campo que falta). É o diagnóstico que a mensagem curta da tela não carrega. Sem segredo nem
+/// token.
 /// </summary>
-public sealed record CredentialTestLog(string Adapter, string? Environment, CredentialTestVerdict Verdict, string Detail, bool FromBrake);
+public sealed record CredentialTestLog(string Adapter, string Environment, CredentialTestVerdict Verdict, string Detail, bool FromBrake);
 
 public sealed record CredentialTestReply(
     CredentialTestStatus Status, CredentialTestResult? Result, string? Problem = null, CredentialTestLog? Log = null);
 
 /// <summary>
 /// O teste da credencial gravada do tenant logado (change <c>module-navigation-and-integration-panel</c>, D9). A requisição
-/// diz só o lado e, na saída, o ambiente: a credencial é a gravada, lida do cofre no servidor pelo adapter. Com uma edição
-/// pendente, é a tela que pede para salvar antes. O freio (<see cref="CredentialTestBrake"/>) é o mesmo para qualquer
-/// adapter.
+/// diz só o lado — a entrada (ERP) ou a conta de plataforma: a credencial é a gravada, lida do cofre no servidor pelo
+/// adapter, e o ambiente é o da instância (change <c>platform-account-and-connectors</c>, D6). O lado da conta aceita
+/// também o nome antigo, <c>outbound</c>, de uma tela que não recarregou. Com uma edição pendente, é a tela que pede para salvar antes. O freio
+/// (<see cref="CredentialTestBrake"/>) é o mesmo para qualquer adapter.
 /// </summary>
 public sealed class ConnectorCredentialTestService
 {
@@ -44,43 +46,38 @@ public sealed class ConnectorCredentialTestService
     public const string RefusedMessage = "Credenciais ou ambiente inválidos";
     public const string UnavailableMessage = "Não foi possível conectar agora. Tente novamente em instantes";
 
-    private static readonly string[] Environments = ["Sandbox", "Production"];
-
     private readonly IConnectorProfileStore _profiles;
     private readonly IEnumerable<IConnectorCredentialTest> _tests;
     private readonly CredentialTestBrake _brake;
+    private readonly IInstanceEnvironment _instance;
     private readonly ITenantContext _tenant;
 
     public ConnectorCredentialTestService(
-        IConnectorProfileStore profiles, IEnumerable<IConnectorCredentialTest> tests, CredentialTestBrake brake, ITenantContext tenant)
+        IConnectorProfileStore profiles, IEnumerable<IConnectorCredentialTest> tests, CredentialTestBrake brake,
+        IInstanceEnvironment instance, ITenantContext tenant)
     {
         _profiles = profiles;
         _tests = tests;
         _brake = brake;
+        _instance = instance;
         _tenant = tenant;
     }
 
-    public async Task<CredentialTestReply> TestAsync(string side, string? environment, CancellationToken ct = default)
+    public async Task<CredentialTestReply> TestAsync(string side, CancellationToken ct = default)
     {
         ConnectorSettingsKind kind;
         if (string.Equals(side, "inbound", StringComparison.OrdinalIgnoreCase))
         {
             kind = ConnectorSettingsKind.Inbound;
-            environment = null;   // a entrada tem uma credencial só
         }
-        else if (string.Equals(side, "outbound", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(side, "platform", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(side, "outbound", StringComparison.OrdinalIgnoreCase))
         {
-            kind = ConnectorSettingsKind.Outbound;
-            environment = Environments.FirstOrDefault(e => string.Equals(e, environment, StringComparison.OrdinalIgnoreCase));
-            if (environment is null)
-            {
-                return new CredentialTestReply(CredentialTestStatus.Invalid, null,
-                    $"A saída tem uma credencial por ambiente: informe {string.Join(" ou ", Environments)}.");
-            }
+            kind = ConnectorSettingsKind.Platform;
         }
         else
         {
-            return new CredentialTestReply(CredentialTestStatus.Invalid, null, "O lado do teste é inbound ou outbound.");
+            return new CredentialTestReply(CredentialTestStatus.Invalid, null, "O lado do teste é inbound ou platform.");
         }
 
         string tenantId = _tenant.TenantId;
@@ -91,29 +88,49 @@ public sealed class ConnectorCredentialTestService
                 "Este tenant não tem perfil de conector gravado: salve as Configurações antes de testar.");
         }
 
-        string adapter = kind == ConnectorSettingsKind.Inbound ? profile.InboundAdapter : profile.OutboundAdapter;
-        IConnectorCredentialTest? test = _tests.FirstOrDefault(
-            t => t.Side == kind && string.Equals(t.Adapter, adapter, StringComparison.OrdinalIgnoreCase));
+        if (kind == ConnectorSettingsKind.Platform && profile.Accounts.Count == 0)
+        {
+            return new CredentialTestReply(CredentialTestStatus.Unsupported, null,
+                "Este tenant não tem conta de plataforma gravada: salve as Configurações antes de testar.");
+        }
+
+        string adapter;
+        IConnectorCredentialTest? test;
+        if (kind == ConnectorSettingsKind.Inbound)
+        {
+            adapter = profile.InboundAdapter;
+            test = _tests.FirstOrDefault(t => t.Side == kind && string.Equals(t.Adapter, adapter, StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+            // O teste é da conta, e não de um conector: a conta cuja plataforma tem teste, pela comparação exata do nome,
+            // como a do conector (D9). Sem nenhuma, a primeira, que o motivo nomeia.
+            adapter = (profile.Accounts.FirstOrDefault(a => PlatformTest(a.Platform) is not null) ?? profile.Accounts[0]).Platform;
+            test = PlatformTest(adapter);
+        }
         if (test is null)
         {
             return new CredentialTestReply(CredentialTestStatus.Unsupported, null, $"O adapter {adapter} não tem teste de credencial.");
         }
 
         // Dentro do intervalo, o freio responde pelo teste: nenhuma requisição sai (D12).
-        if (_brake.TryHeld(tenantId, test.Adapter, environment, out string held, out DateTimeOffset until))
+        if (_brake.TryHeld(tenantId, test.Adapter, out string held, out DateTimeOffset until))
         {
-            return Tested(new CredentialTestOutcome(CredentialTestVerdict.Refused, held), until, test.Adapter, environment, fromBrake: true);
+            return Tested(new CredentialTestOutcome(CredentialTestVerdict.Refused, held), until, test.Adapter, _instance.Name, fromBrake: true);
         }
 
-        CredentialTestOutcome outcome = await test.TestAsync(profile, environment, ct);
+        CredentialTestOutcome outcome = await test.TestAsync(profile, ct);
         DateTimeOffset? retryAt = outcome.Verdict == CredentialTestVerdict.Refused
-            ? _brake.Remember(tenantId, test.Adapter, environment, outcome.Reason)
+            ? _brake.Remember(tenantId, test.Adapter, outcome.Reason)
             : null;
-        return Tested(outcome, retryAt, test.Adapter, environment, fromBrake: false);
+        return Tested(outcome, retryAt, test.Adapter, _instance.Name, fromBrake: false);
     }
 
+    private IConnectorCredentialTest? PlatformTest(string platform)
+        => _tests.FirstOrDefault(t => t.Side == ConnectorSettingsKind.Platform && string.Equals(t.Adapter, platform, StringComparison.Ordinal));
+
     private static CredentialTestReply Tested(
-        CredentialTestOutcome outcome, DateTimeOffset? retryAt, string adapter, string? environment, bool fromBrake)
+        CredentialTestOutcome outcome, DateTimeOffset? retryAt, string adapter, string environment, bool fromBrake)
     {
         string message = outcome.Verdict switch
         {

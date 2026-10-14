@@ -137,9 +137,7 @@ public class SupportTicketServiceTests
             => Task.FromResult<TenantConnectorProfile?>(new TenantConnectorProfile
             {
                 TenantId = tenantId,
-                Environment = "Sandbox",
                 InboundAdapter = "Xml",
-                OutboundAdapter = "Avalara",
                 SupportAdapter = adapter,
                 SupportSettings = "{}",
             });

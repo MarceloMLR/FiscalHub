@@ -93,6 +93,25 @@ public static class InfrastructureServiceCollectionExtensions
     }
 
     /// <summary>
+    /// O caminho que a migração não sabe vem do host, uma vez (change <c>platform-account-and-connectors</c>, D10): preenche
+    /// com <paramref name="path"/> o caminho <b>nulo</b> da <paramref name="integration"/> nos conectores do
+    /// <paramref name="adapter"/>. O nulo é a marca que a M3 deixa, e a migração não lê configuração. Só ele: o caminho
+    /// preenchido não é trocado, e o vazio que a tela grava é a integração inativa que alguém escolheu. Preenchido, o caminho
+    /// é da tela. Roda na subida, em qualquer ambiente, e não depende do seed. Devolve quantas integrações preencheu.
+    /// </summary>
+    public static async Task<int> FillPendingIntegrationPathAsync(
+        this IServiceProvider services, string adapter, string integration, string path, CancellationToken ct = default)
+    {
+        await using AsyncServiceScope scope = services.CreateAsyncScope();
+        ProcessingDbContext db = scope.ServiceProvider.GetRequiredService<ProcessingDbContext>();
+        return await db.Set<ConnectorIntegrationRow>()
+            .Where(i => i.Key == integration && i.Endpoint == null
+                && db.Set<ConnectorModuleRow>().Any(m => m.Id == i.ModuleId
+                    && db.Connectors.Any(c => c.Id == m.ConnectorId && c.Adapter == adapter)))
+            .ExecuteUpdateAsync(set => set.SetProperty(i => i.Endpoint, path), ct);
+    }
+
+    /// <summary>
     /// Semeia usuários de dev (uma vez, se a tabela está vazia): um admin no tenant-a (vê os dados
     /// semeados) e um viewer no tenant-b (não vê nada — demonstra o isolamento por tenant). Senha
     /// com hash; em produção isso viria de um cadastro real, não de seed.
@@ -162,10 +181,12 @@ public static class InfrastructureServiceCollectionExtensions
 
     /// <summary>
     /// Semeia perfis de conector de dev (uma vez): tenant-a via Dynamics 365, que varre (o poll nasce
-    /// desligado), e tenant-b via iScala, que não varre — os dois enviando pra Avalara com credenciais próprias por ambiente.
-    /// Segredos entram só como referência no prefixo do próprio tenant (<c>kv:fh-{tenant}--…</c>), o nome que a tela
-    /// deriva ao gravar (ADR-0027). Nenhum valor, nem de mentira: o cofre de dev começa vazio, e o valor é digitado na
-    /// tela de conectores.
+    /// desligado), e tenant-b via iScala, que não varre — os dois enviando pra Avalara com credenciais próprias, cada um com a
+    /// conta de plataforma Avalara e o conector Avalara (ADR-0036): a credencial e o endpoint de token do mock na conta, e a
+    /// URL base da v2 no conector. A instância de dev é a de Sandbox (<c>Connector:Environment</c>), e o ambiente não é seção
+    /// das settings (change <c>platform-account-and-connectors</c>, D6). Segredos entram só como referência no prefixo do
+    /// próprio tenant (<c>kv:fh-{tenant}--…</c>), o nome que a tela deriva ao gravar (ADR-0027). Nenhum valor, nem de
+    /// mentira: o cofre de dev começa vazio, e o valor é digitado na tela de conectores.
     /// </summary>
     public static async Task EnsureDevConnectorProfilesAsync(this IServiceProvider services, CancellationToken ct = default)
     {
@@ -181,17 +202,11 @@ public static class InfrastructureServiceCollectionExtensions
             new ConnectorProfileRow
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 // Feed de mudanças do D365 (ADR-0024). Poll desligado: liga no perfil para o teste manual (docs/RUNNING.md).
                 // O tenant do Entra, o Client ID e o Client Secret entram pela tela: sem eles, a leitura do F&O falha com o
                 // motivo, em dev também (change explicit-credential-and-execution-cnpj).
                 InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"],"pageSize":500,"auth":{"tenantId":"","clientId":"","clientSecretRef":"kv:fh-tenant-a--inbound--auth--clientsecret"},"poll":{"enabled":false,"intervalSeconds":60,"overlapSeconds":300}}""",
-                OutboundAdapter = "Avalara",
-                // establishments: a sobreposição opcional do CNPJ do estabelecimento para os códigos da plataforma (ADR-0033),
-                // que nunca vêm do ERP. Vazia no sandbox, porque o mock lista os estabelecimentos como a plataforma (a brmf e
-                // o CNPJ dos XMLs de exemplo): um banco novo exercita o de/para automático. Uma entrada aqui ganha da plataforma.
-                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-a--outbound--production--clientsecret","establishments":{}}}""",
                 // Chamados: mock local pra demo (funciona sem conta). Troque p/ "Freshdesk" + domain/apiKey na tela de Configurações.
                 SupportAdapter = "Local",
                 SupportSettings = """{"domain":"suaempresa.freshdesk.com","apiKeyRef":"kv:fh-tenant-a--support--apikey","requesterEmail":"suporte@acme.com","priority":2}""",
@@ -199,15 +214,48 @@ public static class InfrastructureServiceCollectionExtensions
             new ConnectorProfileRow
             {
                 TenantId = "tenant-b",
-                Environment = "Sandbox",
                 InboundAdapter = "iScala",
                 InboundSettings = """{"host":"iscala-b.local","company":"B01","user":"integracao","passwordRef":"kv:fh-tenant-b--inbound--password"}""",
-                OutboundAdapter = "Avalara",
-                OutboundSettings = """{"sandbox":{"baseUrl":"http://localhost:5100/","clientId":"mock-client","clientSecretRef":"kv:fh-tenant-b--outbound--sandbox--clientsecret","establishments":{}},"production":{"baseUrl":"https://api.avalara.com/","clientId":"","clientSecretRef":"kv:fh-tenant-b--outbound--production--clientsecret","establishments":{}}}""",
             });
+
+        // establishments: a sobreposição opcional do CNPJ do estabelecimento para os códigos da plataforma (ADR-0033), que
+        // nunca vêm do ERP. Vazia, porque o mock lista os estabelecimentos como a plataforma (a brmf e o CNPJ dos XMLs de
+        // exemplo): um banco novo exercita o de/para automático. Uma entrada aqui ganha da plataforma.
+        db.PlatformAccounts.AddRange(MockAccount("tenant-a"), MockAccount("tenant-b"));
 
         await db.SaveChangesAsync(ct);
     }
+
+    // A conta Avalara de um tenant de dev contra o mock: o token na raiz do mock, e a v2 na raiz também — a versão é rótulo, e o
+    // caminho da API fica no caminho (design D4). O conector liga o Fiscal com a integração de notas no caminho de envio do
+    // sandbox, que o mock atende (6.14): o envio de dev sai sem o host ter nulo para preencher.
+    private static PlatformAccountRow MockAccount(string tenantId) => new()
+    {
+        TenantId = tenantId,
+        Platform = "Avalara",
+        ClientId = "mock-client",
+        ClientSecretRef = $"kv:fh-{tenantId}--platform--avalara--clientsecret",
+        TokenUrl = "http://localhost:5100/oauth/token",
+        Connectors =
+        [
+            new ConnectorRow
+            {
+                Adapter = "Avalara",
+                Settings = """{"baseUrls":{"v2":"http://localhost:5100/"},"establishments":{}}""",
+                Modules =
+                [
+                    new ConnectorModuleRow
+                    {
+                        Module = TenantModules.Fiscal,
+                        Integrations =
+                        [
+                            new ConnectorIntegrationRow { TenantId = tenantId, Key = ConnectorIntegrations.Invoices, Endpoint = "taxcompliance/v2/fiscal/dfe" },
+                        ],
+                    },
+                ],
+            },
+        ],
+    };
 
     /// <summary>
     /// Semeia documentos de exemplo (uma vez, se a tabela está vazia) só no tenant-a: dezenas de

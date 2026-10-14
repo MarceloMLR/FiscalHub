@@ -94,7 +94,7 @@ app.MapPost("/admin/token/{value}", (string value) =>
     return Results.Ok(new { token = tokenToggle.Refuse ? "recusar" : "aceitar" });
 });
 
-// Os caminhos de envio: o do sandbox (Avalara:DocumentsPath do appsettings.Development.json, da URL de envio do cliente)
+// Os caminhos de envio: o do sandbox (o da integração de notas que o seed grava, da URL de envio do cliente)
 // e o /documents de antes. Os dois atendem o mesmo store, e o status e a inspeção seguem o mesmo prefixo.
 string[] documentPaths = ["/taxcompliance/v2/fiscal/dfe", "/documents"];
 

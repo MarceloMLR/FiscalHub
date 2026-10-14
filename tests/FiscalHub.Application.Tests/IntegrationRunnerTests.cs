@@ -171,9 +171,7 @@ public class IntegrationRunnerTests
         => new(discoveries, new Profiles(new TenantConnectorProfile
         {
             TenantId = "tenant-a",
-            Environment = "Sandbox",
             InboundAdapter = inboundAdapter,
-            OutboundAdapter = "Avalara",
         }), fallback);
 
     private static RunRequest Request(IntegrationMode mode) => new()

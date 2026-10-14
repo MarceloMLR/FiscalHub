@@ -11,7 +11,7 @@ internal static class Indexes
 {
     public static Task<PlatformEstablishmentIndex> Of(params PlatformEstablishment[] establishments)
         => new PlatformEstablishmentResolver([new FixedListing(establishments)], new PlatformEstablishmentOptions(), TimeProvider.System)
-            .GetAsync(new TenantConnectorProfile { TenantId = "tenant-a", Environment = "Sandbox", InboundAdapter = "Xml", OutboundAdapter = "Avalara" });
+            .GetAsync(AvalaraProfiles.Profile("{}", inboundAdapter: "Xml"), "Avalara");
 
     private sealed class FixedListing(PlatformEstablishment[] establishments) : IPlatformEstablishmentListing
     {

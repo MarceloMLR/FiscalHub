@@ -25,7 +25,7 @@ public class KeyVaultEmulatorIntegrationTests
         var store = new KeyVaultSecretStore(KeyVaultClientFactory.Create(settings), TimeProvider.System);
         // Um tenant novo a cada execução: o emulador guarda em memória, mas pode estar no ar há tempo.
         string tenant = $"it{Guid.NewGuid():N}"[..12];
-        string name = SecretNames.For(tenant, ConnectorSettingsKind.Outbound, ["sandbox"], "clientSecret");
+        string name = SecretNames.For(tenant, ConnectorSettingsKind.Platform, ["avalara"], "clientSecret");
 
         Assert.Null(await store.DescribeAsync(name));
 

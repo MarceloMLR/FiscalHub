@@ -133,9 +133,7 @@ public class CompanyDirectoryQueryTests
     private static TenantConnectorProfile Profile(string inboundAdapter) => new()
     {
         TenantId = "tenant-a",
-        Environment = "Sandbox",
         InboundAdapter = inboundAdapter,
-        OutboundAdapter = "Avalara",
     };
 
     private static CompanyDirectoryQuery Query(TenantConnectorProfile? profile, IEnumerable<ICompanyDirectory> directories, ICompanyDirectory? fallback)

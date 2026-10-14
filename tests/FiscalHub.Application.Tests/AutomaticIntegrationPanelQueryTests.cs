@@ -85,10 +85,8 @@ public class AutomaticIntegrationPanelQueryTests
     private static TenantConnectorProfile Profile(string tenant, string inboundAdapter, string inboundSettings) => new()
     {
         TenantId = tenant,
-        Environment = "Sandbox",
         InboundAdapter = inboundAdapter,
         InboundSettings = inboundSettings,
-        OutboundAdapter = "Avalara",
     };
 
     private sealed class Harness

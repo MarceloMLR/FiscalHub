@@ -585,10 +585,8 @@ public class D365ChangeFeedTests
             Profiles.Profile = new TenantConnectorProfile
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = settings ?? $$"""{"url":"{{Env}}","pageSize":{{pageSize}}}""",
-                OutboundAdapter = "Avalara",
             };
             Feed = new D365ChangeFeed(new HttpClient(Http), Profiles, Tokens, new D365ChangeFeedOptions(), Time, Logger);
         }

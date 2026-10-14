@@ -895,10 +895,8 @@ public class ChangeFeedPollerTests
             Profiles.Items.Add(new TenantConnectorProfile
             {
                 TenantId = tenant,
-                Environment = "Sandbox",
                 InboundAdapter = inboundAdapter,
                 InboundSettings = inboundSettings,
-                OutboundAdapter = "Avalara",
             });
             return this;
         }

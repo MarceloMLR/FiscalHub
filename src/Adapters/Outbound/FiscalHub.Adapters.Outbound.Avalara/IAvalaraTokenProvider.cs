@@ -3,13 +3,13 @@ using FiscalHub.Application.Connectors;
 namespace FiscalHub.Adapters.Outbound.Avalara;
 
 /// <summary>
-/// O token de acesso à Avalara (OAuth client credentials), por credencial do tenant no ambiente ativo (ADR-0027).
+/// O token de acesso à Avalara (OAuth client credentials), por credencial da conta de plataforma do tenant (ADR-0027, ADR-0036).
 /// Mantido <c>internal</c>: o detalhe de autenticação é da Avalara e não vaza do adapter (camada anticorrupção).
 /// </summary>
 internal interface IAvalaraTokenProvider
 {
     /// <summary>
-    /// O token da credencial da seção. Na composição padrão, ou devolve um token, ou lança — a falta de credencial,
+    /// O token da credencial da conta. Na composição padrão, ou devolve um token, ou lança — a falta de credencial,
     /// de segredo ou a recusa da plataforma é <see cref="Application.Outbound.DispatchRejectedException"/>. Só a
     /// composição sem autenticação, pedida explicitamente, devolve <see cref="AvalaraAccessToken.None"/>.
     /// </summary>
@@ -18,7 +18,7 @@ internal interface IAvalaraTokenProvider
     /// <summary>Tira o token do cache, se ele ainda for o que está lá. O dispatcher chama no 401 com token do cache.</summary>
     void Invalidate(AvalaraAccessToken token);
 
-    /// <summary>Esquece a recusa lembrada e os tokens do tenant, em todos os ambientes. Chamado ao salvar o perfil.</summary>
+    /// <summary>Esquece a recusa lembrada e os tokens do tenant. Chamado ao salvar o perfil.</summary>
     void Forget(string tenantId);
 
     /// <summary>

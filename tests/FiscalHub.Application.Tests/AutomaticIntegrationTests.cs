@@ -67,9 +67,7 @@ public class AutomaticIntegrationTests
     private static TenantConnectorProfile Profile(string inboundAdapter, string inboundSettings) => new()
     {
         TenantId = "tenant-a",
-        Environment = "Sandbox",
         InboundAdapter = inboundAdapter,
         InboundSettings = inboundSettings,
-        OutboundAdapter = "Avalara",
     };
 }

@@ -212,10 +212,8 @@ public class DiscoveryToPipelineTests
             => Task.FromResult<TenantConnectorProfile?>(new TenantConnectorProfile
             {
                 TenantId = tenantId,
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",   // como o seed de dev do tenant-a
                 InboundSettings = """{"url":"https://fiscosysdev.operations.dynamics.com","companies":["brmf"]}""",
-                OutboundAdapter = "Avalara",
             });
 
         public Task UpsertAsync(TenantConnectorProfile profile, CancellationToken ct = default) => Task.CompletedTask;

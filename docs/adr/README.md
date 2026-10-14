@@ -10,7 +10,7 @@ substitui o anterior (em vez de reescrever a história).
 |-----|---------|--------|
 | [0001](0001-modelos-de-dominio-por-tipo.md) | Modelos de domínio por tipo de documento, não um modelo canônico único | Aceito |
 | [0002](0002-entrada-gatilho-descoberta-busca.md) | Entrada: separação gatilho / descoberta / busca, com portas genéricas | Aceito |
-| [0003](0003-despacho-assincrono-status-integracao.md) | Despacho assíncrono e status de integração normalizado | Aceito |
+| [0003](0003-despacho-assincrono-status-integracao.md) | Despacho assíncrono e status de integração normalizado | Aceito — revisado pelo 0038 |
 | [0004](0004-esteira-nucleo-puro-retry-nativo.md) | Esteira: núcleo puro, retry/DLQ nativos, envio direto | Aceito |
 | [0005](0005-idempotencia-no-banco.md) | Idempotência no banco (índice único) para o rastreio | Aceito |
 | [0006](0006-rastreabilidade-fotos-no-blob.md) | Rastreabilidade por "fotos" (domínio/destino) no Blob | Aceito — revisado pelo 0027 |
@@ -25,24 +25,28 @@ substitui o anterior (em vez de reescrever a história).
 | [0015](0015-idempotencia-por-gatilho.md) | Idempotência por gatilho (evento dedupa, manual recarrega) | Aceito |
 | [0016](0016-idempotencia-por-conteudo.md) | Idempotência por conteúdo (nota de entrada pode ser corrigida) | Aceito |
 | [0017](0017-agendador-e-execucao-compartilhada.md) | Agendador in-process + execução compartilhada (runner) | Aceito |
-| [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito — revisado pelo 0028 |
-| [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito — revisado pelo 0027 e pelo 0029 |
-| [0020](0020-topologia-de-deploy-por-cliente-e-frontend-unico.md) | Topologia de deploy (backend por-cliente, frontend único, subdomínio) | Aceito |
+| [0018](0018-autenticacao-jwt-e-escopo-por-tenant.md) | Autenticação (JWT próprio + PBKDF2) e escopo por tenant | Aceito — revisado pelo 0028 e pelo 0039 |
+| [0019](0019-perfil-de-conector-por-tenant.md) | Perfil de conector por tenant (config em banco, segredos por referência) | Aceito — revisado pelo 0027, pelo 0029 e pelo 0036 |
+| [0020](0020-topologia-de-deploy-por-cliente-e-frontend-unico.md) | Topologia de deploy (backend por-cliente, frontend único, subdomínio) | Aceito — revisado pelo 0036 |
 | [0021](0021-adapter-de-chamados-de-suporte.md) | Adapter de chamados de suporte (Freshdesk) — porta + anexos zipados por nota | Aceito |
 | [0022](0022-adapter-de-entrada-dynamics-365-fo.md) | Adapter de entrada Dynamics 365 F&O (pacote de data entities de nome fixo) | Proposto — revisado pelo 0023 |
 | [0023](0023-descoberta-por-polling-com-change-tracking-no-d365.md) | Descoberta por polling como garantia de captura no D365 F&O | Aceito — revisado pelo 0024 |
 | [0024](0024-feed-de-mudancas-por-janela-de-data-no-d365.md) | Feed de mudanças por janela de data no D365 (porta, marca d'água, keyset, lease) | Aceito — revisado pelo 0025; complementado pelo 0031 (rebobinar pela tela) |
 | [0025](0025-montagem-do-documento-d365-e-origem-na-referencia.md) | Montagem do documento D365, origem na referência e supressão de republicação | Aceito — §6 revisado pelo 0026 |
-| [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito — §2 revisado pelo 0027; a omissão visível revisada pelo 0030; §3 revisado pelo 0033 |
-| [0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md) | Credencial da plataforma por tenant, segredo pela tela no cofre, e a resposta como quarta foto | Aceito — §8 revisado pelo 0030 |
+| [0026](0026-conector-nao-validador.md) | Conector, não validador: o conteúdo fiscal é julgado pela plataforma; contrato pelos JSONs reais | Aceito — §2 revisado pelo 0027; a omissão visível revisada pelo 0030; §3 revisado pelo 0033; complementado pelo 0036 e pelo 0038 |
+| [0027](0027-credencial-por-tenant-e-resposta-da-plataforma.md) | Credencial da plataforma por tenant, segredo pela tela no cofre, e a resposta como quarta foto | Aceito — §8 revisado pelo 0030; a credencial e o caminho do segredo revisados pelo 0036 |
 | [0028](0028-limite-de-tenant.md) | Limite de tenant: o tenant vem de quem está logado, nunca da requisição; o locator mora em quem o lê | Aceito — revisado pelo 0032 |
-| [0029](0029-integracao-automatica-e-o-poll.md) | Integração automática é o `poll.enabled`; o perfil perde o flag de tempo real | Aceito |
+| [0029](0029-integracao-automatica-e-o-poll.md) | Integração automática é o `poll.enabled`; o perfil perde o flag de tempo real | Aceito — revisado pelo 0037 |
 | [0030](0030-grupo-pelo-estabelecimento-e-motivo-pela-foto.md) | O grupo da nota vem do estabelecimento próprio e do dia fiscal; a tela lê o motivo pela foto | Aceito — revisado pelo 0032 |
 | [0031](0031-painel-do-coletor-rebobinar-pela-tela-e-teste-de-credencial.md) | O painel do coletor, rebobinar pela tela sob o lease, o teste de credencial com token novo e o freio no botão, e os módulos como apresentação | Aceito |
 | [0032](0032-diretorio-do-erp-descoberta-por-periodo-e-filtros-dos-cards.md) | O diretório vem do ERP do tenant, a descoberta por período lê o D365 na fila do coletor, o CNPJ guarda as letras, e os cards contam por período e modelo no servidor | Aceito — §1 revisado pelo 0034 |
 | [0033](0033-de-para-de-estabelecimento-pela-plataforma.md) | O de/para do estabelecimento vem da listagem da plataforma, casada pelo CNPJ, paginada até a página vazia e guardada por janela; a recusa fica onde haveria escolha, e a tabela `establishments` vira sobreposição | Aceito |
 | [0034](0034-a-empresa-se-compara-pela-raiz-do-cnpj.md) | A empresa continua sendo um CNPJ completo, uma por raiz, e se compara pela raiz; um formatador só mascara a raiz e o CNPJ completo | Aceito — "Piora" revisado pelo 0035 |
 | [0035](0035-credencial-do-perfil-e-o-cnpj-da-execucao.md) | A credencial do perfil é a única identidade do conector contra o F&O, sem modo de desenvolvimento; a descoberta devolve o estabelecimento que resolveu, e a execução o grava | Aceito |
+| [0036](0036-conta-de-plataforma-e-varios-conectores.md) | A conta de plataforma: a credencial sobe para a conta, o perfil ganha uma coleção de conectores, e o ambiente vira o deploy | Aceito — complementado pelo 0037, 0038 e 0039 |
+| [0037](0037-conector-modulo-integracao.md) | Conector → módulo → integração: a integração é a unidade de endpoint, fila e lote; a recusa é por registro; o módulo é do conector | Aceito |
+| [0038](0038-uma-esteira-tres-estilos-de-saida.md) | Uma esteira, três estilos de saída; o cálculo tem estado; a carta de correção é evento; os dois conectores se encontram no ERP | Aceito |
+| [0039](0039-dashboard-por-conector-e-o-tecnico-do-admin.md) | O dashboard é por conector, a linha é o que a ação opera, e a visão técnica é do Admin — a primeira permissão de verdade | Aceito |
 
 ## Planejados
 

@@ -34,10 +34,8 @@ public class D365ChangeFeedIntegrationTests
             Profile = new TenantConnectorProfile
             {
                 TenantId = "tenant-a",
-                Environment = "Sandbox",
                 InboundAdapter = "Dynamics365",
                 InboundSettings = $$"""{"url":"{{url}}","companies":{{companies}},"pageSize":{{PageSize}},"auth":{{D365IntegrationEnvironment.AuthJson()}}}""",
-                OutboundAdapter = "Avalara",
             },
         };
         var feed = new D365ChangeFeed(

@@ -37,8 +37,8 @@ public interface IConnectorCredentialTest
     ConnectorSettingsKind Side { get; }
 
     /// <summary>
-    /// Testa a credencial gravada no perfil. <paramref name="environment"/> é o da seção na saída (<c>Sandbox</c> ou
-    /// <c>Production</c>), e nulo na entrada.
+    /// Testa a credencial gravada no perfil. O ambiente não é escolha do teste: é o da instância (change
+    /// <c>platform-account-and-connectors</c>, D6).
     /// </summary>
-    Task<CredentialTestOutcome> TestAsync(TenantConnectorProfile profile, string? environment, CancellationToken ct = default);
+    Task<CredentialTestOutcome> TestAsync(TenantConnectorProfile profile, CancellationToken ct = default);
 }

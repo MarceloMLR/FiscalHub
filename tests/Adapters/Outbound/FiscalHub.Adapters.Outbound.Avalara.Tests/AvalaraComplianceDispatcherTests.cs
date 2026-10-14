@@ -41,23 +41,13 @@ public class AvalaraComplianceDispatcherTests
     public async Task Submit_uses_base_url_from_tenant_profile()
     {
         var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
-        var profiles = new FakeProfileStore(new TenantConnectorProfile
-        {
-            TenantId = "tenant-a",
-            Environment = "Sandbox",
-            InboundAdapter = "Dynamics365",
-            OutboundAdapter = "Avalara",
-            OutboundSettings = """
-                {"sandbox":{"baseUrl":"https://avalara-a/","clientId":"id-a","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret",
-                            "establishments":{"12345678000190":{"codigoEmpresa":"E","codigoContribuinte":"C"}}},
-                 "production":{"baseUrl":"https://avalara-a-prod/"}}
-                """,
-        });
+        var profiles = new FakeProfileStore(AvalaraProfiles.Profile(AvalaraProfiles.Connector(
+            "https://avalara-a/", ""","establishments":{"12345678000190":{"codigoEmpresa":"E","codigoContribuinte":"C"}}""")));
         var dispatcher = Build(handler, profiles: profiles);
 
         await dispatcher.SubmitAsync(SampleInvoice(), Context());
 
-        // A base veio do perfil do tenant (ambiente sandbox): não há URL global do adapter.
+        // A base veio do conector do tenant: não há URL global do adapter.
         Assert.Equal("https://avalara-a/documents", handler.LastRequest!.RequestUri!.ToString());
     }
 
@@ -148,17 +138,19 @@ public class AvalaraComplianceDispatcherTests
         // motivo tem de dizer onde corrigir, e não virar retentativa até a dead-letter.
         var handler = new StubHttpMessageHandler(body, HttpStatusCode.NotFound);
         var trace = new RecordingTrace();
-        var dispatcher = Build(handler, trace: trace, documentsPath: "taxcompliance/v2/fiscal/dfe");
+        var dispatcher = Build(handler, trace: trace, profiles: Profile(invoicesPath: "taxcompliance/v2/fiscal/dfe"));
 
         DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
 
         Assert.StartsWith("Configuração do conector:", ex.Reason);
         Assert.Contains("o caminho de envio não existe nessa URL", ex.Reason);
         Assert.Contains("HTTP 404 em POST http://localhost/taxcompliance/v2/fiscal/dfe", ex.Reason);
-        Assert.Contains("OutboundSettings.sandbox.baseUrl", ex.Reason);                           // o host, no perfil
-        Assert.Contains("Configurações → Conectores → Avalara → Sandbox → URL base", ex.Reason);  // na tela
-        Assert.Contains("Avalara:DocumentsPath", ex.Reason);                                      // o caminho, no appsettings
-        Assert.Contains("taxcompliance/v2/fiscal/dfe", ex.Reason);
+        Assert.Contains("as duas na tela de conectores", ex.Reason);
+        Assert.Contains("a URL base da v2 do conector 'Avalara'", ex.Reason);                  // o host, no conector
+        Assert.Contains("Configurações → Conectores → Avalara → URL base (v2)", ex.Reason);    // na tela
+        Assert.Contains("o caminho da integração de notas fiscais ('taxcompliance/v2/fiscal/dfe'", ex.Reason);
+        Assert.Contains("Configurações → Conectores → Avalara → Notas fiscais", ex.Reason);
+        Assert.DoesNotContain("Avalara:DocumentsPath", ex.Reason);                                // o appsettings não é mais parte da URL
         if (body.Length > 0)
         {
             Assert.Contains("no Route matched with those values", ex.Reason);
@@ -272,7 +264,7 @@ public class AvalaraComplianceDispatcherTests
 
         DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
 
-        Assert.Contains("Configurações → Conectores → Avalara → Sandbox → Client Secret", ex.Reason);
+        Assert.Contains("Configurações → Conectores → Avalara → Client Secret", ex.Reason);
         Assert.Equal(0, tokenEndpoint.Calls);
         Assert.Equal(0, documents.RequestCount);
     }
@@ -287,7 +279,7 @@ public class AvalaraComplianceDispatcherTests
 
         Assert.StartsWith("Configuração do conector:", ex.Reason);
         Assert.Contains("'tenant-a'", ex.Reason);
-        Assert.Contains("'sandbox'", ex.Reason);
+        Assert.Contains("'Sandbox'", ex.Reason);
         Assert.Contains("HTTP 403", ex.Reason);
         Assert.Contains("cliente sem acesso à empresa", ex.Reason);
         Assert.Equal(1, handler.RequestCount);
@@ -318,7 +310,7 @@ public class AvalaraComplianceDispatcherTests
             (HttpStatusCode.OK, """{"id":"ext-3"}"""));
         var tokenEndpoint = new AvalaraTokenProviderTests.TokenEndpointStub();
         var secrets = new AvalaraTokenProviderTests.FakeSecrets();
-        secrets.Values["fh-tenant-a--outbound--sandbox--clientsecret"] = "segredo-a";
+        secrets.Values[AvalaraProfiles.SecretOf("tenant-a")] = "segredo-a";
         var provider = new AvalaraTokenProvider(new HttpClient(tokenEndpoint), secrets,
             Options.Create(new AvalaraOptions()), TimeProvider.System, new CapturingLogger<AvalaraTokenProvider>());
         var dispatcher = Build(documents, provider);
@@ -522,7 +514,7 @@ public class AvalaraComplianceDispatcherTests
     public async Task Tenant_without_the_codes_is_rejected_before_any_request()
     {
         var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
-        var dispatcher = Build(handler, profiles: Profile("""{"sandbox":{"baseUrl":"https://avalara-a/"}}"""));
+        var dispatcher = Build(handler, profiles: Profile(AvalaraProfiles.Connector("https://avalara-a/")));
 
         DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(() => dispatcher.SubmitAsync(SampleInvoice(), Context()));
 
@@ -604,22 +596,13 @@ public class AvalaraComplianceDispatcherTests
     private static GoodsInvoice WithCharge(GoodsInvoice invoice)
         => invoice with { Items = [invoice.Items[0] with { Charges = [new ItemCharge { Number = 1, Kind = ChargeKind.Other, Amount = 416.25m }] }] };
 
-    // Perfil padrão: o emitente da nota de exemplo (12345678000190) é o estabelecimento próprio, e a seção tem a URL do
-    // mock em loopback e a credencial do tenant.
-    private static FakeProfileStore Profile(string? outboundSettings = null)
-        => new(new TenantConnectorProfile
-        {
-            TenantId = "tenant-a",
-            Environment = "Sandbox",
-            InboundAdapter = "Xml",
-            OutboundAdapter = "Avalara",
-            OutboundSettings = outboundSettings ?? Section("12345678000190"),
-        });
+    // Perfil padrão: o emitente da nota de exemplo (12345678000190) é o estabelecimento próprio; a conta tem a credencial do
+    // tenant, e o conector, a URL do mock em loopback.
+    private static FakeProfileStore Profile(string? connectorSettings = null, string? invoicesPath = AvalaraProfiles.InvoicesPath)
+        => new(AvalaraProfiles.Profile(connectorSettings ?? Section("12345678000190"), inboundAdapter: "Xml", invoicesPath: invoicesPath));
 
-    private static string Section(string ownCnpj) => $$"""
-        {"sandbox":{"baseUrl":"http://localhost/","clientId":"id-a","clientSecretRef":"kv:fh-tenant-a--outbound--sandbox--clientsecret",
-                    "establishments":{"{{ownCnpj}}":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"} } } }
-        """;
+    private static string Section(string ownCnpj) => AvalaraProfiles.Connector(
+        "http://localhost/", $$""","establishments":{"{{ownCnpj}}":{"codigoEmpresa":"20247332000182","codigoContribuinte":"20247332000182"} }""");
 
     /// <summary>Responde com os cabeçalhos de uma plataforma real: os da lista e os que nunca entram na foto.</summary>
     private sealed class HeaderedHandler(HttpStatusCode status, string body) : HttpMessageHandler
@@ -652,6 +635,42 @@ public class AvalaraComplianceDispatcherTests
 
     private static readonly DateTimeOffset Now = new(2026, 9, 27, 15, 0, 0, TimeSpan.Zero);
 
+    // ---- O caminho do envio é o da integração, e não o do appsettings (change platform-account-and-connectors, 6.8 e 6.9) ----
+
+    [Fact]
+    public async Task Submit_and_status_go_to_the_path_of_the_integration_and_never_to_the_documents_path_of_the_host()
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"abc","status":"processando"}""");
+        var dispatcher = Build(handler, profiles: Profile(invoicesPath: "taxcompliance/v2/fiscal/dfe"), documentsPath: "documents");
+
+        await dispatcher.SubmitAsync(SampleInvoice(), Context());
+        Uri submit = handler.LastRequest!.RequestUri!;
+        await dispatcher.CheckStatusAsync("abc", Context());
+        Uri status = handler.LastRequest!.RequestUri!;
+
+        Assert.Equal("http://localhost/taxcompliance/v2/fiscal/dfe", submit.ToString());
+        Assert.Equal("http://localhost/taxcompliance/v2/fiscal/dfe/abc/status", status.ToString());
+        Assert.DoesNotContain("documents", submit.AbsolutePath);
+        Assert.DoesNotContain("documents", status.AbsolutePath);
+    }
+
+    [Theory]
+    [InlineData(null)]   // o conector sem a integração de notas
+    [InlineData("")]     // a integração inativa, sem caminho
+    public async Task Without_an_active_invoices_integration_the_submit_is_a_connector_rejection_with_no_request(string? invoicesPath)
+    {
+        var handler = new StubHttpMessageHandler("""{"id":"abc"}""");
+        FakeProfileStore profiles = invoicesPath is null ? Profile(invoicesPath: null) : Profile(invoicesPath: "");
+        var dispatcher = Build(handler, profiles: profiles);
+
+        DispatchRejectedException ex = await Assert.ThrowsAsync<DispatchRejectedException>(
+            () => dispatcher.SubmitAsync(SampleInvoice() with { Issuance = null }, Context()));
+
+        Assert.StartsWith("Configuração do conector:", ex.Reason);
+        Assert.Contains("notas-fiscais", ex.Reason);
+        Assert.Equal(0, handler.RequestCount);   // nem o envio, nem a listagem que a nota sem emissão pediria
+    }
+
     private static AvalaraComplianceDispatcher Build(
         HttpMessageHandler handler,
         IAvalaraTokenProvider? token = null,
@@ -660,11 +679,12 @@ public class AvalaraComplianceDispatcherTests
         ILogger<AvalaraComplianceDispatcher>? logger = null,
         string documentsPath = "documents")
     {
-        var http = new HttpClient(handler);   // sem BaseAddress: toda URI é absoluta, da seção do tenant
+        var http = new HttpClient(handler);   // sem BaseAddress: toda URI é absoluta, das settings do tenant
         var options = Options.Create(new AvalaraOptions { Destination = "avalara", DocumentsPath = documentsPath });
         return new AvalaraComplianceDispatcher(
             http, options, token ?? new FakeTokenProvider("tok-padrao"), trace ?? new NoOpProcessingTrace(),
-            profiles ?? Profile(), NoListing(), logger ?? new CapturingLogger<AvalaraComplianceDispatcher>(), new FixedClock(Now));
+            profiles ?? Profile(), NoListing(), InstanceEnvironment.From("Sandbox"), logger ?? new CapturingLogger<AvalaraComplianceDispatcher>(),
+            new FixedClock(Now));
     }
 
     // Estes testes são o caminho da tabela: o resolvedor sem listagem é o destino que não lista, e a tabela é a única

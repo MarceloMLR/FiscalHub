@@ -26,6 +26,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     private readonly IProcessingTrace _trace;
     private readonly IConnectorProfileStore _profiles;
     private readonly PlatformEstablishmentResolver _establishments;
+    private readonly IInstanceEnvironment _instance;
     private readonly ILogger<AvalaraComplianceDispatcher> _logger;
     private readonly TimeProvider _clock;
 
@@ -36,6 +37,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         IProcessingTrace trace,
         IConnectorProfileStore profiles,
         PlatformEstablishmentResolver establishments,
+        IInstanceEnvironment instance,
         ILogger<AvalaraComplianceDispatcher> logger,
         TimeProvider clock)
     {
@@ -45,6 +47,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         _trace = trace;
         _profiles = profiles;
         _establishments = establishments;
+        _instance = instance;
         _logger = logger;
         _clock = clock;
     }
@@ -58,19 +61,23 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         // 1–2. Configuração do tenant: qual parte é a nossa, o parceiro e os códigos da plataforma (design D4, D5). Falta
         //      algo → DispatchRejectedException antes da requisição de envio (ADR-0026). A tabela establishments ganha; a
         //      listagem da plataforma só é pedida quando precisa — a nota que não diz a emissão, ou o CNPJ sem entrada —, e
-        //      vem da janela do resolvedor, uma por tenant e ambiente, e não uma por nota (platform-establishment-resolution).
+        //      vem da janela do resolvedor, uma por tenant e adapter, e não uma por nota (platform-establishment-resolution).
         TenantConnectorProfile? profile = await _profiles.GetAsync(context.TenantId, ct);
-        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, profile);
+        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, profile, _instance);
+
+        // O caminho da integração de notas, antes de qualquer requisição — inclusive a da listagem: o conector sem a
+        // integração ligada, ou com ela sem caminho, é configuração, e nada sai (D5, D9).
+        Uri submitUri = settings.SubmitUri;
         PlatformEstablishmentIndex? index = null;
         if (document.Issuance is null)
         {
             settings.ThrowIfUnreadable();
-            index = await _establishments.GetAsync(profile!, ct);
+            index = await _establishments.GetAsync(profile!, AvalaraServiceCollectionExtensions.AdapterName, ct);
         }
 
         (Party own, Party partner) = settings.PartiesOf(document, index);
         AvalaraCompanyCodes codes = settings.OverrideFor(own.TaxId)
-            ?? settings.CodesFromPlatform(own.TaxId, index ?? await _establishments.GetAsync(profile!, ct));
+            ?? settings.CodesFromPlatform(own.TaxId, index ?? await _establishments.GetAsync(profile!, AvalaraServiceCollectionExtensions.AdapterName, ct));
 
         // 3. Mapeamento: o que o contrato não consegue representar recusa o envio de uma vez, com a lista completa.
         AvalaraMapping mapping = GoodsInvoiceToAvalara.Map(document, new AvalaraHeaderData(codes, partner, context.NaturalKey));
@@ -83,9 +90,9 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         //    domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
         await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, AvalaraJson.Options), ct);
 
-        // 5. POST, com o token do tenant no ambiente ativo. Sem credencial ou sem segredo, a rejeição sai do provider,
+        // 5. POST, com o token do tenant. Sem credencial ou sem segredo, a rejeição sai do provider,
         //    antes de qualquer requisição (ADR-0027).
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(settings.BaseUri, _options.DocumentsPath))
+        using var request = new HttpRequestMessage(HttpMethod.Post, submitUri)
         {
             Content = JsonContent.Create(payload, options: AvalaraJson.Options),
         };
@@ -122,8 +129,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
             // O caminho de envio não existe nessa URL: retentar repete o 404 até a dead-letter, sem motivo legível. É
             // configuração, e o motivo aponta as duas partes da URL (ADR-0027). Só no envio: na consulta, o 404 é pendente.
             case HttpStatusCode.NotFound:
-                throw settings.SubmitPathNotFound(request.RequestUri!, _options.DocumentsPath,
-                    body.Length == 0 ? null : PlatformMessage.Extract(body, status));
+                throw settings.SubmitPathNotFound(request.RequestUri!, body.Length == 0 ? null : PlatformMessage.Extract(body, status));
         }
 
         // O resto (5xx, 429) segue como exceção, para o retry nativo e a dead-letter (ADR-0004). Só o status.
@@ -142,8 +148,8 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     /// <inheritdoc/>
     public async Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
     {
-        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, await _profiles.GetAsync(context.TenantId, ct));
-        var statusUri = new Uri(settings.BaseUri, $"{_options.DocumentsPath}/{Uri.EscapeDataString(externalId)}/status");
+        AvalaraOutboundSettings settings = AvalaraOutboundSettings.Read(context.TenantId, await _profiles.GetAsync(context.TenantId, ct), _instance);
+        Uri statusUri = settings.StatusUri(externalId);
 
         using var request = new HttpRequestMessage(HttpMethod.Get, statusUri);
         AvalaraAccessToken token = await ApplyAuthAsync(request, settings, ct);

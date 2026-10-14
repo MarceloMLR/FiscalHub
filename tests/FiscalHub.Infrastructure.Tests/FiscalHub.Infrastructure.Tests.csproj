@@ -26,6 +26,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FiscalHub.Infrastructure\FiscalHub.Infrastructure.csproj" />
+    <!-- Só no harness da M2: o nome migrado é achado pelas comparações exatas do adapter de verdade, e não de um fake. -->
+    <ProjectReference Include="..\..\src\Adapters\Outbound\FiscalHub.Adapters.Outbound.Avalara\FiscalHub.Adapters.Outbound.Avalara.csproj" />
   </ItemGroup>
 
 </Project>

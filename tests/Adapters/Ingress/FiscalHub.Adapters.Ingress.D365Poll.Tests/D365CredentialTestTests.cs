@@ -30,8 +30,8 @@ public class D365CredentialTestTests
         var h = new Harness();
         h.Erp.Respond("""{"value":[{"FiscalDocumentRecId":1}]}""").Respond("""{"value":[{"FiscalDocumentRecId":1}]}""");
 
-        await h.Test.TestAsync(Profile(), null);
-        await h.Test.TestAsync(Profile(), null);
+        await h.Test.TestAsync(Profile());
+        await h.Test.TestAsync(Profile());
 
         Assert.Equal(2, h.Created.Count);                       // uma instância por teste
         Assert.All(h.Created, c => Assert.Equal(1, c.Requests));   // e cada uma foi ao Entra ID
@@ -46,7 +46,7 @@ public class D365CredentialTestTests
             new D365AuthSettings("entra-a", "app-a", $"kv:{SecretName}"));
 
         await h.Tokens.GetTokenAsync(connection);   // o coletor
-        await h.Test.TestAsync(Profile(), null);     // o teste, no meio
+        await h.Test.TestAsync(Profile());     // o teste, no meio
         await h.Tokens.GetTokenAsync(connection);   // o coletor de novo
 
         Assert.Equal(2, h.Created.Count);               // a do coletor e a do teste; o coletor não ganhou outra
@@ -62,7 +62,7 @@ public class D365CredentialTestTests
         var h = new Harness();
         h.Erp.Respond("""{"value":[{"FiscalDocumentRecId":1}],"@odata.nextLink":"https://fiscosysdev.operations.dynamics.com/data/FSFiscalDocumentBRs?$skip=1"}""");
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Worked, outcome.Verdict);
         HttpRequestMessage request = Assert.Single(h.Erp.Requests);   // o nextLink não é seguido
@@ -78,7 +78,7 @@ public class D365CredentialTestTests
         var h = new Harness();
         h.Erp.Respond("""{"value":[]}""");
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Worked, outcome.Verdict);
         Assert.Contains("não prova o acesso às empresas", outcome.Reason);
@@ -93,7 +93,7 @@ public class D365CredentialTestTests
         var h = new Harness();
         h.Erp.Respond("""{"error":{"message":"negado"}}""", status);
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
         Assert.Contains(expected, outcome.Reason);
@@ -109,7 +109,7 @@ public class D365CredentialTestTests
         var h = new Harness();
         h.Erp.Respond("{}", status);
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Unavailable, outcome.Verdict);
     }
@@ -121,7 +121,7 @@ public class D365CredentialTestTests
         h.Erp.Delay = TimeSpan.FromSeconds(5);
         h.Erp.Respond("""{"value":[]}""");
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Unavailable, outcome.Verdict);
     }
@@ -137,7 +137,7 @@ public class D365CredentialTestTests
                 $"ClientSecretCredential authentication failed: AADSTS7000215: Invalid client secret provided. Ensure the secret being sent in the request is the client secret value. Trace ID: 1f2e"),
         };
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
         Assert.Contains("(AADSTS7000215)", outcome.Reason);
@@ -157,7 +157,7 @@ public class D365CredentialTestTests
                 new InvalidOperationException("AADSTS7000215: Invalid client secret provided.")),
         };
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
         Assert.Contains("(AADSTS7000215)", outcome.Reason);
@@ -169,7 +169,7 @@ public class D365CredentialTestTests
     {
         var h = new Harness { Failure = new AuthenticationFailedException("ClientSecretCredential authentication failed: invalid_client") };
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
         Assert.Empty(h.Erp.Requests);
@@ -184,7 +184,7 @@ public class D365CredentialTestTests
                 new HttpRequestException("An error occurred while sending the request.", new System.Net.Sockets.SocketException(10054))),
         };
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Unavailable, outcome.Verdict);
         Assert.Empty(h.Erp.Requests);
@@ -195,7 +195,7 @@ public class D365CredentialTestTests
     {
         var h = new Harness { Failure = new ArgumentException("Invalid tenant id provided.", "tenantId") };
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
     }
@@ -206,7 +206,7 @@ public class D365CredentialTestTests
         var h = new Harness();
         h.Erp.Failure = new HttpRequestException(HttpRequestError.NameResolutionError, "No such host is known.");
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Refused, outcome.Verdict);
         Assert.Contains("URL", outcome.Reason);
@@ -223,7 +223,7 @@ public class D365CredentialTestTests
     {
         var h = new Harness();
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(settings), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(settings));
 
         Assert.Equal(CredentialTestVerdict.Incomplete, outcome.Verdict);
         Assert.Contains(reason, outcome.Reason);
@@ -236,7 +236,7 @@ public class D365CredentialTestTests
     {
         var h = new Harness(secretInVault: false);
 
-        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile(), null);
+        CredentialTestOutcome outcome = await h.Test.TestAsync(Profile());
 
         Assert.Equal(CredentialTestVerdict.Incomplete, outcome.Verdict);
         Assert.Contains("O Client Secret do ERP do tenant 'tenant-a' não está no cofre", outcome.Reason);
@@ -256,10 +256,8 @@ public class D365CredentialTestTests
     private static TenantConnectorProfile Profile(string settings = Settings) => new()
     {
         TenantId = "tenant-a",
-        Environment = "Sandbox",
         InboundAdapter = "Dynamics365",
         InboundSettings = settings,
-        OutboundAdapter = "Avalara",
     };
 
     private static void AssertClean(string reason, string token)

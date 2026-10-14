@@ -3,58 +3,47 @@ using FiscalHub.Application.Connectors;
 namespace FiscalHub.Application.Tests;
 
 /// <summary>
-/// Especifica os módulos do tenant (change <c>module-navigation-and-integration-panel</c>, D2): o padrão sem módulos
-/// gravados é só o Fiscal, a lista é normalizada na ordem da barra lateral, e o que não é aceito é recusado com o valor
-/// nomeado. É apresentação, e não permissão.
+/// Especifica os módulos do tenant (change <c>module-navigation-and-integration-panel</c>, D2): desde a change
+/// <c>platform-account-and-connectors</c> (D7), a união dos módulos ligados nos conectores dele, na ordem da barra lateral,
+/// e só o Fiscal quando nenhum está ligado. É apresentação, e não permissão.
 /// </summary>
 public class TenantModulesTests
 {
     [Fact]
-    public void Without_stored_modules_the_tenant_has_only_fiscal()
+    public void Without_a_connector_or_a_module_on_the_tenant_has_only_fiscal()
     {
         Assert.Equal(["Fiscal"], TenantModules.Of(null));
-        Assert.Equal(["Fiscal"], TenantModules.Of(Profile(modules: null)));
+        Assert.Equal(["Fiscal"], TenantModules.Of(Profile()));
+        Assert.Equal(["Fiscal"], TenantModules.Of(Profile(Connector("Avalara"))));
     }
 
     [Fact]
-    public void Stored_modules_are_the_tenant_modules()
+    public void The_modules_are_the_union_of_the_connectors_in_the_sidebar_order_counted_once()
     {
-        Assert.Equal(["Fiscal", "Inventario"], TenantModules.Of(Profile(modules: ["Fiscal", "Inventario"])));
-    }
+        // A ordem dos conectores e a dos módulos dentro deles não decidem a ordem da lista.
+        TenantConnectorProfile profile = Profile(
+            Connector("Avalara", TenantModules.Inventory, TenantModules.Fiscal),
+            Connector("Outro", TenantModules.Fiscal));
 
-    [Theory]
-    [InlineData(new[] { "Inventario", "Fiscal" }, new[] { "Fiscal", "Inventario" })]
-    [InlineData(new[] { "Contabil", "Contabil", "Fiscal" }, new[] { "Fiscal", "Contabil" })]
-    [InlineData(new[] { "inventario", "FISCAL" }, new[] { "Fiscal", "Inventario" })]
-    [InlineData(new[] { "Inventario" }, new[] { "Inventario" })]
-    public void Valid_list_is_normalized_in_the_sidebar_order(string[] requested, string[] expected)
-    {
-        Assert.True(TenantModules.TryNormalize(requested, out IReadOnlyList<string> modules, out string? problem));
-        Assert.Equal(expected, modules);
-        Assert.Null(problem);
+        Assert.Equal(["Fiscal", "Inventario"], TenantModules.Of(profile));
     }
 
     [Fact]
-    public void Unknown_value_is_refused_naming_it_and_the_accepted_ones()
+    public void A_tenant_without_fiscal_on_any_connector_does_not_get_it()
     {
-        Assert.False(TenantModules.TryNormalize(["Fiscal", "Folha"], out _, out string? problem));
-        Assert.Contains("'Folha'", problem);
-        Assert.Contains("Fiscal, Contabil e Inventario", problem);
+        Assert.Equal(["Inventario"], TenantModules.Of(Profile(Connector("Avalara", TenantModules.Inventory))));
     }
 
-    [Fact]
-    public void Empty_list_is_refused()
-    {
-        Assert.False(TenantModules.TryNormalize([], out _, out string? problem));
-        Assert.Contains("pelo menos um módulo", problem);
-    }
-
-    private static TenantConnectorProfile Profile(IReadOnlyList<string>? modules) => new()
+    private static TenantConnectorProfile Profile(params PlatformConnector[] connectors) => new()
     {
         TenantId = "tenant-a",
-        Environment = "Sandbox",
         InboundAdapter = "Dynamics365",
-        OutboundAdapter = "Avalara",
-        Modules = modules,
+        Accounts = connectors.Length == 0 ? [] : [new PlatformAccount { Platform = "Avalara", Connectors = connectors }],
+    };
+
+    private static PlatformConnector Connector(string adapter, params string[] modules) => new()
+    {
+        Adapter = adapter,
+        Modules = [.. modules.Select(m => new ConnectorModule { Module = m })],
     };
 }
