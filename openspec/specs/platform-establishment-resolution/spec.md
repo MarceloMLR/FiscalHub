@@ -8,32 +8,9 @@ errada não falharia: a nota seria escriturada no contribuinte errado.
 
 ## Requirements
 
-### Requirement: A listagem é uma capacidade declarada pelo adapter de saída
-
-A resolução pela plataforma MUST acontecer só quando o adapter de saída do perfil do tenant declara que sabe listar os
-estabelecimentos da plataforma. A declaração é do adapter, pela comparação exata do nome gravado no perfil, como no teste
-de credencial (`connector-credential-test`). O contrato de despacho MUST NOT exigir a listagem de nenhum destino.
-
-- **Destino que não sabe listar:** a sobreposição `establishments` é a única fonte, como antes desta mudança. O
-  estabelecimento sem entrada é rejeitado com o motivo de falta de tradução, que cita o tenant, o ambiente, o CNPJ e os
-  campos que faltam.
-- **Destino que sabe listar:** a ausência da tabela `establishments` na seção do ambiente MUST NOT ser motivo de rejeição.
-  Ela vale como uma sobreposição vazia.
-
-#### Scenario: Destino que não sabe listar
-- **WHEN** o adapter de saída do perfil não declara a listagem, e o CNPJ do estabelecimento próprio não está na tabela
-  `establishments` do ambiente ativo
-- **THEN** o envio é rejeitado por falta de tradução, com motivo que cita o tenant, o ambiente e o CNPJ
-- **AND** nenhuma requisição é feita à plataforma
-
-#### Scenario: Destino que sabe listar, sem a tabela
-- **WHEN** o adapter de saída declara a listagem, a seção do ambiente ativo não tem `establishments`, e a plataforma tem
-  um único contribuinte com o CNPJ do estabelecimento próprio
-- **THEN** o envio segue com os códigos desse contribuinte
-
 ### Requirement: A sobreposição manual ganha da plataforma
 
-Quando a tabela `establishments` do ambiente ativo tem uma entrada para o CNPJ normalizado do estabelecimento próprio, os
+Quando a tabela `establishments` do conector tem uma entrada para o CNPJ normalizado do estabelecimento próprio, os
 códigos MUST ser os da entrada. Nesse caso a listagem MUST NOT ser pedida para resolver os códigos daquela nota.
 
 Uma entrada incompleta MUST ser rejeitada nomeando o campo que falta. Ela MUST NOT ser completada pela plataforma: quem
@@ -174,49 +151,10 @@ A listagem parcial poderia esconder a duplicidade: o segundo contribuinte estari
 - **WHEN** um CNPJ tem um contribuinte na primeira empresa e outro na empresa cuja leitura falhou
 - **THEN** a nota desse CNPJ não é enviada com os códigos da primeira empresa
 
-### Requirement: Uma listagem por janela de despacho
-
-A listagem MUST ser guardada por tenant e por ambiente, por uma validade configurável. Sem configuração, a validade é de
-10 minutos. Uma validade zero ou negativa MUST impedir o host de subir, porque seria a listagem por nota. A janela de
-despacho é essa validade: dentro dela, toda resolução do mesmo tenant e ambiente MUST usar a mesma listagem, sem nova
-requisição.
-
-- **A concorrência:** com várias notas do mesmo tenant e ambiente ao mesmo tempo, MUST haver uma listagem só em
-  andamento. As outras resoluções recebem o desfecho dela, sucesso ou falha.
-- **O vencimento:** a primeira resolução depois da validade lista de novo.
-- **O isolamento:** dois tenants nunca dividem uma listagem, e dois ambientes do mesmo tenant também não.
-
-#### Scenario: N notas, uma listagem
-- **WHEN** 50 notas do mesmo estabelecimento do tenant-a, no sandbox, são despachadas dentro da validade, e a plataforma
-  tem 3 empresas, com cada lista cabendo numa página
-- **THEN** a plataforma recebe 2 requisições de empresas e 6 de contribuintes (a página com os itens e a vazia, por
-  lista), e não 50 listagens
-- **AND** as 50 notas levam os mesmos códigos
-
-#### Scenario: Notas ao mesmo tempo
-- **WHEN** 10 notas do tenant-a, no sandbox, pedem a resolução ao mesmo tempo, sem listagem guardada
-- **THEN** a plataforma recebe uma listagem só
-
-#### Scenario: Depois da validade
-- **WHEN** a validade da listagem do tenant-a no sandbox venceu, e uma nota do tenant-a é despachada
-- **THEN** a plataforma é listada de novo
-
-#### Scenario: Dois tenants
-- **WHEN** o tenant-a e o tenant-b despacham notas dentro da validade
-- **THEN** cada um tem a própria listagem, pedida com a própria credencial
-
-#### Scenario: A troca de ambiente
-- **WHEN** o tenant-a tem a listagem do sandbox guardada, e o perfil passa ao ambiente de produção
-- **THEN** a primeira nota em produção lista a plataforma de produção
-
-#### Scenario: Validade zero
-- **WHEN** a configuração do host traz a validade da listagem igual a zero
-- **THEN** o host não sobe, com motivo que nomeia a configuração
-
 ### Requirement: Salvar o perfil esquece a listagem do tenant
 
 Toda gravação do perfil de conector do tenant, ou de um segredo dele, MUST esquecer a listagem guardada e a recusa lembrada
-da listagem do tenant, em todos os ambientes. Salvar sem mudar nada também esquece: a correção pode ter sido feita na
+da listagem do tenant, em todos os conectores dele. Salvar sem mudar nada também esquece: a correção pode ter sido feita na
 plataforma. A listagem dos outros tenants MUST NOT ser afetada. Uma gravação recusada na validação não esquece nada.
 
 #### Scenario: Cadastrar na plataforma e salvar
@@ -238,10 +176,10 @@ A falha da listagem MUST seguir os desfechos que já existem para o envio (`comp
 - **A recusa** (a credencial negada, o caminho que não existe, o formato fora do verificado, a paginação que não avança, o
   teto de páginas):
   a nota é
-  rejeitada com o motivo da listagem, sem retentativa. A recusa MUST ser lembrada por tenant e ambiente, por um intervalo
-  configurável. Sem configuração, ele é de 5 minutos, o mesmo padrão da recusa lembrada da credencial
-  (`avalara-tenant-authentication`). Nesse intervalo, as notas do tenant e ambiente são rejeitadas com o mesmo motivo, sem
-  nova requisição de listagem.
+  rejeitada com o motivo da listagem, sem retentativa. A recusa MUST ser lembrada por tenant e conector, por um intervalo
+  configurável. O ambiente não entra na chave, pelo mesmo motivo da listagem guardada. Sem configuração, o intervalo é de
+  5 minutos, o mesmo padrão da recusa lembrada da credencial (`avalara-tenant-authentication`). Nesse intervalo, as notas
+  do tenant que dependem daquele conector são rejeitadas com o mesmo motivo, sem nova requisição de listagem.
 
 #### Scenario: A plataforma fora do ar
 - **WHEN** a listagem responde HTTP 503
@@ -249,11 +187,82 @@ A falha da listagem MUST seguir os desfechos que já existem para o envio (`comp
 - **AND** a próxima tentativa pede a listagem de novo
 
 #### Scenario: A recusa lembrada
-- **WHEN** a listagem do tenant-a no sandbox é recusada com HTTP 403, e mais 20 notas do tenant-a são despachadas dentro
-  do intervalo
+- **WHEN** a listagem do conector `Avalara` do tenant-a é recusada com HTTP 403, e mais 20 notas do tenant-a são
+  despachadas dentro do intervalo
 - **THEN** as 21 notas são rejeitadas com o mesmo motivo
 - **AND** a plataforma recebe uma requisição de listagem só
 
 #### Scenario: Salvar esquece a recusa
 - **WHEN** a listagem do tenant-a está com a recusa lembrada, e o perfil do tenant-a é salvo
 - **THEN** a próxima nota do tenant-a pede a listagem de novo
+
+### Requirement: A listagem é declarada pelo conector
+
+A resolução pela plataforma MUST acontecer só quando o adapter que despacha declara que sabe listar os estabelecimentos da
+plataforma, e o tenant tem o conector desse adapter. O conector é o do **próprio** adapter, achado na coleção do tenant
+pela comparação exata do nome do adapter (`platform-account-connectors`). Escolher entre conectores não é desta mudança.
+O contrato de despacho MUST NOT exigir a listagem de nenhum destino.
+
+- **Destino que não sabe listar:** a sobreposição `establishments` do conector é a única fonte, como antes desta
+  mudança. O estabelecimento sem entrada é rejeitado com o motivo de falta de tradução, que cita o tenant, o ambiente da
+  instância, o CNPJ e os campos que faltam.
+- **Destino que sabe listar:** a ausência da tabela `establishments` no conector MUST NOT ser motivo de rejeição.
+  Ela vale como uma sobreposição vazia.
+
+#### Scenario: Destino que não sabe listar
+- **WHEN** o adapter do conector não declara a listagem, e o CNPJ do estabelecimento próprio não está na tabela
+  `establishments` dele
+- **THEN** o envio é rejeitado por falta de tradução, com motivo que cita o tenant, o ambiente e o CNPJ
+- **AND** nenhuma requisição é feita à plataforma
+
+#### Scenario: Destino que sabe listar, sem a tabela
+- **WHEN** o adapter do conector declara a listagem, o conector não tem `establishments`, e a plataforma tem
+  um único contribuinte com o CNPJ do estabelecimento próprio
+- **THEN** o envio segue com os códigos desse contribuinte
+
+#### Scenario: O conector é achado pelo nome do adapter
+- **WHEN** o tenant-a tem o conector `Avalara`, e o adapter `Avalara`, que declara a listagem, resolve um estabelecimento
+- **THEN** a listagem usa o conector `Avalara` do tenant-a: a base dele e a credencial da conta dele
+
+### Requirement: Uma listagem por janela de despacho, por conector
+
+A listagem MUST ser guardada por tenant e por conector, por uma validade configurável. Sem configuração, a validade é de
+10 minutos. Uma validade zero ou negativa MUST impedir o host de subir, porque seria a listagem por nota. A janela de
+despacho é essa validade: dentro dela, toda resolução do mesmo tenant e conector MUST usar a mesma listagem, sem nova
+requisição.
+
+**O ambiente não entra na chave:** a instância atende um ambiente só, e um segmento de ambiente diria sempre a mesma
+coisa. A separação entre sandbox e produção é a separação entre instâncias, com bancos e caches distintos.
+
+- **A concorrência:** com várias notas do mesmo tenant e conector ao mesmo tempo, MUST haver uma listagem só em
+  andamento. As outras resoluções recebem o desfecho dela, sucesso ou falha.
+- **O vencimento:** a primeira resolução depois da validade lista de novo.
+- **O isolamento:** dois tenants nunca dividem uma listagem, e dois conectores do mesmo tenant também não.
+
+#### Scenario: N notas, uma listagem
+- **WHEN** 50 notas do mesmo estabelecimento do tenant-a são despachadas dentro da validade, e a plataforma
+  tem 3 empresas, com cada lista cabendo numa página
+- **THEN** a plataforma recebe 2 requisições de empresas e 6 de contribuintes (a página com os itens e a vazia, por
+  lista), e não 50 listagens
+- **AND** as 50 notas levam os mesmos códigos
+
+#### Scenario: Notas ao mesmo tempo
+- **WHEN** 10 notas do tenant-a pedem a resolução ao mesmo tempo, sem listagem guardada
+- **THEN** a plataforma recebe uma listagem só
+
+#### Scenario: Depois da validade
+- **WHEN** a validade da listagem do tenant-a venceu, e uma nota do tenant-a é despachada
+- **THEN** a plataforma é listada de novo
+
+#### Scenario: Dois tenants
+- **WHEN** o tenant-a e o tenant-b despacham notas dentro da validade
+- **THEN** cada um tem a própria listagem, pedida com a própria credencial
+
+#### Scenario: Dois conectores do mesmo tenant
+- **WHEN** o tenant-a tem dois conectores cujos adapters sabem listar, e os dois resolvem estabelecimentos dentro da
+  validade
+- **THEN** cada conector tem a própria listagem
+
+#### Scenario: Validade zero
+- **WHEN** a configuração do host traz a validade da listagem igual a zero
+- **THEN** o host não sobe, com motivo que nomeia a configuração

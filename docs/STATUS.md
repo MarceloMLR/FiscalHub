@@ -18,7 +18,7 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 
 ## Onde estamos
 
-**24 projetos (22 fora de `tools/`) · 27 specs · 39 ADRs · 14 changes arquivadas.**
+**24 projetos (22 fora de `tools/`) · 28 specs · 39 ADRs · 15 changes arquivadas.**
 
 **Núcleo:** domínio `GoodsInvoice` (NF-e 55) com a Reforma (IBS/CBS/IS), envelope fino, portas, esteira
 `ProcessAsync` (idempotência → busca → validação → envio → registro), `NfeXmlParser`,
@@ -62,25 +62,51 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
 1. **Corrigir os defeitos conhecidos D1, D2 e D3.** Cada um vai numa change própria, com o teste antes, e o D1 vai
    primeiro. As specs retroativas `integration-status-poll`, `dead-letter-visibility` e `support-ticket` saíram na
    change `document-implemented-capabilities`. A correção de cada defeito entra nelas por delta.
-2. **Arquivar a `platform-account-and-connectors` (ADR-0036 e ADR-0037).** A forma do conector está entregue e
-   verificada, inclusive o ponta a ponta contra o sandbox real da Avalara, com as provas na sessão de 2026-10-13/14,
-   abaixo. Falta o archive, que ajusta à mão o `Purpose` do `module-navigation` antes de rodar (a ordem está na tarefa
-   8.3).
-3. **As filas por integração e as telas repaginadas (ADR-0037 §4, ADR-0039).** Fila própria por integração, barra
-   lateral por conector, a carga como linha, o erro por motivo, e a visão técnica restrita ao Admin — a primeira
-   permissão de verdade do produto, que é do servidor e não da tela.
-4. **O wizard de provisionamento (ADR-0039).** Cinco passos, três deles condicionais. É conveniência sobre uma
-   configuração que já funciona pelo painel do conector; vale muito, não bloqueia ninguém.
-5. **AvaTax (ADR-0038).** Cálculo e emissão, os estados novos do ciclo de vida, o cancelamento e a carta de correção.
-6. **Marco 2 — CT-e (57) e NFS-e.** O `d365-document-assembly` é só NF-e 55; 57 e SE já aparecem como
+2. **Uma fatia cruzada, pequena: a barra lateral com o conector como eixo, e a aba Técnico restrita ao Admin
+   (ADR-0039 §1 e §5).** São as duas partes que não dependem do Contábil nem do Inventário. A permissão do Admin é a
+   primeira de verdade do produto — do servidor, e não da tela —, e é melhor que nasça antes de haver dois domínios
+   para proteger.
+3. **O Contábil inteiro (ADR-0037, ADR-0038 §1, ADR-0039 §3 e §4).** Hoje é painel reservado (`module-navigation`), e é
+   outro domínio, com outro modelo, outras portas e outros adapters. Entram o domínio; a esteira de carga em lote, o
+   estilo de saída novo do ADR-0038, que é engenharia e não tela; a fila própria por integração; a tela da carga como
+   linha; e o erro lido por motivo.
+4. **O Inventário**, que repete a forma do Contábil com outro volume: o Bloco K, com a fila própria que impede o K230
+   de ficar preso atrás da carga do inventário (ADR-0037 §4).
+5. **Declarar a URL de token e as URLs base, em vez de digitá-las.** São constantes da plataforma —
+   `https://api-gateway.sandbox.avalarabrasil.com.br/oauth/token` e
+   `https://api-gateway.avalarabrasil.com.br/oauth/token` —, e a instância sabe o ambiente dela desde a
+   `platform-account-and-connectors`. O desenho combinado: o adapter declara por ambiente, e o campo da conta vira
+   override vazio, em que vazio quer dizer "use a declarada". Vale para as URLs base, e provavelmente para os caminhos
+   das integrações quando estiverem fechados. O ganho é segurança, e não conveniência: hoje nada impede colar a URL de
+   produção numa instância Sandbox e autenticar contra produção. É change pequena e própria. Ao implementar, as URLs
+   dos dois ambientes são declaradas por inteiro: a de produção não se calcula tirando o `.sandbox` da string.
+6. **O wizard de provisionamento (ADR-0039).** Cinco passos, três deles condicionais. É conveniência sobre uma
+   configuração que já funciona pelo painel do conector; vale muito, não bloqueia ninguém. Com a URL de token e as
+   bases declaradas (item 5), ele fica com o que de fato é do cliente novo: a credencial do ERP, a credencial da
+   Avalara, o que ele contratou, o de-para de estabelecimento e o tamanho do lote. Não deve nascer com campos que
+   ninguém deveria preencher.
+7. **AvaTax (ADR-0038).** Cálculo e emissão, os estados novos do ciclo de vida, o cancelamento e a carta de correção.
+8. **Marco 2 — CT-e (57) e NFS-e.** O `d365-document-assembly` é só NF-e 55; 57 e SE já aparecem como
    filtro em `document-grouping`, `period-discovery` e `d365-change-feed`, mas não têm montagem. É a prova
    de extensibilidade que o ADR-0001 promete.
-7. **Contábil e Inventário.** Hoje são painéis reservados (`module-navigation`). Cada um é outro domínio,
-   com outro modelo, outras portas e outros adapters.
-8. **Restringir acesso por módulo.** O `module-navigation` registra que hoje é apresentação, e não
+9. **Restringir acesso por módulo.** O `module-navigation` registra que hoje é apresentação, e não
    permissão: "Restringir o acesso por módulo é outra fatia."
-9. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
-   exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
+10. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
+    exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
+
+**Por que o Contábil e o Inventário vêm antes do AvaTax** (decisão do Marcelo, 2026-10-14). É o tipo de ordem que
+alguém reverte por engano, e por isso os motivos ficam escritos:
+
+- **o que a `platform-account-and-connectors` construiu, só eles usam.** A base da `v1` está vazia, o `AcceptsBatch` e o
+  tamanho de lote não têm leitor, e das sete integrações que a Avalara declara, seis são deles. Com o AvaTax antes,
+  isso ficaria meses como configuração que nada lê;
+- **o AvaTax depende de trabalho que não é só do hub:** o cálculo precisa voltar ao ERP do cliente. O Contábil e o
+  Inventário dependem só de nós.
+
+**E a partição é por domínio, e não em "telas" e "domínios".** O antigo item das filas e das telas repaginadas era,
+quase todo, a apresentação e o tempo de execução do Contábil e do Inventário: a fila por integração foi desenhada para
+o K230 não ficar preso atrás do inventário, e a tela da carga com os motivos agrupados é a tela da carga contábil. O que
+não depende dos dois domínios virou a fatia cruzada do item 2.
 
 ## Decisões recentes
 
@@ -1330,8 +1356,10 @@ saída.
 
 ## Sessão 2026-10-13/14 — A conta de plataforma e os conectores (change `platform-account-and-connectors`)
 
-**Entregue (ADR-0036 e ADR-0037), com a verificação final inteira e as 67 tarefas feitas.** O ponta a ponta contra o
-sandbox real da Avalara (9.5) fechou com o Marcelo digitando o Client Secret na tela. Falta o archive, em PR à parte.
+**Entregue (ADR-0036 e ADR-0037) e arquivada em 2026-10-14**, como
+`openspec/changes/archive/2026-10-14-platform-account-and-connectors`, com as 67 tarefas feitas. A capability nova,
+`platform-account-connectors`, passou a `openspec/specs`, e os deltas entraram em outras oito. O ponta a ponta contra o
+sandbox real da Avalara (9.5) fechou com o Marcelo digitando o Client Secret na tela.
 
 - **O ambiente é da instância.** Vem de `Connector:Environment` (`Sandbox` ou `Production`), sem padrão: o host não
   sobe sem ele. Saiu do perfil, das settings, do nome do segredo, do cache de token e do teste de credencial. O selo do
