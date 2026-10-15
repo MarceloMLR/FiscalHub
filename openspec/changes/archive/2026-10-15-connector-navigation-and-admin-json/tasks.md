@@ -365,7 +365,13 @@ cabe aqui.
   `tests/FiscalHub.Host.Tests` (1.1). As **specs continuam 28** e as **changes arquivadas continuam 15**: a change toca
   três specs existentes por delta, não cria capacidade nova e **não foi arquivada**. Isso ficou escrito ali, para que a
   conferência seguinte não leia o número parado como esquecimento. "Última atualização" → 2026-10-15.
-- [~] 5.3 Conferir se algum trecho do `docs/RUNNING.md` descreve a barra lateral por módulo; se descrever, acertar.
+- [x] 5.3 Conferir se algum trecho do `docs/RUNNING.md` descreve a barra lateral por módulo; se descrever, acertar.
+  **Feita em 15/10/2026**, depois de o Marcelo liberar o arquivo (a outra frente, do pacote de entidades do D365,
+  já subiu). O trecho da aba "Módulos e integrações" dizia *"O menu Integrações mostra os módulos ligados nos
+  conectores do tenant; o tenant sem conector nenhum mostra só o Fiscal"* — as duas metades falsas — e passou a
+  descrever o grupo por conector, rotulado pelo rótulo declarado, com o Agendamento de quem agenda, a integração
+  que não é item de menu, o conector que não vira grupo e o grupo que nomeia a ausência. As linhas 133-136 e 411,
+  sobre os selos, foram conferidas e continuam certas.
   → **Conferido, descreve, e NÃO foi acertado.** O `docs/RUNNING.md` está na lista de arquivos em que o Marcelo pediu
   para não encostar nesta frente (instrução de 2026-10-15), e ela é posterior a esta tarefa. O achado, para quem for
   corrigir:

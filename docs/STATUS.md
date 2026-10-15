@@ -109,14 +109,6 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
    permissão: "Restringir o acesso por módulo é outra fatia."
 10. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
     exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
-11. **Acertar o `docs/RUNNING.md:181-183`** (tarefa 5.3 da change `connector-navigation-and-admin-json`, deixada aberta
-    de propósito). O trecho, na aba "Módulos e integrações", diz: *"O menu Integrações mostra os módulos ligados nos
-    conectores do tenant; o tenant sem conector nenhum mostra só o Fiscal."* As duas metades ficaram falsas com aquela
-    change: **não existe mais o menu "Integrações"** (existe um grupo por conector, rotulado pelo rótulo que o adapter
-    declara), e o tenant sem conector mostra o **grupo que nomeia a ausência, com o Fiscal e o Agendamento**. O arquivo
-    pertence hoje à frente do pacote de entidades do D365, e a correção espera ela liberá-lo (decisão do Marcelo,
-    2026-10-15). O que está certo e **não** precisa mexer: as linhas 133-136 e 411, sobre o selo da barra lateral
-    (ambiente e integração automática).
 
 **Por que o Contábil e o Inventário vêm antes do AvaTax** (decisão do Marcelo, 2026-10-14). É o tipo de ordem que
 alguém reverte por engano, e por isso os motivos ficam escritos:
