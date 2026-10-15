@@ -19,6 +19,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      O harness de teste de endpoint por papel (design D8) emite o token com o JwtTokenIssuer do host e lê o tenant com o
+      HttpTenantContext dele. Os dois continuam internos: o teste usa os de verdade em vez de uma cópia.
+    -->
+    <InternalsVisibleTo Include="FiscalHub.Host.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
   </ItemGroup>

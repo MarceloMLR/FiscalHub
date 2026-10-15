@@ -5,12 +5,13 @@ import { Modal } from '../../components/Modal';
 import { DocumentDetail } from '../documents/DocumentDetail';
 import { TicketModal } from '../support/TicketModal';
 import { api } from '../../api/client';
-import { useAuth } from '../auth/AuthContext';
-import { canViewRawJson } from '../auth/roles';
+import { canViewRawJson } from '../rawJson';
+import { useInfo } from '../useInfo';
 import type { DocumentSummary } from '../../types';
 
 export function NoteDialog({ note, onClose }: { note: DocumentSummary | null; onClose: () => void }) {
-  const { user } = useAuth();
+  // Quem vê as fotos cruas é o /info que diz; a tela não decide pelo papel (D7).
+  const { data: info } = useInfo();
   const [ticketOpen, setTicketOpen] = useState(false);
 
   if (!note) {
@@ -32,8 +33,9 @@ export function NoteDialog({ note, onClose }: { note: DocumentSummary | null; on
             <button type="button" className="fh-btn fh-btn-secondary" onClick={onClose} style={{ height: 32 }}>
               Fechar
             </button>
-            {/* O zip tem as fotos cruas: só para quem tem o papel (o servidor dá 403 para os demais). */}
-            {canViewRawJson(user?.role) && (
+            {/* O zip tem as fotos cruas: só para quem o /info disser (o servidor dá 403 para os demais). Antes de ele
+                responder, ou se falhar, o botão não aparece — para papel nenhum. */}
+            {canViewRawJson(info) && (
               <button type="button" className="fh-btn" onClick={() => api.downloadTrace(note.tenantId, note.naturalKey)} style={{ height: 32 }}>
                 <DownloadOutlinedIcon sx={{ fontSize: 16 }} />
                 Baixar arquivos

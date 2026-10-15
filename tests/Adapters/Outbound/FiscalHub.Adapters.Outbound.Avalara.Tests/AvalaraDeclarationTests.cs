@@ -51,6 +51,46 @@ public class AvalaraDeclarationTests
     }
 
     [Fact]
+    public void It_declares_the_connector_label_and_that_it_schedules()
+    {
+        // O rótulo e o agendamento são características da plataforma, declaradas em código (change
+        // connector-navigation-and-admin-json, D3 e D4; ADR-0037). "Avalara" é a plataforma; "Tax Compliance" é o
+        // produto, e é ele que a barra lateral mostra. O agendamento: a captura no ERP é disparada por horário, e o
+        // AvaTax, quando existir, declarará false (ADR-0039 §2).
+        var declaration = new AvalaraDeclaration();
+
+        Assert.Equal("Tax Compliance", declaration.Label);
+        Assert.True(declaration.Scheduling);
+    }
+
+    [Fact]
+    public void The_label_is_screen_text_and_never_the_identity_of_the_connector()
+    {
+        // A identidade continua sendo o adapter, comparado exato: o rótulo não entra em chave nem em comparação.
+        IAdapterDeclaration declaration = new AvalaraDeclaration();
+
+        Assert.NotEqual(declaration.Label, declaration.Adapter);
+        Assert.Equal("Avalara", declaration.Adapter);
+        Assert.Equal("Avalara", declaration.Platform);
+    }
+
+    [Fact]
+    public void The_label_does_not_enter_the_secret_name()
+    {
+        // O nome do segredo do conector é derivado do adapter, e o rótulo não aparece nele. Mais: ele nem serviria de
+        // segmento — tem espaço e maiúsculas —, e é o próprio SecretNames que recusa. É a prova de que ele é texto de
+        // tela, e nada além disso.
+        var declaration = new AvalaraDeclaration();
+
+        string name = SecretNames.For("tenant-a", ConnectorSettingsKind.Connector, [declaration.Adapter], "apiKey");
+
+        Assert.Equal("fh-tenant-a--connector--avalara--apikey", name);
+        Assert.DoesNotContain("compliance", name, StringComparison.OrdinalIgnoreCase);
+        Assert.Throws<ArgumentException>(
+            () => SecretNames.For("tenant-a", ConnectorSettingsKind.Connector, [declaration.Label], "apiKey"));
+    }
+
+    [Fact]
     public void Its_names_come_from_the_hub_vocabulary()
     {
         var declaration = new AvalaraDeclaration();

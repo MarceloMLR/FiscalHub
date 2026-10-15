@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
@@ -14,28 +14,21 @@ import { IntegrationsPage } from './features/integrations/IntegrationsPage';
 import { ConnectorsPage } from './features/connectors/ConnectorsPage';
 import { UsersPage } from './features/users/UsersPage';
 import { ReservedModulePage } from './features/modules/ReservedModulePage';
-import {
-  DEFAULT_MODULES,
-  entryView,
-  isModuleView,
-  visibleModuleViews,
-  type ModuleView,
-} from './features/modules/modules';
+import { navigationGroups, shownItem, type ModuleView } from './features/modules/modules';
 import { LoginPage } from './features/auth/LoginPage';
 import { useAuth } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
 import { environmentBadge } from './features/environment';
 import { useThemeMode } from './theme/ThemeModeProvider';
 
-type View = ModuleView | 'settings' | 'users';
-
-const titles: Record<View, { title: string; subtitle: string }> = {
-  documents: { title: 'Fiscal', subtitle: 'Notas fiscais integradas e seus status' },
-  accounting: { title: 'Contábil', subtitle: 'Módulo reservado' },
-  inventory: { title: 'Inventário', subtitle: 'Módulo reservado' },
-  integrations: { title: 'Agendamento', subtitle: 'Dispare agora ou agende, e acompanhe as execuções' },
-  settings: { title: 'Configurações', subtitle: 'Conector, adapters e ambiente deste tenant' },
-  users: { title: 'Usuários', subtitle: 'Quem acessa este tenant e o cadastro do cliente' },
+// A tela que cada item do eixo das integrações abre, pela `view` que o **item declara** (design D10). Não há cadeia de
+// ternários por nome de tela nem tabela de títulos separada: o título e o subtítulo vêm do próprio item, e o item e a
+// tela não têm como se desalinhar.
+const MODULE_SCREENS: Record<ModuleView, ReactNode> = {
+  documents: <GroupsPage />,
+  accounting: <ReservedModulePage label="Contábil" />,
+  inventory: <ReservedModulePage label="Inventário" />,
+  integrations: <IntegrationsPage />,
 };
 
 const moduleIcons: Record<ModuleView, ReactNode> = {
@@ -45,17 +38,53 @@ const moduleIcons: Record<ModuleView, ReactNode> = {
   integrations: <EventOutlinedIcon sx={{ fontSize: 16 }} />,
 };
 
+type AdminView = 'settings' | 'users';
+
+// O bloco "Administração" fica **fora do eixo** (design D12): Configurações e Usuários não são de conector nenhum — são
+// do tenant, e só para Admin. Continua num bloco próprio, abaixo dos grupos de conector, como antes.
+const ADMIN_VIEWS: {
+  view: AdminView;
+  label: string;
+  title: string;
+  subtitle: string;
+  icon: ReactNode;
+  screen: ReactNode;
+}[] = [
+  {
+    view: 'settings',
+    label: 'Configurações',
+    title: 'Configurações',
+    subtitle: 'Conector, adapters e ambiente deste tenant',
+    icon: <SettingsOutlinedIcon sx={{ fontSize: 16 }} />,
+    screen: <ConnectorsPage />,
+  },
+  {
+    view: 'users',
+    label: 'Usuários',
+    title: 'Usuários',
+    subtitle: 'Quem acessa este tenant e o cadastro do cliente',
+    icon: <GroupOutlinedIcon sx={{ fontSize: 16 }} />,
+    screen: <UsersPage />,
+  },
+];
+
+// O que está selecionado: um item do eixo das integrações (pela chave dele, o par conector/módulo) ou uma tela do bloco
+// Administração. A chave nula é a primeira entrada, antes de qualquer clique: cai na tela de entrada.
+type Selection = { kind: 'module'; key: string | null } | { kind: 'admin'; view: AdminView };
+
+function Loading() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
+      Carregando…
+    </div>
+  );
+}
+
 // Porteiro: enquanto restaura a sessão, mostra loading; sem usuário, o login; com usuário, o painel.
 export default function App() {
   const { user, ready } = useAuth();
 
-  if (!ready) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
-        Carregando…
-      </div>
-    );
-  }
+  if (!ready) return <Loading />;
 
   return user ? <Dashboard /> : <LoginPage />;
 }
@@ -63,24 +92,10 @@ export default function App() {
 function Dashboard() {
   const { user, logout } = useAuth();
   const { mode, toggle } = useThemeMode();
-  const { data: info } = useInfo();
-  const [view, setView] = useState<View>('documents');
+  const { data: info, isLoading: infoLoading } = useInfo();
+  const [selection, setSelection] = useState<Selection>({ kind: 'module', key: null });
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  const isAdmin = user?.role === 'Admin';
-  // O ambiente da instância, como o /info o diz; sem ele, o selo não afirma nenhum (D6).
-  const badge = environmentBadge(info?.environment);
-  // O selo mostra o estado, e não só o ligado: aparece quando o adapter de entrada varre, verde ligado e vermelho
-  // desligado, e some para adapter que não varre. Enquanto o /info não chega (ou se falhou), não afirma nada.
-  const scans = info?.inboundScans === true;
-  const automatic = info?.automaticIntegration === true;
-  const initials = (user?.name ?? '?').trim().charAt(0).toUpperCase();
-  // Os sub-blocos de "Integrações" pelos módulos do tenant. Enquanto o /info não chega, o que havia antes: só o Fiscal.
-  const modules = info?.modules ?? DEFAULT_MODULES;
-  const moduleViews = visibleModuleViews(modules);
-  // Um módulo que o tenant não tem (a tela de entrada, ou um que o Admin acabou de desmarcar) cai na tela de entrada.
-  const shown: View = isModuleView(view) && !moduleViews.some((m) => m.view === view) ? entryView(modules) : view;
 
   // Fecha o menu do usuário ao clicar fora.
   useEffect(() => {
@@ -92,7 +107,34 @@ function Dashboard() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [menuOpen]);
 
-  const current = titles[shown];
+  const isAdmin = user?.role === 'Admin';
+  // O ambiente da instância, como o /info o diz; sem ele, o selo não afirma nenhum (D6).
+  const badge = environmentBadge(info?.environment);
+  // O selo mostra o estado, e não só o ligado: aparece quando o adapter de entrada varre, verde ligado e vermelho
+  // desligado, e some para adapter que não varre. Enquanto o /info não chega (ou se falhou), não afirma nada.
+  const scans = info?.inboundScans === true;
+  const automatic = info?.automaticIntegration === true;
+  const initials = (user?.name ?? '?').trim().charAt(0).toUpperCase();
+  // O eixo da barra lateral é o conector: um grupo por conector do tenant, com os módulos ligados nele e o Agendamento
+  // de quem agenda. Sem conector que produza item, o grupo que nomeia a ausência, com o Fiscal e o Agendamento: o mesmo
+  // conjunto de antes desta mudança.
+  //
+  // Enquanto o /info **não respondeu**, o `undefined` diz "ainda não se sabe", e a barra lateral não afirma nada sobre
+  // a configuração do cliente — nem um conector, nem a ausência dele. Uma **falha** do /info, porém, chega aqui como
+  // resposta vazia e volta a nomear a ausência: a aplicação não trata falha do /info em lugar nenhum, e isso é maior
+  // que a barra lateral (anotado nos Próximos passos do `docs/STATUS.md`).
+  const groups = navigationGroups(infoLoading ? undefined : (info?.connectors ?? []));
+
+  // Sem árvore ainda não há item, nem título, nem tela para abrir: a tela espera a resposta, com o mesmo "Carregando…"
+  // do porteiro acima, em vez de adivinhar.
+  if (groups.length === 0) return <Loading />;
+
+  // O bloco Administração é só do Admin (D12): um Viewer nunca o seleciona, e o resto é o eixo das integrações.
+  const admin = isAdmin && selection.kind === 'admin' ? ADMIN_VIEWS.find((a) => a.view === selection.view) : undefined;
+  // O item selecionado que deixa de existir — o módulo que o Admin acabou de desligar, o conector que saiu — cai na
+  // tela de entrada, que é o primeiro item do primeiro grupo (D11).
+  const item = shownItem(groups, selection.kind === 'module' ? selection.key : null);
+  const current = admin ?? item;
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--page)' }}>
@@ -144,32 +186,38 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Navegação */}
+        {/* Navegação: um grupo por conector, com os módulos dele abaixo. Dois níveis, e nunca três — a integração é
+            coluna e filtro dentro da página do módulo, e não item de menu (ADR-0039 §1). */}
         <nav style={{ padding: '10px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <NavSection>Integrações</NavSection>
-          {moduleViews.map((m) => (
-            <NavItem key={m.view} active={shown === m.view} icon={moduleIcons[m.view]} onClick={() => setView(m.view)}>
-              {m.label}
-            </NavItem>
+          {groups.map((group, index) => (
+            <Fragment key={group.key}>
+              <NavSection style={index === 0 ? undefined : { paddingTop: 14 }}>{group.label}</NavSection>
+              {group.items.map((navItem) => (
+                <NavItem
+                  key={navItem.key}
+                  active={!admin && item.key === navItem.key}
+                  icon={moduleIcons[navItem.view]}
+                  onClick={() => setSelection({ kind: 'module', key: navItem.key })}
+                >
+                  {navItem.label}
+                </NavItem>
+              ))}
+            </Fragment>
           ))}
 
           {isAdmin && (
             <>
               <NavSection style={{ paddingTop: 14 }}>Administração</NavSection>
-              <NavItem
-                active={shown === 'settings'}
-                icon={<SettingsOutlinedIcon sx={{ fontSize: 16 }} />}
-                onClick={() => setView('settings')}
-              >
-                Configurações
-              </NavItem>
-              <NavItem
-                active={shown === 'users'}
-                icon={<GroupOutlinedIcon sx={{ fontSize: 16 }} />}
-                onClick={() => setView('users')}
-              >
-                Usuários
-              </NavItem>
+              {ADMIN_VIEWS.map((a) => (
+                <NavItem
+                  key={a.view}
+                  active={admin?.view === a.view}
+                  icon={a.icon}
+                  onClick={() => setSelection({ kind: 'admin', view: a.view })}
+                >
+                  {a.label}
+                </NavItem>
+              ))}
             </>
           )}
         </nav>
@@ -339,19 +387,7 @@ function Dashboard() {
         {/* Conteúdo — área rolável. A topbar fica fixa acima; Documentos preenche a altura
             (autoPageSize ajusta as linhas), as demais telas rolam aqui se passarem da altura. */}
         <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {shown === 'integrations' ? (
-            <IntegrationsPage />
-          ) : shown === 'accounting' ? (
-            <ReservedModulePage label="Contábil" />
-          ) : shown === 'inventory' ? (
-            <ReservedModulePage label="Inventário" />
-          ) : shown === 'settings' && isAdmin ? (
-            <ConnectorsPage />
-          ) : shown === 'users' && isAdmin ? (
-            <UsersPage />
-          ) : (
-            <GroupsPage />
-          )}
+          {admin ? admin.screen : MODULE_SCREENS[item.view]}
         </div>
       </div>
     </div>
