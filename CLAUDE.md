@@ -139,7 +139,11 @@ Docs de referência:
 - `d365/05-achados-de-metadata-e-ciclo-de-deploy.md`: as armadilhas de metadata e o ciclo build → deploy → sync;
 - `d365/06-receita-criar-entidade-na-mao.md`: criar ou alterar uma entidade editando o XML;
 - `d365/07-como-decidir-quais-entidades-criar.md`: o método para decidir o que criar antes do XML;
-- `d365/glossario-x++-fno.md`.
+- `d365/glossario-x++-fno.md`;
+- `d365/tools/README.md`: as ferramentas (conferir antes do build, validar, Postman, log de deploy, radar de versão).
+
+Para trabalho em `d365/`, use a skill **`d365-fno`** (`.claude/skills/d365-fno/SKILL.md`): regras do pacote e os fluxos de
+criar entidade, validar, diagnosticar deploy e radar de versões.
 
 ---
 

@@ -20,7 +20,11 @@ secrets.json
 *.p12
 
 # ---- Ferramentas de agente ----
-.claude/
+.claude/*
+# skills do projeto ficam versionadas (as de outras ferramentas, nao)
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/d365-fno/
 .bmad*/
 _bmad*/
 

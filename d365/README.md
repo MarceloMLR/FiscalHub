@@ -83,6 +83,10 @@ são a referência por trás dele.
 documentos numerados próprios — `d365/` é a do Dynamics 365 F&O. Um conector novo segue a mesma
 forma, em vez de misturar documentos em uma pasta comum.
 
+**Agente: a skill `d365-fno`.** O `.claude/skills/d365-fno/SKILL.md` junta as regras e os fluxos deste diretório para o
+Claude (Claude Code no repositório e Cowork): criar ou alterar entidade, validar depois de publicar, diagnosticar deploy e
+acompanhar as versões do D365. Ela usa as ferramentas de `tools/`. Um conector novo ganha a sua skill no mesmo molde.
+
 | Doc | Assunto |
 |---|---|
 | [`00-setup-e-conexao-do-visual-studio.md`](00-setup-e-conexao-do-visual-studio.md) | Preparar o VS e conectar ao ambiente UDE |
@@ -94,6 +98,7 @@ forma, em vez de misturar documentos em uma pasta comum.
 | [`06-receita-criar-entidade-na-mao.md`](06-receita-criar-entidade-na-mao.md) | **Receita passo a passo** para criar ou alterar uma entidade editando o XML, com o VS fechado |
 | [`07-como-decidir-quais-entidades-criar.md`](07-como-decidir-quais-entidades-criar.md) | **Como decidir o que criar** antes de escrever XML: ler o conector antigo, achar o caminho padrão, medir com dado real |
 | [`glossario-x++-fno.md`](glossario-x++-fno.md) | Termos de X++ e F&O |
+| [`tools/README.md`](tools/README.md) | **Ferramentas:** conferir o pacote antes do build, validar no ambiente, rodar o Postman, ler o log de deploy e o radar de versão |
 
 `model/` guarda a cópia versionada do metadado (AOT) das entidades, privilégios e role.
 `postman/` tem a collection de teste do OData: smoke test das 14 fiscais, testes de regressão e as pastas do contábil e do inventário, com publicação e aceite estrutural das 3 de cada.

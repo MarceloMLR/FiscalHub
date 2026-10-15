@@ -116,6 +116,11 @@ aparece fechado: `<DataSources />`. Para aninhar, troque por `<DataSources>...</
 `FiscalDocumentLine_BR`, o valor e `FiscalDocumentLine_BR` - mesmo que o campo na tabela se chame
 `FiscalDocumentLine`. Errar aqui da `Failed to locate table relation` no build.
 
+Mais exato (verificado em 2026-10-15 contra o metadado da 10.0.47): o valor e o `RelatedTableRole` da relacao,
+que por padrao e o nome da tabela relacionada. Quando a Microsoft deu outro papel, vale o papel:
+`LocationRelatedTableRole` (de `LogisticsPostalAddress` para `LogisticsLocation`) e `ComplementFiscalDocument` (nota
+complementar). O `node d365/tools/conferir-pacote.js` confere isso antes do build.
+
 **`<JoinMode>` ausente significa InnerJoin, e anula o OuterJoin do pai.** Toda fonte aninhada
 precisa do elemento explicito, inclusive as de segundo nivel.
 
@@ -171,6 +176,9 @@ o OData responde 401 para o usuario da integracao.
 
 ## 7. Build, deploy e sync
 
+Antes do build, `node d365/tools/conferir-pacote.js FSNomeDaEntidade` confere os tres lugares, o privilegio, a role, as
+regras da secao 4 e se cada tabela e campo existe na versao base. Zero erro antes de abrir o Visual Studio.
+
 Nessa ordem, no Visual Studio, com o host do FiscalHub **parado** se ele estiver rodando (ele
 trava a pasta `bin`).
 
@@ -178,6 +186,9 @@ Alterar so o XML de uma entidade existente costuma pedir apenas build e sync. En
 o ciclo completo.
 
 ## 8. Conferir no ambiente - o passo que pega o que o build nao pega
+
+Atalho: `node d365/tools/validar-ambiente.js FSNomeDaEntidade --empresa brmf` faz as tres conferencias abaixo (campos no
+`$select`, contagem, valor de verdade) e ainda a chave unica. Os comandos manuais seguem valendo.
 
 Nenhum dos achados dos documentos 04 e 05 gerou erro de compilacao. A conferencia e no OData.
 
