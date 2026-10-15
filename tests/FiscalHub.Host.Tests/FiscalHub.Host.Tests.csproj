@@ -1,9 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Teste de endpoint por papel (change connector-navigation-and-admin-json, design D8). Sobe um TestServer mínimo com a
-    mesma autenticação do host e as mesmas extensões de mapeamento — sem SQL, sem Blob e sem Service Bus. Um teste que
-    precisa de infra acaba pulado, e um teste pulado não prova nada. TargetFramework etc. vêm do Directory.Build.props.
+    Duas finalidades, e a mesma regra para as duas: nenhuma infraestrutura.
+
+    1) Teste de endpoint por papel (change connector-navigation-and-admin-json, design D8). Sobe um TestServer mínimo
+       com a mesma autenticação do host e as mesmas extensões de mapeamento — um pedaço do host, de propósito.
+    2) Teste da composição do host inteiro (change adapter-key-guard-proof): o WebApplicationFactory invoca o entry
+       point de verdade do Program.cs, para provar que a trava da chave do conector é CHAMADA na subida. Também não
+       precisa de infra: a trava corre antes da primeira conexão, e o teste aponta tudo para portas mortas.
+
+    Sem SQL, sem Blob e sem Service Bus, nos dois casos. Um teste que precisa de infra acaba pulado, e um teste pulado
+    não prova nada. TargetFramework etc. vêm do Directory.Build.props.
   -->
   <PropertyGroup>
     <IsPackable>false</IsPackable>
@@ -15,6 +22,8 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <!-- A casa do WebApplicationFactory, que invoca o entry point de verdade do Host. Mesma versão do framework. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

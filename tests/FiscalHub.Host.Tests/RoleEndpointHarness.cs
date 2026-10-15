@@ -20,7 +20,11 @@ namespace FiscalHub.Host.Tests;
 /// registro de verdade: apagar um <c>RequireRole</c> da extensão quebra o teste; parar de chamar a extensão no
 /// <c>Program.cs</c> quebra o build, porque as rotas somem.
 /// <para>O que ele não cobre é a composição inteira do host (ordem de middleware, DI real), que continua sendo provada
-/// pelo ponta a ponta e pela prova manual.</para>
+/// pelo ponta a ponta e pela prova manual — com <b>uma</b> exceção, desde a change <c>adapter-key-guard-proof</c>: a
+/// chamada da trava da chave do conector tem teste próprio, o <see cref="HostStartupGuardTests"/>, que compõe o host
+/// pelo caminho real da subida. É uma linha do <c>Program.cs</c>, e não a composição inteira. São dois harnesses com
+/// duas finalidades, e nenhum substitui o outro: este sobe pedaços de propósito, e é rápido porque não precisa de
+/// configuração nenhuma; aquele sobe tudo, e paga por isso em chaves de configuração.</para>
 /// </summary>
 internal sealed class RoleEndpointHarness : IAsyncDisposable
 {

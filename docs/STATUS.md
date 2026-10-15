@@ -18,7 +18,7 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 
 ## Onde estamos
 
-**25 projetos (23 fora de `tools/`) · 28 specs · 39 ADRs · 17 changes arquivadas.**
+**25 projetos (23 fora de `tools/`) · 28 specs · 39 ADRs · 19 changes arquivadas.**
 
 > O projeto novo é o `tests/FiscalHub.Host.Tests`, o harness de teste de endpoint por papel da change
 > `connector-navigation-and-admin-json`, **arquivada em 2026-10-15** como
@@ -31,6 +31,15 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 > `module-navigation` por delta (um requisito novo e um modificado, sem capacidade nova), e **não gerou ADR** (a
 > conclusão está na tarefa 4.2 do archive: a casca não virou contrato para outras consultas, o `ApiError` é mecanismo
 > do cliente de API e o estado nomeado da sessão é consequência de tela do ADR-0039 §5, que já existe).
+>
+> **O número pulou de 17 para 19, e são duas changes, não uma.** A 18ª é a `dashboard-component-test-stack`,
+> `2026-10-15-dashboard-component-test-stack`: ela foi arquivada em 2026-10-15 e a **contagem daqui ficou parada** —
+> a sessão dela está escrita no fim do arquivo, o diretório existe, e o que faltou foi só este número. Fica anotado
+> para que a conferência seguinte não procure uma change fantasma. A 19ª é a `adapter-key-guard-proof`,
+> `2026-10-15-adapter-key-guard-proof`. Os outros três números **não se mexem**: nenhum projeto novo (o teste entra no
+> `FiscalHub.Host.Tests`, que já existia), nenhum ADR (nenhuma fronteira se move — a decisão é de técnica de teste, e
+> mora no `design.md` e no cabeçalho do arquivo de teste), e as **specs continuam 28** porque o requisito novo entra em
+> `platform-account-connectors`, que já existia, e não cria capacidade.
 
 **Núcleo:** domínio `GoodsInvoice` (NF-e 55) com a Reforma (IBS/CBS/IS), envelope fino, portas, esteira
 `ProcessAsync` (idempotência → busca → validação → envio → registro), `NfeXmlParser`,
@@ -223,11 +232,37 @@ Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Docu
   `MaxDeliveryCountExceeded`; a segunda tentativa, na mesma nota, funcionou. O pacote de metadados vai para o
   cliente com essa entidade — a mesma do commit acima, sem change própria. E o motivo genérico da dead-letter
   escondeu que a causa foi o ERP: é caso vivo para a change do defeito da dead-letter.
-- **A chamada do `AdapterDeclarationGuard` no `Program.cs` não tem teste** (P1 da change
-  `dashboard-component-test-stack`, 2026-10-15). A **função** tem: `tests/FiscalHub.Host.Tests/AdapterDeclarationGuardTests.cs`,
-  4 casos. Quem não tem é a **chamada** dela no host — a mesma classe de limite que aquela change fechou no dashboard,
-  só que do lado .NET, e por isso **a stack nova não a resolve**: jsdom não alcança `src/`, e a solução aqui é harness
-  de host. Fica aqui, e não na change arquivada, porque é dívida de .NET e alguém vai procurá-la do lado de cá.
+- ~~**A chamada do `AdapterDeclarationGuard` no `Program.cs` não tem teste**~~ (P1 da change
+  `dashboard-component-test-stack`, 2026-10-15). **Fechada em 2026-10-15** pela change `adapter-key-guard-proof`:
+  `tests/FiscalHub.Host.Tests/HostStartupGuardTests.cs` compõe o host pelo caminho real da subida
+  (`WebApplicationFactory<Program>`) e afirma a recusa da trava por **tipo e mensagem**. Provado por inversão: apagada
+  a chamada do `Program.cs`, o teste ficou vermelho com `SqlException` ("o computador remoto recusou a conexão"), e a
+  linha foi restaurada com conferência de hash. **Com isso ficou falso o limite anotado na tarefa 4.0 da change
+  arquivada `connector-navigation-and-admin-json`** ("o teste cobre a guarda, e não a chamada dela no `Program.cs`",
+  `tasks.md:182`): change arquivada não se reescreve, e o registro é este. O comentário do
+  `AdapterDeclarationGuard.cs` não precisou de correção — ele descreve a regra, e nunca afirmou nada sobre teste.
+  **Fica como pendência derivada:** a conversa estrutural do D7 (fazer a
+  conferência acontecer como consequência de registrar as declarações, e não como linha separada), com **gatilho
+  explícito** — quando nascer um **segundo caminho de composição** (outro host, um worker que também reúna
+  declarações), porque aí o teste de um caminho deixa de cobrir o outro. O custo estimado está no `design.md` da
+  change: tocar o ponto de registro de todo adapter de saída, trocar um `AddSingleton<IAdapterDeclaration, …>`
+  transparente por um método próprio, e conferir **incrementalmente** — o que muda a mensagem de erro, que hoje nomeia
+  *todas* as plataformas que declaram o nome repetido.
+- **Como compor o host inteiro num teste** (2026-10-15, da `adapter-key-guard-proof`). Não virou ADR — nenhuma
+  fronteira se move —, e a técnica está no cabeçalho de `tests/FiscalHub.Host.Tests/HostStartupGuardTests.cs`, que é
+  onde a próxima fatia vai olhar: `WebApplicationFactory<Program>` invoca o entry point de verdade; a configuração
+  entra por **variável de ambiente**, porque as leituras do `Program.cs` são ansiosas e o `ConfigureAppConfiguration`
+  chega depois delas (**medido**; sobre o `UseSetting`, ver a pendência abaixo); e **toda** a infraestrutura aponta
+  para portas mortas, para que o caminho vermelho não escreva no banco de dev de ninguém.
+- **Trocar a variável de ambiente pelo `UseSetting` no `HostStartupGuardTests`** (2026-10-15, da
+  `adapter-key-guard-proof`). **Não é desconhecimento: é decisão.** Medido nesta execução com uma sonda — ao contrário
+  do que o spike supunha, o `UseSetting` **chega a tempo** (ele entra na configuração do builder, antes das leituras
+  ansiosas), e por não ser do processo ele **dispensaria o isolamento**: a `HostStartupCollection` com
+  `DisableParallelization = true` e o salva-e-restaura de cada chave no `Dispose` deixariam de ser necessários.
+  **Não foi adotado porque o ganho não paga reprovar tudo** — o caminho por variável de ambiente está provado de ponta
+  a ponta (inclusive na inversão), é a mesma porta por onde a configuração entra em produção, e a economia é uma
+  coleção sem paralelismo com **um** teste dentro. Fica escrito para que quem mexer nisso depois saiba que o caminho
+  mais simples foi visto e medido, e não ignorado.
 - **Duas pendências menores do dashboard, da mesma change** (P2 e P3, detalhadas no `tasks.md` dela): a linha do
   `main.tsx` que liga o `App` ao `AuthProvider` continua sem teste (cobri-la exigiria montar o `main.tsx` inteiro ou
   e2e, os dois fora de escopo); e as demais telas — `GroupsPage`, `ConnectorsPage`, `UsersPage`, `IntegrationsPage`,
@@ -1601,3 +1636,84 @@ de tamanho de chunk, anterior a esta change); `dotnet build --artifacts-path obj
 `dotnet test --artifacts-path obj/guard` com **1377 aprovados, 0 falhas e 42 ignorados** em 11 assemblies — a fatia
 não toca `src/`, mas a guarda do repositório fecha com os quatro. `openspec validate --all --strict`: **28 de 28**
 (eram 29 antes do archive, com a change contada à parte; agora são as 28 specs, a change já arquivada).
+
+## Sessão 2026-10-15 — A chamada da trava da chave do conector (change `adapter-key-guard-proof`)
+
+**Revisada e arquivada em 2026-10-15**, em `openspec/changes/archive/2026-10-15-adapter-key-guard-proof`. Os 4 grupos
+de tarefas estão fechados com evidência no `tasks.md` da change, e o delta foi sincronizado para a spec publicada
+`platform-account-connectors` (um requisito **adicionado**, nada modificado nem removido). A change fecha o **P1** da
+`dashboard-component-test-stack`, que era .NET e por isso não se resolvia com jsdom.
+
+**O limite que ela fecha, e por que ele importa.** A trava da chave do conector
+(`AdapterDeclarationGuard.EnsureDistinctAdapterDeclarations`) tinha teste da **função** — 4 casos — e nenhum da
+**chamada**, que é uma linha do `Program.cs` logo depois do `builder.Build()`. Apagar aquela linha não quebrava teste
+nenhum: a trava deixava de existir, em silêncio. É o **mesmo padrão dos dois defeitos de 2026-10-15 no dashboard** — a
+função que decide está certa e testada, e quem a chama não tem teste.
+
+**Nenhuma linha de produção mudou.** `git diff src/` vazio ao fim, e o `Program.cs` com o **mesmo hash** de antes
+(`5a8ff799…`) depois da inversão. Era requisito, e não acaso: é o que separa esta fatia da opção estrutural (D7), que
+foi avaliada e **recusada** — ela se justificava pela hipótese de que a chamada não fosse testável, e o spike mostrou
+que é, por menos de um segundo e zero linha de produção.
+
+**O que entrou:** o pacote `Microsoft.AspNetCore.Mvc.Testing` 10.0.0, **só** no `FiscalHub.Host.Tests.csproj` (restore
+em 3,68 s, sem aviso de auditoria — o repositório trata aviso como erro e já carrega um pin por causa disso), e um
+arquivo de teste, `tests/FiscalHub.Host.Tests/HostStartupGuardTests.cs`, com **um** caso. A suíte do host foi de **23
+para 24**.
+
+**As duas decisões de desenho que o teste carrega, e que não são detalhe:**
+
+- **Portas mortas, de propósito.** Toda a infraestrutura — SQL, Blob, Service Bus e o cofre — aponta para a porta 9 do
+  loopback, onde não há nada escutando. O caminho **verde** nunca tocaria infra (a trava recusa antes da primeira
+  conexão), mas o **vermelho** tocaria: medido no spike, com a chamada apagada e os containers de dev de pé, o teste
+  subia o host inteiro e **escrevia no banco de dev** (migrate + seed). Um teste cujo modo de falha mexe na base de
+  alguém é pior do que o buraco que ele fecha — e o modo de falha é justamente o que acontece na máquina de quem está
+  mexendo no `Program.cs`.
+- **Asserção por tipo E mensagem**, nunca "lançou alguma coisa". E isso foi **provado, não argumentado**: na mesma
+  execução da inversão, uma sonda com `Assert.ThrowsAny<Exception>` **passou** (20 s) enquanto a asserção estrita
+  falhava. A versão frouxa ficaria verde exatamente no cenário que o teste existe para pegar.
+
+**A prova por inversão.** Apagada a chamada do `Program.cs`, o teste ficou vermelho com
+`Microsoft.Data.SqlClient.SqlException` — *"o computador remoto recusou a conexão de rede"* —, com a pilha parando em
+`Program.cs:214` (`MigrateProcessingSchemaAsync`), ou seja: **conexão recusada, nada escrito**. Restaurada a linha e
+conferido o hash, a suíte voltou aos 24 verdes. O verde custa **635–728 ms**, e o tempo é também a evidência de que
+ele não toca infraestrutura: um teste que tentasse SQL custaria dezenas de segundos — como custa o vermelho, ~21 s.
+
+**Duas divergências do spike, medidas nesta execução** (vale o número novo):
+
+- **O "vermelho de configuração" do grupo 2 não aconteceu.** Sem variável de ambiente nenhuma, o teste já ficava
+  **verde**: o content root resolve para o projeto do Host, e o `appsettings.Development.json` dele supre o cofre. Isso
+  não desfaz a decisão — **reforça-a**: sem as portas mortas, o teste apontaria para a infra de dev de verdade, que é
+  exatamente o perigo do caminho vermelho.
+- **`UseSetting` chega a tempo; `ConfigureAppConfiguration` não.** O spike concluíra que nenhum dos dois chegava. Só a
+  primeira metade se confirmou, medida com uma sonda (um `SecretStore:VaultUri` inválido por cada mecanismo): por
+  `ConfigureAppConfiguration` o host ignorou a sonda e chegou na trava; por `UseSetting` morreu na linha 69 com o valor
+  dela. A decisão **fica** na variável de ambiente, como aprovado — é a porta de produção —, mas o `UseSetting`
+  dispensaria o isolamento de processo (a coleção sem paralelismo). **Decisão do Marcelo no archive: fica como está**,
+  porque o caminho por variável de ambiente está provado e a economia não paga reprovar tudo com um teste só na
+  coleção. Está em "Riscos e pendências de higiene", com a razão, para não ser lido depois como desconhecimento.
+
+**Na spec**, um delta: o requisito **adicionado** *"A chave do conector é única entre as declarações do deploy"*, em
+`platform-account-connectors`. **Não é backfill proibido**, e a razão está escrita no `proposal.md` para quem ler
+depois não achar que a regra do CLAUDE.md §8 foi ignorada por descuido: a trava nasceu hoje, numa change cujo delta a
+omitiu; o requisito é de **comportamento** (o host se recusa a subir, dizendo qual adapter está repetido), e não de
+processo; e é o único que fecha o segundo caminho de morte — apagar trava **e** teste na mesma fatia, que hoje não
+violaria nada escrito. **O requisito descreve o sistema, e não a suíte:** decisão do Marcelo, não há "MUST ter teste"
+nele.
+
+**Sem ADR** — nenhuma fronteira se move. A técnica que a próxima fatia vai querer ("como compor o host inteiro num
+teste") está no **cabeçalho do arquivo de teste**, que é onde se procura, e numa linha de "Riscos e pendências de
+higiene".
+
+**A guarda, no fechamento:** `dotnet build --artifacts-path obj/guard` **0 avisos, 0 erros** (53,95 s);
+`dotnet test --artifacts-path obj/guard` **1378 aprovados, 0 falhas, 42 ignorados** em 11 assemblies (eram 1377);
+`npm test` **18 arquivos / 177 testes**, 0 falhas; `npm run build` verde, bundle no **mesmo hash**
+(`assets/index-Dy-tPrZW.js`, 997.17 kB — o único aviso é o de tamanho de chunk, anterior a esta change).
+`openspec validate --all --strict`: **29 de 29** (as 28 specs + a change, ainda não arquivada).
+
+**A guarda repetida no archive, depois do sync** (2026-10-15): `dotnet build --artifacts-path obj/guard`
+**0 avisos, 0 erros** (30,57 s); `dotnet test --artifacts-path obj/guard` **1378 aprovados, 0 falhas, 42 ignorados**
+em 11 assemblies, com `FiscalHub.Host.Tests` em **24**; `npm test` **18 arquivos / 177 testes**, 0 falhas (51,33 s);
+`npm run build` verde, bundle no mesmo hash (`assets/index-Dy-tPrZW.js`, 997.17 kB). `openspec validate --all
+--strict`: **28 de 28** — agora são só as specs, porque a change saiu de `changes/` para `changes/archive/`. O número
+caiu de 29 para 28 **por isso**, e não por spec perdida: as specs publicadas continuam 28, uma delas com um requisito
+a mais.
