@@ -10,7 +10,7 @@ import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import { api } from '../../api/client';
 import { FhDataGrid } from '../../components/FhDataGrid';
 import { Modal } from '../../components/Modal';
-import { useAuth } from '../auth/AuthContext';
+import { useAuthUser } from '../auth/AuthContext';
 import type { AdminUser, TenantInfo, UserRole } from '../../types';
 
 type ModalState =
@@ -20,7 +20,8 @@ type ModalState =
   | null;
 
 export function UsersPage() {
-  const { user: me } = useAuth();
+  // Esta tela vive dentro do painel, e lá dentro há usuário.
+  const me = useAuthUser();
   const qc = useQueryClient();
   const [modal, setModal] = useState<ModalState>(null);
 
@@ -68,7 +69,7 @@ export function UsersPage() {
       filterable: false,
       renderCell: (p) => {
         const u = p.row;
-        const isSelf = u.email === me?.email;
+        const isSelf = u.email === me.email;
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: '100%' }}>
             <IconAction title="Editar" onClick={() => setModal({ type: 'edit', user: u })}>
