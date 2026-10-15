@@ -29,6 +29,11 @@ Todas públicas, somente leitura, sem Data Management, no modelo `FiscosysHubInt
 
 O entity set no OData é o nome no plural: `/data/FSFiscalDocumentBRs`.
 
+**Versão.** O pacote (modelo 1.0.0.0) é compilado contra o metadado da **10.0.47** (aplicação 10.0.2527.160, compilador
+7.0.7858). Roda no fiscosysdev, que a Microsoft atualizou sozinha para a **10.0.49** (10.0.2790.46) em 06/10/2026: aceite
+de 2026-10-15 (`04`, §31.1). A Microsoft garante o pacote compilado numa versão nas versões **iguais ou maiores**; num
+ambiente abaixo da 10.0.47 o deploy pode falhar. Antes de instalar num cliente, conferir a versão dele.
+
 Segurança: privilégio de leitura por entidade + a role `FiscosysHubIntegration`
 ("FiscosysHub - integração (somente leitura)"), que precisa ser atribuída ao usuário da app
 registration no F&O.

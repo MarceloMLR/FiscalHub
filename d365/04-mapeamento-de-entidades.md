@@ -1697,7 +1697,8 @@ Todas as pastas verdes, inclusive a da reforma e a nova.
   `StUpDate` (ex.: P000104, start em 05/02/2017 e primeiro movimento em 18/12/2016). O start posterior sobrescreve a
   data. Pela regra do 30.9, o `DT_INI_OP` precisa da data do primeiro start: proposta de uma entidade sobre a
   `ProdTableJour` (diário de produção: start, apontamento e fim, com data e quantidade), que também cobre o caso da
-  P000116. Decisão do Marcelo.
+  P000116. **Decisão do Marcelo (2026-10-15): fica anotada, sem criar agora.** Até lá, o hub usa o menor entre o
+  `StUpDate` e o primeiro movimento da OP.
 - **`Voucher` vazio em 272 movimentos de produção do usmf:** os ainda não lançados (encomendado, reservado) e os lançados
   só fisicamente. O `Voucher` é o financeiro. Diário lança o financeiro junto, então o pareamento do K210/K220 funciona.
 - **Contagem sem diário:** 41 dos 46 movimentos de contagem do usmf não têm `ReferenceId` (contagem fora de diário). O
