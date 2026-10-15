@@ -18,13 +18,19 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 
 ## Onde estamos
 
-**25 projetos (23 fora de `tools/`) · 28 specs · 39 ADRs · 16 changes arquivadas.**
+**25 projetos (23 fora de `tools/`) · 28 specs · 39 ADRs · 17 changes arquivadas.**
 
 > O projeto novo é o `tests/FiscalHub.Host.Tests`, o harness de teste de endpoint por papel da change
 > `connector-navigation-and-admin-json`, **arquivada em 2026-10-15** como
 > `2026-10-15-connector-navigation-and-admin-json` — daí a 16ª change. As **specs continuam 28**: a change toca três
 > specs existentes por delta (`module-navigation`, `platform-account-connectors`, `platform-response-trace`) e não cria
 > capacidade nova. Isso fica escrito para que a conferência seguinte não leia o número parado como esquecimento.
+>
+> A 17ª é a `dashboard-info-failure`, **arquivada em 2026-10-15** como `2026-10-15-dashboard-info-failure`. Os outros
+> três números **não se mexem, e pelo mesmo motivo**: ela é só dashboard — nenhum projeto .NET —, entra em
+> `module-navigation` por delta (um requisito novo e um modificado, sem capacidade nova), e **não gerou ADR** (a
+> conclusão está na tarefa 4.2 do archive: a casca não virou contrato para outras consultas, o `ApiError` é mecanismo
+> do cliente de API e o estado nomeado da sessão é consequência de tela do ADR-0039 §5, que já existe).
 
 **Núcleo:** domínio `GoodsInvoice` (NF-e 55) com a Reforma (IBS/CBS/IS), envelope fino, portas, esteira
 `ProcessAsync` (idempotência → busca → validação → envio → registro), `NfeXmlParser`,
@@ -68,6 +74,15 @@ de papéis vive num lugar só no Host, de onde o `/info` deriva o `canViewRawJso
 O host recusa subir com duas declarações de adapter de mesmo nome. Trocar de usuário sem recarregar a página limpa o
 cache do React Query, para que a tela não decida pela resposta do usuário anterior.
 
+**"Não consegui perguntar" não é uma resposta** (change `dashboard-info-failure`, **arquivada em 2026-10-15**). O
+painel só é desenhado depois que o `/auth/me` e o `/info` responderem; a falha de qualquer um dos dois leva à **mesma**
+tela — "Não foi possível carregar o painel.", com "Tentar de novo" e "Sair", sem topbar e sem barra lateral. Com isso
+somem as duas mentiras que uma indisponibilidade produzia: a barra lateral afirmando que o tenant não tem conector
+(era o `?? []` que traduzia falha para árvore vazia) e a sessão destruída por um 5xx (era o `catch` genérico da
+restauração de sessão). **Só o 401 derruba a sessão**; 5xx, rede e timeout mantêm o token. As duas escolhas são
+funções puras testadas (`shellState` e `sessionFromCheckError`), porque o dashboard não tem stack de teste de
+componente.
+
 **Multi-tenant:** JWT com escopo por tenant, perfil de conector por tenant, segredos por referência ao
 cofre, limite de tenant em todas as consultas. **O ambiente é da instância** (`Connector:Environment`): uma
 instância por (cliente, ambiente). As duas instâncias por cliente ainda não foram provisionadas no Azure.
@@ -77,18 +92,13 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
 1. **Corrigir os defeitos conhecidos D1, D2 e D3.** Cada um vai numa change própria, com o teste antes, e o D1 vai
    primeiro. As specs retroativas `integration-status-poll`, `dead-letter-visibility` e `support-ticket` saíram na
    change `document-implemented-capabilities`. A correção de cada defeito entra nelas por delta.
-2. **O `/info` não tem tratamento de falha, em tela nenhuma.** É anterior à change
-   `connector-navigation-and-admin-json` e maior que a barra lateral: nenhuma tela distingue "o `/info` falhou" de "o
-   `/info` respondeu vazio". Enquanto não tiver, **uma falha do `/info` faz a barra lateral afirmar que não há conector
-   configurado** — e o selo de ambiente e os botões da visão técnica somem, que é o lado seguro. A fatia que corrigir
-   decide o tratamento para as três.
-3. **O Contábil inteiro (ADR-0037, ADR-0038 §1, ADR-0039 §3 e §4).** Hoje é painel reservado (`module-navigation`), e é
+2. **O Contábil inteiro (ADR-0037, ADR-0038 §1, ADR-0039 §3 e §4).** Hoje é painel reservado (`module-navigation`), e é
    outro domínio, com outro modelo, outras portas e outros adapters. Entram o domínio; a esteira de carga em lote, o
    estilo de saída novo do ADR-0038, que é engenharia e não tela; a fila própria por integração; a tela da carga como
    linha; e o erro lido por motivo.
-4. **O Inventário**, que repete a forma do Contábil com outro volume: o Bloco K, com a fila própria que impede o K230
+3. **O Inventário**, que repete a forma do Contábil com outro volume: o Bloco K, com a fila própria que impede o K230
    de ficar preso atrás da carga do inventário (ADR-0037 §4).
-5. **Declarar a URL de token e as URLs base, em vez de digitá-las.** São constantes da plataforma —
+4. **Declarar a URL de token e as URLs base, em vez de digitá-las.** São constantes da plataforma —
    `https://api-gateway.sandbox.avalarabrasil.com.br/oauth/token` e
    `https://api-gateway.avalarabrasil.com.br/oauth/token` —, e a instância sabe o ambiente dela desde a
    `platform-account-and-connectors`. O desenho combinado: o adapter declara por ambiente, e o campo da conta vira
@@ -96,19 +106,19 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
    das integrações quando estiverem fechados. O ganho é segurança, e não conveniência: hoje nada impede colar a URL de
    produção numa instância Sandbox e autenticar contra produção. É change pequena e própria. Ao implementar, as URLs
    dos dois ambientes são declaradas por inteiro: a de produção não se calcula tirando o `.sandbox` da string.
-6. **O wizard de provisionamento (ADR-0039).** Cinco passos, três deles condicionais. É conveniência sobre uma
+5. **O wizard de provisionamento (ADR-0039).** Cinco passos, três deles condicionais. É conveniência sobre uma
    configuração que já funciona pelo painel do conector; vale muito, não bloqueia ninguém. Com a URL de token e as
-   bases declaradas (item 5), ele fica com o que de fato é do cliente novo: a credencial do ERP, a credencial da
+   bases declaradas (item 4), ele fica com o que de fato é do cliente novo: a credencial do ERP, a credencial da
    Avalara, o que ele contratou, o de-para de estabelecimento e o tamanho do lote. Não deve nascer com campos que
    ninguém deveria preencher.
-7. **AvaTax (ADR-0038).** Cálculo e emissão, os estados novos do ciclo de vida, o cancelamento e a carta de correção.
-8. **Marco 2 — CT-e (57) e NFS-e.** O `d365-document-assembly` é só NF-e 55; 57 e SE já aparecem como
+6. **AvaTax (ADR-0038).** Cálculo e emissão, os estados novos do ciclo de vida, o cancelamento e a carta de correção.
+7. **Marco 2 — CT-e (57) e NFS-e.** O `d365-document-assembly` é só NF-e 55; 57 e SE já aparecem como
    filtro em `document-grouping`, `period-discovery` e `d365-change-feed`, mas não têm montagem. É a prova
    de extensibilidade que o ADR-0001 promete.
-9. **Restringir acesso por módulo.** O `module-navigation` registra que hoje é apresentação, e não
+8. **Restringir acesso por módulo.** O `module-navigation` registra que hoje é apresentação, e não
    permissão: "Restringir o acesso por módulo é outra fatia."
-10. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
-    exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
+9. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
+   exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
 
 **Por que o Contábil e o Inventário vêm antes do AvaTax** (decisão do Marcelo, 2026-10-14). É o tipo de ordem que
 alguém reverte por engano, e por isso os motivos ficam escritos:
@@ -1428,3 +1438,68 @@ sandbox real da Avalara (9.5) fechou com o Marcelo digitando o Client Secret na 
   as fatias deles; a tela mostra todas as bases declaradas; o tenant sem conector mostra o Fiscal.
 - **O `Purpose` do `module-navigation`** ainda fala dos módulos "marcados pelo Admin em Configurações". O delta não o
   troca: ajusta-se à mão no archive.
+
+---
+
+## Sessão 2026-10-15 — A falha do `/info` e o portão de sessão (change `dashboard-info-failure`)
+
+**Arquivada em 2026-10-15** como `2026-10-15-dashboard-info-failure`, com as 23 tarefas fechadas. As **duas
+verificações na tela** (3.4 e 6.7) foram feitas pelo Marcelo, com o host do build atual na 5200 e a API derrubada: a
+tela de falha aparece com o token **intacto** no `localStorage`, "Tentar de novo" passa por `Carregando…` e volta ao
+painel **sem pedir senha**, "Sair" encerra a sessão ali mesmo, e o token adulterado (401) continua caindo no login. Com
+só o `/info` em 503, não há `<nav>` nenhum no documento e o texto "Sem conector" não aparece em lugar algum — que era
+exatamente a afirmação falsa que a fatia veio apagar. Daí o item dos "Próximos passos" que falava do `/info` sem
+tratamento de falha ter saído.
+
+**A decisão de produto (Marcelo, 2026-10-15): sem resposta, o dashboard não desenha o painel.** O `/info` diz o
+ambiente da instância, o que o tenant tem e o que o usuário pode ver; sem ele, toda afordância da tela é chute. Em vez
+de degradar por pedaço, a casca mostra uma tela de falha, com "Tentar de novo" e "Sair" — **sem topbar e sem barra
+lateral** (a resposta da Q1: a saída existe, porque `logout` é local e funciona com o servidor fora, mas meia topbar
+seria uma terceira forma de casca para manter).
+
+**O defeito que ela apaga:** o `?? []` do `App.tsx` traduzia falha para árvore vazia, e árvore vazia **nomeia a
+ausência** — a barra lateral afirmava ao cliente, por causa de um 5xx, que ele não tem conector configurado.
+
+**O achado da prova manual, e por que ele entrou na mesma fatia.** Com a API fora, o dashboard não mostrava a tela de
+falha: mostrava o **login**, e o token sumia do `localStorage`. A causa era o `catch` genérico da restauração de sessão
+no `AuthContext` — 401, 500, rede e timeout caíam todos nele, e todos apagavam o token. É o mesmo defeito desta change
+uma camada acima (tratar "não consegui perguntar" como resposta), e sem consertá-lo a tela de falha seria quase
+inalcançável: numa queda real o usuário era deslogado no portão **antes** de o `/info` chegar a falhar. Agora **só o
+401 derruba a sessão**; 5xx, rede e timeout **mantêm o token** e levam à mesma tela de falha.
+
+**O que mudou de forma:**
+
+- **Duas funções puras, com nome e teste**, porque o dashboard não tem stack de teste de componente e a linha que
+  escolhe ficava sem teste: `shellState` (carregando / painel / falha) e `sessionFromCheckError` (401 → anônimo; o
+  resto → falhou). Os componentes só renderizam o que elas dizem.
+- **O booleano `ready` saiu.** O portão tem quatro situações — checando, autenticado, anônimo e falhou —, e duas delas
+  eram justamente as que o defeito confundia. Virou um estado com nome. Consequência: dentro do painel não existe mais
+  usuário nulo.
+- **O erro do cliente de API carrega o status.** O `getJson` lançava `Error` comum, com o status só dentro da string da
+  mensagem; agora lança `ApiError`, que é um `Error` com a **mesma** mensagem — nenhuma outra chamada mudou. A classe
+  mora em `api/ApiError.ts`, fora do `client.ts`, porque o cliente resolve a URL base no import (lê o `window`) e os
+  testes rodam em node.
+- **Uma tela de falha só para a casca inteira** (`ShellFailure`), seja qual for a chamada que não respondeu. O que
+  muda entre as duas portas é só o que o "Tentar de novo" refaz: o `/info` é `refetch()` do React Query; a checagem de
+  sessão **não é consulta** — é uma promise solta num efeito, sem retry nem `refetch` —, então o efeito depende de um
+  número de tentativa que o botão incrementa.
+
+**Fora do escopo, de propósito:** refresh de token, renovação de sessão e política de expiração; `staleTime`,
+invalidações e `sessionCache`; o `setUnauthorizedHandler`; os outros leitores do `/info`; o servidor; e a stack de
+teste de componente — é ela que, faltando, justifica as funções puras, e é fatia própria (Q2).
+
+**O texto da tela, revisto no fechamento** (decisão do Marcelo, 2026-10-15). A mensagem era "Não foi possível carregar
+a **configuração** do painel." e passou a **"Não foi possível carregar o painel."** A palavra "configuração" nasceu
+quando a fatia era só do `/info`, onde descrevia bem o que não veio; servindo também a checagem de sessão, ficou
+imprecisa — sem o `/auth/me`, configuração nenhuma chega a ser pedida. E é justamente a palavra que o requisito se
+esforça para manter longe da cabeça do usuário: quem lê "não foi possível carregar a configuração" pode ir conferir as
+próprias configurações, que é o lugar errado. A frase mais curta é verdadeira nas duas portas e continua não afirmando
+nada sobre o que o tenant tem; o ícone de desconectado já carrega a ideia de alcance. "Tentar de novo" e "Sair" não
+mudaram.
+
+**A guarda, no fechamento:** `npm test` 154 de 154 (eram 142 antes da fatia; 131 antes da change) e `npm run build` com
+o `tsc --noEmit` limpo; `dotnet build` com 0 avisos e 0 erros e `dotnet test` com 1377 aprovados, 0 falhas e 42
+ignorados — a fatia não toca `src/`, mas a guarda do repositório fecha com os quatro;
+`openspec validate --all --strict` com **28 de 28** (eram 29 antes do archive: 28 specs mais a change, que saiu da
+pasta de changes). Os dois testes novos falharam antes do código, e cada um passou pelo vermelho por inversão da
+produção, com o arquivo restaurado por conferência de hash.
