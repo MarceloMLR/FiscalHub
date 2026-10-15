@@ -100,7 +100,7 @@ forma, em vez de misturar documentos em uma pasta comum.
 - [x] **Contábil.** 3 entidades publicadas e aceitas em 2026-10-01 (seção 17.1 do `04`).
 - [x] **Inventário.** 3 entidades publicadas e aceitas em 2026-10-01 (seção 24.1 do `04`); a `FSItemBR` ganhou
       `InventUnitId` e `ProductName`.
-- [ ] **Produção e Bloco K.** 8 entidades escritas em 2026-10-15 (Parte IV do `04`); falta publicar e o aceite do §31.
+- [x] **Produção e Bloco K.** 8 entidades publicadas e aceitas em 2026-10-15 (§31.1 do `04`).
 - [ ] **Fase 2 — Pacote.** Deployable package + import validado no nosso ambiente primeiro.
 
 ### Fora do roadmap: gatilho por evento

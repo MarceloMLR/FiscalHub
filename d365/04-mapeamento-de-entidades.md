@@ -20,7 +20,7 @@ carrega (seção 3.3).
 
 > **Parte III — inventário** (seções 19 a 25): decidida pelo mesmo método. Publicadas e aceitas em 2026-10-01 (§24.1).
 
-> **Parte IV — produção, Bloco K e o pacote autossuficiente** (seções 26 a 31): escritas em 2026-10-15, falta publicar.
+> **Parte IV — produção, Bloco K e o pacote autossuficiente** (seções 26 a 31): publicadas e aceitas em 2026-10-15 (§31.1).
 > A §26 estende o princípio acima: nem entidade padrão da Microsoft entra como dependência.
 
 ---
@@ -78,7 +78,8 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 | 30 | `FSFiscalProductionBR` | `FBProductionHeader_BR` | produção dos Livros fiscais — Parte IV (30.7) |
 | 31 | `FSFiscalProductionLineBR` | `FBProductionLine_BR` + cabeçalho | consumo da produção dos Livros fiscais — Parte IV (30.7) |
 
-Todas criadas, publicadas e validadas contra o ambiente, menos a 23 e os campos da 4.4 (escritos em 2026-10-14) e as 24 a 31 da Parte IV (escritas em 2026-10-15): falta publicar.
+Todas criadas, publicadas e validadas contra o ambiente; a 23, os campos da 4.4 e as 24 a 31 da Parte IV, em 2026-10-15 (§31.1).
+Os campos da 4.4 respondem, mas o fiscosysdev não tem dado da reforma.
 Todas `IsReadOnly = Yes` e `Is Public = Yes`.
 **Data management só na `FSFiscalDocumentBR`**, e talvez nem isso (seção 8).
 
@@ -1466,7 +1467,7 @@ roda sem segredo porque o token vem do `az`.
 
 # Parte IV — Produção, Bloco K e o pacote autossuficiente
 
-> **Status: escritas em 2026-10-15; falta build, deploy, sync e aceite.** Passos 1, 2 e 5 do [`07`](07-como-decidir-quais-entidades-criar.md).
+> **Status: publicadas e aceitas em 2026-10-15 (§31.1).** Passos 1, 2 e 5 do [`07`](07-como-decidir-quais-entidades-criar.md).
 > O passo 3 (medir com dado real) fica para o aceite (§31), como na Parte III: o `brmf` tem 24 ordens de produção e o
 > `usmf`, 180. Todos os campos e junções foram conferidos contra o metadado 10.0.2527.160 antes do XML.
 
@@ -1659,3 +1660,48 @@ Pasta `FiscalHub — produção, Bloco K e cadastros próprios` do Postman, mais
 - `FSInventTransBRs` com `$select` dos três campos novos (400 num pacote antigo);
 - numa OP encerrada do `usmf`: a soma dos recebimentos (Production e PmfProdCoBy) e dos consumos (ProdLine) da
   `FSInventTransBR` bate com o apontamento da OP; e o `StUpDate` contra a menor data de start, que decide o 30.9.
+
+### 31.1 Resultado (2026-10-15)
+
+Publicadas depois de três tentativas de deploy (o módulo antigo duplicado e a sincronização parcial, `05` §12) e de uma
+sincronização completa do banco. Medido no fiscosysdev, já na 10.0.49, com a identidade do `az`.
+
+**Postman, collection inteira:** 72 requests, 302 asserções, 1 falha — o `Get Token`, esperado (o token vem do `az`).
+Todas as pastas verdes, inclusive a da reforma e a nova.
+
+| O que | Resultado |
+|---|---|
+| Service document | 31 entidades FS: as 8 da Parte IV e a `FSFiscalDocumentReferencedBRs` entraram |
+| `FSProductionOrderBRs` | 349 OPs: 210 Standard + 139 Process. As 210 Standard = `ProductionOrderHeaders` (brmf 24, usmf 180), que filtra `ProdType = Standard` |
+| `FSProductionBOMLineBRs` | 1.640 linhas; as 968 das OPs Standard = `ProductionOrderBillOfMaterialLines` (mesmo filtro) |
+| `FSProductionCoProductBRs` | 178 = 118 coprodutos (= `BatchOrderCoProductsV2`, que filtra `Co_Product`) + 60 subprodutos |
+| `FSFiscalEstablishmentBRs` | 4 = `FiscalEstablishments`: empresa, código, CNPJ, nome, IE e CCM idênticos; os 4 endereços acham a `FSPostalAddressBRs` pelo `AddressLocationRecId` |
+| `FSTaxServiceCodeBRs` | 4: os 2 da `TaxServiceCodeEntities` (que filtra `ParentServiceCode` vazio) + os 2 códigos municipais de São Paulo filhos deles (07315 e 01406). Nenhum com natureza de rendimento |
+| `FSInventJournalBRs` | 134 diários (usmf 36, brmf 0), 127 lançados |
+| `FSFiscalProductionBRs` / `LineBRs` | 0: o fiscosysdev não lança produção nos Livros fiscais |
+| `FSInventTransBRs` | 341.955 = `InventTransBiEntities` (brmf 260, usmf 9.372): os campos novos não multiplicaram linha. `InventTransId` e `InventTransModifiedDateTime` em todas |
+| Chaves | únicas nas OPs (usmf 231/231, brmf 24/24) |
+
+**Ligações e fechamento (usmf e brmf):**
+
+- consumo (`ProdLine`) → linha de lista pelo `InventTransId`: usmf 1.075/1.075, brmf 48/48;
+- recebimento de coproduto (`PmfProdCoBy`) → `FSProductionCoProductBRs`: 100/100;
+- OP encerrada, recebimento da `InventTrans` = apontamento lançado: brmf 24/24, usmf 185/186. A P000116 tem 5 recebidos
+  na `InventTrans` e nenhum diário de apontamento lançado: a `InventTrans` é a fonte, como no §28;
+- OP encerrada, consumo da `InventTrans` = lista de separação lançada: brmf 24/24, usmf 186/186;
+- **OP aberta com produção:** 45 no usmf. O legado da Vestacy, que lê só encerrada, as perderia (§27).
+
+**Achados:**
+
+- **`StUpDate` não é o início da OP.** Em 7 das 208 OPs do usmf com movimento, o primeiro movimento é anterior ao
+  `StUpDate` (ex.: P000104, start em 05/02/2017 e primeiro movimento em 18/12/2016). O start posterior sobrescreve a
+  data. Pela regra do 30.9, o `DT_INI_OP` precisa da data do primeiro start: proposta de uma entidade sobre a
+  `ProdTableJour` (diário de produção: start, apontamento e fim, com data e quantidade), que também cobre o caso da
+  P000116. Decisão do Marcelo.
+- **`Voucher` vazio em 272 movimentos de produção do usmf:** os ainda não lançados (encomendado, reservado) e os lançados
+  só fisicamente. O `Voucher` é o financeiro. Diário lança o financeiro junto, então o pareamento do K210/K220 funciona.
+- **Contagem sem diário:** 41 dos 46 movimentos de contagem do usmf não têm `ReferenceId` (contagem fora de diário). O
+  hub trata `InventCounting` sem diário como ajuste de contagem.
+- **Reforma (4.4):** os campos respondem, mas o fiscosysdev não tem CBS/IBS, cClassTrib, NBS nem nota referenciada; o
+  dado fica para o primeiro cliente. O município da prestação resolve o IBGE em 12/12 notas. Plano de contas: 12.515
+  contas, todas com o nome do plano (`Brasil`: 326).

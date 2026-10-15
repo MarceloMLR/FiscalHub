@@ -530,12 +530,17 @@ subida fica no `.etl`; as mensagens saem lendo as strings do arquivo (o provider
 - **o deploy exige a pasta `bin` do módulo**: sem o build, o Visual Studio para em `DirectoryNotFoundException … fiscalhubintegration\bin`. Se o **Build models** não listar o pacote (o VS só enxerga pasta nova depois de reaberto), compilar direto: `xppc.exe -metadata=<pasta custom> -compilermetadata=<PackagesLocalDirectory> -modelmodule=FiscalHubIntegration -output=<pasta custom>\FiscalHubIntegration\bin -referenceFolder=<PackagesLocalDirectory> -referenceFolder=<pasta custom>`. Sai o mesmo conjunto de 98 arquivos do build do VS;
 - no **Build models** e no **Deploy models to online environment**, marcar os dois módulos juntos, com sincronização do
   banco. A role antiga `FSFiscalHubIntegration` some junto: a `FiscosysHubIntegration` precisa ser atribuída de novo.
+- **depois de um deploy que muda nome de módulo, rodar a sincronização completa.** No deploy de 2026-10-15 com os dois
+  módulos, a sincronização que vai junto foi parcial (`syncmode PartialList`): renumerou as 15 entidades novas e alteradas
+  (`TableIdSync`) e não montou nenhuma view (a lista saiu vazia). Essas 15 respondiam *"Cannot select a record in Sub
+  Query (Subquery). The SQL database has issued an error"*; as que não mudaram, normal. **Extensions > Dynamics 365 >
+  Synchronize database** (completa) resolveu;
 
 O módulo vazio fica no ambiente sem efeito. **Só o fiscosysdev precisa disso:** ambiente de cliente que nunca teve o
 `FiscalHubIntegration` recebe só o `FiscosysHubIntegration`.
 
 **Regra para o próximo rename:** antes de publicar o módulo com o nome novo, publicar o antigo vazio (ou os dois no mesmo
-deploy), e dar Id novo a cada modelo.
+deploy), dar Id novo a cada modelo e, depois do deploy, rodar a sincronização completa do banco.
 
 ---
 
