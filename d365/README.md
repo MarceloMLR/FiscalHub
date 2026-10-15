@@ -83,9 +83,9 @@ são a referência por trás dele.
 documentos numerados próprios — `d365/` é a do Dynamics 365 F&O. Um conector novo segue a mesma
 forma, em vez de misturar documentos em uma pasta comum.
 
-**Agente: a skill `d365-fno`.** O `.claude/skills/d365-fno/SKILL.md` junta as regras e os fluxos deste diretório para o
+**Agente: `/agent-d365`.** A skill `.claude/skills/agent-d365/SKILL.md` junta as regras e os fluxos deste diretório para o
 Claude (Claude Code no repositório e Cowork): criar ou alterar entidade, validar depois de publicar, diagnosticar deploy e
-acompanhar as versões do D365. Ela usa as ferramentas de `tools/`. Um conector novo ganha a sua skill no mesmo molde.
+acompanhar as versões do D365. Ela usa as ferramentas de `tools/`. Um conector novo ganha o seu agente no mesmo molde (ex.: `/agent-oracle`).
 
 | Doc | Assunto |
 |---|---|

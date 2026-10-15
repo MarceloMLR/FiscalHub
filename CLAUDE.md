@@ -142,7 +142,7 @@ Docs de referência:
 - `d365/glossario-x++-fno.md`;
 - `d365/tools/README.md`: as ferramentas (conferir antes do build, validar, Postman, log de deploy, radar de versão).
 
-Para trabalho em `d365/`, use a skill **`d365-fno`** (`.claude/skills/d365-fno/SKILL.md`): regras do pacote e os fluxos de
+Para trabalho em `d365/`, use o agente **`/agent-d365`** (a skill em `.claude/skills/agent-d365/SKILL.md`): regras do pacote e os fluxos de
 criar entidade, validar, diagnosticar deploy e radar de versões.
 
 ---

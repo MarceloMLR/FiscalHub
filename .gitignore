@@ -24,7 +24,7 @@ secrets.json
 # skills do projeto ficam versionadas (as de outras ferramentas, nao)
 !.claude/skills/
 .claude/skills/*
-!.claude/skills/d365-fno/
+!.claude/skills/agent-*/
 .bmad*/
 _bmad*/
 

@@ -1,7 +1,7 @@
 # Ferramentas do pacote D365
 
 Scripts Node (18 ou mais novo, sem dependências) que automatizam a receita dos documentos `05` e `06`. Rodam na raiz do
-repositório, na máquina de desenvolvimento do UDE. A skill `d365-fno` (`.claude/skills/d365-fno/`) usa os mesmos scripts.
+repositório, na máquina de desenvolvimento do UDE. O agente `/agent-d365` (`.claude/skills/agent-d365/`) usa os mesmos scripts.
 
 | Script | Quando | O que faz |
 |---|---|---|
