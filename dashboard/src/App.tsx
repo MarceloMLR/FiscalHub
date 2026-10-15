@@ -16,8 +16,10 @@ import { UsersPage } from './features/users/UsersPage';
 import { ReservedModulePage } from './features/modules/ReservedModulePage';
 import { navigationGroups, shownItem, type ModuleView } from './features/modules/modules';
 import { LoginPage } from './features/auth/LoginPage';
-import { useAuth } from './features/auth/AuthContext';
+import { useAuth, useAuthUser } from './features/auth/AuthContext';
 import { useInfo } from './features/useInfo';
+import { shellState } from './features/shellState';
+import { ShellFailure } from './features/ShellFailure';
 import { environmentBadge } from './features/environment';
 import { useThemeMode } from './theme/ThemeModeProvider';
 
@@ -80,19 +82,27 @@ function Loading() {
   );
 }
 
-// Porteiro: enquanto restaura a sessão, mostra loading; sem usuário, o login; com usuário, o painel.
+// Porteiro: são **quatro** situações, e não duas (design D14). Ele não decide nada aqui — só renderiza o que o
+// `session` disser, e quem o decide é a função pura do `sessionState`. Em particular, **falhou** não é **anônimo**:
+// um servidor fora não manda ninguém para o login, porque mandar para o login é apagar o token de quem não pediu
+// para sair. A tela de falha é a mesma da casca, e o "tentar de novo" dela refaz a **checagem** — o `api.me()` não é
+// consulta do React Query, então não há `refetch` para chamar (D15).
 export default function App() {
-  const { user, ready } = useAuth();
+  const { session, logout, recheckSession } = useAuth();
 
-  if (!ready) return <Loading />;
+  if (session.kind === 'checking') return <Loading />;
+  if (session.kind === 'failed') return <ShellFailure onRetry={recheckSession} onLogout={logout} />;
+  if (session.kind === 'anonymous') return <LoginPage />;
 
-  return user ? <Dashboard /> : <LoginPage />;
+  return <Dashboard />;
 }
 
 function Dashboard() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  // Aqui dentro **há** usuário: o painel só é desenhado no estado autenticado.
+  const user = useAuthUser();
   const { mode, toggle } = useThemeMode();
-  const { data: info, isLoading: infoLoading } = useInfo();
+  const { data: info, isFetching: infoFetching, isError: infoFailed, refetch: refetchInfo } = useInfo();
   const [selection, setSelection] = useState<Selection>({ kind: 'module', key: null });
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -107,27 +117,31 @@ function Dashboard() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [menuOpen]);
 
-  const isAdmin = user?.role === 'Admin';
-  // O ambiente da instância, como o /info o diz; sem ele, o selo não afirma nenhum (D6).
-  const badge = environmentBadge(info?.environment);
-  // O selo mostra o estado, e não só o ligado: aparece quando o adapter de entrada varre, verde ligado e vermelho
-  // desligado, e some para adapter que não varre. Enquanto o /info não chega (ou se falhou), não afirma nada.
-  const scans = info?.inboundScans === true;
-  const automatic = info?.automaticIntegration === true;
-  const initials = (user?.name ?? '?').trim().charAt(0).toUpperCase();
-  // O eixo da barra lateral é o conector: um grupo por conector do tenant, com os módulos ligados nele e o Agendamento
-  // de quem agenda. Sem conector que produza item, o grupo que nomeia a ausência, com o Fiscal e o Agendamento: o mesmo
-  // conjunto de antes desta mudança.
-  //
-  // Enquanto o /info **não respondeu**, o `undefined` diz "ainda não se sabe", e a barra lateral não afirma nada sobre
-  // a configuração do cliente — nem um conector, nem a ausência dele. Uma **falha** do /info, porém, chega aqui como
-  // resposta vazia e volta a nomear a ausência: a aplicação não trata falha do /info em lugar nenhum, e isso é maior
-  // que a barra lateral (anotado nos Próximos passos do `docs/STATUS.md`).
-  const groups = navigationGroups(infoLoading ? undefined : (info?.connectors ?? []));
+  // A casca não decide aqui: ela renderiza o que o `shellState` disser (design D3). A escolha entre carregando, painel
+  // e falha é uma função pura, testada caso a caso — inclusive a **ordem** em que os sinais são lidos, que é o que faz
+  // o "tentar de novo" mostrar carregando, e não falha.
+  const shell = shellState({ info, isFetching: infoFetching, isError: infoFailed });
+  if (shell.kind === 'loading') return <Loading />;
+  if (shell.kind === 'failure') {
+    return <ShellFailure onRetry={() => void refetchInfo()} onLogout={logout} />;
+  }
 
-  // Sem árvore ainda não há item, nem título, nem tela para abrir: a tela espera a resposta, com o mesmo "Carregando…"
-  // do porteiro acima, em vez de adivinhar.
-  if (groups.length === 0) return <Loading />;
+  // Daqui para baixo **há resposta**, e o painel é desenhado a partir dela: nada de `info?.`, e nada de `?? []` — era
+  // ele que traduzia falha para árvore vazia e fazia a barra lateral afirmar ao cliente que não há conector
+  // configurado.
+  const config = shell.info;
+  const isAdmin = user.role === 'Admin';
+  // O ambiente da instância, como o /info o diz; o que ele não disser, o selo não afirma (D6).
+  const badge = environmentBadge(config.environment);
+  // O selo mostra o estado, e não só o ligado: aparece quando o adapter de entrada varre, verde ligado e vermelho
+  // desligado, e some para adapter que não varre. O `=== true` segura a resposta antiga, sem o campo.
+  const scans = config.inboundScans === true;
+  const automatic = config.automaticIntegration === true;
+  const initials = (user.name || '?').trim().charAt(0).toUpperCase();
+  // O eixo da barra lateral é o conector: um grupo por conector do tenant, com os módulos ligados nele e o Agendamento
+  // de quem agenda. Sem conector que produza item, o grupo que nomeia a ausência, com o Fiscal e o Agendamento — e aí
+  // é a **resposta vazia** que nomeia a ausência, que é o único estado que pode nomeá-la.
+  const groups = navigationGroups(config.connectors);
 
   // O bloco Administração é só do Admin (D12): um Viewer nunca o seleciona, e o resto é o eixo das integrações.
   const admin = isAdmin && selection.kind === 'admin' ? ADMIN_VIEWS.find((a) => a.view === selection.view) : undefined;
@@ -181,7 +195,7 @@ function Dashboard() {
               </span>
             </div>
             <div className="fh-mono" style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 4 }}>
-              {user?.tenantId ?? '—'}
+              {user.tenantId}
             </div>
           </div>
         </div>
@@ -319,9 +333,9 @@ function Dashboard() {
               >
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: 'var(--ink)' }}>
-                    {user?.name}
+                    {user.name}
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.3 }}>{user?.role}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.3 }}>{user.role}</div>
                 </div>
                 <div
                   style={{
@@ -356,8 +370,8 @@ function Dashboard() {
                   }}
                 >
                   <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{user?.name}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 1 }}>{user?.email}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{user.name}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 1 }}>{user.email}</div>
                   </div>
                   <div
                     onClick={() => {

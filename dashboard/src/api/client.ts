@@ -24,6 +24,7 @@ import type {
   UpdateUserRequest,
 } from '../types';
 import { resolveApiBase } from './config';
+import { ApiError } from './ApiError';
 
 // URL da API resolvida em RUNTIME (por host), não assada no build — um único bundle serve todos os
 // clientes: acme.fiscalhub.com fala com a API da ACME, tmsa.fiscalhub.com com a da TMSA. Ver ADR-0020.
@@ -59,14 +60,18 @@ function handleUnauthorized() {
   onUnauthorized?.();
 }
 
+// O erro sai como `ApiError`, **com o status**: é o que deixa quem chama distinguir "a sua sessão não vale" (401) de
+// "não consegui perguntar" (5xx) — ver `ApiError.ts` e design D13. As mensagens são as mesmas de antes, e `ApiError`
+// é um `Error`, então nenhuma outra chamada muda de comportamento. Os outros ajudantes daqui continuam lançando
+// `Error` comum: ninguém precisa distinguir status neles hoje, e a classe está aqui para quando precisarem.
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
   if (res.status === 401) {
     handleUnauthorized();
-    throw new Error('Sessão expirada.');
+    throw new ApiError(401, 'Sessão expirada.');
   }
   if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText}`);
+    throw new ApiError(res.status, `${res.status} ${res.statusText}`);
   }
   return (await res.json()) as T;
 }
