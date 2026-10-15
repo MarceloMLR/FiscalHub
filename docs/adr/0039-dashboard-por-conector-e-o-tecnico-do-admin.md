@@ -10,7 +10,11 @@
 - **Complementa:** [ADR-0037](0037-conector-modulo-integracao.md) e
   [ADR-0038](0038-uma-esteira-tres-estilos-de-saida.md).
 - **Desenho:** canvas "FiscosysHub — as telas do produto".
-- **Change OpenSpec:** a propor.
+- **Change OpenSpec:** `openspec/changes/connector-navigation-and-admin-json`, com os **§1, §2 e §5** — a barra lateral
+  por conector, o agendamento dentro do conector que o declara e a visão técnica como permissão do servidor. As
+  capacidades são `module-navigation`, `platform-account-connectors` e `platform-response-trace`. Os **§3 e §4** (a
+  linha como o que a ação opera e o erro da carga lido por motivo) ficam **a propor**: eles só aparecem com o Contábil
+  e o Inventário, que são fatias próprias.
 
 ## Contexto
 

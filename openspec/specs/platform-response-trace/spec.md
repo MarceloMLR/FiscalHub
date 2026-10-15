@@ -90,8 +90,10 @@ O detalhe do documento no dashboard MUST mostrar primeiro o que se lê, e só de
 origem, domínio, destino e resposta, e a aba escolhida mostra aquela foto. Fechar o modal do JSON MUST voltar ao
 detalhe, sem fechar o detalhe. O Esc fecha só o modal de cima.
 
-- **Quem vê o botão "Visualizar JSON" e o "Baixar arquivos":** MUST ser só quem pode ver as fotos cruas, que hoje é só
-  o Admin (ver "As fotos cruas só para quem pode ver o JSON").
+- **Quem vê o botão "Visualizar JSON" e o "Baixar arquivos":** MUST ser quem o **`/info` disser** que pode ver as fotos
+  cruas (ver "As fotos cruas só para quem pode ver o JSON"). A tela MUST NOT decidir por conta própria, a partir do
+  papel do usuário, e MUST NOT guardar a lista de papéis.
+- **Antes de o `/info` responder, ou se ele falhar:** nenhum dos dois botões aparece, para papel nenhum.
 - **Os demais papéis:** o detalhe mostra só a primeira vista. O "Abrir chamado" continua para todos.
 
 Dentro do modal do JSON, as abas seguem como hoje:
@@ -113,6 +115,11 @@ O cabeçalho do detalhe traz a chave da nota, sem a linha "Rastreabilidade: orig
 - **THEN** abre um modal próprio por cima do detalhe, com as abas de origem, domínio, destino e resposta
 - **AND** trocar de aba mostra a foto daquela aba
 - **AND** fechar o modal do JSON, ou apertar Esc, volta ao detalhe, que continua aberto
+
+#### Scenario: O detalhe antes do /info
+- **WHEN** um Admin abre o detalhe de uma nota e o `/info` ainda não respondeu, ou falhou
+- **THEN** nem o "Visualizar JSON" nem o "Baixar arquivos" aparecem
+- **AND** eles aparecem assim que o `/info` responder que ele pode ver as fotos cruas
 
 #### Scenario: Nota aceita com ressalvas
 - **WHEN** o usuário abre o detalhe de uma nota confirmada que foi enviada sem o `IcmsDiff` do item 1
@@ -186,12 +193,31 @@ nada foi mandado ainda.
 ### Requirement: As fotos cruas só para quem pode ver o JSON
 
 A inspeção do trace (`/trace`) e o download do zip das fotos de um documento MUST exigir um papel que pode ver as fotos
-cruas. Hoje, só o Admin pode. A lista desses papéis MUST morar num lugar só no servidor, que é o gancho para um papel de
-Suporte, e a tela MUST usar a mesma lista para mostrar os botões.
+cruas. Hoje, só o Admin pode.
 
-- **Usuário sem o papel:** recebe 403, com o documento existindo ou não, e o armazenamento das fotos MUST NOT ser lido.
-- **Admin do tenant:** o comportamento de hoje, inclusive o 404 igual para o documento de outro tenant e para o sem
-  fotos (`tenant-boundary`).
+**A decisão é do servidor, e não da tela** (ADR-0039 §5). A resposta tem credencial do ERP, endereço de plataforma e
+payload de documento: esconder o botão não protege nada, porque o endpoint continua respondendo a quem souber a URL.
+Portanto:
+
+- **A lista desses papéis MUST morar num lugar só no servidor**, que é o gancho para um papel de Suporte. O dashboard
+  MUST NOT ter cópia dela: duas listas que precisam de um comentário para não divergir são uma lista a mais.
+- **O `/info` MUST responder, para o usuário logado, se ele pode ver as fotos cruas**, derivado dessa mesma lista. É um
+  booleano, e não a lista: o servidor já sabe quem está logado, e responde a pergunta em vez de mandar os dados para a
+  tela decidir de novo.
+- **A tela MUST usar essa resposta** para mostrar os botões, e MUST NOT mostrá-los antes de o `/info` responder, nem se
+  ele falhar — como o selo de ambiente, que não afirma ambiente nenhum antes da resposta. Um botão que promete o que o
+  servidor vai recusar com 403 é promessa quebrada.
+- **A resposta é do usuário logado, e só dele.** A **troca de sessão** — sair e entrar como outro usuário, sem
+  recarregar a página — MUST descartar a resposta guardada, e a tela volta ao estado de antes da resposta até o `/info`
+  do usuário novo chegar. Uma resposta guardada não é do usuário: é do token que estava valendo quando ela foi feita.
+  Sem isso, o booleano do servidor estaria certo e a tela mostraria o do usuário anterior.
+- **A regra de papel MUST ter teste automatizado do endpoint, por papel, e não só por tenant.** O limite de tenant já é
+  provado em `tenant-boundary`; o papel nunca foi. O teste prova a frase inteira: o papel sem permissão recebe 403 **e
+  o armazenamento das fotos não é lido**.
+
+**Usuário sem o papel:** recebe 403, com o documento existindo ou não, e o armazenamento das fotos MUST NOT ser lido.
+**Admin do tenant:** o comportamento de hoje, inclusive o 404 igual para o documento de outro tenant e para o sem fotos
+(`tenant-boundary`).
 
 O chamado de suporte continua anexando os zips das notas no servidor, para qualquer papel. O zip vai para o suporte, e
 não volta a quem abriu o chamado.
@@ -211,6 +237,20 @@ não volta a quem abriu o chamado.
 #### Scenario: Viewer abre chamado
 - **WHEN** um Viewer abre um chamado de suporte para uma nota
 - **THEN** o chamado vai com o zip da nota anexado, como hoje
+
+#### Scenario: O /info diz quem vê
+- **WHEN** um Admin e um Viewer do mesmo tenant chamam o `/info`
+- **THEN** a resposta do Admin diz que ele pode ver as fotos cruas, e a do Viewer diz que não
+
+#### Scenario: Troca de usuário sem recarregar a página
+- **WHEN** um Admin sai do dashboard e um Viewer do mesmo tenant entra, na mesma página, sem recarregá-la
+- **THEN** os dois botões não aparecem para o Viewer
+- **AND** a tela não decide por nenhuma resposta guardada do usuário anterior: ela espera o `/info` do usuário novo
+
+#### Scenario: Um papel novo na lista do servidor
+- **WHEN** um papel é acrescentado à lista do servidor, e um usuário desse papel chama o `/info` e o `/trace`
+- **THEN** o `/info` diz que ele pode ver as fotos cruas, e o `/trace` responde o conteúdo
+- **AND** nada precisou ser mudado no dashboard para os botões aparecerem
 
 ### Requirement: A leitura do desfecho para qualquer usuário do tenant
 

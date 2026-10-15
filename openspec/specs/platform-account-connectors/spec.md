@@ -156,9 +156,19 @@ Avalara, a base da `v2` é a raiz do host, e o caminho do envio fiscal continua 
 
 ### Requirement: O adapter declara os módulos e as integrações; o perfil liga o que foi contratado
 
-Cada adapter de saída MUST **declarar**, em código: os módulos que atende, as integrações de cada módulo, a versão de
-base que cada integração usa, e se a API daquela integração **aceita lote**. Essa declaração é característica da
-plataforma, MUST NOT ser gravada no perfil e MUST NOT ser editável por quem configura.
+Cada adapter de saída MUST **declarar**, em código: o **rótulo** do conector na tela, se o conector **tem
+agendamento**, os módulos que atende, as integrações de cada módulo, a versão de base que cada integração usa, e se a
+API daquela integração **aceita lote**. Essa declaração é característica da plataforma, MUST NOT ser gravada no perfil
+e MUST NOT ser editável por quem configura.
+
+**O rótulo** é o nome do conector na barra lateral e nas telas (`module-navigation`) — na Avalara, `Tax Compliance`.
+Ele é texto de tela: MUST NOT entrar em chave, nome de segredo, URL nem comparação. A identidade do conector continua
+sendo o **adapter**, comparado exato. O rótulo é declarado, e não um mapa de nomes do lado da tela, para que um adapter
+novo não nasça sem nome no menu.
+
+**O agendamento** diz se aquele conector aparece com o item de Agendamento (ADR-0039 §2). Não é derivado de uma
+integração ligada: um cliente que contratou o conector e ainda não preencheu a integração continua precisando do
+Agendamento, que é por onde ele dispara a primeira carga manual.
 
 **A chave de cada integração é do vocabulário do hub, e não do adapter.** Dois adapters que atendem a mesma integração
 MUST declará-la com a mesma chave. É essa chave que a regra de um conector por integração compara.
@@ -182,7 +192,17 @@ O perfil MUST **ligar** os módulos e as integrações que o cliente contratou.
 #### Scenario: Módulo ligado e vazio
 - **WHEN** a gravação liga o módulo Inventário sem ligar nenhuma integração dele
 - **THEN** a gravação é aceita
-- **AND** o `/info` passa a trazer o Inventário na lista de módulos
+- **AND** o `/info` passa a trazer o Inventário entre os módulos daquele conector
+
+#### Scenario: O rótulo e o agendamento são do adapter
+- **WHEN** um Viewer do tenant-a chama o `/info`, e o tenant tem o conector do adapter `Avalara`
+- **THEN** o conector vem com o rótulo `Tax Compliance` e dizendo que ele agenda
+- **AND** nem o rótulo nem o agendamento estão gravados no perfil
+
+#### Scenario: O rótulo não é editável
+- **WHEN** uma gravação traz um rótulo, ou o agendamento, dentro de um conector
+- **THEN** o campo é ignorado, como qualquer parte da declaração que o perfil não guarda
+- **AND** a leitura continua devolvendo o rótulo e o agendamento declarados pelo adapter
 
 ### Requirement: No máximo um conector ligado por integração
 
@@ -429,7 +449,8 @@ antes dela, o envio lê o caminho da configuração do host.
 - **WHEN** o perfil do tenant-a tem `modules = ["Inventario"]`, e a migração roda
 - **THEN** o conector fica com o Fiscal ligado, com a integração de notas fiscais, e com o Inventário ligado sem
   integrações
-- **AND** o `/info` do tenant-a, que antes respondia `["Inventario"]`, passa a responder `["Fiscal", "Inventario"]`
+- **AND** o `/info` do tenant-a, que antes trazia só o Inventário, passa a trazer o Fiscal e o Inventário entre os
+  módulos daquele conector
 
 #### Scenario: Entrada e chamados atravessam a migração
 - **WHEN** a migração converte um perfil com adapter de entrada, settings de entrada e adapter de chamados
@@ -461,7 +482,7 @@ antes dela, o envio lê o caminho da configuração do host.
 - **AND** os conectores, os módulos e as integrações continuam como estavam
 
 #### Scenario: Desfazer a change inteira
-- **WHEN** alguém pede para voltar o banco a antes desta mudança, e a forma nova não foi usada além do que a de antes
+- **WHEN** alguém pede para voltar o banco a antes daquela mudança, e a forma nova não foi usada além do que a de antes
   comporta
 - **THEN** os módulos e as integrações, e depois a conta e o conector, são desfeitos
 - **AND** o pedido para na conversão do ambiente, com a mensagem que diz que ela é de ida só, e o banco fica com as
