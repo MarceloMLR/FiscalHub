@@ -278,10 +278,18 @@ oferecer "entrar de novo" como conserto.
   painel que não carregou.
 - **As escolhas MUST ser funções puras, com nome e teste automatizado**, e a tela MUST só renderizar o que elas
   disserem. São duas: a da casca, entre os três estados, e a **classificação do erro da checagem de sessão** — dado o
-  erro, "anônimo" (apaga o token, vai ao login) ou "falhou" (mantém o token, tela de falha). Nenhuma das duas pode
-  viver como condicional dentro do componente: o dashboard não tem stack de teste de componente, e a linha que escolhe
-  ficaria sem teste — foi o que aconteceu quatro vezes na change `connector-navigation-and-admin-json` (limites
-  anotados nas tarefas 1.6, 4.0, 4.8 e 4.10).
+  erro, "anônimo" (apaga o token, vai ao login) ou "falhou" (mantém o token, tela de falha). As duas MUST NOT viver
+  como condicional dentro do componente — e a razão **não** é falta de ferramenta: é que uma escolha se prova
+  caso a caso, de graça, quando é um valor que entra e um valor que sai, e dentro do componente ela só se prova
+  montando a tela. A regra continua valendo depois que o dashboard passou a ter stack de teste de componente: ganhar a
+  ferramenta não é motivo para mover a escolha para dentro da tela.
+- **A ligação MUST ter teste automatizado também — o componente que chama a função pura.** Testar a escolha e não a
+  ligação deixa de fora exatamente onde os dois defeitos de 2026-10-15 moravam: no primeiro, a função que decidia a
+  visão técnica estava certa e testada, e quem errava era o cache por trás dela; no segundo, nenhum teste alcançava o
+  portão de sessão. Código que satisfaz o bullet anterior por inteiro ainda pode ter os dois. Portanto o teste MUST
+  cobrir, além da escolha, **que o componente chama a escolha certa e renderiza o que ela disser** — e MUST **falhar
+  quando essa ligação for desligada**. Um teste que só passa com o código certo não prova nada sobre o que ele
+  pegaria.
 - **O estado do portão de sessão MUST ter nome, e ser um só.** São **quatro** situações — checando, autenticado,
   anônimo e falhou —, e elas MUST NOT ser representadas por booleanos soltos: um "já tentei" só distingue duas, e é
   por caber duas numa que a falha se disfarçava de sessão inválida.
@@ -366,3 +374,24 @@ oferecer "entrar de novo" como conserto.
 - **WHEN** o teste da função que escolhe o estado recebe, um a um, "ainda não respondeu", "respondeu" e "falhou"
 - **THEN** ela devolve carregando, painel e falha, nessa ordem
 - **AND** "falhou" e "respondeu vazio" devolvem resultados diferentes
+
+#### Scenario: A ligação do portão de sessão, provada por teste
+- **WHEN** o teste do portão recebe, um a um, os quatro estados de sessão — checando, falhou, anônimo e autenticado
+- **THEN** a tela renderizada é, nessa ordem, a de carregando, a de falha, a de login e o painel
+- **AND** desligada a linha que escolhe — o ramo de "falhou" passando a cair no login —, o teste falha
+
+#### Scenario: A ligação da casca, provada por teste
+- **WHEN** o teste da casca recebe o `/info` em cada um dos três estados — sem resposta e buscando, respondido, e em
+  erro sem resposta nenhuma
+- **THEN** a tela é, nessa ordem, a de carregando, o painel e a de falha
+- **AND** desligada a linha que passa os sinais da consulta à função que escolhe, o teste falha
+
+#### Scenario: A ligação da classificação do erro, provada por teste
+- **WHEN** o teste deixa a checagem de sessão falhar com 401, e depois com 5xx
+- **THEN** o 401 apaga o token guardado e leva ao login, e o 5xx mantém o token guardado e leva à tela de falha
+- **AND** trocada a classificação por um tratamento genérico que apaga o token em qualquer falha, o teste falha
+
+#### Scenario: A ligação do tentar de novo, provada por teste
+- **WHEN** o teste aciona a ação de tentar de novo na tela de falha que veio da checagem de sessão
+- **THEN** a checagem é refeita, e a tela deixa de ser a de falha
+- **AND** desligado o mecanismo que re-executa a checagem, o teste falha
