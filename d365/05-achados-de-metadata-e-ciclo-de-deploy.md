@@ -527,6 +527,7 @@ subida fica no `.etl`; as mensagens saem lendo as strings do arquivo (o provider
 - os arquivos estão em `d365/tools/modulo-vazio-FiscalHubIntegration/` (copiar para a pasta de metadado customizado do
   UDE, ao lado do `FiscosysHubIntegration`);
 - compila sozinho com o `xppc` (0 erros, 0 avisos);
+- **o deploy exige a pasta `bin` do módulo**: sem o build, o Visual Studio para em `DirectoryNotFoundException … fiscalhubintegration\bin`. Se o **Build models** não listar o pacote (o VS só enxerga pasta nova depois de reaberto), compilar direto: `xppc.exe -metadata=<pasta custom> -compilermetadata=<PackagesLocalDirectory> -modelmodule=FiscalHubIntegration -output=<pasta custom>\FiscalHubIntegration\bin -referenceFolder=<PackagesLocalDirectory> -referenceFolder=<pasta custom>`. Sai o mesmo conjunto de 98 arquivos do build do VS;
 - no **Build models** e no **Deploy models to online environment**, marcar os dois módulos juntos, com sincronização do
   banco. A role antiga `FSFiscalHubIntegration` some junto: a `FiscosysHubIntegration` precisa ser atribuída de novo.
 
