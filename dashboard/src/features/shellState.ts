@@ -3,11 +3,15 @@ import type { InfoResponse } from '../types';
 // O que a casca do dashboard mostra, decidido a partir do estado da consulta do /info (spec module-navigation, "Sem o
 // /info, o dashboard não desenha o painel"; design D1 a D4).
 //
-// **Por que isto não é um ternário dentro do App.tsx.** O dashboard não tem stack de teste de componente (sem
-// `@testing-library/react`, sem jsdom), e por isso a linha que *escolhe* ficou sem teste quatro vezes na change
-// anterior (limites anotados nas tarefas 1.6, 4.0, 4.8 e 4.10 de `connector-navigation-and-admin-json`). A escolha
-// mora aqui, onde o teste alcança; o componente só renderiza o que esta função disser. Daí ela não importar React nem
-// React Query: recebe os sinais como **dados**.
+// **Por que isto não é um ternário dentro do App.tsx.** Uma escolha se prova **caso a caso, de graça**, quando é um
+// valor que entra e um valor que sai; dentro do componente ela só se prova montando a tela. A escolha mora aqui, onde
+// o teste alcança; o componente só renderiza o que esta função disser. Daí ela não importar React nem React Query:
+// recebe os sinais como **dados**.
+//
+// O dashboard **passou a ter** stack de teste de componente (jsdom + `@testing-library/react`, change
+// `dashboard-component-test-stack`), e a ligação — a linha do `App.tsx` que chama isto e renderiza o que vier — tem
+// teste próprio no `src/App.test.tsx`. Ganhar a ferramenta não é motivo para mover a escolha para dentro da tela: as
+// duas coisas são testadas, cada uma onde é barata.
 //
 // **O nulo não é o vazio, e agora são três estados, e não dois.** "Ainda não respondeu" espera; "respondeu" desenha o
 // painel, com a árvore que veio — vazia ou não; "falhou" vai para a tela de falha. Traduzir falha para árvore vazia é
