@@ -80,8 +80,9 @@ tela — "Não foi possível carregar o painel.", com "Tentar de novo" e "Sair",
 somem as duas mentiras que uma indisponibilidade produzia: a barra lateral afirmando que o tenant não tem conector
 (era o `?? []` que traduzia falha para árvore vazia) e a sessão destruída por um 5xx (era o `catch` genérico da
 restauração de sessão). **Só o 401 derruba a sessão**; 5xx, rede e timeout mantêm o token. As duas escolhas são
-funções puras testadas (`shellState` e `sessionFromCheckError`), porque o dashboard não tem stack de teste de
-componente.
+funções puras testadas (`shellState` e `sessionFromCheckError`), e a **ligação** delas com a tela também tem teste,
+desde a change `dashboard-component-test-stack` (**arquivada em 2026-10-15**), que trouxe a stack de teste de
+componente do dashboard: `jsdom` e `@testing-library/react`, ligados **por arquivo** e nunca global.
 
 **Multi-tenant:** JWT com escopo por tenant, perfil de conector por tenant, segredos por referência ao
 cofre, limite de tenant em todas as consultas. **O ambiente é da instância** (`Connector:Environment`): uma
@@ -222,6 +223,16 @@ Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Docu
   `MaxDeliveryCountExceeded`; a segunda tentativa, na mesma nota, funcionou. O pacote de metadados vai para o
   cliente com essa entidade — a mesma do commit acima, sem change própria. E o motivo genérico da dead-letter
   escondeu que a causa foi o ERP: é caso vivo para a change do defeito da dead-letter.
+- **A chamada do `AdapterDeclarationGuard` no `Program.cs` não tem teste** (P1 da change
+  `dashboard-component-test-stack`, 2026-10-15). A **função** tem: `tests/FiscalHub.Host.Tests/AdapterDeclarationGuardTests.cs`,
+  4 casos. Quem não tem é a **chamada** dela no host — a mesma classe de limite que aquela change fechou no dashboard,
+  só que do lado .NET, e por isso **a stack nova não a resolve**: jsdom não alcança `src/`, e a solução aqui é harness
+  de host. Fica aqui, e não na change arquivada, porque é dívida de .NET e alguém vai procurá-la do lado de cá.
+- **Duas pendências menores do dashboard, da mesma change** (P2 e P3, detalhadas no `tasks.md` dela): a linha do
+  `main.tsx` que liga o `App` ao `AuthProvider` continua sem teste (cobri-la exigiria montar o `main.tsx` inteiro ou
+  e2e, os dois fora de escopo); e as demais telas — `GroupsPage`, `ConnectorsPage`, `UsersPage`, `IntegrationsPage`,
+  agendamentos, suporte, `LoginPage`, `RawJsonModal` e `TicketModal` — ainda não têm teste de componente. A ferramenta
+  agora existe para elas; cobrir uma "de carona" é fatia nova.
 
 ## Threads abertas
 
@@ -1503,3 +1514,90 @@ ignorados — a fatia não toca `src/`, mas a guarda do repositório fecha com o
 `openspec validate --all --strict` com **28 de 28** (eram 29 antes do archive: 28 specs mais a change, que saiu da
 pasta de changes). Os dois testes novos falharam antes do código, e cada um passou pelo vermelho por inversão da
 produção, com o arquivo restaurado por conferência de hash.
+
+---
+
+## Sessão 2026-10-15 — Stack de teste de componente no dashboard (change `dashboard-component-test-stack`)
+
+**Revisada e arquivada em 2026-10-15**, em
+`openspec/changes/archive/2026-10-15-dashboard-component-test-stack`. Os 6 grupos de tarefas estão fechados com
+evidência no `tasks.md` da change, e o delta foi sincronizado para a spec publicada `module-navigation`.
+
+**O limite que ela fecha.** O dashboard não tinha como testar o que acontece **dentro** de um componente React. O
+limite estava anotado seis vezes em duas changes do dia (tarefas 1.6, 4.0, 4.8 e 4.10 de
+`connector-navigation-and-admin-json`; D3, S7 e a Q2 de `dashboard-info-failure`), em dois comentários de produção e
+num MUST publicado. E os **dois defeitos de 2026-10-15 passaram inteiros pela suíte**: nos dois, a função pura estava
+certa e tinha teste — quem errava era a **ligação** (o cache do React Query por trás do `canViewRawJson`; o `catch`
+genérico do `/auth/me`, que nenhum teste alcançava).
+
+**O que entrou:** `jsdom`, `@testing-library/react` e o peer `@testing-library/dom`, as três como **devDependencies**.
+Nada em `dependencies`, e **nada no bundle** — o `vite build` saiu com o mesmo hash de antes
+(`assets/index-Dy-tPrZW.js`, 997.17 kB). Sem `@testing-library/jest-dom`: o que se precisa afirmar é "o botão existe"
+e "o botão não existe", e o vitest já diz isso.
+
+**jsdom é por arquivo, e nunca global.** `// @vitest-environment jsdom` na primeira linha dos quatro arquivos novos;
+**nenhuma chave `test.environment` no `vite.config.ts`**, que não mudou. Três razões: os 14 arquivos de hoje não
+pagam um DOM que não usam; a razão do `api/ApiError.ts` viver fora do `client.ts` (o cliente lê o `window` no import,
+e os testes antigos rodam em `node`) continua visível, em vez de virar decisão sem motivo aparente; e quem abre um
+teste vê em que mundo ele roda.
+
+**Quatro arquivos, e a lista é fechada** — cada item tem origem escrita, num limite anotado ou num defeito real:
+
+- `src/App.test.tsx` (9 casos): os quatro ramos do portão de sessão, como tabela, e os três da casca. O `useAuth` é
+  dublê; o `/info` é semeado com `setQueryData`.
+- `src/features/auth/AuthContext.test.tsx` (8 casos): **só o 401 apaga o token** — 500, rede e timeout mantêm e levam
+  à tela de falha; o cache limpo no login **e** no logout; o "tentar de novo" refazendo a checagem. Aqui o provider é
+  o real e o `fetch` é stubado, e **não** o módulo do cliente: a cadeia sob teste é `fetch` → `getJson` → `ApiError` →
+  `sessionFromCheckError` → `tokenStore`, com o `localStorage` de verdade do jsdom.
+- `src/features/documents/DocumentDetail.test.tsx` e `src/features/groups/NoteDialog.test.tsx` (3 casos cada): os dois
+  botões da visão técnica, em **três** estados — pode, não pode, e **ainda não respondeu**, que não é o mesmo que "não
+  pode".
+- Mais um ajudante, `src/test/renderWithProviders.tsx`, que duplica a árvore de providers do `main.tsx` de propósito:
+  extraí-la seria refatorar produção para servir o teste.
+
+**Cada arquivo passou pelo vermelho, por inversão da produção.** O desligamento estava escrito na tarefa, para não ser
+escolhido na hora de um jeito que o teste já pegaria por acaso; nenhum deles é vermelho de compilação, e todos foram
+restaurados com conferência de **hash**: o portão caindo no login (3 de 9 caíram), o `isError` fixo em `false` (1 de
+9), a classificação do erro trocada pelo `catch` genérico de antes (5 de 8), a `resetSessionCache` apagada do login e
+do logout (2 de 8), o `attempt` fora das dependências do efeito (1 de 8), e o `canViewRawJson(info) &&` trocado por
+`true &&` nas duas telas (4 de 6, os dois casos de cada arquivo).
+
+**A suíte, antes e depois:** 14 arquivos / 154 testes → **18 arquivos / 177 testes**. Os 14 antigos continuam com as
+**mesmas contagens por arquivo** e no ambiente `node`: rodados sozinhos depois da instalação dão
+`environment 4ms` e `tests 113ms`, contra os `environment 5ms` e `tests 125ms` do baseline — não herdaram jsdom e não
+ficaram mais lentos. O agregado `environment` da suíte inteira subiu para ~10s, e ele é **dos quatro arquivos novos**:
+rodados sozinhos, eles respondem por ~7,6s; os 14, por 4ms. É o custo que esta change compra conscientemente.
+
+**Nenhum arquivo de produção mudou de comportamento.** As únicas edições em `dashboard/src/` fora dos testes são
+**dois comentários que ficaram falsos** — o do `features/shellState.ts` e o do `features/auth/sessionState.ts`, que
+diziam que o dashboard não tem stack de teste de componente. A razão da função pura **fica**, re-ancorada: uma escolha
+se prova caso a caso, de graça, quando é um valor que entra e um valor que sai; dentro do componente ela só se prova
+montando a tela. Ganhar a ferramenta não é motivo para mover a escolha para dentro da tela.
+
+**Na spec**, um delta só: o requisito "Sem saber quem é o usuário e o que o tenant tem, o dashboard não desenha o
+painel", de `module-navigation`, por dois motivos — uma frase publicada ficou **falsa** (ela justificava o MUST pela
+ausência da stack), e o requisito tinha um **buraco**: exigia teste da escolha e era silencioso sobre a ligação, que
+é justamente onde os dois defeitos moravam. O bullet novo fecha isso, e exige que o teste da ligação **falhe quando a
+ligação for desligada**. `platform-response-trace` **não** ganhou delta: o comportamento dos dois botões já é MUST
+publicado com cenário, e os testes novos apenas o honram.
+
+**O sync publicou o delta**, e com ele a frase falsa caiu: a justificativa "o dashboard não tem stack de teste de
+componente", que vivia na linha 282 de `openspec/specs/module-navigation/spec.md`, **não existe mais na spec
+publicada** — no lugar dela está a razão que sobrevive à ferramenta (uma escolha se prova caso a caso, de graça) e o
+bullet novo da ligação. O requisito ganhou 33 linhas e perdeu 4, entre elas **quatro cenários novos**, um por ligação
+provada: o portão de sessão, a casca, a classificação do erro e o "tentar de novo" — cada um exigindo, no `AND`, que
+o teste **falhe com a linha desligada**. As ocorrências que restam da frase antiga estão só em
+`openspec/changes/archive/`, que é histórico e não se edita.
+
+**O que continua aberto, de propósito:** a chamada do `AdapterDeclarationGuard` no `Program.cs` (a mesma classe de
+limite, do lado .NET — e a solução lá é harness de host, não jsdom); a linha do `main.tsx` que liga o `App` ao
+`AuthProvider`; e as demais telas do dashboard, que agora **têm** a ferramenta, mas não esta fatia. Os três estão
+registrados como P1, P2 e P3 no `tasks.md` da change arquivada, e o P1 — por ser .NET, e por isso não se resolver com
+a stack que entrou aqui — também em **"Riscos e pendências de higiene"**, que é seção viva.
+
+**A guarda, no fechamento (depois do archive):** `npm test` **18 arquivos / 177 testes**, 0 falhas; `npm run build`
+verde, com o `tsc --noEmit` limpo e o bundle no mesmo hash (`assets/index-Dy-tPrZW.js`, 997.17 kB — o único aviso é o
+de tamanho de chunk, anterior a esta change); `dotnet build --artifacts-path obj/guard` com **0 avisos e 0 erros**; e
+`dotnet test --artifacts-path obj/guard` com **1377 aprovados, 0 falhas e 42 ignorados** em 11 assemblies — a fatia
+não toca `src/`, mas a guarda do repositório fecha com os quatro. `openspec validate --all --strict`: **28 de 28**
+(eram 29 antes do archive, com a change contada à parte; agora são as 28 specs, a change já arquivada).

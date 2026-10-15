@@ -4,9 +4,11 @@ import type { AuthUser } from '../../types';
 // O estado do portão de sessão, e a classificação do erro da checagem (spec module-navigation, "Sem saber quem é o
 // usuário e o que o tenant tem, o dashboard não desenha o painel"; design D12 a D15).
 //
-// **Por que isto não é um `catch` dentro do componente.** É a mesma razão do `shellState`: o dashboard não tem stack
-// de teste de componente (sem `@testing-library/react`, sem jsdom), e a linha que *escolhe* ficaria sem teste. A
-// escolha mora aqui, onde o teste alcança, e por isso este módulo não importa React.
+// **Por que isto não é um `catch` dentro do componente.** É a mesma razão do `shellState`: uma escolha se prova caso
+// a caso, de graça, quando é um valor que entra e um valor que sai, e dentro do componente ela só se prova montando a
+// tela. A escolha mora aqui, onde o teste alcança, e por isso este módulo não importa React. A **chamada** dela — o
+// `AuthContext` classificando o erro do `/auth/me` e mexendo no token — tem teste próprio no
+// `features/auth/AuthContext.test.tsx`, desde que o dashboard passou a ter stack de teste de componente.
 
 // São **quatro** situações, e não um booleano "já tentei" (D14). Duas delas — anônimo e falhou — são exatamente as
 // que o defeito confundia: o portão apagava o token em qualquer falha do `/auth/me` e mandava o usuário para o login,
