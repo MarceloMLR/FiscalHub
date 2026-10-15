@@ -498,6 +498,44 @@ requisição chegaram coladas numa URI única, com 404 interno. Ficou em aberto.
 Não faz falta hoje: a ~4 chamadas por documento contra o limite de 6.000 por 5 minutos, o teto fica
 na ordem de 300 documentos por minuto.
 
+## 12. Renomear o módulo: o antigo tem de sair do ambiente
+
+**O que aconteceu (2026-10-15).** O pacote `FiscalHubIntegration` virou `FiscosysHubIntegration`, com os mesmos objetos.
+O fiscosysdev ainda tinha o módulo antigo. Os dois deploys do módulo novo falharam em *Applying Application Module* com
+`axhost-remoteprocess failed … FailedDependency; Failed to start services`. O motivo está no
+`AXHostStartupTrace*.etl` do `operationlogs.zip`:
+
+```
+AX is shutting down due to an error. Duplicate metadata element has been detected in multiple modules.
+… Element AxDataEntityView/FSAddressCityBR is defined in the following modules: fiscosyshubintegration, fiscalhubintegration
+```
+
+(`MetadataReadCrossAssemblyDuplicateException`). O pacote chega a ser aplicado, o AOS não sobe, e o UDE desfaz: o ambiente
+volta com o pacote antigo. Os dois descriptors também tinham o mesmo Id de modelo (896000948).
+
+**Onde achar o log.** O Visual Studio só baixa o `operationlogs.zip` quando a opção está ligada (**Tools > Options >
+Power Platform Tools**). Fora dele, no app **Finance and Operation Package Manager** do Dataverse, em **Operation
+History**; ou pela Web API do Dataverse, tabela `msprov_operationhistories`, coluna de arquivo `msprov_logs`. O erro de
+subida fica no `.etl`; as mensagens saem lendo as strings do arquivo (o provider não tem manifesto na máquina).
+
+**A saída: o módulo antigo vazio, no mesmo deploy.** A documentação do UDE não tem um "desinstalar módulo" (o
+`ModuleToRemove.txt` é do fluxo do Lifecycle Services). O deploy sobrescreve a pasta do módulo, então um
+`FiscalHubIntegration` sem os objetos tira a duplicidade:
+
+- descriptor com **Id novo** (896000949), referência só ao `ApplicationPlatform` e nenhum outro objeto além de uma classe
+  vazia (`FiscalHubIntegrationRemoved`), como a Microsoft pede no pré-requisito de desinstalação;
+- os arquivos estão em `d365/tools/modulo-vazio-FiscalHubIntegration/` (copiar para a pasta de metadado customizado do
+  UDE, ao lado do `FiscosysHubIntegration`);
+- compila sozinho com o `xppc` (0 erros, 0 avisos);
+- no **Build models** e no **Deploy models to online environment**, marcar os dois módulos juntos, com sincronização do
+  banco. A role antiga `FSFiscalHubIntegration` some junto: a `FiscosysHubIntegration` precisa ser atribuída de novo.
+
+O módulo vazio fica no ambiente sem efeito. **Só o fiscosysdev precisa disso:** ambiente de cliente que nunca teve o
+`FiscalHubIntegration` recebe só o `FiscosysHubIntegration`.
+
+**Regra para o próximo rename:** antes de publicar o módulo com o nome novo, publicar o antigo vazio (ou os dois no mesmo
+deploy), e dar Id novo a cada modelo.
+
 ---
 
 ## Referências
