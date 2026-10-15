@@ -126,6 +126,17 @@ export interface TenantInfo {
 // Os módulos do tenant (GET /info, GET /connector): montam a barra lateral. Apresentação, e não permissão.
 export type ModuleName = 'Fiscal' | 'Contabil' | 'Inventario';
 
+// Um conector do tenant na árvore do GET /info: o `adapter`, que é a identidade dele; o `label` e o `scheduling`, que o
+// adapter **declara** e o perfil não guarda; e os módulos ligados naquele conector, na ordem da barra lateral. Um
+// conector sem módulo ligado vem com a lista vazia, e continua sendo uma entrada — quem decide que um conector sem item
+// nenhum não vira grupo é a tela (module-navigation).
+export interface ConnectorInfo {
+  adapter: string;
+  label: string;
+  scheduling: boolean;
+  modules: ModuleName[];
+}
+
 // GET /info — o que qualquer papel lê para montar a barra lateral e o selo.
 export interface InfoResponse {
   environment: string;
@@ -133,7 +144,12 @@ export interface InfoResponse {
   automaticIntegration: boolean;
   // O adapter de entrada varre: o selo aparece (verde ou vermelho) só quando é verdadeiro.
   inboundScans: boolean;
-  modules: ModuleName[];
+  // A árvore que a barra lateral desenha: um conector por entrada, na ordem gravada no perfil. A lista plana de módulos
+  // do nível do tenant saiu — ela existia porque era por ela que a barra lateral era montada, e não é mais (D6).
+  connectors: ConnectorInfo[];
+  // Se o usuário logado pode ver as fotos cruas (o JSON e o zip). É permissão, derivada da lista de papéis do servidor —
+  // a tela não tem cópia dela (ADR-0039 §5).
+  canViewRawJson: boolean;
 }
 
 // GET /connector/automatic — o painel da integração automática (só Admin). Os instantes vêm em ISO (UTC).

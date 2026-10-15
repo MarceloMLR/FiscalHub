@@ -52,27 +52,12 @@ builder.Services.AddSingleton<JwtTokenIssuer>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, HttpTenantContext>();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.MapInboundClaims = false;   // mantém os claims com os nomes originais (tenant, role, name)
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwt.Issuer,
-            ValidateAudience = true,
-            ValidAudience = jwt.Audience,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
-            ValidateLifetime = true,
-            NameClaimType = "name",
-            RoleClaimType = "role",
-        };
-    });
+// A autenticação e a política de fallback moram num ponto único, que o teste de papel sobe tal como está (design D8).
+builder.Services.AddFiscalHubJwtAuthentication(jwt);
 
-// Tudo exige autenticação por padrão (fallback policy); os endpoints públicos marcam AllowAnonymous.
-builder.Services.AddAuthorization(options =>
-    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+// Quem vê as fotos cruas: a lista do servidor, num lugar só. O RequireRole do /trace e do zip e o canViewRawJson do
+// /info saem dela, e o dashboard não tem cópia — ele pergunta ao /info (platform-response-trace; ADR-0039 §5).
+builder.Services.AddSingleton(RawTraceRoles.Default);
 
 // Composição: Blob (Azurite) + adapters + store + validação + esteira.
 builder.Services.AddSingleton(new BlobServiceClient(cfg.GetConnectionString("Blob")));
@@ -215,6 +200,11 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 var app = builder.Build();
+
+// A chave do conector é o nome do adapter, e ela tem que ser única entre as declarações registradas. Repetida, o host
+// não sobe: o /info devolveria duas entradas com o mesmo adapter e a barra lateral ficaria com dois grupos
+// indistinguíveis, um abrindo a tela do outro (tarefa 4.0). Dois adapters da mesma plataforma continuam valendo.
+app.Services.EnsureDistinctAdapterDeclarations();
 
 app.UseCors();
 app.UseAuthentication();
@@ -479,53 +469,17 @@ app.MapPost("/drop/{key}", async (string key, string? empresa, BlobServiceClient
     return Results.Accepted($"/trace/{tenant.TenantId}/{key}", new { dropped });
 });
 
-// A mesma resposta para "é de outro tenant" e "não tem fotos": não se confirma a existência de nota alheia.
-const string NoTraceMessage = "sem fotos para esse documento.";
-
-// Quem vê as fotos cruas (o /trace e o zip). Hoje só o Admin; um papel de Suporte, quando existir, entra aqui, no
-// RAW_JSON_ROLES da tela (dashboard/src/features/auth/roles.ts) e no UserRole. Quem não tem o papel recebe 403 antes de
-// qualquer leitura. A primeira vista do detalhe vem do /reading, aberto a qualquer papel (ADR-0030).
-string[] rawTraceRoles = ["Admin"];
-
-// Fotos de rastreabilidade de um documento (fonte, domínio, destino, respostas), para o JSON cru do dashboard. Só para
-// quem tem o papel, e só o tenant de quem está logado (ADR-0028): outro tenant e documento sem fotos têm o mesmo 404 —
-// não se confirma nota alheia.
-app.MapGet("/trace/{tenantId}/{naturalKey}", async (string tenantId, string naturalKey, DocumentTraceQuery traces, CancellationToken ct) =>
-{
-    IReadOnlyList<TraceFile>? files = await traces.GetAsync(tenantId, naturalKey, ct);
-    if (files is null)
-    {
-        return Results.NotFound(new { message = NoTraceMessage });
-    }
-
-    // JSON entra aninhado (legível); a fonte crua (XML) entra como string. A foto repetida em dois períodos
-    // (reprocesso em outro mês) vem por último na listagem e prevalece.
-    var snapshots = new Dictionary<string, object>();
-    foreach (TraceFile file in files)
-    {
-        snapshots[file.Name] = file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-            ? JsonSerializer.Deserialize<JsonElement>(file.Content)
-            : Encoding.UTF8.GetString(file.Content);
-    }
-
-    return Results.Ok(snapshots);
-}).RequireAuthorization(policy => policy.RequireRole(rawTraceRoles));
-
-// Download: zipa as fotos de um documento pra baixar de uma vez, com a mesma regra de papel e de tenant do /trace.
-app.MapGet("/documents/{tenantId}/{naturalKey}/download", async (string tenantId, string naturalKey, DocumentTraceQuery traces, CancellationToken ct) =>
-{
-    IReadOnlyList<TraceFile>? files = await traces.GetAsync(tenantId, naturalKey, ct);
-    return files is null
-        ? Results.NotFound(new { message = NoTraceMessage })
-        : Results.File(TraceArchive.Zip(files), "application/zip", $"{naturalKey}.zip");
-}).RequireAuthorization(policy => policy.RequireRole(rawTraceRoles));
+// As fotos cruas (o /trace e o zip) e a lista de papéis moram num ponto único (RawTraceEndpoints), que o teste de papel
+// sobe tal como está (design D8). Quem não tem o papel recebe 403 antes de qualquer leitura. A primeira vista do detalhe
+// vem do /reading, logo abaixo, aberto a qualquer papel (ADR-0030).
+app.MapRawTraceEndpoints();
 
 // A leitura do desfecho: a lista de campos da recusa e as omissões do envio, tiradas das fotos, e nada mais delas. É a
 // primeira vista do detalhe, para qualquer papel, com a regra de tenant do /trace e o mesmo 404.
 app.MapGet("/documents/{tenantId}/{naturalKey}/reading", async (string tenantId, string naturalKey, DocumentReadingQuery readings, CancellationToken ct) =>
     await readings.GetAsync(tenantId, naturalKey, ct) is { } reading
         ? Results.Ok(reading)
-        : Results.NotFound(new { message = NoTraceMessage }));
+        : Results.NotFound(new { message = RawTraceEndpoints.NoTraceMessage }));
 
 // Leitura pro dashboard: os documentos mais recentes com status. Em produção, atrás de auth e
 // filtrado por tenant.
@@ -658,15 +612,9 @@ app.MapGet("/companies", async (CompanyDirectoryQuery directory, CancellationTok
 app.MapGet("/companies/{code}/branches", async (string code, CompanyDirectoryQuery directory, CancellationToken ct) =>
     DirectoryResponse(await directory.ListBranchesAsync(code, ct)));
 
-// O ambiente da instância e a integração automática do tenant logado. O ambiente é o da instância, sem padrão (D6). A
-// integração automática não é campo gravado: é derivada do perfil (adapter que varre e poll.enabled), com as origens dos
-// feeds registrados, as mesmas que o poller consome (ADR-0029). O inboundScans diz se o adapter varre: é o que faz o selo
-// aparecer, verde ou vermelho, ou sumir. Os módulos montam a barra lateral, para qualquer papel: apresentação, e não
-// permissão.
-app.MapGet("/info", async (
-    IConnectorProfileStore profiles, IEnumerable<IDocumentChangeFeed> feeds, IInstanceEnvironment instance, ITenantContext tenant,
-    CancellationToken ct) =>
-    Results.Ok(InstanceInfo.For(instance, await profiles.GetAsync(tenant.TenantId, ct), feeds.Select(f => f.Origin))));
+// O /info mora no mesmo ponto único das fotos cruas, e pelo mesmo motivo: o canViewRawJson que ele publica sai da lista
+// de papéis do servidor, e o teste de papel sobe o registro de verdade (design D7 e D8).
+app.MapInstanceInfoEndpoint();
 
 // Perfil de conector do tenant (config de adapters e settings; o ambiente é da instância). Só Admin lê e edita. O segredo entra pela tela
 // como campo de escrita e vai para o cofre; a leitura diz só "configurado" e a data (ADR-0027).

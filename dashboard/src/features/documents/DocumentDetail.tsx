@@ -6,8 +6,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DataObjectIcon from '@mui/icons-material/DataObject';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { useAuth } from '../auth/AuthContext';
-import { canViewRawJson } from '../auth/roles';
+import { canViewRawJson } from '../rawJson';
+import { useInfo } from '../useInfo';
 import { useReading } from './useReading';
 import { isFailure } from './StatusChip';
 import { humanizePath, omissionsFromReason } from './platformReason';
@@ -18,7 +18,8 @@ import type { DocumentSummary, FieldRejection, IntegrationStatus } from '../../t
 const ACCEPTED: IntegrationStatus[] = ['Submitted', 'Confirmed'];
 
 export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
-  const { user } = useAuth();
+  // Quem vê as fotos cruas é o /info que diz; a tela não decide pelo papel (D7).
+  const { data: info } = useInfo();
   // A primeira vista vem da leitura do desfecho, para qualquer papel; as fotos cruas só no modal do JSON.
   const { data: reading } = useReading(doc.tenantId, doc.naturalKey);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -47,8 +48,9 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
           {doc.naturalKey}
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          {/* O JSON cru abre num modal próprio, só para quem tem o papel (o /trace dá 403 para os demais). */}
-          {canViewRawJson(user?.role) && (
+          {/* O JSON cru abre num modal próprio, só para quem o /info disser (o /trace dá 403 para os demais). Antes de
+              ele responder, ou se falhar, o botão não aparece — para papel nenhum. */}
+          {canViewRawJson(info) && (
             <button type="button" className="fh-btn fh-btn-secondary" onClick={() => setJsonOpen(true)} style={{ height: 32 }}>
               <DataObjectIcon sx={{ fontSize: 16 }} />
               Visualizar JSON

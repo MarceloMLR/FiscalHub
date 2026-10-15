@@ -4,7 +4,7 @@ Documento de handoff entre sessões/máquinas. Atualizado ao fim de cada expedie
 Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastructure-brief.md).
 (O "como trabalhamos" — Modo Mentor — vem do prompt inicial; re-cole ao abrir uma sessão nova.)
 
-**Última atualização:** 2026-10-14
+**Última atualização:** 2026-10-15
 
 > **Nome:** a empresa é a **Fiscosys** e o produto de exibição é o **FiscosysHub**. Os namespaces C#
 > continuam `FiscalHub.*` de propósito — nome de exibição e namespace são coisas diferentes.
@@ -18,7 +18,13 @@ Para retomar: leia este arquivo + os [ADRs](adr/) + o [brief de infra](infrastru
 
 ## Onde estamos
 
-**24 projetos (22 fora de `tools/`) · 28 specs · 39 ADRs · 15 changes arquivadas.**
+**25 projetos (23 fora de `tools/`) · 28 specs · 39 ADRs · 16 changes arquivadas.**
+
+> O projeto novo é o `tests/FiscalHub.Host.Tests`, o harness de teste de endpoint por papel da change
+> `connector-navigation-and-admin-json`, **arquivada em 2026-10-15** como
+> `2026-10-15-connector-navigation-and-admin-json` — daí a 16ª change. As **specs continuam 28**: a change toca três
+> specs existentes por delta (`module-navigation`, `platform-account-connectors`, `platform-response-trace`) e não cria
+> capacidade nova. Isso fica escrito para que a conferência seguinte não leia o número parado como esquecimento.
 
 **Núcleo:** domínio `GoodsInvoice` (NF-e 55) com a Reforma (IBS/CBS/IS), envelope fino, portas, esteira
 `ProcessAsync` (idempotência → busca → validação → envio → registro), `NfeXmlParser`,
@@ -53,6 +59,15 @@ conector, com módulos, integrações e caminhos),
 Usuários (CRUD e dados do tenant), módulos reservados, login, tema claro e escuro — e a **identidade
 visual Fiscosys**, aplicada na change `rebrand-dashboard-to-fiscosys`.
 
+**A barra lateral é por conector, e a visão técnica é permissão do servidor** (change
+`connector-navigation-and-admin-json`, ADR-0039 §1, §2 e §5; implementada e **arquivada em 2026-10-15**). Um grupo por
+conector do tenant, rotulado pelo rótulo que o adapter declara, com os módulos ligados nele e o Agendamento dentro do
+conector que agenda; a integração não é item de menu. O `/info` responde a **árvore** que a barra lateral desenha, e a
+lista plana de módulos do tenant saiu. Os JSONs crus e os logs são **403 no servidor** para quem não é Admin, e a lista
+de papéis vive num lugar só no Host, de onde o `/info` deriva o `canViewRawJson` — o front não tem mais lista de papéis.
+O host recusa subir com duas declarações de adapter de mesmo nome. Trocar de usuário sem recarregar a página limpa o
+cache do React Query, para que a tela não decida pela resposta do usuário anterior.
+
 **Multi-tenant:** JWT com escopo por tenant, perfil de conector por tenant, segredos por referência ao
 cofre, limite de tenant em todas as consultas. **O ambiente é da instância** (`Connector:Environment`): uma
 instância por (cliente, ambiente). As duas instâncias por cliente ainda não foram provisionadas no Azure.
@@ -62,10 +77,11 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
 1. **Corrigir os defeitos conhecidos D1, D2 e D3.** Cada um vai numa change própria, com o teste antes, e o D1 vai
    primeiro. As specs retroativas `integration-status-poll`, `dead-letter-visibility` e `support-ticket` saíram na
    change `document-implemented-capabilities`. A correção de cada defeito entra nelas por delta.
-2. **Uma fatia cruzada, pequena: a barra lateral com o conector como eixo, e a aba Técnico restrita ao Admin
-   (ADR-0039 §1 e §5).** São as duas partes que não dependem do Contábil nem do Inventário. A permissão do Admin é a
-   primeira de verdade do produto — do servidor, e não da tela —, e é melhor que nasça antes de haver dois domínios
-   para proteger.
+2. **O `/info` não tem tratamento de falha, em tela nenhuma.** É anterior à change
+   `connector-navigation-and-admin-json` e maior que a barra lateral: nenhuma tela distingue "o `/info` falhou" de "o
+   `/info` respondeu vazio". Enquanto não tiver, **uma falha do `/info` faz a barra lateral afirmar que não há conector
+   configurado** — e o selo de ambiente e os botões da visão técnica somem, que é o lado seguro. A fatia que corrigir
+   decide o tratamento para as três.
 3. **O Contábil inteiro (ADR-0037, ADR-0038 §1, ADR-0039 §3 e §4).** Hoje é painel reservado (`module-navigation`), e é
    outro domínio, com outro modelo, outras portas e outros adapters. Entram o domínio; a esteira de carga em lote, o
    estilo de saída novo do ADR-0038, que é engenharia e não tela; a fila própria por integração; a tela da carga como
@@ -106,7 +122,8 @@ alguém reverte por engano, e por isso os motivos ficam escritos:
 **E a partição é por domínio, e não em "telas" e "domínios".** O antigo item das filas e das telas repaginadas era,
 quase todo, a apresentação e o tempo de execução do Contábil e do Inventário: a fila por integração foi desenhada para
 o K230 não ficar preso atrás do inventário, e a tela da carga com os motivos agrupados é a tela da carga contábil. O que
-não depende dos dois domínios virou a fatia cruzada do item 2.
+não depende dos dois domínios virou a fatia cruzada da change `connector-navigation-and-admin-json` — a barra lateral
+por conector e a visão técnica do Admin —, que saiu deste item 2 por estar feita (ver "Onde estamos").
 
 ## Decisões recentes
 

@@ -547,6 +547,38 @@ public class ConnectorProfileServiceTests
         Assert.Equal(["Fiscal", "Inventario"], (await h.Service.GetAsync())!.Modules);
     }
 
+    // ---- O rótulo e o agendamento são declaração, e não perfil (change connector-navigation-and-admin-json, D3 e D4) ----
+
+    [Fact]
+    public async Task A_body_with_the_label_or_the_scheduling_inside_a_connector_has_the_fields_ignored()
+    {
+        // Eles são característica da plataforma, declarada em código (ADR-0037): quem configura não os edita. Diferente
+        // da lista de módulos do tenant, que recebe 400, aqui o campo é só ignorado — ele nunca existiu na gravação, e
+        // um corpo que o invente não pede nada que o operador possa acreditar ter configurado.
+        ConnectorProfileRequest? request = JsonSerializer.Deserialize<ConnectorProfileRequest>("""
+            {"inboundAdapter":"Dynamics365","inboundSettings":"{}",
+             "accounts":[{"platform":"Avalara","clientId":"abc","connectors":[
+               {"adapter":"Avalara","settings":"{\"baseUrls\":{\"v2\":\"https://avalara/\"}}",
+                "label":"O Meu Nome","scheduling":false,"modules":["Fiscal"]}]}]}
+            """, HostJson);
+        var h = new Harness();
+
+        ConnectorProfileSaveResult result = await h.Service.SaveAsync(request!);
+
+        Assert.Equal(ConnectorProfileSaveStatus.Saved, result.Status);
+
+        // Nada do rótulo nem do agendamento é gravado: o perfil não tem onde guardá-los.
+        JsonObject stored = JsonSerializer.SerializeToNode(h.Profiles.Stored, HostJson)!.AsObject();
+        Assert.DoesNotContain("label", stored.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("scheduling", stored.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("O Meu Nome", stored.ToJsonString(), StringComparison.Ordinal);
+
+        // E a leitura continua devolvendo o declarado pelo adapter, intacto.
+        IAdapterDeclaration declaration = Declarations.Single(d => d.Adapter == "Avalara");
+        Assert.Equal("Tax Compliance", declaration.Label);
+        Assert.True(declaration.Scheduling);
+    }
+
     [Fact]
     public async Task Read_returns_the_union_of_the_connector_modules_and_only_fiscal_without_any()
     {
@@ -1422,6 +1454,8 @@ public class ConnectorProfileServiceTests
     [
         new FakeDeclaration("Avalara", "Avalara")
         {
+            Label = "Tax Compliance",
+            Scheduling = true,
             Modules =
             [
                 new(TenantModules.Fiscal, [new(ConnectorIntegrations.Invoices, "v2", AcceptsBatch: false)]),
@@ -1449,6 +1483,12 @@ public class ConnectorProfileServiceTests
 
     private sealed record FakeDeclaration(string Platform, string Adapter) : IAdapterDeclaration
     {
+        // O rótulo é texto de tela, e o agendamento diz se o conector aparece com o item de Agendamento (change
+        // connector-navigation-and-admin-json, D3 e D4). O padrão do dublê é não agendar: só quem declara, agenda.
+        public string Label { get; init; } = Adapter;
+
+        public bool Scheduling { get; init; }
+
         public IReadOnlyList<DeclaredModule> Modules { get; init; } = [];
     }
 

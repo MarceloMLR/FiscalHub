@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Teste de endpoint por papel (change connector-navigation-and-admin-json, design D8). Sobe um TestServer mínimo com a
+    mesma autenticação do host e as mesmas extensões de mapeamento — sem SQL, sem Blob e sem Service Bus. Um teste que
+    precisa de infra acaba pulado, e um teste pulado não prova nada. TargetFramework etc. vêm do Directory.Build.props.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FiscalHub.Host\FiscalHub.Host.csproj" />
+  </ItemGroup>
+
+</Project>

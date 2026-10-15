@@ -5,8 +5,8 @@ import { useTrace } from './useTrace';
 type Tab = 'source' | 'domain' | 'destination' | 'response';
 const pretty = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v, null, 2));
 
-// O JSON cru de uma nota, num modal próprio por cima do detalhe, com uma aba por foto. Só é aberto por quem tem o papel
-// (RAW_JSON_ROLES); o /trace dá 403 para os demais. As fotos só são pedidas com o modal aberto.
+// O JSON cru de uma nota, num modal próprio por cima do detalhe, com uma aba por foto. Só é aberto por quem o /info
+// disser que pode ver as fotos cruas; o /trace dá 403 para os demais. As fotos só são pedidas com o modal aberto.
 export function RawJsonModal({ tenantId, naturalKey, onClose }: { tenantId: string; naturalKey: string; onClose: () => void }) {
   const { data, isLoading, isError } = useTrace(tenantId, naturalKey);
   const [tab, setTab] = useState<Tab>('source');

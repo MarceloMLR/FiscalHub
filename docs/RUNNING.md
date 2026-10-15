@@ -178,9 +178,13 @@ Abaixo da conta, a lista de conectores e o painel do conector escolhido, com tr�
 
 - **Conexão:** as URLs base, uma por versão da API. As notas usam a `v2`; o Contábil e o Inventário, a `v1`. A versão
   escolhe a base, e não entra na URL.
-- **Módulos e integrações:** os módulos que o adapter declara e as integrações de cada um. O menu Integrações mostra os
-  módulos ligados nos conectores do tenant; o tenant sem conector nenhum mostra só o Fiscal. O módulo que o adapter não
-  declara aparece apagado, dizendo que aquele conector não o atende.
+- **Módulos e integrações:** os módulos que o adapter declara e as integrações de cada um. A barra lateral mostra um
+  **grupo por conector** do tenant, rotulado pelo rótulo que o adapter declara — na Avalara, "Tax Compliance" —, com os
+  módulos ligados naquele conector abaixo dele, e o Agendamento junto deles quando o adapter declara que aquele conector
+  agenda. A integração não é item de menu: ela é coluna e filtro dentro da página do módulo. O conector sem módulo
+  ligado e sem agendamento não vira grupo, e o tenant em que nenhum conector produz item vê um grupo que **nomeia a
+  ausência**, com o Fiscal e o Agendamento. O módulo que o adapter não declara aparece apagado, dizendo que aquele
+  conector não o atende.
 - **Endpoints:** o caminho de cada integração ligada, relativo à base da versão dela, e o tamanho do lote onde a API
   aceita lote.
 
