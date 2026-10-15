@@ -88,6 +88,20 @@ public class FSMainAccountBR extends common
 			<DataField>DataArea</DataField>
 			<DataSource>CompanyInfo</DataSource>
 		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ChartOfAccounts</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Name</DataField>
+			<DataSource>LedgerChartOfAccounts</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ChartOfAccountsDescription</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Description</DataField>
+			<DataSource>LedgerChartOfAccounts</DataSource>
+		</AxDataEntityViewField>
 	</Fields>
 	<Keys>
 		<AxDataEntityViewKey>

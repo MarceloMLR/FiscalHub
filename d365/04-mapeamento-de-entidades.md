@@ -1018,9 +1018,11 @@ superior.
 | `MainAccountType` | `MainAccount.Type` | natureza pela regra da Microsoft; o hub exclui `Reporting` |
 | `ParentMainAccountId` | superior, pela `ParentMainAccount` | conta superior, sintética/analítica e nível, todos derivados da árvore |
 | `NatureCode` | `MainAccount.NatureCode_BR` | natureza declarada, quando a feature estiver ligada |
+| `ChartOfAccounts` | `LedgerChartOfAccounts.Name` | nome do plano: o legado da Vestacy manda como código do grupo contábil (`COA BRASIL`). Acrescentado em 2026-10-15 |
+| `ChartOfAccountsDescription` | `LedgerChartOfAccounts.Description` | descrição do plano, para o grupo contábil. Acrescentado em 2026-10-15 |
 | `DataArea` | `CompanyInfo.DataArea` | empresa; com `MainAccountRecId`, forma a chave, porque a mesma conta aparece em cada empresa do plano |
 
-**Deixados de fora de propósito:** nome do plano (o filtro por empresa já resolve), categoria, controles de lançamento,
+**Deixados de fora de propósito:** categoria, controles de lançamento,
 moeda, contas de abertura e consolidação. **Data de alteração:** o legado manda `1999-01-01`; o SPED usa o `ActiveFrom`
 do valor de dimensão da conta. Fica fora até o contrato pedir (§16).
 
@@ -1065,7 +1067,9 @@ cria no primeiro uso. No `brmf`, 20 de 20.
 
 ### 15.5 Grupo contábil — sem entidade
 
-É montado pelo legado sem ler o ERP. Se continuar existindo, é dado do hub.
+O legado da Superior monta sem ler o ERP. O da Vestacy manda o nome do plano de contas como código (`COA BRASIL`, fixo no
+código). Desde 2026-10-15 a `FSMainAccountBR` traz o nome e a descrição do plano (15.2): o hub monta o grupo com dado do ERP,
+sem entidade própria.
 
 ### 15.6 Fora do pacote
 

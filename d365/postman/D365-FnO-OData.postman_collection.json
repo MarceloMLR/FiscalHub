@@ -1290,7 +1290,7 @@
                     }
                   ]
                 },
-                "description": "Smoke test: responde, formato OData e os 7 campos da decisao (d365/04, 15.2)."
+                "description": "Smoke test: responde, formato OData e os 9 campos da decisao (d365/04, 15.2)."
               },
               "event": [
                 {
@@ -1304,7 +1304,7 @@
                       "const rows = Array.isArray(j.value) ? j.value : [];",
                       "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
                       "console.log('[Contabil] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
-                      "const esperados = [\"MainAccountRecId\",\"MainAccountId\",\"Name\",\"MainAccountType\",\"ParentMainAccountId\",\"NatureCode\",\"DataArea\"];",
+                      "const esperados = [\"MainAccountRecId\",\"MainAccountId\",\"Name\",\"MainAccountType\",\"ParentMainAccountId\",\"NatureCode\",\"DataArea\",\"ChartOfAccounts\",\"ChartOfAccountsDescription\"];",
                       "pm.test('Campos expostos pela entidade', function () {",
                       "  if (rows.length === 0) { console.warn('[Contabil] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
                       "  const faltando = esperados.filter(c => !(c in rows[0]));",
