@@ -79,7 +79,28 @@
 			<Name>FSFiscalDocumentReferencedBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
-			<Name>TaxServiceCodeEntityView</Name>
+			<Name>FSProductionOrderBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSProductionBOMLineBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSProductionCoProductBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSFiscalProductionBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSFiscalProductionLineBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSInventJournalBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSFiscalEstablishmentBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>FSTaxServiceCodeBRView</Name>
 		</AxSecurityPrivilegeReference>
 	</Privileges>
 	<SubRoles />

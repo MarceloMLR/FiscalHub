@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityView xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>FSProductionOrderBR</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+public class FSProductionOrderBR extends common
+{
+}
+]]></Declaration>
+		<Methods />
+	</SourceCode>
+	<CountryRegionCodes>BR</CountryRegionCodes>
+	<SubscriberAccessLevel>
+		<Read>Allow</Read>
+	</SubscriberAccessLevel>
+	<DataManagementEnabled>No</DataManagementEnabled>
+	<IsPublic>Yes</IsPublic>
+	<IsReadOnly>Yes</IsReadOnly>
+	<PrimaryCompanyContext>DataAreaId</PrimaryCompanyContext>
+	<PrimaryKey>EntityKey</PrimaryKey>
+	<PublicCollectionName>FSProductionOrderBRs</PublicCollectionName>
+	<PublicEntityName>FSProductionOrderBR</PublicEntityName>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ProdTableRecId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>RecId</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ProdId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ProdId</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ItemId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ItemId</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>Name</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>Name</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ProdType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ProdType</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ProdStatus</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ProdStatus</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>PmfReworkBatch</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>PmfReworkBatch</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CollectRefProdId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>CollectRefProdId</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>BOMId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>BOMId</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>QtySched</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>QtySched</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>QtyStUp</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>QtyStUp</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>RemainInventPhysical</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>RemainInventPhysical</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>StUpDate</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>StUpDate</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>FinishedDate</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>FinishedDate</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>RealDate</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>RealDate</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>InventTransId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>InventTransId</DataField>
+			<DataSource>ProdTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>InventSiteId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>InventSiteId</DataField>
+			<DataSource>InventDim</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>InventLocationId</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>InventLocationId</DataField>
+			<DataSource>InventDim</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Keys>
+		<AxDataEntityViewKey>
+			<Name>EntityKey</Name>
+			<Fields>
+				<AxDataEntityViewKeyField>
+					<DataField>ProdTableRecId</DataField>
+				</AxDataEntityViewKeyField>
+			</Fields>
+		</AxDataEntityViewKey>
+	</Keys>
+	<Mappings />
+	<Ranges />
+	<Relations />
+	<StateMachines />
+	<ViewMetadata>
+		<Name>Metadata</Name>
+		<SourceCode>
+			<Methods>
+				<Method>
+					<Name>classDeclaration</Name>
+					<Source><![CDATA[
+[Query]
+public class Metadata extends QueryRun
+{
+}
+]]></Source>
+				</Method>
+			</Methods>
+		</SourceCode>
+		<DataSources>
+			<AxQuerySimpleRootDataSource>
+				<Name>ProdTable</Name>
+				<DynamicFields>Yes</DynamicFields>
+				<Table>ProdTable</Table>
+				<DataSources>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>InventDim</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>InventDim</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>InventDimId</Field>
+								<JoinDataSource>ProdTable</JoinDataSource>
+								<RelatedField>inventDimId</RelatedField>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+				</DataSources>
+				<DerivedDataSources />
+				<Fields />
+				<Ranges />
+				<GroupBy />
+				<Having />
+				<OrderBy />
+			</AxQuerySimpleRootDataSource>
+		</DataSources>
+	</ViewMetadata>
+</AxDataEntityView>

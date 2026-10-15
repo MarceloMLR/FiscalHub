@@ -12,7 +12,7 @@ exposta no OData; cada implementador cria uma entidade pública com nome variáv
 Em vez de customizar o adapter por cliente, **nós publicamos** entidades de **nome fixo** (prefixo `FS`)
 como projeção sobre as tabelas padrão. O adapter sempre lê o mesmo nome.
 
-## As 23 entidades
+## As 31 entidades
 
 Todas públicas, somente leitura, sem Data Management, no modelo `FiscosysHubIntegration`:
 
@@ -21,10 +21,11 @@ Todas públicas, somente leitura, sem Data Management, no modelo `FiscosysHubInt
 | Documento | `FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSFiscalDocumentReferencedBR` |
 | Impostos e encargos da nota | `FSFiscalDocumentTaxTransBR`, `FSFiscalDocumentMiscChargeBR` |
 | Contábil (fora da montagem) | `FSTaxTransBR`, `FSTaxWithholdBR`, `FSMarkupTransBR`, `FSTaxTableBR` |
-| Cadastros | `FSFiscalDocModelBR`, `FSItemBR`, `FSUnitOfMeasureBR`, `FSAddressCityBR`, `FSCountryRegionBR`, `FSPostalAddressBR` |
+| Cadastros | `FSFiscalDocModelBR`, `FSItemBR`, `FSUnitOfMeasureBR`, `FSAddressCityBR`, `FSCountryRegionBR`, `FSPostalAddressBR`, `FSFiscalEstablishmentBR`, `FSTaxServiceCodeBR` |
 | Parceiros | `FSCustomerBR`, `FSVendorBR` |
 | Módulo contábil (Parte II do `04`) | `FSGeneralJournalLineBR`, `FSMainAccountBR`, `FSCostCenterBR` |
-| Inventário (Parte III do `04`) | `FSInventOnHandBR`, `FSInventTransBR`, `FSInventLocationBR` |
+| Inventário (Parte III do `04`) | `FSInventOnHandBR`, `FSInventTransBR`, `FSInventLocationBR`, `FSInventJournalBR` |
+| Produção e Bloco K (Parte IV do `04`) | `FSProductionOrderBR`, `FSProductionBOMLineBR`, `FSProductionCoProductBR`, `FSFiscalProductionBR`, `FSFiscalProductionLineBR` |
 
 O entity set no OData é o nome no plural: `/data/FSFiscalDocumentBRs`.
 
@@ -40,14 +41,19 @@ app.
 
 **Reforma e notas referenciadas (14/10/2026).** Campos novos em quatro entidades (CBS/IBS sem contabilização, CST da
 cClassTrib, local da prestação do serviço com IBGE, motivo do NIF, NBS e indicador da operação), a entidade nova
-`FSFiscalDocumentReferencedBR` e o privilégio padrão `TaxServiceCodeEntityView` na role, para a natureza de rendimento
-dos retidos. O detalhe está no `04`, seção 4.4.
+`FSFiscalDocumentReferencedBR`. A natureza de rendimento dos retidos entrou primeiro pela entidade padrão
+`TaxServiceCodeEntities` e, em 15/10, pela `FSTaxServiceCodeBR`. O detalhe está no `04`, seção 4.4.
 
-**A entidade padrão que o hub também lê.** O diretório de empresas e a descoberta por período (ADR-0032) leem a
-`FiscalEstablishments`, a entidade padrão da Microsoft sobre o cadastro de estabelecimentos fiscais, e não uma `FS*`: a
-Microsoft a publica com nome fixo, e a razão das nossas (ADR-0022) não vale para ela. A role referencia o privilégio
-padrão dela, o `FiscalEstablishmentEntityView` (Read). Sem o deploy dele, o dropdown de empresas da integração manual
-mostra o 403 com o nome da role e do privilégio. O que o hub lê dela está no `04`, §7.
+**Pacote autossuficiente e Bloco K (15/10/2026).** O hub só lê entidades `FS*`, e a role só referencia privilégios
+nossos (`04`, §26): o cliente instala o pacote, atribui a role e não libera mais nada. Entraram 8 entidades — a produção
+e o Bloco K inteiro (OP, lista da OP, coprodutos, diários de estoque, produção dos Livros fiscais) e as substitutas das
+padrão `FiscalEstablishments` e `TaxServiceCodeEntities` — e três campos na `FSInventTransBR`. O detalhe está na Parte IV
+do `04`.
+
+**Transição: a entidade padrão que o hub ainda lê.** O diretório de empresas e a descoberta por período (ADR-0032) leem a
+`FiscalEstablishments`, e a role ainda referencia o privilégio padrão dela, o `FiscalEstablishmentEntityView` (Read).
+Quando o hub passar a ler a `FSFiscalEstablishmentBRs` (mesmos nomes de campo), o privilégio sai da role. O que o hub lê
+dela está no `04`, §7.
 
 **Como conferir pelo hub.** O botão **Testar credencial** da aba do ERP, em Configurações, pede um token novo ao Entra ID
 e lê `/data/FSFiscalDocumentBRs?$top=1&$select=FiscalDocumentRecId&cross-company=true` (ADR-0031). Um 403 é a role ou
@@ -94,14 +100,15 @@ forma, em vez de misturar documentos em uma pasta comum.
 - [x] **Contábil.** 3 entidades publicadas e aceitas em 2026-10-01 (seção 17.1 do `04`).
 - [x] **Inventário.** 3 entidades publicadas e aceitas em 2026-10-01 (seção 24.1 do `04`); a `FSItemBR` ganhou
       `InventUnitId` e `ProductName`.
+- [ ] **Produção e Bloco K.** 8 entidades escritas em 2026-10-15 (Parte IV do `04`); falta publicar e o aceite do §31.
 - [ ] **Fase 2 — Pacote.** Deployable package + import validado no nosso ambiente primeiro.
 
 ### Fora do roadmap: gatilho por evento
 
 A antiga fase 2 (CoC + business event disparando no status) **saiu do roadmap**. Dois motivos:
 não cobre todos os caminhos de escrita, então nunca poderia ser a garantia (ADR-0023); e exige X++
-no pacote, que hoje é **metadado puro** — 23 entidades, 23 privilégios, uma role (que referencia também os
-privilégios padrão `FiscalEstablishmentEntityView` e `TaxServiceCodeEntityView`), zero código.
+no pacote, que hoje é **metadado puro** — 31 entidades, 31 privilégios, uma role (que ainda referencia o privilégio
+padrão `FiscalEstablishmentEntityView`, até o hub ler a `FSFiscalEstablishmentBR`), zero código.
 
 Evento só compra **latência**, e com poll de 10s a detecção fica em 5s na média. Para despachar nota
 já aprovada, isso não é gargalo.

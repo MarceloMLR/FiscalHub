@@ -155,8 +155,21 @@ depois do build, do deploy e do sync.
 - **Cabeçalho, linhas, impostos da nota e impostos contábeis:** `$select` dos campos novos. Num pacote antigo o OData
   responde **400** (propriedade desconhecida), e o teste de status falha com essa dica. No cabeçalho, toda nota com
   `CityWhereServicePerformed` precisa trazer o IBGE.
-- **`TaxServiceCodeEntities`** (entidade padrão): natureza de rendimento. Um 403 aqui é o `TaxServiceCodeEntityView`
-  que falta na role.
+- **`FSTaxServiceCodeBRs`:** natureza de rendimento, pela nossa entidade (15/10; antes era a `TaxServiceCodeEntities`
+  padrão). Um 403 aqui é o `FSTaxServiceCodeBRView` que falta na role.
+
+## Pasta `FiscalHub — produção, Bloco K e cadastros próprios`
+
+As 8 entidades da Parte IV do `d365/04` (2026-10-15) e os três campos novos da `FSInventTransBR`. Rode depois do build,
+do deploy e do sync.
+
+- **Publicação:** as 8 no service document.
+- **Uma por entidade:** smoke test e os campos. Os campos só são conferidos quando há linha; a produção dos Livros fiscais
+  (`FSFiscalProductionBRs`, `FSFiscalProductionLineBRs`) fica vazia em cliente que não a usa.
+- **`FSFiscalEstablishmentBRs`:** todo estabelecimento com CNPJ e código, como o diretório confere na `FiscalEstablishments`.
+  É a substituta dela quando o hub trocar a leitura.
+- **`FSInventTransBRs`:** `$select` de `InventTransId`, `Voucher` e `InventTransModifiedDateTime`. Num pacote antigo o
+  OData responde **400**.
 
 ## Pasta `FiscalHub — diretório e descoberta por período`
 
@@ -169,7 +182,8 @@ O que o hub lê do D365 para a integração manual e o agendamento (change `erp-
 
 - **O diretório não é entidade do pacote.** A role `FiscosysHubIntegration` referencia o privilégio padrão
   `FiscalEstablishmentEntityView`. Um `403` no primeiro request é esse privilégio sem deploy, ou a role não atribuída ao
-  app. O console diz isso.
+  app. O console diz isso. A substituta é a `FSFiscalEstablishmentBRs` (pasta de produção e cadastros próprios), para
+  quando o hub trocar a leitura.
 - **A empresa do hub** é o `CNPJ` sem ponto, barra, hífen e espaço, com as letras. O console mostra cada uma.
 - **O filtro de data** usa os limites `T00:00:00Z` e `T23:59:59Z`, que cobrem o `FiscalDocumentDate` às 12:00Z.
   Verificado em 2026-10-01: com `2026-08-07` e `SP-01`, o request traz `BRMF06-110000034` e `BRMF06-110000035`, as duas
