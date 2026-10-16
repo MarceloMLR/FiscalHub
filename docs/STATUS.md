@@ -99,9 +99,11 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
 
 ## Próximos passos
 
-1. **Corrigir os defeitos conhecidos D1, D2 e D3.** Cada um vai numa change própria, com o teste antes, e o D1 vai
+1. **Corrigir os defeitos conhecidos D1 e D3.** Cada um vai numa change própria, com o teste antes, e o D1 vai
    primeiro. As specs retroativas `integration-status-poll`, `dead-letter-visibility` e `support-ticket` saíram na
-   change `document-implemented-capabilities`. A correção de cada defeito entra nelas por delta.
+   change `document-implemented-capabilities`. A correção de cada defeito entra nelas por delta. **O D2 fechou em
+   2026-10-16** pela change `dead-letter-poison-message`, por delta na `dead-letter-visibility` — e levou junto a
+   metade do D5 que era dele.
 2. **O Contábil inteiro (ADR-0037, ADR-0038 §1, ADR-0039 §3 e §4).** Hoje é painel reservado (`module-navigation`), e é
    outro domínio, com outro modelo, outras portas e outros adapters. Entram o domínio; a esteira de carga em lote, o
    estilo de saída novo do ADR-0038, que é engenharia e não tela; a fila própria por integração; a tela da carga como
@@ -206,9 +208,23 @@ Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Docu
   `SqlProcessingStore.ListPendingAsync` **não filtra por tenant** e pega os 50 mais antigos por ordem de
   inserção. Cinquenta documentos travados na cabeça da fila param o poll de todo mundo. Dois comentários no
   código afirmam o contrário do que ele faz. **Prioridade alta.**
-- **D2 — mensagem envenenada na dead-letter.** `DeadLetterTriggerService` só chama `CompleteMessageAsync`
-  depois do `HandleAsync`. Corpo que não desserializa lança, a mensagem nunca é concluída e volta a ser
-  entregue sem fim, com uma linha de log por tentativa. **Prioridade alta.**
+- ~~**D2 — mensagem envenenada na dead-letter.**~~ **Fechado em 2026-10-16** pela change
+  `dead-letter-poison-message`. **O diagnóstico original estava meio errado:** o sintoma (reentrega sem fim) era
+  real, mas a causa não era a ordem do `CompleteMessageAsync` — concluir **depois** do tratamento é a regra certa, e
+  é ela que salva a falha transitória. A causa era **uma linha** do `DeadLetterHandler`, que fazia corpo inválido
+  lançar a mesma exceção que SQL fora do ar. O conserto ensinou o código a distinguir as duas: corpo inválido vira
+  descarte (registro de erro com o corpo e a identidade da mensagem, e a mensagem é concluída), e falha de
+  infraestrutura continua propagando, sem concluir. **A ordem da chamada não mudou.**
+  - **Prova por inversão (4.1):** trocando o descarte de volta por `throw`, **12** testes nomeados ficam vermelhos
+    (`Body_that_is_not_json_is_discarded_and_logged_once`, `Null_body_is_discarded_and_never_throws`,
+    `Json_missing_a_required_field_is_discarded` ×3, `Blank_tenant_or_natural_key_is_discarded_and_nothing_is_stored`
+    ×5, `The_discard_record_carries_the_body_the_queue_and_the_message_identity`,
+    `A_body_past_the_limit_is_cut_and_the_record_says_the_original_size`).
+  - **Prova de que o conserto errado não passa (4.2):** envolvendo o store num `try/catch` que devolve `Discarded` —
+    o "concluir sempre" —, **1** teste fica vermelho, o `A_store_that_fails_propagates_and_is_not_swallowed`.
+  - **Prova do efeito, contra o emulador real:** `DeadLetterEmulatorTests.A_poison_message_is_consumed_once_and_leaves_the_dead_letter`
+    publica um corpo lixo, esgota as 5 entregas, sobe a casca de verdade e afirma que a mensagem é consumida **uma
+    vez** e some da dead-letter. Opt-in por `FISCALHUB_SB_EMULATOR`; pulado por padrão.
 - **D3 — Freshdesk não resolve o segredo.** O seed grava `apiKeyRef` (`kv:…`) e o `FreshdeskSettings` tem o
   campo com o comentário "resolvida upstream", mas nada resolve: o gateway lê só `apiKey` e falha com
   "'apiKey' ausente". É o padrão de referência ao cofre do `connector-secret-references` não aplicado aqui.
@@ -220,10 +236,46 @@ Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Docu
 - **D4 — menores, aceitos por ora.** O teto de 20 MB está repetido entre o serviço e o `Program.cs`; a
   descrição do chamado sempre diz que os logs seguem anexados, mesmo sem anexo.
 - **D5 — menores, que entram nas correções acima.** O `StatusPollerOptions` é registrado com `new` e não lê
-  configuração: vai junto com o D1. Um `DeadLetterReason` vazio (não nulo) grava motivo vazio: vai junto com
-  o D2.
+  configuração: vai junto com o D1. ~~Um `DeadLetterReason` vazio (não nulo) grava motivo vazio: vai junto com
+  o D2.~~ **Esta metade fechou em 2026-10-16**, com o D2, na change `dead-letter-poison-message`: a cadeia de `??`
+  virou `DeadLetterMessage.ResolveReason`, que trata **ausente e em branco como a mesma coisa** neste campo, com o
+  texto padrão como piso. **Prova por inversão (4.3):** voltando a função para a cadeia de `??`, os **4** casos em
+  branco do `Blank_counts_as_absent_when_the_reason_is_resolved` (`""`/descrição, `"   "`/descrição, `""`/`""`,
+  `"  "`/`"   "`) e o `A_blank_reason_never_reaches_the_store` ficam vermelhos, enquanto os **4** casos com nulo e
+  com motivo preenchido continuam verdes — é a assimetria que prova que o teste cobre vazio, e não só nulo.
+  **Alcance honesto:** nenhum código nosso chama `DeadLetterMessageAsync`, então o motivo em branco não era
+  produzido por nós; foi guarda de contrato, e não defeito observado em produção.
+  **E o piso é só deste campo, por leitor:** o log do descarte carrega os dois campos do transporte **crus**, e um
+  ausente aparece como `(não informado)` — escrever o texto padrão ali faria o log afirmar que o transporte disse uma
+  frase que ele não disse. A regra do projeto, afiada na mesma change (D8 do `design.md`): ausente e vazio colapsam
+  **quando o leitor não distingue os dois**, e não por campo. Preso por
+  `A_transport_that_said_nothing_is_not_quoted_saying_the_default_reason` (3 casos) e
+  `The_discard_record_carries_the_raw_transport_fields_and_not_the_resolved_reason`, que ficam vermelhos se alguém
+  devolver o resolvido para o log.
 
 > Os gateways Freshdesk e Local **não têm nenhum teste**. Foi por isso que o D3 sobreviveu.
+
+### O que o conserto do D2 **não** cobriu, e continua aberto
+
+Escrito para o D2 fechado não parecer "a dead-letter está resolvida".
+
+- **A casca passou a ter teste, mas um só, e opt-in.** O `DeadLetterTriggerService.OnMessageAsync` não tem teste
+  unitário por decisão (ele recebe um `ProcessMessageEventArgs` com um receiver vivo, e o repositório não tem
+  biblioteca de mock). Quem o cobre é **1** teste de emulador, pulado por padrão: numa execução normal de
+  `dotnet test` **as quatro linhas da casca continuam descobertas**, e apagar o `CompleteMessageAsync` não quebra
+  teste nenhum. Suíte: 1429 aprovados, 43 ignorados — **1 desses ignorados é esse teste**.
+- **Falha determinista de gravação também é laço.** Esta change protege a reentrega de propósito: se a gravação
+  falhar **sempre** para uma mensagem (uma chave natural maior que a coluna, por exemplo), ela volta a ser entregue
+  indefinidamente — o D2 por outra porta, mais lento. O amortecedor é o tempo de lock, **medido em 60,0 s** contra o
+  emulador, o que torna o laço lento, e não finito.
+- **E a saída barata para isso não existe.** Medido na mesma passada: o `DeliveryCount` de uma mensagem **já na
+  dead-letter** entra em 6 e **congela** — não incrementa nem por abandono explícito nem por expiração de lock.
+  Contar "falhou tantas vezes que já não é transitório" exigiria contador **nosso**, que é esquema novo (CLAUDE.md
+  §9), e por isso é decisão de produto própria, não correção. As duas medidas são **contra o emulador**, não contra
+  o Azure.
+- **A mensagem descartada vive só no log.** Sem tenant e sem chave natural não há documento a que atribuí-la, então
+  nada vai ao store nem ao Blob (decisão registrada no `design.md` da change, D3 e D6). Se ela precisar de artefato
+  durável e de tela, é capability de quarentena, e é outra fatia.
 
 ## Riscos e pendências de higiene
 
@@ -245,7 +297,11 @@ Levantados em 2026-10-09 ao escrever as specs retroativas, lendo o código. Docu
   `brmf|BRMF06-110000027`. A mensagem foi retentada até o limite e a nota virou `DeadLettered` com
   `MaxDeliveryCountExceeded`; a segunda tentativa, na mesma nota, funcionou. O pacote de metadados vai para o
   cliente com essa entidade — a mesma do commit acima, sem change própria. E o motivo genérico da dead-letter
-  escondeu que a causa foi o ERP: é caso vivo para a change do defeito da dead-letter.
+  escondeu que a causa foi o ERP: era caso vivo para a change do defeito da dead-letter. **A change
+  `dead-letter-poison-message` (2026-10-16) não resolveu esta parte**, e é bom dizer: ela garantiu que o motivo
+  nunca fique **vazio**, mas o motivo continua sendo o que o transporte dá — aqui, `MaxDeliveryCountExceeded`. O
+  erro real do ERP continua só no log do consumidor da esteira, e não no registro da nota. Levar a causa da falha
+  para o registro é outra fatia.
 - ~~**A chamada do `AdapterDeclarationGuard` no `Program.cs` não tem teste**~~ (P1 da change
   `dashboard-component-test-stack`, 2026-10-15). **Fechada em 2026-10-15** pela change `adapter-key-guard-proof`:
   `tests/FiscalHub.Host.Tests/HostStartupGuardTests.cs` compõe o host pelo caminho real da subida
