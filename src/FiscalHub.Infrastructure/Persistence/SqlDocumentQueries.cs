@@ -15,6 +15,11 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
     private static readonly IntegrationStatus[] Processing = [IntegrationStatus.Submitted, IntegrationStatus.Pending];
     private static readonly IntegrationStatus[] Failed = [IntegrationStatus.IntegrationError, IntegrationStatus.DeadLettered, IntegrationStatus.Unconfirmed];
 
+    // A quarta faixa (ADR-0041): a nota que parou na chave de envio. Fica fora das três de cima — não foi confirmada por
+    // plataforma nenhuma, não aguarda retorno de ninguém e não é falha. A ignorada segue sem faixa própria, e por isso
+    // conta só no total (pendência registrada nos Próximos passos).
+    private static readonly IntegrationStatus[] SavedWithoutSending = [IntegrationStatus.Saved];
+
     private readonly ProcessingDbContext _db;
     private readonly ITenantContext _tenant;
 
@@ -76,6 +81,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 Finalizadas = g.Count(x => Finished.Contains(x.Status)),
                 EmProcessamento = g.Count(x => Processing.Contains(x.Status)),
                 ComErro = g.Count(x => Failed.Contains(x.Status)),
+                Salvas = g.Count(x => SavedWithoutSending.Contains(x.Status)),
             })
             .Take(limit);
 
@@ -91,6 +97,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
                 Finalizadas = g.Count(x => Finished.Contains(x.Status)),
                 EmProcessamento = g.Count(x => Processing.Contains(x.Status)),
                 ComErro = g.Count(x => Failed.Contains(x.Status)),
+                Salvas = g.Count(x => SavedWithoutSending.Contains(x.Status)),
             });
 
     public async Task<IReadOnlyList<DocumentSummary>> ListByGroupAsync(GroupKey group, CancellationToken ct = default)

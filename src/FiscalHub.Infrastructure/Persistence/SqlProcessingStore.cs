@@ -22,12 +22,19 @@ internal sealed class SqlProcessingStore : IProcessingStore
         _clock = clock;
     }
 
+    // "Salva" é terminal ao lado de "enviada" e "confirmada" (ADR-0041). Sem isso, duas coisas quebram: a nota que parou
+    // na chave seria reprocessada a cada passada do coletor dentro da janela de sobreposição, regravando as fotos sem
+    // nada ter mudado; e, ao religar a chave, a primeira passada com sobreposição a enviaria sozinha — contra a decisão
+    // de que ligar o envio não reenvia o acumulado. O gatilho manual continua furando (ADR-0016), e é por ele que o
+    // reprocesso tira uma nota de "Salva".
     public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default)
         => _db.ProcessedDocuments.AnyAsync(
             d => d.TenantId == tenantId
                  && d.NaturalKey == naturalKey
                  && d.ContentHash == contentHash   // mesmo cru; se mudou (correção), não bloqueia
-                 && (d.Status == IntegrationStatus.Submitted || d.Status == IntegrationStatus.Confirmed),
+                 && (d.Status == IntegrationStatus.Submitted
+                     || d.Status == IntegrationStatus.Confirmed
+                     || d.Status == IntegrationStatus.Saved),
             ct);
 
     // O que o destino não levou fica visível como observação do envio (ADR-0026); sem omissão, o Reason fica vazio.
@@ -45,6 +52,9 @@ internal sealed class SqlProcessingStore : IProcessingStore
 
     public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
         => UpsertAsync(reference, IntegrationStatus.Ignored, externalId: null, reason, ct);   // o upsert preserva o ExternalId
+
+    public Task RecordSavedAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+        => UpsertAsync(reference, IntegrationStatus.Saved, externalId: null, reason, ct);     // idem: o envio antigo não se perde
 
     public async Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
     {

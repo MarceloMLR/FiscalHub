@@ -19,6 +19,7 @@ describe('resetSessionCache', () => {
     inboundScans: false,
     connectors: [{ adapter: 'Avalara', label, scheduling: true, modules: ['Fiscal'] }],
     canViewRawJson,
+    outboundDispatch: true,
   });
 
   it('o /info do usuário anterior não decide os botões da visão técnica do próximo', () => {

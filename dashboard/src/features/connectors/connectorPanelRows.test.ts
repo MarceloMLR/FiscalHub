@@ -16,6 +16,7 @@ const profile: ConnectorProfile = {
   supportSettings: '{}',
   secrets: { 'platform.Avalara.clientSecret': { configured: true, updatedOn: '2026-09-28T17:05:00Z' } },
   modules: ['Fiscal', 'Contabil'],
+  outboundDispatch: true,
   accounts: [
     {
       platform: 'Avalara',

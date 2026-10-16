@@ -8,7 +8,7 @@ import { groupStatus, GroupStatusChip } from './GroupStatusChip';
 import { GroupModal } from './GroupModal';
 import { formatCompany } from './companyCode';
 import { PERIODS, customRangeProblem, periodWindow } from './period';
-import { cardSums, modelLabel, modelOptions } from './cards';
+import { CARD_NOTES, cardSums, modelLabel, modelOptions } from './cards';
 import { formatPeriod, rowId } from './groupRow';
 import type { DocumentGroup } from '../../types';
 
@@ -170,7 +170,7 @@ export function GroupsPage() {
       </div>
 
       {/* KPIs — a janela e o modelo escolhidos */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
         <Kpi label="Documentos" value={counts.total} color="var(--ink)" note={preset ? preset.note : 'no período escolhido'} />
         <div style={{ ...cardStyle, padding: '16px 18px' }}>
           <div className="fh-label" style={{ fontSize: 10.5, whiteSpace: 'nowrap' }}>Finalizados</div>
@@ -178,10 +178,13 @@ export function GroupsPage() {
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--ok-text)' }}>{counts.finalizadas}</div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ok-text)' }}>{pct}%</div>
           </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>confirmados pelo compliance</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>{CARD_NOTES.finalizadas}</div>
         </div>
-        <Kpi label="Em processamento" value={counts.emProcessamento} color="var(--info-text)" note="aguardando retorno do compliance" />
-        <Kpi label="Com erro" value={counts.comErro} color="var(--error-text)" note="rejeitados, sem retorno ou falha" />
+        <Kpi label="Em processamento" value={counts.emProcessamento} color="var(--info-text)" note={CARD_NOTES.emProcessamento} />
+        {/* Entre "em processamento" e "com erro": é parada deliberada, e não alarme — e "Com erro" fica por último, que
+            é o card que pede alguém. O tom é o `pending`, o mesmo do selo "Salva" (ADR-0041). */}
+        <Kpi label="Salvas" value={counts.salvas} color="var(--pending-text)" note={CARD_NOTES.salvas} />
+        <Kpi label="Com erro" value={counts.comErro} color="var(--error-text)" note={CARD_NOTES.comErro} />
       </div>
 
       {/* As linhas da janela e do modelo — filtro/ordenação nativos por coluna; paginação se ajusta à altura (autoPageSize) */}

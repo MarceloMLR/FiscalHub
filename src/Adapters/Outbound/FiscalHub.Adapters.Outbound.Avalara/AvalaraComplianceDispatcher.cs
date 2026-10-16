@@ -12,6 +12,22 @@ using Microsoft.Extensions.Options;
 namespace FiscalHub.Adapters.Outbound.Avalara;
 
 /// <summary>
+/// O que a preparação deste adapter deixa pronto para o POST: a configuração já lida do tenant, a URL de envio, o
+/// payload no contrato da Avalara (já fotografado) e as omissões do mapeamento. É opaco para a esteira, que só o
+/// carrega de <see cref="AvalaraComplianceDispatcher.PrepareAsync"/> para <see cref="AvalaraComplianceDispatcher.SendAsync"/>.
+/// </summary>
+internal sealed class AvalaraPreparedDispatch : PreparedDispatch<GoodsInvoice>
+{
+    public required AvalaraOutboundSettings Settings { get; init; }
+
+    public required Uri SubmitUri { get; init; }
+
+    public required AvalaraDocument Payload { get; init; }
+
+    public required IReadOnlyList<string> Omissions { get; init; }
+}
+
+/// <summary>
 /// Despacha uma <see cref="GoodsInvoice"/> para a plataforma de compliance (Avalara) por HTTP.
 /// Reusa o mapeamento testado (<see cref="GoodsInvoiceToAvalara"/>) e traduz o status nativo da
 /// plataforma para o <see cref="IntegrationStatus"/> comum (camada anticorrupção — ADR-0003).
@@ -56,7 +72,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
     public string Destination => _options.Destination;
 
     /// <inheritdoc/>
-    public async Task<IntegrationReceipt> SubmitAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
+    public async Task<PreparedDispatch<GoodsInvoice>> PrepareAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
     {
         // 1–2. Configuração do tenant: qual parte é a nossa, o parceiro e os códigos da plataforma (design D4, D5). Falta
         //      algo → DispatchRejectedException antes da requisição de envio (ADR-0026). A tabela establishments ganha; a
@@ -90,9 +106,31 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         //    domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
         await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, AvalaraJson.Options), ct);
 
+        // A preparação termina aqui, com o payload fotografado e nenhuma requisição de envio feita (ADR-0041). Quem
+        // decide se ele vai à plataforma é a esteira, que lê a chave do tenant; o adapter não a conhece.
+        return new AvalaraPreparedDispatch
+        {
+            Settings = settings,
+            SubmitUri = submitUri,
+            Payload = payload,
+            Omissions = mapping.Omissions,
+        };
+    }
+
+    /// <inheritdoc/>
+    public async Task<IntegrationReceipt> SendAsync(PreparedDispatch<GoodsInvoice> prepared, DispatchContext context, CancellationToken ct = default)
+    {
+        if (prepared is not AvalaraPreparedDispatch ready)
+        {
+            throw new ArgumentException($"O preparado não saiu do conector '{Destination}'.", nameof(prepared));
+        }
+
+        AvalaraOutboundSettings settings = ready.Settings;
+        AvalaraDocument payload = ready.Payload;
+
         // 5. POST, com o token do tenant. Sem credencial ou sem segredo, a rejeição sai do provider,
         //    antes de qualquer requisição (ADR-0027).
-        using var request = new HttpRequestMessage(HttpMethod.Post, submitUri)
+        using var request = new HttpRequestMessage(HttpMethod.Post, ready.SubmitUri)
         {
             Content = JsonContent.Create(payload, options: AvalaraJson.Options),
         };
@@ -103,7 +141,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         // O corpo é lido uma vez, como texto, e redigido: a foto, o motivo e o identificador saem dele. A foto vem antes
         // de classificar, em qualquer status, e por melhor esforço — uma falha nela não pode provocar reenvio.
         (string body, int redactions) = await ReadRedactedAsync(response, token, ct);
-        await PhotographAsync(context, TraceExchanges.Submit, request, response, body, redactions, token, ct, mapping.Omissions);
+        await PhotographAsync(context, TraceExchanges.Submit, request, response, body, redactions, token, ct, ready.Omissions);
         int status = (int)response.StatusCode;
 
         switch (response.StatusCode)
@@ -142,7 +180,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
                 $"Conector: a plataforma respondeu HTTP {status} com sucesso, mas sem identificador reconhecível. O documento pode ter "
                 + "sido aceito e não será reenviado automaticamente. Veja a resposta gravada.");
 
-        return new IntegrationReceipt { ExternalId = externalId, Status = IntegrationStatus.Submitted, Omissions = mapping.Omissions };
+        return new IntegrationReceipt { ExternalId = externalId, Status = IntegrationStatus.Submitted, Omissions = ready.Omissions };
     }
 
     /// <inheritdoc/>

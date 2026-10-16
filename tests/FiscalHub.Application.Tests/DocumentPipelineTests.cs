@@ -23,12 +23,13 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = false };
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor(), new FakeSwitch());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
         Assert.Equal(1, source.FetchCount);       // buscou o documento na origem
-        Assert.Equal(1, dispatcher.SubmitCount);  // enviou ao destino
+        Assert.Equal(1, dispatcher.PrepareCount); // preparou (traduziu e fotografou o payload de destino)
+        Assert.Equal(1, dispatcher.SendCount);    // enviou ao destino
         Assert.Equal(1, store.RecordCount);       // registrou o resultado
         Assert.Equal("guid-123", store.Recorded!.ExternalId);
         Assert.Equal("nfe-key-1", trace.DomainKey); // fotografou o domínio
@@ -41,12 +42,13 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = true };   // mesmo cru já processado
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor(), new FakeSwitch());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
         Assert.Equal(1, source.FetchCount);       // buscou pra conhecer o cru (é ele que decide)
-        Assert.Equal(0, dispatcher.SubmitCount);  // não reenviou (conteúdo idêntico)
+        Assert.Equal(0, dispatcher.PrepareCount); // nem preparou
+        Assert.Equal(0, dispatcher.SendCount);    // não reenviou (conteúdo idêntico)
         Assert.Equal(0, store.RecordCount);       // não registrou de novo
         Assert.Null(trace.DomainKey);             // parou na idempotência, antes da foto de domínio
     }
@@ -58,12 +60,12 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = true };   // nota já confirmada
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator(), dispatcher, store, trace, new FakeExtractor(), new FakeSwitch());
 
         await pipeline.ProcessAsync(Reference() with { Trigger = IngestionTrigger.Manual }, Context());
 
         Assert.Equal(1, source.FetchCount);       // buscou de novo (furou a idempotência)
-        Assert.Equal(1, dispatcher.SubmitCount);  // reenviou de propósito
+        Assert.Equal(1, dispatcher.SendCount);    // reenviou de propósito
         Assert.Equal(1, store.RecordCount);       // registrou o reenvio
     }
 
@@ -74,12 +76,13 @@ public class DocumentPipelineTests
         var dispatcher = new FakeDispatcher();
         var store = new FakeStore { AlreadyProcessed = false };
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator { Valid = false }, dispatcher, store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(source), new FakeValidator { Valid = false }, dispatcher, store, trace, new FakeExtractor(), new FakeSwitch());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
         Assert.Equal(1, source.FetchCount);       // buscou
-        Assert.Equal(0, dispatcher.SubmitCount);  // NÃO enviou
+        Assert.Equal(0, dispatcher.PrepareCount); // NÃO preparou: a validação corta antes do despacho
+        Assert.Equal(0, dispatcher.SendCount);    // NÃO enviou
         Assert.Equal(0, store.RecordCount);       // não registrou envio
         Assert.Equal(1, store.RejectionCount);    // registrou a rejeição
         Assert.Equal("nfe-key-1", trace.DomainKey); // fotografou o domínio mesmo rejeitando
@@ -92,11 +95,11 @@ public class DocumentPipelineTests
         // (retentativa não conserta conteúdo nem configuração) — mesmo caminho da rejeição na validação.
         var dispatcher = new FakeDispatcher { Rejection = new DispatchRejectedException("Plataforma de compliance recusou: codigoEmpresa não cadastrado") };
         var store = new FakeStore();
-        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(new FakeSource()), new FakeValidator(), dispatcher, store, new RecordingTrace(), new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(new FakeSource()), new FakeValidator(), dispatcher, store, new RecordingTrace(), new FakeExtractor(), new FakeSwitch());
 
         await pipeline.ProcessAsync(Reference(), Context());
 
-        Assert.Equal(1, dispatcher.SubmitCount);
+        Assert.Equal(1, dispatcher.SendCount);
         Assert.Equal(0, store.RecordCount);
         Assert.Equal(["Plataforma de compliance recusou: codigoEmpresa não cadastrado"], store.Rejections);
     }
@@ -106,7 +109,7 @@ public class DocumentPipelineTests
     {
         var dispatcher = new FakeDispatcher { Rejection = new HttpRequestException("503") };
         var store = new FakeStore();
-        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(new FakeSource()), new FakeValidator(), dispatcher, store, new RecordingTrace(), new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FakeResolver(new FakeSource()), new FakeValidator(), dispatcher, store, new RecordingTrace(), new FakeExtractor(), new FakeSwitch());
 
         await Assert.ThrowsAsync<HttpRequestException>(() => pipeline.ProcessAsync(Reference(), Context()));
 
@@ -120,7 +123,7 @@ public class DocumentPipelineTests
         var xml = new FakeSource();
         var d365 = new FakeSource();
         var resolver = new FakeResolver(xml) { ByOrigin = { ["Dynamics365"] = d365 } };
-        var pipeline = new DocumentPipeline<TestDocument>(resolver, new FakeValidator(), new FakeDispatcher(), new FakeStore(), new RecordingTrace(), new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(resolver, new FakeValidator(), new FakeDispatcher(), new FakeStore(), new RecordingTrace(), new FakeExtractor(), new FakeSwitch());
 
         await pipeline.ProcessAsync(Reference() with { Origin = "Dynamics365" }, Context());
 
@@ -133,7 +136,7 @@ public class DocumentPipelineTests
     {
         var store = new FakeStore();
         var trace = new RecordingTrace();
-        var pipeline = new DocumentPipeline<TestDocument>(new FailingResolver(), new FakeValidator(), new FakeDispatcher(), store, trace, new FakeExtractor());
+        var pipeline = new DocumentPipeline<TestDocument>(new FailingResolver(), new FakeValidator(), new FakeDispatcher(), store, trace, new FakeExtractor(), new FakeSwitch());
 
         await Assert.ThrowsAsync<InboundSourceNotFoundException>(() => pipeline.ProcessAsync(Reference(), Context()));
 
@@ -142,6 +145,158 @@ public class DocumentPipelineTests
         Assert.Null(trace.SourceKey);
         Assert.Null(trace.DomainKey);
     }
+
+    // ---- A chave de envio ao conector de saída (change capture-without-dispatch, 4.1) ----
+
+    [Fact]
+    public async Task With_the_switch_on_the_document_is_sent_as_always()
+    {
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore();
+        var pipeline = Pipeline(dispatcher, store, new FakeSwitch(on: true));
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(1, dispatcher.PrepareCount);
+        Assert.Equal(1, dispatcher.SendCount);
+        Assert.Equal(1, store.RecordCount);
+        Assert.Empty(store.Saved);
+    }
+
+    [Fact]
+    public async Task With_the_switch_off_the_document_is_prepared_saved_and_never_sent()
+    {
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore();
+        var pipeline = Pipeline(dispatcher, store, new FakeSwitch(on: false));
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(1, dispatcher.PrepareCount);   // preparou: o payload de destino foi traduzido e fotografado
+        Assert.Equal(0, dispatcher.SendCount);      // e NÃO enviou
+        Assert.Equal(0, store.RecordCount);         // não há recibo: não houve requisição de envio
+        Assert.Empty(store.Rejections);             // e não é rejeição
+        string reason = Assert.Single(store.Saved);
+        Assert.Equal(DocumentPipeline<TestDocument>.OutboundDispatchOffReason, reason);
+        Assert.Contains("desligado", reason);
+    }
+
+    [Fact]
+    public async Task The_switch_is_read_for_the_tenant_of_the_document()
+    {
+        var dispatchSwitch = new FakeSwitch(on: false);
+        var pipeline = Pipeline(new FakeDispatcher(), new FakeStore(), dispatchSwitch);
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(["tenant-a"], dispatchSwitch.Asked);
+    }
+
+    [Fact]
+    public async Task With_the_switch_off_an_invalid_document_is_still_rejected_and_not_saved()
+    {
+        // A chave desligada não esconde rejeição: a validação corta antes do despacho, e a nota inválida não vira
+        // "Salva" — senão o cliente teria um mar de notas salvas e nenhuma pista de que metade delas não passaria.
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore();
+        var pipeline = new DocumentPipeline<TestDocument>(
+            new FakeResolver(new FakeSource()), new FakeValidator { Valid = false }, dispatcher, store, new RecordingTrace(),
+            new FakeExtractor(), new FakeSwitch(on: false));
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(["problema de teste"], store.Rejections);
+        Assert.Empty(store.Saved);
+        Assert.Equal(0, dispatcher.PrepareCount);   // nem chegou ao despacho
+    }
+
+    [Fact]
+    public async Task With_the_switch_off_a_rejection_from_the_preparation_is_still_a_rejection()
+    {
+        // O contrato do destino que não representa a nota, e a configuração que falta à preparação, saem com a chave
+        // em qualquer posição: a recusa vem ANTES da leitura da chave, de propósito.
+        var dispatcher = new FakeDispatcher
+        {
+            PrepareRejection = new DispatchRejectedException("Contrato do destino: item 1: CFOP ausente"),
+        };
+        var store = new FakeStore();
+        var pipeline = Pipeline(dispatcher, store, new FakeSwitch(on: false));
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(["Contrato do destino: item 1: CFOP ausente"], store.Rejections);
+        Assert.Empty(store.Saved);
+        Assert.Equal(0, dispatcher.SendCount);
+    }
+
+    [Fact]
+    public async Task With_the_switch_off_the_domain_photo_and_the_metadata_are_still_recorded()
+    {
+        // A nota salva aparece no grupo certo do dashboard, como qualquer outra: o corte é só no envio.
+        var store = new FakeStore();
+        var trace = new RecordingTrace();
+        var pipeline = new DocumentPipeline<TestDocument>(
+            new FakeResolver(new FakeSource()), new FakeValidator(), new FakeDispatcher(), store, trace, new FakeExtractor(),
+            new FakeSwitch(on: false));
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal("nfe-key-1", trace.DomainKey);
+        Assert.Single(store.Saved);
+    }
+
+    [Fact]
+    public async Task Turning_the_switch_back_on_does_not_resend_what_is_already_saved()
+    {
+        // Religar a chave não manda o lote acumulado: "Salva" é terminal por conteúdo, então a passada seguinte do
+        // coletor, dentro da janela de sobreposição, ignora a nota — não reenvia e não regrava as fotos. Quem tira uma
+        // nota de "Salva" é o clique no reprocessar, e só ele.
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore { AlreadyProcessed = true };   // a nota salva, que o store trata como terminal
+        var trace = new RecordingTrace();
+        var pipeline = Pipeline(dispatcher, store, new FakeSwitch(on: true), trace);
+
+        await pipeline.ProcessAsync(Reference(), Context());
+
+        Assert.Equal(0, dispatcher.PrepareCount);
+        Assert.Equal(0, dispatcher.SendCount);   // religar, por si, não envia nada
+        Assert.Null(trace.DomainKey);            // e a foto do domínio não é regravada
+        Assert.Equal(0, store.RecordCount);
+        Assert.Empty(store.Saved);               // nem a foto de destino, nem o registro: a esteira parou antes
+    }
+
+    [Fact]
+    public async Task The_manual_reprocess_takes_a_saved_document_out_with_the_switch_on()
+    {
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore { AlreadyProcessed = true };
+        var pipeline = Pipeline(dispatcher, store, new FakeSwitch(on: true));
+
+        await pipeline.ProcessAsync(Reference() with { Trigger = IngestionTrigger.Manual }, Context());
+
+        Assert.Equal(1, dispatcher.SendCount);   // o gatilho manual fura a idempotência (ADR-0016), e é a saída de "Salva"
+    }
+
+    [Fact]
+    public async Task The_manual_reprocess_with_the_switch_off_saves_it_again_instead_of_sending()
+    {
+        // O pedido que chega por fora da tela não passa por cima da chave: a nota reentra na esteira e volta a parar em
+        // "Salva". A porta é a esteira, e não uma segunda checagem no endpoint.
+        var dispatcher = new FakeDispatcher();
+        var store = new FakeStore { AlreadyProcessed = true };
+        var pipeline = Pipeline(dispatcher, store, new FakeSwitch(on: false));
+
+        await pipeline.ProcessAsync(Reference() with { Trigger = IngestionTrigger.Manual }, Context());
+
+        Assert.Equal(1, dispatcher.PrepareCount);
+        Assert.Equal(0, dispatcher.SendCount);
+        Assert.Single(store.Saved);
+    }
+
+    private static DocumentPipeline<TestDocument> Pipeline(
+        FakeDispatcher dispatcher, FakeStore store, FakeSwitch dispatchSwitch, RecordingTrace? trace = null)
+        => new(new FakeResolver(new FakeSource()), new FakeValidator(), dispatcher, store, trace ?? new RecordingTrace(),
+            new FakeExtractor(), dispatchSwitch);
 
     private static DocumentReference Reference() => new()
     {
@@ -212,12 +367,25 @@ public class DocumentPipelineTests
     private sealed class FakeDispatcher : IComplianceDispatcher<TestDocument>
     {
         public string Destination => "fake";
-        public int SubmitCount { get; private set; }
+        public int PrepareCount { get; private set; }
+        public int SendCount { get; private set; }
         public Exception? Rejection { get; init; }
 
-        public Task<IntegrationReceipt> SubmitAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
+        /// <summary>A recusa permanente que a preparação descobre (contrato do destino, configuração faltando).</summary>
+        public Exception? PrepareRejection { get; init; }
+
+        public Task<PreparedDispatch<TestDocument>> PrepareAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
         {
-            SubmitCount++;
+            PrepareCount++;
+            if (PrepareRejection is not null)
+                throw PrepareRejection;
+
+            return Task.FromResult<PreparedDispatch<TestDocument>>(new Prepared());
+        }
+
+        public Task<IntegrationReceipt> SendAsync(PreparedDispatch<TestDocument> prepared, DispatchContext context, CancellationToken ct = default)
+        {
+            SendCount++;
             if (Rejection is not null)
                 throw Rejection;
 
@@ -230,6 +398,8 @@ public class DocumentPipelineTests
 
         public Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
             => Task.FromResult(new IntegrationResult { Status = IntegrationStatus.Confirmed });
+
+        private sealed class Prepared : PreparedDispatch<TestDocument>;
     }
 
     private sealed class FakeStore : IProcessingStore
@@ -268,8 +438,29 @@ public class DocumentPipelineTests
         public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Task.CompletedTask;
 
+        /// <summary>Os motivos das notas que pararam na chave de envio.</summary>
+        public List<string> Saved { get; } = [];
+
+        public Task RecordSavedAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+        {
+            Saved.Add(reason);
+            return Task.CompletedTask;
+        }
+
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
             => Task.CompletedTask;
+    }
+
+    /// <summary>A chave de envio do tenant, ligada por padrão, guardando de quem ela foi perguntada.</summary>
+    private sealed class FakeSwitch(bool on = true) : IOutboundDispatchSwitch
+    {
+        public List<string> Asked { get; } = [];
+
+        public Task<bool> IsOnAsync(string tenantId, CancellationToken ct = default)
+        {
+            Asked.Add(tenantId);
+            return Task.FromResult(on);
+        }
     }
 
     private sealed class RecordingTrace : IProcessingTrace

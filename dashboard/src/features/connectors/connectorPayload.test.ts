@@ -46,6 +46,7 @@ const profile: ConnectorProfile = {
     'platform.Avalara.clientSecret': { configured: true, updatedOn: '2026-09-28T17:05:00Z' },
   },
   modules: ['Fiscal', 'Contabil'],
+  outboundDispatch: true,
   accounts: [
     {
       platform: 'Avalara',
@@ -216,6 +217,32 @@ describe('o payload do perfil', () => {
     const payload = buildConnectorPayload(formFromProfile({ ...profile, accounts: [] }), {});
 
     expect(payload.accounts).toEqual([]);
+  });
+});
+
+describe('a chave de envio ao conector de saída (capture-without-dispatch, 6.2)', () => {
+  it('vai no corpo com o valor do formulário', () => {
+    const ligada = buildConnectorPayload(formFromProfile(profile), {});
+    const desligada = buildConnectorPayload({ ...formFromProfile(profile), outboundDispatch: false }, {});
+
+    expect(ligada.outboundDispatch).toBe(true);
+    expect(desligada.outboundDispatch).toBe(false);
+  });
+
+  it('o perfil gravado desligado abre o formulário desligado', () => {
+    expect(formFromProfile({ ...profile, outboundDispatch: false }).outboundDispatch).toBe(false);
+  });
+
+  it('uma resposta sem o campo abre o formulário ligada, que é o comportamento de sempre', () => {
+    const { outboundDispatch: _omitido, ...semCampo } = profile;
+
+    expect(formFromProfile(semCampo as ConnectorProfile).outboundDispatch).toBe(true);
+  });
+
+  it('virar a chave conta como edição pendente, e o botão de testar credencial pede para salvar antes', () => {
+    const form = { ...formFromProfile(profile), outboundDispatch: false };
+
+    expect(hasPendingEdit(form, {}, profile)).toBe(true);
   });
 });
 

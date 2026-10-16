@@ -48,6 +48,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0038](0038-uma-esteira-tres-estilos-de-saida.md) | Uma esteira, três estilos de saída; o cálculo tem estado; a carta de correção é evento; os dois conectores se encontram no ERP | Aceito |
 | [0039](0039-dashboard-por-conector-e-o-tecnico-do-admin.md) | O dashboard é por conector, a linha é o que a ação opera, e a visão técnica é do Admin — a primeira permissão de verdade | Aceito |
 | [0040](0040-azure-devops-pipelines-independentes-e-versoes-do-pacote-d365.md) | Azure DevOps: um pipeline por artefato, disparado pela pasta dele; o pacote D365 com build de verificação e release manual, versionado e guardado num feed | Proposto |
+| [0041](0041-capturar-sem-enviar.md) | Capturar sem enviar: o despacho vira preparar + enviar, a chave de envio é do tenant numa coluna própria, e "Salva" é situação própria e terminal | Aceito |
 
 ## Planejados
 

@@ -226,6 +226,93 @@ public class SqlProcessingStoreTests
         Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
     }
 
+    // ---------- a nota salva sem envio (change capture-without-dispatch, 4.4) ----------
+
+    [Fact]
+    public async Task Saving_a_document_without_sending_records_it_with_the_reason_and_no_external_id()
+    {
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+
+        await h.Store.RecordSavedAsync(Reference("nfe-1"), SavedReason);
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Saved, row.Status);
+        Assert.Equal(SavedReason, row.Reason);
+        Assert.Null(row.ExternalId);   // não houve requisição de envio: não há identificador externo
+    }
+
+    [Fact]
+    public async Task Saving_a_document_that_was_once_sent_keeps_its_external_id()
+    {
+        // Uma nota enviada um dia, recapturada com o envio desligado: o rastro do envio antigo não se perde. É o mesmo
+        // upsert do RecordIgnoredAsync.
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+        await h.Store.RecordSubmissionAsync(Reference("nfe-1"), Receipt());
+        await h.Store.MarkPolledAsync("tenant-a", "nfe-1", IntegrationStatus.Confirmed, null, 1);
+
+        await h.Store.RecordSavedAsync(Reference("nfe-1"), SavedReason);
+
+        ProcessedDocument row = await h.Db.ProcessedDocuments.SingleAsync();
+        Assert.Equal(IntegrationStatus.Saved, row.Status);
+        Assert.Equal("guid-1", row.ExternalId);
+    }
+
+    [Fact]
+    public async Task A_saved_document_is_terminal_so_the_overlap_pass_does_not_reprocess_it()
+    {
+        // O ponto que teria quebrado em silêncio: sem "Salva" terminal, cada passada do coletor dentro da janela de
+        // sobreposição reprocessaria a nota, regravando as fotos sem nada ter mudado — e, ao religar a chave, a
+        // primeira passada com sobreposição a enviaria sozinha.
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+        await h.Store.RecordSavedAsync(Reference("nfe-1"), SavedReason);
+
+        Assert.True(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", Hash));
+    }
+
+    [Fact]
+    public async Task A_saved_document_whose_content_changed_reenters_the_pipeline()
+    {
+        // O terminal é por conteúdo: a nota corrigida no ERP volta a ser processada, como sempre (ADR-0016).
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+        await h.Store.RecordSavedAsync(Reference("nfe-1"), SavedReason);
+
+        Assert.False(await h.Store.AlreadyProcessedAsync("tenant-a", "nfe-1", "hash-corrigido"));
+    }
+
+    [Fact]
+    public async Task Saving_the_same_document_again_keeps_one_row()
+    {
+        using var h = NewStore();
+
+        await h.Store.RecordSavedAsync(Reference("nfe-1"), SavedReason);
+        await h.Store.RecordSavedAsync(Reference("nfe-1"), SavedReason);
+
+        Assert.Equal(1, await h.Db.ProcessedDocuments.CountAsync());
+    }
+
+    [Fact]
+    public async Task A_saved_document_does_not_enter_the_status_poll()
+    {
+        // A nota salva não tem identificador externo, e não há nada a consultar. Dois casos: a que nunca foi enviada,
+        // e — o caso torto — a que já foi enviada um dia, guarda o identificador antigo e voltou a "Salva": o filtro é
+        // pelo estado, e não pela presença do identificador, então ela também fica de fora.
+        using var h = NewStore();
+        await h.Store.RecordMetadataAsync(Reference("nfe-1"), Meta(), Hash);
+        await h.Store.RecordSavedAsync(Reference("nfe-1"), SavedReason);
+        await h.Store.RecordMetadataAsync(Reference("nfe-2"), Meta(), Hash);
+        await h.Store.RecordSubmissionAsync(Reference("nfe-2"), Receipt());
+        await h.Store.RecordSavedAsync(Reference("nfe-2"), SavedReason);
+
+        Assert.Empty(await h.Store.ListPendingAsync(50));
+        Assert.Equal("guid-1", (await h.Db.ProcessedDocuments.SingleAsync(d => d.NaturalKey == "nfe-2")).ExternalId);
+    }
+
+    private const string SavedReason = "salva: o envio ao conector de saída está desligado nas configurações do tenant";
+
     // ---------- o grupo da descoberta na nota que não chega à montagem (establishment-and-readable-dashboard, D4) ----------
 
     [Fact]

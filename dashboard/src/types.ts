@@ -7,7 +7,9 @@ export type IntegrationStatus =
   | 'IntegrationError'
   | 'Unconfirmed'
   | 'DeadLettered'
-  | 'Ignored';
+  | 'Ignored'
+  // Traduzida e com o JSON de destino gravado, mas não enviada: a chave de envio do tenant está desligada (ADR-0041).
+  | 'Saved';
 
 export interface DocumentSummary {
   tenantId: string;
@@ -150,6 +152,9 @@ export interface InfoResponse {
   // Se o usuário logado pode ver as fotos cruas (o JSON e o zip). É permissão, derivada da lista de papéis do servidor —
   // a tela não tem cópia dela (ADR-0039 §5).
   canViewRawJson: boolean;
+  // A chave de envio ao conector de saída do tenant (ADR-0041). Vem aqui, e não só no GET /connector, porque o botão de
+  // reprocessar está numa tela que qualquer papel abre, e o perfil é 403 para o Viewer.
+  outboundDispatch: boolean;
 }
 
 // GET /connector/automatic — o painel da integração automática (só Admin). Os instantes vêm em ISO (UTC).
@@ -233,6 +238,9 @@ export interface ConnectorProfile {
   secrets: Record<string, SecretStatus>;
   modules: ModuleName[];
   accounts: PlatformAccount[];
+  // A chave de envio ao conector de saída do tenant (ADR-0041): ligada, o hub salva e envia; desligada, salva e não
+  // envia. É do tenant e independente de conector — não confundir com a integração automática, que é da entrada.
+  outboundDispatch: boolean;
 }
 
 // A conta na gravação. O Client Secret é campo de escrita: só vai quando digitado; ausente, o servidor mantém o gravado.
@@ -250,6 +258,8 @@ export interface ConnectorProfileRequest {
   inboundSettings: string | null;
   // Ausente mantém as gravadas; presente, substitui: a conta ou o conector que não vem sai.
   accounts?: PlatformAccountRequest[];
+  // A chave de envio ao conector de saída. Ausente mantém a gravada.
+  outboundDispatch?: boolean;
 }
 
 // Modo de uma execução/agendamento (espelha IntegrationMode do backend).
@@ -308,6 +318,8 @@ export interface DocumentGroup {
   finalizadas: number;
   emProcessamento: number;
   comErro: number;
+  // As que pararam com o envio ao conector de saída desligado (ADR-0041): fora das outras três faixas.
+  salvas: number;
 }
 
 // As contagens dos cards de um modelo num período (GET /groups/totals): as mesmas faixas do grupo.
@@ -317,4 +329,5 @@ export interface ModelTotals {
   finalizadas: number;
   emProcessamento: number;
   comErro: number;
+  salvas: number;
 }

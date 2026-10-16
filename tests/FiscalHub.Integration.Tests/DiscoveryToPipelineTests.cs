@@ -143,7 +143,8 @@ public class DiscoveryToPipelineTests
                 NullLogger<D365GoodsInvoiceSource>.Instance);
             var pipeline = new DocumentPipeline<GoodsInvoice>(
                 new InboundSourceResolver<GoodsInvoice>([xml, d365], profiles),
-                new GoodsInvoiceValidator(), Dispatcher, Store, Trace, new GoodsInvoiceMetadataExtractor());
+                new GoodsInvoiceValidator(), Dispatcher, Store, Trace, new GoodsInvoiceMetadataExtractor(),
+                new OutboundDispatchSwitch(profiles));   // a chave real, lida do perfil real: ligada, como o padrão
             _processor = new QueuedDocumentProcessor(new DocumentRouter(pipeline, Store));
         }
 
@@ -229,7 +230,8 @@ public class DiscoveryToPipelineTests
         public Dictionary<string, List<string>> Hashes { get; } = [];
 
         public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default)
-            => Task.FromResult(Rows.TryGetValue(naturalKey, out var row) && row.Hash == contentHash && row.Status is "Submitted" or "Confirmed");
+            => Task.FromResult(Rows.TryGetValue(naturalKey, out var row) && row.Hash == contentHash
+                && row.Status is "Submitted" or "Confirmed" or "Saved");   // "Salva" é terminal (ADR-0041)
 
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
         {
@@ -247,6 +249,9 @@ public class DiscoveryToPipelineTests
 
         public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Set(reference, "Ignored", reason);
+
+        public Task RecordSavedAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Set(reference, "Saved", reason);
 
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Set(reference, "DeadLettered", reason);
@@ -270,14 +275,22 @@ public class DiscoveryToPipelineTests
 
         public List<GoodsInvoice> Submitted { get; } = [];
 
-        public Task<IntegrationReceipt> SubmitAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
+        public Task<PreparedDispatch<GoodsInvoice>> PrepareAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
+            => Task.FromResult<PreparedDispatch<GoodsInvoice>>(new Prepared(document));
+
+        public Task<IntegrationReceipt> SendAsync(PreparedDispatch<GoodsInvoice> prepared, DispatchContext context, CancellationToken ct = default)
         {
-            Submitted.Add(document);
+            Submitted.Add(((Prepared)prepared).Document);
             return Task.FromResult(new IntegrationReceipt { ExternalId = Guid.NewGuid().ToString(), Status = IntegrationStatus.Submitted });
         }
 
         public Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
             => Task.FromResult(new IntegrationResult { Status = IntegrationStatus.Confirmed });
+
+        private sealed class Prepared(GoodsInvoice document) : PreparedDispatch<GoodsInvoice>
+        {
+            public GoodsInvoice Document { get; } = document;
+        }
     }
 
     internal sealed class RecordingTrace : IProcessingTrace

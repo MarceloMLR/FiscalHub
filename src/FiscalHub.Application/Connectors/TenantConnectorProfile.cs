@@ -20,6 +20,14 @@ public sealed record TenantConnectorProfile
     /// <summary>As contas de plataforma do tenant, cada uma com a credencial e os conectores dela (ADR-0036).</summary>
     public IReadOnlyList<PlatformAccount> Accounts { get; init; } = [];
 
+    /// <summary>
+    /// Se o hub envia ao conector de saída, ou apenas salva (ADR-0041). Ligada, que é o padrão, é o comportamento de
+    /// sempre: salva e envia. Desligada: salva o payload de destino e não envia. É do <b>tenant</b> e independente de
+    /// conector — não confundir com o <c>poll.enabled</c> das settings de entrada, que é a integração automática, de
+    /// outro eixo (ADR-0029). Este é o único campo que diz isso.
+    /// </summary>
+    public bool OutboundDispatchEnabled { get; init; } = true;
+
     /// <summary>Adapter de chamados de suporte (opcional): ex. "Freshdesk", "Local". Nulo = sem suporte.</summary>
     public string? SupportAdapter { get; init; }
 

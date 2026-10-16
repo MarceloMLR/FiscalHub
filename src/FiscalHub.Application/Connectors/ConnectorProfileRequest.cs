@@ -10,6 +10,8 @@ namespace FiscalHub.Application.Connectors;
 /// tem o campo ignorado (change <c>platform-account-and-connectors</c>, D6). A lista de módulos do tenant também não é
 /// mais: os módulos são ligados em cada conector (D7). O campo <see cref="Modules"/> existe só para ser recusado — um
 /// dashboard que não recarregou e ainda o manda recebe 400, e não um sucesso em que nada aconteceu.
+/// <para>O <see cref="OutboundDispatch"/> é a chave de envio ao conector de saída (ADR-0041). Ausente (<c>null</c>),
+/// mantém a gravada — um dashboard que não recarregou não liga o envio de um tenant que o desligou.</para>
 /// </summary>
 public sealed record ConnectorProfileRequest(
     string InboundAdapter,
@@ -17,7 +19,8 @@ public sealed record ConnectorProfileRequest(
     string? SupportAdapter = null,
     string? SupportSettings = null,
     IReadOnlyList<PlatformAccountRequest>? Accounts = null,
-    IReadOnlyList<string>? Modules = null)
+    IReadOnlyList<string>? Modules = null,
+    bool? OutboundDispatch = null)
 {
     // As settings podem carregar segredo: nunca entram no texto, que pode acabar num log.
     public override string ToString()
@@ -84,6 +87,8 @@ public sealed record ConnectorProfileSaveResult(ConnectorProfileSaveStatus Statu
 /// A leitura do perfil de conector (<c>GET /connector</c>): as settings sem os campos de referência e sem nenhum
 /// campo de escrita, e o mapa <see cref="Secrets"/> — caminho (<c>platform.Avalara.clientSecret</c>) → configurado e quando.
 /// Nunca o valor, nem parte dele, nem a referência (ADR-0027). Os <see cref="Modules"/> vêm com o padrão aplicado.
+/// <para>O <see cref="OutboundDispatch"/> é a chave de envio: é por esta leitura que o formulário de Configurações a
+/// desenha com o estado gravado (ADR-0041). A tela do documento a lê pelo <c>/info</c>, que qualquer papel alcança.</para>
 /// </summary>
 public sealed record ConnectorProfileView(
     string TenantId,
@@ -93,7 +98,8 @@ public sealed record ConnectorProfileView(
     string SupportSettings,
     IReadOnlyDictionary<string, SecretStatus> Secrets,
     IReadOnlyList<string> Modules,
-    IReadOnlyList<PlatformAccountView> Accounts);
+    IReadOnlyList<PlatformAccountView> Accounts,
+    bool OutboundDispatch);
 
 /// <summary>
 /// A conta na leitura: a plataforma, o Client ID e o endpoint de token. O estado do segredo vai no mapa de segredos da

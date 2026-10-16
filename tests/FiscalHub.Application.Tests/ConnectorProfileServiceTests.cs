@@ -38,6 +38,48 @@ public class ConnectorProfileServiceTests
         Assert.Equal("tenant-a", h.Profiles.Stored!.TenantId);   // o tenant é o do login, e não vem do corpo
     }
 
+    // ---- A chave de envio ao conector de saída (change capture-without-dispatch, 3.1) ----
+
+    [Fact]
+    public async Task The_read_brings_the_outbound_dispatch_switch_and_the_write_saves_it()
+    {
+        var h = new Harness(stored: Profile());
+
+        Assert.True((await h.Service.GetAsync())!.OutboundDispatch);   // o padrão é enviar
+
+        await h.Service.SaveAsync(Request() with { OutboundDispatch = false });
+
+        Assert.False(h.Profiles.Stored!.OutboundDispatchEnabled);
+        Assert.False((await h.Service.GetAsync())!.OutboundDispatch);
+
+        await h.Service.SaveAsync(Request() with { OutboundDispatch = true });
+
+        Assert.True(h.Profiles.Stored!.OutboundDispatchEnabled);
+    }
+
+    [Fact]
+    public async Task A_body_without_the_switch_keeps_the_one_already_saved()
+    {
+        // Um dashboard que não recarregou não manda o campo, e a chave desligada não volta a ligar por omissão — é a
+        // mesma regra das contas e dos chamados ausentes.
+        var h = new Harness(stored: Profile() with { OutboundDispatchEnabled = false });
+
+        await h.Service.SaveAsync(Request());
+
+        Assert.False(h.Profiles.Stored!.OutboundDispatchEnabled);
+    }
+
+    [Fact]
+    public async Task A_first_profile_without_the_switch_is_saved_switched_on()
+    {
+        // Sem perfil gravado não há o que manter: o padrão é o comportamento de sempre.
+        var h = new Harness();
+
+        await h.Service.SaveAsync(Request());
+
+        Assert.True(h.Profiles.Stored!.OutboundDispatchEnabled);
+    }
+
     // ---- O ambiente é da instância (change platform-account-and-connectors) ----
 
     [Fact]

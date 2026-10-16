@@ -158,12 +158,13 @@ public class InstanceInfoTests
             origins: ["Dynamics365"], canViewRawJson: true);
 
         using JsonDocument json = JsonDocument.Parse(JsonSerializer.Serialize(info, Web));
-        Assert.Equal(["environment", "automaticIntegration", "inboundScans", "connectors", "canViewRawJson"],
+        Assert.Equal(["environment", "automaticIntegration", "inboundScans", "connectors", "canViewRawJson", "outboundDispatch"],
             json.RootElement.EnumerateObject().Select(p => p.Name));
         Assert.Equal("Sandbox", json.RootElement.GetProperty("environment").GetString());
         Assert.True(json.RootElement.GetProperty("inboundScans").GetBoolean());
         Assert.False(json.RootElement.GetProperty("automaticIntegration").GetBoolean());   // poll.enabled não está ligado
         Assert.True(json.RootElement.GetProperty("canViewRawJson").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("outboundDispatch").GetBoolean());   // o padrão é enviar
 
         JsonElement connector = Assert.Single(json.RootElement.GetProperty("connectors").EnumerateArray().ToArray());
         Assert.Equal(["adapter", "label", "scheduling", "modules"], connector.EnumerateObject().Select(p => p.Name));
@@ -182,6 +183,26 @@ public class InstanceInfoTests
         InstanceInfo info = Info("Sandbox", Profile(), canViewRawJson: canViewRawJson);
 
         Assert.Equal(canViewRawJson, info.CanViewRawJson);
+    }
+
+    // ---- A chave de envio ao conector de saída (change capture-without-dispatch, 3.2) ----
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void The_outbound_dispatch_switch_comes_from_the_profile(bool on)
+    {
+        // É por esta resposta que qualquer papel sabe se o botão de reprocessar vale — o GET /connector é 403 para o
+        // Viewer, e o detalhe do documento é tela de todo mundo.
+        InstanceInfo info = Info("Sandbox", Profile(Connector("Avalara")) with { OutboundDispatchEnabled = on });
+
+        Assert.Equal(on, info.OutboundDispatch);
+    }
+
+    [Fact]
+    public void Without_a_profile_the_outbound_dispatch_is_on()
+    {
+        Assert.True(Info("Sandbox", null).OutboundDispatch);
     }
 
     private static InstanceInfo Info(

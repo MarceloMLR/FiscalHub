@@ -26,4 +26,12 @@ public enum IntegrationStatus
     /// no registro (ADR-0025). Não é falha: não entra nos KPIs de falha do dashboard.
     /// </summary>
     Ignored,
+
+    /// <summary>
+    /// Traduzida e com o payload de destino gravado, mas <b>não enviada</b>: a chave de envio ao conector de saída do
+    /// tenant está desligada (ADR-0041). Não é "Finalizado" — plataforma nenhuma a confirmou — nem "Em processamento",
+    /// que quer dizer aguardando retorno do compliance, e uma nota que nunca foi enviada não aguarda nada. Não é falha,
+    /// como a ignorada. Sai de "Salva" pelo reprocesso manual, e só por ele.
+    /// </summary>
+    Saved,
 }

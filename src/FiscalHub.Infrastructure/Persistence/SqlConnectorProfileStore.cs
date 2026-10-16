@@ -29,6 +29,7 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
                 InboundSettings = profile.InboundSettings,
                 SupportAdapter = profile.SupportAdapter,
                 SupportSettings = profile.SupportSettings,
+                OutboundDispatchEnabled = profile.OutboundDispatchEnabled,
             });
         }
         else
@@ -37,6 +38,7 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
             row.InboundSettings = profile.InboundSettings;
             row.SupportAdapter = profile.SupportAdapter;
             row.SupportSettings = profile.SupportSettings;
+            row.OutboundDispatchEnabled = profile.OutboundDispatchEnabled;
         }
 
         await MergeAccountsAsync(profile, ct);
@@ -181,6 +183,7 @@ internal sealed class SqlConnectorProfileStore : IConnectorProfileStore
         })],
         SupportAdapter = r.SupportAdapter,
         SupportSettings = r.SupportSettings ?? "{}",
+        OutboundDispatchEnabled = r.OutboundDispatchEnabled,
     };
 
     // Os módulos na ordem da barra lateral; um nome fora dela, posto por SQL, vai para o fim.

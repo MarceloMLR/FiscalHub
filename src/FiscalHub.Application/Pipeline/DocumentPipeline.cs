@@ -22,6 +22,14 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
     private readonly IProcessingStore _store;
     private readonly IProcessingTrace _trace;
     private readonly IDocumentMetadataExtractor<TDocument> _metadata;
+    private readonly IOutboundDispatchSwitch _dispatch;
+
+    /// <summary>
+    /// O motivo gravado na nota que parou na chave de envio. É o que a tela mostra como situação dela, e segue o formato
+    /// dos outros desfechos da esteira ("ignorado: …").
+    /// </summary>
+    public const string OutboundDispatchOffReason =
+        "salva: o envio ao conector de saída está desligado nas configurações do tenant";
 
     public DocumentPipeline(
         IInboundSourceResolver<TDocument> sources,
@@ -29,7 +37,8 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
         IComplianceDispatcher<TDocument> dispatcher,
         IProcessingStore store,
         IProcessingTrace trace,
-        IDocumentMetadataExtractor<TDocument> metadata)
+        IDocumentMetadataExtractor<TDocument> metadata,
+        IOutboundDispatchSwitch dispatch)
     {
         _sources = sources;
         _validator = validator;
@@ -37,13 +46,16 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
         _store = store;
         _trace = trace;
         _metadata = metadata;
+        _dispatch = dispatch;
     }
 
     /// <summary>
-    /// Processa um documento: idempotência, busca, validação de integração, envio e registro.
-    /// Documento inválido é rejeitado (registrado com o motivo) e não é enviado; recusa permanente no envio
+    /// Processa um documento: idempotência, busca, validação de integração, despacho e registro.
+    /// Documento inválido é rejeitado (registrado com o motivo) e não é enviado; recusa permanente no despacho
     /// (<see cref="DispatchRejectedException"/>) também. Qualquer outra falha propaga como exceção, deixando o
     /// retry/DLQ a cargo do transporte.
+    /// <para>O despacho é preparar e depois enviar, e a chave de envio do tenant decide entre os dois (ADR-0041):
+    /// desligada, o payload de destino fica gravado e a nota termina em "Salva", sem requisição de envio.</para>
     /// </summary>
     public async Task ProcessAsync(
         DocumentReference reference, DispatchContext context, CancellationToken ct = default)
@@ -83,7 +95,20 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
         IntegrationReceipt receipt;
         try
         {
-            receipt = await _dispatcher.SubmitAsync(document, context, ct);
+            // O despacho é dois passos (ADR-0041): preparar traduz e fotografa o payload de destino, sem enviar;
+            // enviar faz a requisição. Quem decide é a esteira, e não o adapter.
+            PreparedDispatch<TDocument> prepared = await _dispatcher.PrepareAsync(document, context, ct);
+
+            // A chave é lida DEPOIS de preparar, de propósito: é isso que faz "a chave desligada não esconde rejeição"
+            // cair de graça. A recusa de contrato do destino e a de configuração que a preparação descobre continuam
+            // saindo com a chave em qualquer posição; só a nota que chegaria à requisição de envio vira "Salva".
+            if (!await _dispatch.IsOnAsync(context.TenantId, ct))
+            {
+                await _store.RecordSavedAsync(reference, OutboundDispatchOffReason, ct);
+                return;
+            }
+
+            receipt = await _dispatcher.SendAsync(prepared, context, ct);
         }
         catch (DispatchRejectedException rejected)
         {

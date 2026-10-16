@@ -84,6 +84,12 @@ public sealed record DocumentGroup
     public required int Finalizadas { get; init; }
     public required int EmProcessamento { get; init; }
     public required int ComErro { get; init; }
+
+    /// <summary>
+    /// As que pararam com o envio ao conector de saída desligado (ADR-0041). Faixa própria: a nota salva conta no
+    /// <see cref="Total"/> e aqui, e em mais nenhuma — não é finalizada, não está em processamento e não é erro.
+    /// </summary>
+    public required int Salvas { get; init; }
 }
 
 /// <summary>A janela de dias da execução e o modelo, inclusive nas duas pontas: o filtro dos cards e da tabela.</summary>
@@ -116,4 +122,7 @@ public sealed record ModelTotals
     public required int Finalizadas { get; init; }
     public required int EmProcessamento { get; init; }
     public required int ComErro { get; init; }
+
+    /// <summary>As que pararam com o envio ao conector de saída desligado (ADR-0041); fora das outras três faixas.</summary>
+    public required int Salvas { get; init; }
 }
