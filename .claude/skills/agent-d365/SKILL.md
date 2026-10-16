@@ -158,6 +158,7 @@ Comece pelo log: `node d365/tools/logs-deploy.js` lista as operações. Com `--u
 | Sintoma | Causa | O que fazer |
 |---|---|---|
 | Build: `Failed to locate table relation` | `JoinRelationName` errado | Name/RelatedTableRole da relação, ou Field/RelatedField |
+| Build com `BPErrorLabelNotDefined`, `BPErrorPrivilegeNotCoveredByDuty`, `BPErrorLabelIsText`, `AssemblyFileNotFound` | avisos esperados, não bloqueiam (`05`, §13) | seguir para o deploy se terminou em `Build completed` |
 | BP `DataEntityDimensionFieldIncorrectAccessModifier` | RecId de dimensão público | deixar Private/Internal e expor o DisplayValue |
 | BP `DataEntityPublicFieldEdtMatchOnStagingTableCheck` | Data Management ligado | `DataManagementEnabled` No, sem staging |
 | Deploy: `FailedDependency; Failed to start services` | o AOS não subiu; ver o `.etl` | `logs-deploy.js --ultima-falha` |

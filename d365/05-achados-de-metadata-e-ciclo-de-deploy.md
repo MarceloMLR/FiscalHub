@@ -544,6 +544,23 @@ deploy), dar Id novo a cada modelo e, depois do deploy, rodar a sincronização 
 
 ---
 
+## 13. Avisos do build que não bloqueiam
+
+O build termina com `Build completed` mesmo com estas mensagens (build de 2026-10-16, com a `FSImportDeclarationBR`). As
+checagens de boas práticas só olham os objetos que mudaram no build, por isso aparecem quando um privilégio é novo ou a
+role muda. Os 32 privilégios e a role estão assim desde o começo e publicam normalmente.
+
+| Mensagem | Por quê | Ação |
+|---|---|---|
+| `BPErrorLabelNotDefined` no privilégio | privilégio sem `Label`; o pacote não tem arquivo de rótulos | nenhuma |
+| `BPErrorPrivilegeNotCoveredByDuty` | o privilégio entra direto na role, sem duty | nenhuma; a role é a única consumidora |
+| `BPErrorLabelIsText` na role | `Label` e `Description` em texto, não em rótulo | nenhuma |
+| `AssemblyFileNotFound … AttributeBasedPricing` | referência do ApplicationSuite ao pricing do Commerce, ausente na máquina | nenhuma; vem do metadado da Microsoft |
+| `path … may be too long (more than 260 characters)` | arquivo de supressão da Microsoft com caminho longo | nenhuma |
+
+Para tirar os três primeiros, seria preciso um arquivo de rótulos e uma duty no pacote. Não compensa enquanto o pacote for
+só leitura.
+
 ## Referências
 
 - [Build operations — Synchronize the database at each build](https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/dev-tools/build-operations#synchronize-the-database-at-each-build)
