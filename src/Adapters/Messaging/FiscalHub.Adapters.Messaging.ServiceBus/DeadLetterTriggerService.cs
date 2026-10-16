@@ -9,6 +9,13 @@ namespace FiscalHub.Adapters.Messaging.ServiceBus;
 /// Assina a dead-letter da fila e registra cada mensagem esgotada como documento não-processável.
 /// Sem isso, uma nota que falha repetidamente sumiria de vista; aqui ela vira um item rastreável
 /// (ADR-0010). Não reprocessa — só torna a falha visível.
+/// <para>
+/// **Nenhuma decisão mora aqui.** Esta casca lê os fatos da mensagem, chama o handler e conclui; ela não escolhe o
+/// motivo nem o desfecho. É deliberado: ela é o único trecho do caminho sem teste unitário — <c>OnMessageAsync</c>
+/// recebe um <c>ProcessMessageEventArgs</c> com um receiver vivo, e o repositório não tem biblioteca de mock —, e
+/// decisão que mora em código sem teste é decisão que ninguém prova. Foi assim que o laço de reentrega e o motivo
+/// vazio sobreviveram aqui (design, D1 e D2).
+/// </para>
 /// </summary>
 internal sealed class DeadLetterTriggerService : BackgroundService
 {
@@ -53,11 +60,20 @@ internal sealed class DeadLetterTriggerService : BackgroundService
         await using AsyncServiceScope scope = _services.CreateAsyncScope();
         DeadLetterHandler handler = scope.ServiceProvider.GetRequiredService<DeadLetterHandler>();
 
-        string reason = args.Message.DeadLetterReason
-            ?? args.Message.DeadLetterErrorDescription
-            ?? "Mensagem movida para dead-letter.";
+        var message = new DeadLetterMessage(
+            args.Message.Body,
+            args.Message.DeadLetterReason,
+            args.Message.DeadLetterErrorDescription,
+            args.Message.MessageId,
+            args.Message.SequenceNumber,
+            args.Message.EnqueuedTime,
+            _queueName);
 
-        await handler.HandleAsync(args.Message.Body, reason, args.CancellationToken);
+        // Concluir DEPOIS do tratamento, e não antes nem num `finally`: é essa ordem que faz a exceção pular a
+        // conclusão, e é pular a conclusão que salva a falha transitória — a próxima entrega é o conserto dela.
+        // Mover esta chamada é o conserto errado (design, D0). O que mudou foi o que chega aqui como exceção:
+        // corpo inválido já não é exceção, é `Discarded`, e por isso o laço acabou sem a ordem mudar.
+        await handler.HandleAsync(message, args.CancellationToken);
         await args.CompleteMessageAsync(args.Message, args.CancellationToken);
     }
 
