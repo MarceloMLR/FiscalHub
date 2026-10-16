@@ -243,12 +243,22 @@ A tela MUST NOT repetir a janela em texto ao lado dos filtros: os filtros mostra
 
 Os cards contam:
 
-- **Documentos:** toda nota, a ignorada inclusive.
+- **Documentos:** toda nota, a ignorada e a salva inclusive.
 - **Finalizados:** as confirmadas pela plataforma.
 - **Em processamento:** as pendentes e as enviadas.
+- **Salvas:** as que pararam com o envio ao conector de saída desligado (`outbound-dispatch-switch`).
 - **Com erro:** as rejeitadas, as sem retorno e as da dead-letter.
 
-A nota ignorada MUST NOT contar como erro.
+A nota ignorada MUST NOT contar como erro. A nota salva MUST NOT contar como erro, como finalizada nem como
+em processamento: ela conta em "Documentos" e em "Salvas", e em mais nenhum card.
+
+O subtítulo de cada card MUST dizer **o que entra naquela contagem**, e MUST NOT afirmar o estado presente de
+nenhuma configuração do tenant. O card conta notas que já pararam; ele não sabe como a configuração está
+agora, e um subtítulo que afirme um estado ao vivo passa a mentir assim que alguém o muda.
+
+As mesmas faixas valem para a contagem de cada linha da tabela de grupos, e o selo da linha MUST NOT dizer
+"Finalizado" quando o grupo tem nota salva e nenhuma finalizada: um grupo só de notas salvas MUST aparecer
+com um selo próprio, de notas salvas.
 
 A tabela de grupos MUST mostrar, por linha, a data da execução, o modelo, o modo e o período integrado ("—" na
 automática). As datas aparecem como aaaa-mm-dd, e o período como as duas datas separadas por um traço
@@ -266,6 +276,26 @@ como linhas distintas, sem erro na tela.
 #### Scenario: Ignorada conta no dia dela
 - **WHEN** o tenant tem, com data da execução de hoje, uma NF-e confirmada e uma NFS-e ignorada, e o filtro é o dia
 - **THEN** o card "Documentos" mostra 2, o "Finalizados" mostra 1, e o "Com erro" mostra 0
+
+#### Scenario: Salva conta em Documentos e em Salvas
+- **WHEN** o tenant tem, com data da execução de hoje, uma NF-e confirmada e três NF-e que pararam com o envio
+  desligado, e o filtro é o dia
+- **THEN** o card "Documentos" mostra 4, o "Finalizados" mostra 1, o "Salvas" mostra 3, o "Em processamento"
+  mostra 0 e o "Com erro" mostra 0
+
+#### Scenario: O subtítulo do card não afirma o estado da chave
+- **WHEN** o tenant religa o envio ao conector de saída e volta à tela de grupos, que ainda conta as notas
+  salvas de antes
+- **THEN** o subtítulo do card "Salvas" continua dizendo o que entra na contagem, e não diz que o envio está
+  desligado
+
+#### Scenario: O selo do grupo só de notas salvas
+- **WHEN** uma linha da tabela tem 10 notas, todas salvas
+- **THEN** o selo da linha diz que o grupo está salvo, e não "Finalizado"
+
+#### Scenario: O erro ainda manda no selo
+- **WHEN** uma linha da tabela tem 7 notas salvas e 1 rejeitada
+- **THEN** o selo da linha continua dizendo "Com pendências"
 
 #### Scenario: O filtro vale para a tabela
 - **WHEN** o tenant tem notas executadas hoje e em 2026-09-20, e o filtro é o dia
