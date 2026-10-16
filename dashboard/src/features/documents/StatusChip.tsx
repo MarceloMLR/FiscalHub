@@ -11,7 +11,7 @@ const map: Record<IntegrationStatus, { label: string; tone: Tone }> = {
   DeadLettered: { label: 'Falha', tone: 'dead' },
   // Fora do escopo da esteira (NFS-e, CT-e, nota não autorizada) — desfecho explícito, não é falha (ADR-0025).
   Ignored: { label: 'Ignorado', tone: 'pending' },
-  // Salva sem envio, porque a chave de envio do tenant está desligada (ADR-0040). Reusa o tom `pending`, o mesmo do
+  // Salva sem envio, porque a chave de envio do tenant está desligada (ADR-0041). Reusa o tom `pending`, o mesmo do
   // "Pendente" e do "Ignorado": é parada deliberada, e não alarme — neutro é a cor certa, e o rótulo faz a distinção.
   Saved: { label: 'Salva', tone: 'pending' },
 };
@@ -22,10 +22,10 @@ const map: Record<IntegrationStatus, { label: string; tone: Tone }> = {
 export const FAILURE_STATUSES: IntegrationStatus[] = ['IntegrationError', 'Unconfirmed', 'DeadLettered'];
 export const isFailure = (s: IntegrationStatus) => FAILURE_STATUSES.includes(s);
 
-// Status que o reprocesso manual tira do lugar — as falhas **mais** a "Salva" (ADR-0040).
+// Status que o reprocesso manual tira do lugar — as falhas **mais** a "Salva" (ADR-0041).
 //
 // **Por que são duas listas, e não uma.** "Salva" é reprocessável mas NÃO é falha: a nota foi gravada de propósito,
-// com o envio desligado, e o reprocesso manual é — e só ele é — o caminho de saída desse estado (ADR-0040). Unificar
+// com o envio desligado, e o reprocesso manual é — e só ele é — o caminho de saída desse estado (ADR-0041). Unificar
 // as duas quebra de um lado ou do outro, e as duas quebras são silenciosas:
 // - pôr `'Saved'` em `FAILURE_STATUSES` faz a nota salva entrar no filtro de falhas e contar como erro, contra a spec
 //   (`"Salva" é situação própria na tela` — não é falha, como a ignorada);

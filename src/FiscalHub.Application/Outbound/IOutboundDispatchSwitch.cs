@@ -1,7 +1,7 @@
 namespace FiscalHub.Application.Outbound;
 
 /// <summary>
-/// A chave de envio ao conector de saída, do tenant (ADR-0040): ligada, o hub salva e envia; desligada, salva e não
+/// A chave de envio ao conector de saída, do tenant (ADR-0041): ligada, o hub salva e envia; desligada, salva e não
 /// envia. Quem a lê é a esteira, para decidir se envia o que preparou — o adapter de saída não a recebe, nem por
 /// parâmetro, nem por contexto, nem por injeção, e por isso não tem o que esquecer de olhar.
 /// <para>Não confundir com a integração automática (o <c>poll.enabled</c> das settings de entrada, ADR-0029), que é o

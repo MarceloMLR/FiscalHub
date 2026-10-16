@@ -15,7 +15,7 @@ internal sealed class SqlDocumentQueries : IDocumentQueries
     private static readonly IntegrationStatus[] Processing = [IntegrationStatus.Submitted, IntegrationStatus.Pending];
     private static readonly IntegrationStatus[] Failed = [IntegrationStatus.IntegrationError, IntegrationStatus.DeadLettered, IntegrationStatus.Unconfirmed];
 
-    // A quarta faixa (ADR-0040): a nota que parou na chave de envio. Fica fora das três de cima — não foi confirmada por
+    // A quarta faixa (ADR-0041): a nota que parou na chave de envio. Fica fora das três de cima — não foi confirmada por
     // plataforma nenhuma, não aguarda retorno de ninguém e não é falha. A ignorada segue sem faixa própria, e por isso
     // conta só no total (pendência registrada nos Próximos passos).
     private static readonly IntegrationStatus[] SavedWithoutSending = [IntegrationStatus.Saved];

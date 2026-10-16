@@ -51,10 +51,10 @@ export function DocumentDetail({ doc }: { doc: DocumentSummary }) {
 
   const failed = isFailure(doc.status);
   const accepted = ACCEPTED.includes(doc.status);
-  // Quem **teria** botão de reprocessar: as falhas e a nota em "Salva" (ADR-0040) — e é um predicado próprio, e não o
+  // Quem **teria** botão de reprocessar: as falhas e a nota em "Salva" (ADR-0041) — e é um predicado próprio, e não o
   // `isFailure`, porque "Salva" é reprocessável sem ser falha (ver `StatusChip.tsx`).
   const reprocessable = isReprocessable(doc.status);
-  // A chave de envio do tenant (ADR-0040) decide se esse botão sai habilitado ou desativado-com-motivo. Desligada, o
+  // A chave de envio do tenant (ADR-0041) decide se esse botão sai habilitado ou desativado-com-motivo. Desligada, o
   // reprocesso não acontece em nota nenhuma — a chave é porta única da saída, e o clique manual não passa por cima
   // dela. Três estados, e o terceiro importa: enquanto o /info não respondeu, ou se ele falhou, a tela não afirma
   // nenhum dos dois — o botão fica AUSENTE, nem habilitado nem desativado. É a mesma regra do canViewRawJson.

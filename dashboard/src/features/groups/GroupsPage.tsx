@@ -182,7 +182,7 @@ export function GroupsPage() {
         </div>
         <Kpi label="Em processamento" value={counts.emProcessamento} color="var(--info-text)" note={CARD_NOTES.emProcessamento} />
         {/* Entre "em processamento" e "com erro": é parada deliberada, e não alarme — e "Com erro" fica por último, que
-            é o card que pede alguém. O tom é o `pending`, o mesmo do selo "Salva" (ADR-0040). */}
+            é o card que pede alguém. O tom é o `pending`, o mesmo do selo "Salva" (ADR-0041). */}
         <Kpi label="Salvas" value={counts.salvas} color="var(--pending-text)" note={CARD_NOTES.salvas} />
         <Kpi label="Com erro" value={counts.comErro} color="var(--error-text)" note={CARD_NOTES.comErro} />
       </div>

@@ -18,7 +18,7 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 /// </summary>
 public class AvalaraComplianceDispatcherTests : ComplianceDispatcherContractTests<GoodsInvoice>
 {
-    // A suíte de conformidade do contrato de saída (ADR-0040): este adapter responde por ela. A nota de exemplo
+    // A suíte de conformidade do contrato de saída (ADR-0041): este adapter responde por ela. A nota de exemplo
     // prepara até o fim — o emitente dela está na tabela establishments do perfil padrão — e o resolvedor deste
     // harness não lista, então a preparação não teria nem desculpa para fazer requisição.
     protected override IComplianceDispatcher<GoodsInvoice> Dispatcher(HttpMessageHandler platform) => Build(platform);

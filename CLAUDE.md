@@ -109,15 +109,16 @@ Antes de criar abstração nova, procure a porta/analógico que já existe (`gre
 
 O conector do ERP é um **hook fino e genérico**, propositalmente burro:
 
-- **22 data entities** OData com prefixo `FS`, todas públicas, somente leitura e sem Data Management. A lista
+- **32 data entities** OData com prefixo `FS`, todas públicas, somente leitura e sem Data Management. A lista
   completa está em `d365/README.md`.
-  - **16 fiscais** (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR`…): expõem a nota e os cadastros
-    dela.
-  - **6 do contábil e do inventário** (Partes II e III do `04`): o hub ainda não as lê. Contábil e Inventário são
-    fatias próprias (ADR-0031).
-- **Uma entidade padrão da Microsoft:** o hub também lê a `FiscalEstablishments` (o cadastro de estabelecimentos), para o
-  diretório de empresas e a descoberta por período (ADR-0032). Não é `FS*`: a Microsoft a publica com nome fixo. A role
-  `FSFiscalHubIntegration` referencia o privilégio padrão dela, o `FiscalEstablishmentEntityView`.
+  - **20 fiscais** (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR`…): expõem a nota e os cadastros
+    dela, inclusive o estabelecimento (`FSFiscalEstablishmentBR`) e o código de serviço (`FSTaxServiceCodeBR`).
+  - **7 do contábil e do inventário** (Partes II e III do `04`) e **5 da produção e do Bloco K** (Parte IV): o hub
+    ainda não as lê. Contábil e Inventário são fatias próprias (ADR-0031).
+- **Pacote autossuficiente** (`d365/04`, §26): o hub só lê entidades `FS*`, e a role só referencia privilégios nossos.
+  **Transição:** o hub ainda lê a `FiscalEstablishments` padrão (diretório de empresas e descoberta por período,
+  ADR-0032), e a role ainda referencia o `FiscalEstablishmentEntityView`; quando o hub ler a
+  `FSFiscalEstablishmentBRs`, o privilégio sai.
 - **Descoberta por polling** sobre a `FSFiscalDocumentBR` é a **garantia** (ADR-0023). O hub
   pergunta o que mudou; o ERP não precisa avisar.
 - **Business event** + **CoC** continuam previstos como **otimizador de latência opcional**, não
@@ -138,7 +139,11 @@ Docs de referência:
 - `d365/05-achados-de-metadata-e-ciclo-de-deploy.md`: as armadilhas de metadata e o ciclo build → deploy → sync;
 - `d365/06-receita-criar-entidade-na-mao.md`: criar ou alterar uma entidade editando o XML;
 - `d365/07-como-decidir-quais-entidades-criar.md`: o método para decidir o que criar antes do XML;
-- `d365/glossario-x++-fno.md`.
+- `d365/glossario-x++-fno.md`;
+- `d365/tools/README.md`: as ferramentas (conferir antes do build, validar, Postman, log de deploy, radar de versão).
+
+Para trabalho em `d365/`, use o agente **`/agent-d365`** (a skill em `.claude/skills/agent-d365/SKILL.md`): regras do pacote e os fluxos de
+criar entidade, validar, diagnosticar deploy e radar de versões.
 
 ---
 

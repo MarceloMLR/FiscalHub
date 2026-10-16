@@ -106,7 +106,7 @@ internal sealed class AvalaraComplianceDispatcher : IComplianceDispatcher<GoodsI
         //    domínio é responsabilidade da esteira; aqui só o artefato que este adapter produz.
         await _trace.SaveOutboundAsync(context.TenantId, context.NaturalKey, Destination, JsonSerializer.Serialize(payload, AvalaraJson.Options), ct);
 
-        // A preparação termina aqui, com o payload fotografado e nenhuma requisição de envio feita (ADR-0040). Quem
+        // A preparação termina aqui, com o payload fotografado e nenhuma requisição de envio feita (ADR-0041). Quem
         // decide se ele vai à plataforma é a esteira, que lê a chave do tenant; o adapter não a conhece.
         return new AvalaraPreparedDispatch
         {

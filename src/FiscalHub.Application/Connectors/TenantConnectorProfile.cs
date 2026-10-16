@@ -21,7 +21,7 @@ public sealed record TenantConnectorProfile
     public IReadOnlyList<PlatformAccount> Accounts { get; init; } = [];
 
     /// <summary>
-    /// Se o hub envia ao conector de saída, ou apenas salva (ADR-0040). Ligada, que é o padrão, é o comportamento de
+    /// Se o hub envia ao conector de saída, ou apenas salva (ADR-0041). Ligada, que é o padrão, é o comportamento de
     /// sempre: salva e envia. Desligada: salva o payload de destino e não envia. É do <b>tenant</b> e independente de
     /// conector — não confundir com o <c>poll.enabled</c> das settings de entrada, que é a integração automática, de
     /// outro eixo (ADR-0029). Este é o único campo que diz isso.

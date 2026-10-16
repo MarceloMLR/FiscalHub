@@ -4,7 +4,7 @@ using FiscalHub.Application.Outbound;
 namespace FiscalHub.Application.Tests;
 
 /// <summary>
-/// A leitura da chave de envio do tenant (ADR-0040): o padrão é enviar — inclusive quando não há perfil nenhum —, a
+/// A leitura da chave de envio do tenant (ADR-0041): o padrão é enviar — inclusive quando não há perfil nenhum —, a
 /// chave gravada desligada desliga, e o estado de um tenant não atravessa para outro.
 /// </summary>
 public class OutboundDispatchSwitchTests

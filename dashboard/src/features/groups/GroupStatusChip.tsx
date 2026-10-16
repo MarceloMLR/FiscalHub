@@ -12,7 +12,7 @@ export function groupStatus(g: DocumentGroup): { label: string; tone: Tone } {
     return { label: 'Processando', tone: 'info' };
   }
   // Antes deste estado, um grupo só de notas salvas caía em "Finalizado" com as três faixas zeradas — mentira de tela
-  // (ADR-0040). O tom é o `pending`, o mesmo do selo da nota: parada deliberada, e não alarme.
+  // (ADR-0041). O tom é o `pending`, o mesmo do selo da nota: parada deliberada, e não alarme.
   if (g.salvas > 0) {
     return { label: 'Salvas', tone: 'pending' };
   }

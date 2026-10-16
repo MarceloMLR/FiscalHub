@@ -267,7 +267,7 @@ chave.
 ### Quem tem botão: um predicado próprio, e não `isFailure`
 
 `DocumentDetail` mostrava o botão quando `isFailure(status)`. Isso deixava a nota em **"Salva" sem botão**,
-mesmo com a chave ligada — e o reprocesso manual é o **único** caminho de saída de "Salva" (ADR-0040: religar
+mesmo com a chave ligada — e o reprocesso manual é o **único** caminho de saída de "Salva" (ADR-0041: religar
 não reenvia, e a idempotência por conteúdo a trata como terminal). O servidor sempre aceitou: o
 `DocumentReprocess.ReprocessAsync` não tem guarda de status. Só a tela não oferecia.
 
@@ -463,7 +463,7 @@ liberar a implementação. **Nenhum arquivo de dead-letter aparece aqui** — `D
 
 | Arquivo | O quê |
 |---|---|
-| `docs/adr/0040-capturar-sem-enviar.md` | **novo** — o despacho em dois passos e onde a chave mora |
+| `docs/adr/0041-capturar-sem-enviar.md` | **novo** — o despacho em dois passos e onde a chave mora |
 | `docs/adr/README.md` | o índice |
 | `docs/STATUS.md` | as duas pendências nos Próximos passos (o selo do "Ignorado"; promover a suíte de conformidade) |
 | `tools/MockComplianceApi/*` | conferir se o mock precisa acompanhar a divisão (provavelmente não: ele é o outro lado do HTTP) |

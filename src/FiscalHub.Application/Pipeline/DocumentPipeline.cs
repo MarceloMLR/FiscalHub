@@ -54,7 +54,7 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
     /// Documento inválido é rejeitado (registrado com o motivo) e não é enviado; recusa permanente no despacho
     /// (<see cref="DispatchRejectedException"/>) também. Qualquer outra falha propaga como exceção, deixando o
     /// retry/DLQ a cargo do transporte.
-    /// <para>O despacho é preparar e depois enviar, e a chave de envio do tenant decide entre os dois (ADR-0040):
+    /// <para>O despacho é preparar e depois enviar, e a chave de envio do tenant decide entre os dois (ADR-0041):
     /// desligada, o payload de destino fica gravado e a nota termina em "Salva", sem requisição de envio.</para>
     /// </summary>
     public async Task ProcessAsync(
@@ -95,7 +95,7 @@ public sealed class DocumentPipeline<TDocument> : IDocumentPipeline<TDocument>
         IntegrationReceipt receipt;
         try
         {
-            // O despacho é dois passos (ADR-0040): preparar traduz e fotografa o payload de destino, sem enviar;
+            // O despacho é dois passos (ADR-0041): preparar traduz e fotografa o payload de destino, sem enviar;
             // enviar faz a requisição. Quem decide é a esteira, e não o adapter.
             PreparedDispatch<TDocument> prepared = await _dispatcher.PrepareAsync(document, context, ct);
 

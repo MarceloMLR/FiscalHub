@@ -5,7 +5,7 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 /// <summary>
 /// A suíte de conformidade de um adapter de saída. O contrato de <see cref="IComplianceDispatcher{TDocument}"/> diz que
 /// <c>PrepareAsync</c> não envia, e nada no compilador garante isso: postar de dentro da preparação é um
-/// <see cref="HttpClient"/> chamado no método errado, e tipo nenhum distingue "montar" de "postar" (ADR-0040 — o que o
+/// <see cref="HttpClient"/> chamado no método errado, e tipo nenhum distingue "montar" de "postar" (ADR-0041 — o que o
 /// desenho NÃO garante). Esta suíte é a mitigação, e não a garantia: quem escreve um adapter de saída herda-a.
 /// <para>Ela nasce aqui, no projeto de teste da Avalara, porque não existe projeto de teste compartilhado entre adapters
 /// e a Avalara é o único adapter de saída que existe. No dia em que houver um segundo, promovê-la a biblioteca comum —
@@ -37,7 +37,7 @@ public abstract class ComplianceDispatcherContractTests<TDocument>
             platform.RequestCount == 0,
             $"PrepareAsync fez {platform.RequestCount} requisição(ões) à plataforma; a última foi "
             + $"{platform.LastRequest?.Method} {platform.LastRequest?.RequestUri}. Preparar traduz e fotografa o payload; "
-            + "quem envia é SendAsync, e só ele (ADR-0040).");
+            + "quem envia é SendAsync, e só ele (ADR-0041).");
     }
 
     [Fact]

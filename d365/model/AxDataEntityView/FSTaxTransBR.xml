@@ -229,6 +229,13 @@ public class FSTaxTransBR extends common
 			<DataField>DeferredAmountMST_BR</DataField>
 			<DataSource>TaxTrans_BR</DataSource>
 		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>NoPostingTaxAmount</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>NoPostingTaxAmount</DataField>
+			<DataSource>TaxTrans</DataSource>
+		</AxDataEntityViewField>
 	</Fields>
 	<Keys>
 		<AxDataEntityViewKey>

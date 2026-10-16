@@ -1,4 +1,4 @@
-# ADR-0040: Capturar sem enviar — o despacho em dois passos e a chave do tenant
+# ADR-0041: Capturar sem enviar — o despacho em dois passos e a chave do tenant
 
 - **Status:** Aceito
 - **Data:** 2026-10-16

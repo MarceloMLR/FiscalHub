@@ -231,7 +231,7 @@ public class DiscoveryToPipelineTests
 
         public Task<bool> AlreadyProcessedAsync(string tenantId, string naturalKey, string contentHash, CancellationToken ct = default)
             => Task.FromResult(Rows.TryGetValue(naturalKey, out var row) && row.Hash == contentHash
-                && row.Status is "Submitted" or "Confirmed" or "Saved");   // "Salva" é terminal (ADR-0040)
+                && row.Status is "Submitted" or "Confirmed" or "Saved");   // "Salva" é terminal (ADR-0041)
 
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
         {

@@ -258,12 +258,12 @@ exatamente como envia hoje. Vem primeiro porque tudo depois depende da forma nov
 
 ## 9. Fechamento
 
-- [x] 9.1 ADR `docs/adr/0040-capturar-sem-enviar.md` — o despacho em dois passos (o que garante e o que
+- [x] 9.1 ADR `docs/adr/0041-capturar-sem-enviar.md` — o despacho em dois passos (o que garante e o que
       não garante, como no design §1) e onde a chave mora. Atualizar `docs/adr/README.md`. O "não garante"
       tem de incluir as **duas** ressalvas: o POST escrito dentro do `PrepareAsync`, e o preparado montado
       na mão de dentro do assembly do adapter (pedido da revisão do grupo 1 — quem lê o ADR precisa achar).
       Citar também onde as recusas de autenticação aparecem, que é a decisão A da mesma revisão.
-      <br>✅ `docs/adr/0040-capturar-sem-enviar.md`, com as duas ressalvas nomeadas em "o que NÃO garante", a
+      <br>✅ `docs/adr/0041-capturar-sem-enviar.md`, com as duas ressalvas nomeadas em "o que NÃO garante", a
       decisão A numa seção própria ("As recusas de autenticação não aparecem com a chave desligada"), a
       Alternativa C registrada como o caminho se a garantia total virar requisito, e o rollback. Índice
       atualizado.
@@ -323,7 +323,7 @@ nenhuma linha. A fatia não foi arquivada, então o delta e o design são corrig
       faz as duas coisas.
 - [x] 10.4 **O mais sério: a nota em "Salva" não tinha botão nem com a chave ligada.** O botão era
       `failed && outboundDispatch === true`, e `FAILURE_STATUSES` não inclui `Saved` — então a nota em "Salva"
-      ficava sem o seu **único** caminho de saída, contra o ADR-0040, contra a proposal e contra um cenário já
+      ficava sem o seu **único** caminho de saída, contra o ADR-0041, contra a proposal e contra um cenário já
       publicado no próprio delta. O servidor sempre aceitou: `DocumentReprocess.ReprocessAsync` não tem guarda de
       status. Nenhum teste pegou porque **todo** caso de "Salva" foi escrito com a chave desligada.
       <br>**Conserto:** `REPROCESSABLE_STATUSES` / `isReprocessable` = falhas **+** `Saved`, **ao lado** de
@@ -346,7 +346,7 @@ nenhuma linha. A fatia não foi arquivada, então o delta e o design são corrig
       três estados do `/info`); a §3 e a §5 perderam a menção à faixa de aviso; a pergunta em aberto do texto do
       aviso foi fechada, e no lugar dela fica a leitura do tooltip na tela. A `proposal.md` foi acertada na mesma
       linha.
-      <br>**ADR-0040:** a seção de "Salva" terminal ganhou a consequência de tela — a nota em "Salva" tem botão,
+      <br>**ADR-0041:** a seção de "Salva" terminal ganhou a consequência de tela — a nota em "Salva" tem botão,
       as duas listas e o porquê —, e o desativado-com-motivo.
 - [x] 10.6 Guarda: `npm test` no dashboard **sozinho**, `openspec validate --all --strict`, e a prova por
       inversão de cada comportamento novo.

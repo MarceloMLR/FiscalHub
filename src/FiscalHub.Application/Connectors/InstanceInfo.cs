@@ -13,7 +13,7 @@ namespace FiscalHub.Application.Connectors;
 /// ver as fotos cruas, derivado da mesma lista de papéis que o <c>RequireRole</c> do <c>/trace</c> e do zip usa — quem a
 /// conhece é o Host, e por isso ela chega aqui já respondida. É um booleano, e não a lista: o servidor já sabe quem está
 /// logado, e responde a pergunta em vez de mandar os dados para a tela decidir de novo.</para>
-/// <para>O <see cref="OutboundDispatch"/> é a chave de envio ao conector de saída do tenant (ADR-0040). Ela está nas
+/// <para>O <see cref="OutboundDispatch"/> é a chave de envio ao conector de saída do tenant (ADR-0041). Ela está nas
 /// <b>duas</b> respostas, por razões diferentes: no <c>GET /connector</c>, que só o Admin lê, para o formulário de
 /// Configurações desenhá-la e gravá-la; e aqui, que qualquer papel lê, para a tela do documento saber se o botão de
 /// reprocessar vale. Sem ela aqui, um Viewer não teria como saber por que o botão está desativado.</para>
@@ -39,7 +39,7 @@ public sealed record InstanceInfo(
             Inbound.AutomaticIntegration.Scans(profile, origins),
             [.. (profile?.Accounts ?? []).SelectMany(a => a.Connectors.Select(c => Of(a, c, declared)))],
             canViewRawJson,
-            // A chave de envio (ADR-0040): vem aqui, e não só no GET /connector, porque o botão de reprocessar está numa
+            // A chave de envio (ADR-0041): vem aqui, e não só no GET /connector, porque o botão de reprocessar está numa
             // tela de qualquer papel, e o perfil é 403 para o Viewer. Sem perfil, ligada.
             profile?.OutboundDispatchEnabled ?? true);
     }

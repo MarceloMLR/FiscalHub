@@ -613,6 +613,48 @@ public class FSFiscalDocumentBR extends common
 			<DataSource>FiscalDocument_BR</DataSource>
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns="" 			i:type="AxDataEntityViewMappedField"> 			<Name>SysModifiedDateTime</Name> 			<DataField>ModifiedDateTime</DataField> 			<DataSource>FiscalDocument_BR</DataSource> 		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>CityWhereServicePerformedIBGECode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>IBGECode_BR</DataField>
+			<DataSource>LogisticsAddresssCity</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>IsServiceLocationForeign</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>IsServiceLocationForeign_BR</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ServiceLocationDomestic</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ServiceLocationDomestic_BR</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ServiceLocationDomesticIBGECode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>IBGECode_BR</DataField>
+			<DataSource>ServiceLocationCity</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ServiceLocationNonDomestic</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>ServiceLocationNonDomestic_BR</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>MissingNIFReasonType</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>MissingNIFReasonType_BR</DataField>
+			<DataSource>FiscalDocument_BR</DataSource>
+		</AxDataEntityViewField>
 	</Fields>
 	<Keys>
 		<AxDataEntityViewKey>
@@ -766,8 +808,10 @@ public class Metadata extends QueryRun
 						<JoinMode>OuterJoin</JoinMode>
 						<Relations>
 							<AxQuerySimpleDataSourceRelation>
-								<Name>LogisticsAddresssCity</Name>
-								<JoinRelationName>LogisticsAddressCity</JoinRelationName>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>CityWhereServicePerformed</Field>
+								<JoinDataSource>FiscalDocument_BR</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
 							</AxQuerySimpleDataSourceRelation>
 						</Relations>
 					</AxQuerySimpleEmbeddedDataSource>
@@ -838,6 +882,25 @@ public class Metadata extends QueryRun
 							<AxQuerySimpleDataSourceRelation>
 								<Name>ThirdPartyPostalAddress</Name>
 								<JoinRelationName>LogisticsPostalAddress</JoinRelationName>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>ServiceLocationCity</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>LogisticsAddressCity</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>ServiceLocationDomestic_BR</Field>
+								<JoinDataSource>FiscalDocument_BR</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
 							</AxQuerySimpleDataSourceRelation>
 						</Relations>
 					</AxQuerySimpleEmbeddedDataSource>

@@ -4,7 +4,7 @@ namespace FiscalHub.Application.Outbound;
 /// Envia um documento a uma plataforma de compliance e consulta o resultado. Envio e consulta são
 /// separados para suportar plataformas assíncronas; cada implementação traduz documento e status
 /// para o formato da plataforma.
-/// <para>O envio, por sua vez, é dois passos: preparar e enviar (ADR-0040). Quem decide se o documento vai à
+/// <para>O envio, por sua vez, é dois passos: preparar e enviar (ADR-0041). Quem decide se o documento vai à
 /// plataforma é a esteira, que lê a chave de envio do tenant — o adapter não recebe a chave, por parâmetro, por
 /// contexto ou por injeção, e por isso não tem o que esquecer de olhar.</para>
 /// </summary>

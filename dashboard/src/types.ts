@@ -8,7 +8,7 @@ export type IntegrationStatus =
   | 'Unconfirmed'
   | 'DeadLettered'
   | 'Ignored'
-  // Traduzida e com o JSON de destino gravado, mas não enviada: a chave de envio do tenant está desligada (ADR-0040).
+  // Traduzida e com o JSON de destino gravado, mas não enviada: a chave de envio do tenant está desligada (ADR-0041).
   | 'Saved';
 
 export interface DocumentSummary {
@@ -152,7 +152,7 @@ export interface InfoResponse {
   // Se o usuário logado pode ver as fotos cruas (o JSON e o zip). É permissão, derivada da lista de papéis do servidor —
   // a tela não tem cópia dela (ADR-0039 §5).
   canViewRawJson: boolean;
-  // A chave de envio ao conector de saída do tenant (ADR-0040). Vem aqui, e não só no GET /connector, porque o botão de
+  // A chave de envio ao conector de saída do tenant (ADR-0041). Vem aqui, e não só no GET /connector, porque o botão de
   // reprocessar está numa tela que qualquer papel abre, e o perfil é 403 para o Viewer.
   outboundDispatch: boolean;
 }
@@ -238,7 +238,7 @@ export interface ConnectorProfile {
   secrets: Record<string, SecretStatus>;
   modules: ModuleName[];
   accounts: PlatformAccount[];
-  // A chave de envio ao conector de saída do tenant (ADR-0040): ligada, o hub salva e envia; desligada, salva e não
+  // A chave de envio ao conector de saída do tenant (ADR-0041): ligada, o hub salva e envia; desligada, salva e não
   // envia. É do tenant e independente de conector — não confundir com a integração automática, que é da entrada.
   outboundDispatch: boolean;
 }
@@ -318,7 +318,7 @@ export interface DocumentGroup {
   finalizadas: number;
   emProcessamento: number;
   comErro: number;
-  // As que pararam com o envio ao conector de saída desligado (ADR-0040): fora das outras três faixas.
+  // As que pararam com o envio ao conector de saída desligado (ADR-0041): fora das outras três faixas.
   salvas: number;
 }
 

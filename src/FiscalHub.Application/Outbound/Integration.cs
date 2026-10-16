@@ -23,7 +23,7 @@ public sealed record IntegrationReceipt
 /// <para>O conteúdo é opaco para a Application — cada adapter carrega aqui o que o envio dele precisa. O que o tipo
 /// existe para dizer é a ordem: só <see cref="IComplianceDispatcher{TDocument}.PrepareAsync"/> produz um preparado, e
 /// <see cref="IComplianceDispatcher{TDocument}.SendAsync"/> só aceita um — então não há como enviar sem ter preparado
-/// e fotografado, e o compilador recusa a tentativa (ADR-0040).</para>
+/// e fotografado, e o compilador recusa a tentativa (ADR-0041).</para>
 /// <para>É classe, e não record, de propósito: sem <c>ToString</c> gerado, o preparado não despeja o payload do
 /// documento num log por acidente (ADR-0027).</para>
 /// </summary>

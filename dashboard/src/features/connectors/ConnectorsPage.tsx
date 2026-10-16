@@ -137,7 +137,7 @@ export function ConnectorsPage() {
   // que a tela não mostra (establishments…), ficam aqui e voltam intactos. O ambiente é da instância (D6).
   const [platform, setPlatform] = useState('Avalara');
   const [accounts, setAccounts] = useState<AccountForm[]>([]);
-  // A chave de envio ao conector de saída (ADR-0040). É do tenant e vale para toda a saída, e não de um conector: por
+  // A chave de envio ao conector de saída (ADR-0041). É do tenant e vale para toda a saída, e não de um conector: por
   // isso fica fora de `accounts`, e muda com o formulário — só o salvar a grava.
   const [outboundDispatch, setOutboundDispatch] = useState(true);
   // O conector escolhido na lista do painel (grupo 7). Nulo: o do adapter de mesmo nome da plataforma.

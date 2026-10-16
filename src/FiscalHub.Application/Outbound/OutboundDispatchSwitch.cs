@@ -4,7 +4,7 @@ namespace FiscalHub.Application.Outbound;
 
 /// <summary>
 /// A chave de envio lida do perfil do tenant, que é onde ela mora — coluna própria em <c>ConnectorProfiles</c>, e não
-/// dentro de JSON de settings (ADR-0040). Fica na Application, sobre a porta do perfil, para a esteira não ganhar
+/// dentro de JSON de settings (ADR-0041). Fica na Application, sobre a porta do perfil, para a esteira não ganhar
 /// dependência de Infrastructure e para a leitura ser testável sem banco.
 /// </summary>
 public sealed class OutboundDispatchSwitch(IConnectorProfileStore profiles) : IOutboundDispatchSwitch

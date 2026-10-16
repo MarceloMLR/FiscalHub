@@ -41,7 +41,7 @@ public interface IProcessingStore
 
     /// <summary>
     /// Registra que o documento foi salvo sem envio (<see cref="IntegrationStatus.Saved"/>), porque a chave de envio ao
-    /// conector de saída do tenant está desligada, com o motivo (ADR-0040). Sobre um registro existente, troca o estado
+    /// conector de saída do tenant está desligada, com o motivo (ADR-0041). Sobre um registro existente, troca o estado
     /// e preserva o identificador externo já gravado, como o <see cref="RecordIgnoredAsync"/> — uma nota que já foi
     /// enviada um dia e é recapturada com o envio desligado não perde o rastro do envio antigo.
     /// </summary>

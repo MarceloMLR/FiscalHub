@@ -210,7 +210,7 @@ public class D365CompanyDirectoryTests
         var ex = await Assert.ThrowsAsync<OriginUnavailableException>(() => h.Directory.ListCompaniesAsync("tenant-a"));
 
         Assert.Contains("HTTP 403", ex.Message);
-        Assert.Contains("FSFiscalHubIntegration", ex.Message);
+        Assert.Contains("FiscosysHubIntegration", ex.Message);
         Assert.Contains("FiscalEstablishmentEntityView", ex.Message);
     }
 

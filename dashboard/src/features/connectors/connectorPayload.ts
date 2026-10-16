@@ -56,7 +56,7 @@ export interface ConnectorForm {
   inboundValues: Json;
   platform: string;
   accounts: AccountForm[];
-  // A chave de envio ao conector de saída (ADR-0040). É do tenant, e não de um conector: fica fora de `accounts`, ao
+  // A chave de envio ao conector de saída (ADR-0041). É do tenant, e não de um conector: fica fora de `accounts`, ao
   // lado do adapter de entrada, como a chave de outro eixo que é.
   outboundDispatch: boolean;
 }

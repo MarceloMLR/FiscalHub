@@ -3,7 +3,7 @@ import { groupStatus } from './GroupStatusChip';
 import type { DocumentGroup } from '../../types';
 
 // O selo da linha da tabela de grupos, derivado das contagens (spec document-grouping). O caso que esta change conserta:
-// um grupo só de notas salvas dizia "Finalizado" com as três faixas zeradas — mentira de tela (ADR-0040).
+// um grupo só de notas salvas dizia "Finalizado" com as três faixas zeradas — mentira de tela (ADR-0041).
 //
 // O que este arquivo NÃO conserta, e está nos Próximos passos: o mesmo defeito com "Ignorado". Um grupo de 10 NFS-e
 // ignoradas continua dizendo "Finalizado" com tudo zerado, porque `Ignored` não tem contagem própria.

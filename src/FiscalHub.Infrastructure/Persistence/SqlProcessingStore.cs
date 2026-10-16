@@ -22,7 +22,7 @@ internal sealed class SqlProcessingStore : IProcessingStore
         _clock = clock;
     }
 
-    // "Salva" é terminal ao lado de "enviada" e "confirmada" (ADR-0040). Sem isso, duas coisas quebram: a nota que parou
+    // "Salva" é terminal ao lado de "enviada" e "confirmada" (ADR-0041). Sem isso, duas coisas quebram: a nota que parou
     // na chave seria reprocessada a cada passada do coletor dentro da janela de sobreposição, regravando as fotos sem
     // nada ter mudado; e, ao religar a chave, a primeira passada com sobreposição a enviaria sozinha — contra a decisão
     // de que ligar o envio não reenvia o acumulado. O gatilho manual continua furando (ADR-0016), e é por ele que o

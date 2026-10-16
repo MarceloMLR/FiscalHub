@@ -8,7 +8,7 @@ export interface CardSums {
   finalizadas: number;
   emProcessamento: number;
   comErro: number;
-  // As que pararam com o envio ao conector de saída desligado (ADR-0040): contam em "Documentos" e aqui, e em mais
+  // As que pararam com o envio ao conector de saída desligado (ADR-0041): contam em "Documentos" e aqui, e em mais
   // nenhum card.
   salvas: number;
 }

@@ -1,0 +1,24 @@
+{
+  "_comentario": "Configuracao das ferramentas do d365/tools. Nada de segredo aqui: o token vem do 'az login' de quem roda. Caminhos da maquina (UDE, PackagesLocalDirectory, .rnrproj) sao descobertos sozinhos; para forcar, use as variaveis D365_XPPCONFIG, D365_CUSTOM_METADATA e D365_RNRPROJ.",
+  "pacote": "FiscosysHubIntegration",
+  "role": "FiscosysHubIntegration",
+  "versaoBase": "10.0.2527.160",
+  "versaoBaseNome": "10.0.47",
+  "environmentUrl": "https://fiscosysdev.operations.dynamics.com",
+  "dataverseUrl": "https://fiscosysdev.api.crm2.dynamics.com",
+  "empresaTeste": "brmf",
+  "privilegiosPadraoNaRole": ["FiscalEstablishmentEntityView"],
+  "_juncoes": "Fontes sem <JoinMode> (InnerJoin) que sao de proposito: tabela inteira ou Entidade:Fonte. Decisao no d365/04, secoes 15.0 e 22.0.",
+  "juncoesInternasIntencionais": [
+    "InventDim",
+    "FSInventTransBR:InventTransOrigin",
+    "FSGeneralJournalLineBR:GeneralJournalEntry",
+    "FSGeneralJournalLineBR:Ledger",
+    "FSGeneralJournalLineBR:CompanyInfo",
+    "FSMainAccountBR:LedgerChartOfAccounts",
+    "FSMainAccountBR:Ledger",
+    "FSMainAccountBR:CompanyInfo",
+    "FSCostCenterBR:DimensionAttribute",
+    "FSCostCenterBR:FinancialDimensionValueEntityView"
+  ]
+}

@@ -107,7 +107,7 @@ public sealed class ConnectorProfileService
                 Accounts = accounts,
                 SupportAdapter = supportAdapter,
                 SupportSettings = support.Json,
-                // Ausente mantém a gravada (ADR-0040): um dashboard que não recarregou não liga o envio de quem o desligou.
+                // Ausente mantém a gravada (ADR-0041): um dashboard que não recarregou não liga o envio de quem o desligou.
                 OutboundDispatchEnabled = request.OutboundDispatch ?? stored?.OutboundDispatchEnabled ?? true,
             }, ct);
             upserted = true;

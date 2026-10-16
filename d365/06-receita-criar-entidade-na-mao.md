@@ -1,7 +1,7 @@
 # Fase 6 - Receita: criar ou alterar uma entidade editando o XML na mao
 
 Este documento existe para quem chega sem contexto nenhum e precisa criar uma entidade nova
-no modelo `FiscalHubIntegration`. Ele cobre o caminho que a gente usa de verdade: **editar o
+no modelo `FiscosysHubIntegration`. Ele cobre o caminho que a gente usa de verdade: **editar o
 arquivo `.xml` diretamente, com o Visual Studio fechado**.
 
 O caminho do assistente do Visual Studio esta na fase 1 (`01-criar-e-publicar-data-entity.md`).
@@ -19,13 +19,13 @@ Esta e a primeira coisa que ninguem adivinha. O mesmo arquivo precisa ficar iden
    d365\model\AxDataEntityView\<Nome>.xml
 
 2. no metadado do UDE (o que o build le):
-   C:\CustomXppMetadata*\FiscalHubIntegration\FiscalHubIntegration\AxDataEntityView\<Nome>.xml
+   C:\CustomXppMetadata*\FiscosysHubIntegration\FiscosysHubIntegration\AxDataEntityView\<Nome>.xml
 ```
 
 Existe um terceiro caminho, o "espelho", e nele voce **nao** grava:
 
 ```
-C:\CustomXppMetadata*\FiscalHubIntegration\XppMetadata\FiscalHubIntegration\AxDataEntityView\<Nome>.xml
+C:\CustomXppMetadata*\FiscosysHubIntegration\XppMetadata\FiscosysHubIntegration\AxDataEntityView\<Nome>.xml
 ```
 
 Quem escreve ali e o build: sao stubs gerados a partir do item 2. As tres entidades contabeis foram gravadas so nos
@@ -51,7 +51,7 @@ pull. Grave nos dois.
 O projeto do Visual Studio nao e versionado e vive em outro lugar:
 
 ```
-C:\Users\<voce>\Desktop\Projects 2026\Dynamics365\FiscalHubIntegration\FiscalHubIntegration.rnrproj
+C:\Users\<voce>\Desktop\Projects 2026\Dynamics365\FiscosysHubIntegration\FiscosysHubIntegration.rnrproj
 ```
 
 Repare no **2026** - o repositorio esta em `Projects 2027`. Sao pastas diferentes.
@@ -116,6 +116,11 @@ aparece fechado: `<DataSources />`. Para aninhar, troque por `<DataSources>...</
 `FiscalDocumentLine_BR`, o valor e `FiscalDocumentLine_BR` - mesmo que o campo na tabela se chame
 `FiscalDocumentLine`. Errar aqui da `Failed to locate table relation` no build.
 
+Mais exato (verificado em 2026-10-15 contra o metadado da 10.0.47): o valor e o `RelatedTableRole` da relacao,
+que por padrao e o nome da tabela relacionada. Quando a Microsoft deu outro papel, vale o papel:
+`LocationRelatedTableRole` (de `LogisticsPostalAddress` para `LogisticsLocation`) e `ComplementFiscalDocument` (nota
+complementar). O `node d365/tools/conferir-pacote.js` confere isso antes do build.
+
 **`<JoinMode>` ausente significa InnerJoin, e anula o OuterJoin do pai.** Toda fonte aninhada
 precisa do elemento explicito, inclusive as de segundo nivel.
 
@@ -127,15 +132,33 @@ sempre com nome proprio (`FiscalDocumentRecId`), nunca `RecId` puro.
 
 ## 5. A regra de ouro: copie uma fonte que ja funciona
 
-Antes de escrever uma fonte de dados nova, procure nas 22 entidades existentes uma que ja ligue
+Antes de escrever uma fonte de dados nova, procure nas 31 entidades existentes uma que ja ligue
 as mesmas tabelas, e **copie o bloco inteiro**. O `JoinRelationName` correto e a informacao mais
 dificil de adivinhar e a mais facil de copiar.
 
 Exemplo real: ao ligar `TaxTrans_BR` sob `TaxTrans` na `FSFiscalDocumentTaxTransBR`, o bloco veio
 copiado da `FSTaxTransBR`, que ja fazia essa ligacao em producao. Funcionou de primeira.
+(Essa juncao saiu da entidade em 2026-10-14, quando o cClassTrib passou a vir da tabela fiscal: ver `04`, 4.3.)
 
 Quando nao houver exemplo, a convencao observada e: **o nome da relacao e o nome da tabela
 relacionada**. Funcionou nas cinco vezes em que foi testada, inclusive com a `CClassTribTable_BR`.
+
+Quando a mesma tabela entra duas vezes na entidade, ou quando a tabela pai tem mais de uma relacao
+para ela, nao confie no nome: escreva a juncao com os campos dos dois lados. `Field` e o campo da
+fonte pai, `JoinDataSource` e o nome da fonte pai e `RelatedField` e o campo da tabela filha:
+
+```xml
+<AxQuerySimpleDataSourceRelation>
+  <Name>QueryDataSourceRelation1</Name>
+  <Field>CClassTribSuspension</Field>
+  <JoinDataSource>FiscalDocumentTaxTrans_BR</JoinDataSource>
+  <RelatedField>RecId</RelatedField>
+</AxQuerySimpleDataSourceRelation>
+```
+
+Exemplo real: a `FSFiscalDocumentTaxTransBR` liga a `CClassTribTable_BR` duas vezes, uma pela
+classificacao (`CClassTrib`) e outra pela suspensao (`CClassTribSuspension`). Publicada em
+2026-10-14; a contagem seguiu em 547. A `FSInventLocationBR` usa o mesmo formato.
 
 ## 6. Propriedades da entidade
 
@@ -148,10 +171,13 @@ relacionada**. Funcionou nas cinco vezes em que foi testada, inclusive com a `CC
 ```
 
 Entidade nova tambem precisa de um privilegio de leitura em `AxSecurityPrivilege\` e da inclusao
-dele na role `FSFiscalHubIntegration` (`AxSecurityRole\FSFiscalHubIntegration.xml`). Sem isso,
+dele na role `FiscosysHubIntegration` (`AxSecurityRole\FiscosysHubIntegration.xml`). Sem isso,
 o OData responde 401 para o usuario da integracao.
 
 ## 7. Build, deploy e sync
+
+Antes do build, `node d365/tools/conferir-pacote.js FSNomeDaEntidade` confere os tres lugares, o privilegio, a role, as
+regras da secao 4 e se cada tabela e campo existe na versao base. Zero erro antes de abrir o Visual Studio.
 
 Nessa ordem, no Visual Studio, com o host do FiscalHub **parado** se ele estiver rodando (ele
 trava a pasta `bin`).
@@ -160,6 +186,9 @@ Alterar so o XML de uma entidade existente costuma pedir apenas build e sync. En
 o ciclo completo.
 
 ## 8. Conferir no ambiente - o passo que pega o que o build nao pega
+
+Atalho: `node d365/tools/validar-ambiente.js FSNomeDaEntidade --empresa brmf` faz as tres conferencias abaixo (campos no
+`$select`, contagem, valor de verdade) e ainda a chave unica. Os comandos manuais seguem valendo.
 
 Nenhum dos achados dos documentos 04 e 05 gerou erro de compilacao. A conferencia e no OData.
 
@@ -213,4 +242,4 @@ Invoke-WebRequest -Uri "https://fiscosysdev.operations.dynamics.com/data/FSFisca
 - `01-criar-e-publicar-data-entity.md` - o caminho pelo assistente do Visual Studio
 - `04-mapeamento-de-entidades.md` - o que cada entidade expoe e por que
 - `05-achados-de-metadata-e-ciclo-de-deploy.md` - os achados em detalhe, com os scripts de auditoria
-- `README.md` - as 22 entidades e o contrato de nome fixo
+- `README.md` - as 31 entidades e o contrato de nome fixo

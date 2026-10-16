@@ -50,7 +50,7 @@ const EXPLICACAO = /Ligue-o em Configurações → Conectores → Saída/;
 const REJEITADA: DocumentSummary = { ...DOC, status: 'IntegrationError', reason: 'Plataforma de compliance rejeitou: CFOP inválido' };
 
 // A nota que parou com a chave desligada. Ela **é** reprocessável — o reprocesso manual é o único caminho de saída
-// desse estado (ADR-0040) —, e não é falha.
+// desse estado (ADR-0041) —, e não é falha.
 const SALVA: DocumentSummary = {
   ...DOC,
   status: 'Saved',
@@ -137,7 +137,7 @@ describe('o reprocesso segue a chave de envio do /info', () => {
 
   it('a nota em "Salva" com a chave ligada: botão habilitado, e o clique reprocessa', async () => {
     // O caso que faltava. "Salva" não é falha, e por isso não entra em `FAILURE_STATUSES`; mas o reprocesso manual é
-    // o **único** caminho de saída dela (ADR-0040) — decidir o botão por `isFailure` a deixava sem saída pela tela.
+    // o **único** caminho de saída dela (ADR-0041) — decidir o botão por `isFailure` a deixava sem saída pela tela.
     const chamada = vi.spyOn(api, 'reprocess').mockResolvedValue(undefined);
     render(INFO(true, true), SALVA);
 

@@ -137,7 +137,7 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
     contagem e o selo. A alternativa barata — trocar o `senão` do selo por "Finalizado só quando `finalizadas === total`"
     — resolveria os dois de uma vez, mas exige inventar o rótulo do caso restante, que também é decisão de produto.
 11. **Promover a suíte de conformidade do adapter de saída a biblioteca compartilhada.** A
-    `ComplianceDispatcherContractTests<TDocument>` (ADR-0040) prova que `PrepareAsync` não faz requisição — a mitigação
+    `ComplianceDispatcherContractTests<TDocument>` (ADR-0041) prova que `PrepareAsync` não faz requisição — a mitigação
     de "um adapter novo posta no método errado" —, e hoje ela mora **dentro** do projeto de teste da Avalara, porque não
     há projeto de teste compartilhado entre adapters e a Avalara é o único adapter de saída. **No dia do segundo adapter
     de saída, promovê-la e herdá-la é a primeira tarefa.** Nada no build obriga nenhuma das duas coisas: o
