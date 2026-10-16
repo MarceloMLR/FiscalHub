@@ -80,7 +80,7 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 | 32 | `FSImportDeclarationBR` | `PurchImportDeclaration_BR` | declaração de importação — Parte V (32.1) |
 
 Todas criadas, publicadas e validadas contra o ambiente; a 23, os campos da 4.4 e as 24 a 31 da Parte IV, em 2026-10-15 (§31.1).
-A 32 e os campos da Parte V foram escritos em 2026-10-16 e aguardam build, deploy e aceite (§32.7).
+A 32 e os campos da Parte V, em 2026-10-16 (§32.8).
 Os campos da 4.4 respondem, mas o fiscosysdev não tem dado da reforma.
 Todas `IsReadOnly = Yes` e `Is Public = Yes`.
 **Data management só na `FSFiscalDocumentBR`**, e talvez nem isso (seção 8).
@@ -1825,3 +1825,22 @@ contagens pegam junção duplicando ou cortando linha:
 
 Ferramenta: `node d365/tools/validar-ambiente.js FSImportDeclarationBR --empresa brmf --comparar ImportDeclarations` e
 `node d365/tools/validar-ambiente.js FSGeneralJournalLineBR FSMainAccountBR FSTaxWithholdBR FSItemBR --empresa brmf`.
+
+
+### 32.8 Resultado (2026-10-16)
+
+Build, deploy com sincronização e sincronização completa feitos pelo Marcelo, com os avisos esperados do `05` §13. Medido no
+fiscosysdev (10.0.49) com a identidade do `az`.
+
+**Postman, collection inteira:** 80 requests, 348 asserções, 1 falha — o `Get Token`, esperado. A pasta nova e as do
+contábil e do inventário, verdes.
+
+| O que | Resultado |
+|---|---|
+| `validar-ambiente.js` | as 5 publicadas, todos os campos do XML no `$select`, chave única; `FSImportDeclarationBRs` = `ImportDeclarations` (7 = 7) |
+| Contagens contra a raiz | `FSItemBRs` 2.901 = `InventTableBiEntities` (brmf 12, usmf 206): a junção pt-br não cortou item. `FSGeneralJournalLineBRs` 427.230 = `GeneralJournalAccountEntryBiEntities`: a view do centro de custo não duplicou. `FSMainAccountBRs` 12.515 e `FSTaxWithholdBRs` 264, como antes |
+| DI | 7 DI no brmf; as 8 notas com DI acham a DI pelo RecId (a DI 7 tem duas notas); `Port` e `PortState` preenchidos (Santos/SP) |
+| `CostCenter` (brmf) | 150 das 1.307 linhas, todas com o valor da dimensão `COSTCENTER` da própria linha (conferido no `LedgerDimensionValuesJson` da entidade BI padrão, 150/150); nenhuma das 1.157 sem valor tinha centro de custo na dimensão; único valor no brmf, `071`, que está na `FSCostCenterBRs` |
+| Categoria (brmf, plano `Brasil`) | 316 das 326 contas; igual à `MainAccounts` conta a conta (0 diferenças); sempre com descrição |
+| `WithholdBaseAmount` | 264 retenções, todas com base onde há valor; igual à `TaxWithholdBaseAmount` em todas, porque cada empresa retém na própria moeda (brmf BRL, inmf INR, thmf THB, samf SAR) |
+| Item | `ProjCategoryId` em 64 itens (ussi, ex.: `SubContrac`); `ProductNamePtBR` vazio em todos, como previsto (o fiscosysdev não tem tradução pt-br) |

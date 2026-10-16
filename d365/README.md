@@ -111,8 +111,8 @@ acompanhar as versões do D365. Ela usa as ferramentas de `tools/`. Um conector 
 - [x] **Inventário.** 3 entidades publicadas e aceitas em 2026-10-01 (seção 24.1 do `04`); a `FSItemBR` ganhou
       `InventUnitId` e `ProductName`.
 - [x] **Produção e Bloco K.** 8 entidades publicadas e aceitas em 2026-10-15 (§31.1 do `04`).
-- [ ] **Lacunas do legado.** A `FSImportDeclarationBR` e 7 campos em 4 entidades, escritos em 2026-10-16 (Parte V do
-      `04`); falta build, deploy, sync e o aceite do §32.7.
+- [x] **Lacunas do legado.** A `FSImportDeclarationBR` e 7 campos em 4 entidades, publicados e aceitos em 2026-10-16
+      (§32.8 do `04`).
 - [ ] **Fase 2 — Pacote.** Deployable package + import validado no nosso ambiente primeiro.
 
 ### Fora do roadmap: gatilho por evento
