@@ -171,6 +171,18 @@ do deploy e do sync.
 - **`FSInventTransBRs`:** `$select` de `InventTransId`, `Voucher` e `InventTransModifiedDateTime`. Num pacote antigo o
   OData responde **400**.
 
+## Pasta `FiscalHub — lacunas do legado (2026-10-16)`
+
+A entidade e os campos da Parte V do `d365/04`, que faltavam frente ao legado dos clientes. Rode depois do build, do
+deploy e do sync, e rode de novo as pastas do contábil e do inventário: as contagens de lá pegam junção duplicando ou
+cortando linha.
+
+- **Publicação:** `FSImportDeclarationBRs` no service document.
+- **`FSImportDeclarationBRs`:** campos, chave, número e data em toda DI; guarda a lista para o request seguinte.
+- **Notas com DI:** toda `FSFiscalDocumentBR` com `ImportDeclaration` acha a DI pelo RecId.
+- **Centro de custo:** o `CostCenter` das linhas da empresa só traz valores da `FSCostCenterBRs`.
+- **Categoria da conta, base da retenção e item:** `$select` dos campos novos (400 num pacote antigo).
+
 ## Pasta `FiscalHub — diretório e descoberta por período`
 
 O que o hub lê do D365 para a integração manual e o agendamento (change `erp-company-directory-and-card-filters`):

@@ -77,8 +77,10 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 | 29 | `FSInventJournalBR` | `InventJournalTable` | diários de estoque — Parte IV (30.6) |
 | 30 | `FSFiscalProductionBR` | `FBProductionHeader_BR` | produção dos Livros fiscais — Parte IV (30.7) |
 | 31 | `FSFiscalProductionLineBR` | `FBProductionLine_BR` + cabeçalho | consumo da produção dos Livros fiscais — Parte IV (30.7) |
+| 32 | `FSImportDeclarationBR` | `PurchImportDeclaration_BR` | declaração de importação — Parte V (32.1) |
 
 Todas criadas, publicadas e validadas contra o ambiente; a 23, os campos da 4.4 e as 24 a 31 da Parte IV, em 2026-10-15 (§31.1).
+A 32 e os campos da Parte V foram escritos em 2026-10-16 e aguardam build, deploy e aceite (§32.7).
 Os campos da 4.4 respondem, mas o fiscosysdev não tem dado da reforma.
 Todas `IsReadOnly = Yes` e `Is Public = Yes`.
 **Data management só na `FSFiscalDocumentBR`**, e talvez nem isso (seção 8).
@@ -469,7 +471,8 @@ um pacote antigo responde 400.
 
 ### `FSTaxWithholdBR` (`TaxWithholdTrans`)
 Só nota de serviço de entrada. `VoucherInvoice`, `TaxWithholdCode`, `InvoiceTaxWithholdAmount`,
-`InvoiceWithholdBaseAmount`, `TransDate`.
+`InvoiceWithholdBaseAmount`, `TransDate`. `WithholdBaseAmount` (base em moeda padrão, o par do `TaxWithholdAmount`)
+entrou em 2026-10-16 (§32.4).
 
 > O legado identifica o imposto por `Contains()` no código — frágil. Verificar se há
 > `TaxWithholdType_BR` na `TaxWithholdTable` para discriminar por enum.
@@ -492,7 +495,8 @@ performance is required"* e *"Single thread only"* — ~80 campos a mais que as 
 ### `FSItemBR` — **escopo reduzido**
 Com NCM, origem e tipo vindo da linha (3.3), sobra: `ItemId`, `DataAreaId`, `Description`, `BOMUnitId`
 (unidade da lista de materiais, e **não** a de estoque: ver 21.3). O `CClassTrib` não vive no item: a `InventTable` e
-as 6 extensões dela não têm o campo (conferido no metadado em 2026-10-09).
+as 6 extensões dela não têm o campo (conferido no metadado em 2026-10-09). `ProjCategoryId` e `ProductNamePtBR` entraram
+em 2026-10-16 (§32.5).
 
 ### `FSUnitOfMeasureBR`
 `Symbol`, `Description`, `TranslatedDescription` (se vazia, usa `"Unidade " + símbolo`).
@@ -999,6 +1003,7 @@ e a entidade padrão da Microsoft faz igual. No centro de custo, empresa sem a d
 | `IsAccountingClosing` | `GeneralJournalAccountEntry_W.IsAccountingClosing_BR` | a marca de encerramento que o SPED da Microsoft exige |
 | `PostingLayer` | `GeneralJournalEntry` | o saldo da Microsoft usa só `Current` |
 | `MainAccountId` | `MainAccount.MainAccountId`, pela FK | conta sem depender do delimitador do cliente |
+| `CostCenter` | dimensão de centro de custo dos Parâmetros do Brasil, na dimensão da linha | COD_CCUS do I250, sem parse. Acrescentado em 2026-10-16 (§32.2) |
 | `AccountingCurrencyAmount` | `GeneralJournalAccountEntry` | valor com sinal; o D/C sai do sinal |
 | `Description` | `GeneralJournalAccountEntry.Text` | histórico; mesmo nome da entidade padrão da Microsoft |
 | `DataArea` | `CompanyInfo.DataArea` | empresa; é o contexto de empresa da entidade |
@@ -1007,8 +1012,8 @@ e a entidade padrão da Microsoft faz igual. No centro de custo, empresa sem a d
 
 - `IsCredit` e `IsCorrection`: o D/C sai do sinal, como no SPED. Com estorno, `IsCredit` dá o lado errado.
 - `LedgerAccount`: é texto com o delimitador do cliente. A conta vem pela FK.
-- `LedgerDimension` e centro de custo por linha: o lançamento do contrato não leva centro de custo. Acrescentar depois é
-  compatível; tirar não é.
+- `LedgerDimension`: o centro de custo, que era o motivo para ler a dimensão, entrou como `CostCenter` em 2026-10-16
+  (§32.2).
 - `SubledgerVoucherDataAreaId`: a empresa vem do razão.
 - `PostingType`, `JournalCategory`, moeda da transação, moeda de relatório, quantidade, `DocumentNumber`,
   `DocumentDate`: nenhum campo do contrato usa.
@@ -1037,9 +1042,11 @@ superior.
 | `NatureCode` | `MainAccount.NatureCode_BR` | natureza declarada, quando a feature estiver ligada |
 | `ChartOfAccounts` | `LedgerChartOfAccounts.Name` | nome do plano: o legado da Vestacy manda como código do grupo contábil (`COA BRASIL`). Acrescentado em 2026-10-15 |
 | `ChartOfAccountsDescription` | `LedgerChartOfAccounts.Description` | descrição do plano, para o grupo contábil. Acrescentado em 2026-10-15 |
+| `AccountCategory` | `MainAccountCategory.AccountCategory` | categoria da conta; a Volcafe usa como superior. Acrescentado em 2026-10-16 (§32.3) |
+| `AccountCategoryDescription` | `MainAccountCategory.Description` | descrição da categoria. Acrescentado em 2026-10-16 (§32.3) |
 | `DataArea` | `CompanyInfo.DataArea` | empresa; com `MainAccountRecId`, forma a chave, porque a mesma conta aparece em cada empresa do plano |
 
-**Deixados de fora de propósito:** categoria, controles de lançamento,
+**Deixados de fora de propósito:** controles de lançamento,
 moeda, contas de abertura e consolidação. **Data de alteração:** o legado manda `1999-01-01`; o SPED usa o `ActiveFrom`
 do valor de dimensão da conta. Fica fora até o contrato pedir (§16).
 
@@ -1706,3 +1713,115 @@ Todas as pastas verdes, inclusive a da reforma e a nova.
 - **Reforma (4.4):** os campos respondem, mas o fiscosysdev não tem CBS/IBS, cClassTrib, NBS nem nota referenciada; o
   dado fica para o primeiro cliente. O município da prestação resolve o IBGE em 12/12 notas. Plano de contas: 12.515
   contas, todas com o nome do plano (`Brasil`: 326).
+
+---
+
+# Parte V — Lacunas do legado dos clientes (2026-10-16)
+
+O check de todos os integradores do legado (`WebApi\Models\Integracoes\DynamicsAX365`: Astec, Chesterton, Danske,
+Polaris, Superior e Volcafe; a Vestacy já tinha sido feita) contra o pacote achou uma entidade e sete campos que o legado
+lê e o pacote não entregava. Cada lacuna foi conferida no metadado da 10.0.47 e na documentação da Microsoft. O relatório
+por cliente está no projeto FiscalHub do Claude (`claude/legado-clientes-d365-gap.md`). **Decisão do Marcelo
+(2026-10-16): fazer todas.**
+
+## 32. As mudanças
+
+| § | Entidade | Campo novo | De | Quem usava no legado | Para |
+|---|---|---|---|---|---|
+| 32.1 | `FSImportDeclarationBR` (nova) | 10 campos | `PurchImportDeclaration_BR` | Astec | SPED Fiscal C120, grupo DI da NF-e |
+| 32.2 | `FSGeneralJournalLineBR` | `CostCenter` | dimensão de centro de custo dos Parâmetros do Brasil | Astec | SPED ECD I250 (COD_CCUS) |
+| 32.3 | `FSMainAccountBR` | `AccountCategory`, `AccountCategoryDescription` | `MainAccountCategory` | Volcafe | plano de contas |
+| 32.4 | `FSTaxWithholdBR` | `WithholdBaseAmount` | `TaxWithholdTrans` | Danske, Vestacy | base da retenção |
+| 32.5 | `FSItemBR` | `ProjCategoryId`, `ProductNamePtBR` | `InventTable`, `EcoResProductTranslation` | Chesterton, Superior | regra do cliente; descrição do 0200 |
+
+### 32.1 `FSImportDeclarationBR` — declaração de importação
+
+**Papel:** os dados da DI que o SPED Fiscal (C120: COD_DOC_IMP, NUM_DOC_IMP, NUM_ACDRAW) e o grupo DI da NF-e pedem. O
+artigo *Import fiscal documents for Brazil* lista os mesmos dados.
+
+**Origem:** `PurchImportDeclaration_BR`, uma fonte, por empresa (`PrimaryCompanyContext = DataAreaId`). Os nomes de
+campo são os da entidade padrão `ImportDeclarations` (`PurchImportDeclarationEntity`), que o legado da Astec já lia.
+
+| Campo | De | Por quê |
+|---|---|---|
+| `ImportDeclarationRecId` | `RecId` | identidade; é o valor que a nota guarda |
+| `ImportDeclarationNumber` | `DINumber` | NUM_DOC_IMP; chave alternativa da tabela |
+| `ImportDeclarationDate` | `DIDate` | data da DI |
+| `ImportDeclarationType` | `Type` (`PurchDIType_BR`) | COD_DOC_IMP |
+| `Port`, `PortState` | `Port`, `PortState` | local e UF do desembaraço |
+| `NationalizationDate` | `NationalizationDate` | data do desembaraço |
+| `DrawBackNumber` | `DrawBackNumber` | NUM_ACDRAW |
+| `TransportMode` | `TransportMode` (`EFDocTransportMode_BR`) | via de transporte da NF-e |
+| `AFRMM` | `AFRMM` | valor do AFRMM da NF-e |
+
+**Ligação com a nota: pelo RecId.** O `FSFiscalDocumentBR.ImportDeclaration` (que já expomos) é o RecId da DI (EDT
+`ImportDeclarationRecId_BR`, sem relação declarada), e o SPED da Microsoft (`FBSpedFileCreator_Fiscal_BR`) liga
+exatamente assim. A adição vem na linha (`FSFiscalDocumentLineBR.DIAddition`). O legado da Astec ligava pelo número
+porque a entidade do implementador trazia o número na nota.
+
+**Medido antes (2026-10-16, `ImportDeclarations` padrão):** 7 DI, todas no `brmf`; 8 notas com DI e 8 linhas com adição.
+
+**Fora, de propósito:** a descrição do porto (`IntrastatPort`): a entidade padrão também não traz, e o código basta para o C120.
+
+### 32.2 `FSGeneralJournalLineBR.CostCenter` — centro de custo da linha
+
+**Origem:** `GeneralJournalAccountEntry.LedgerDimension` → `DimensionAttributeLevelValueView`, só no atributo de
+`BrazilParameters.CostCenterDimensionAttribute` da empresa. A `BrazilParameters` entra por `CompanyInfo.DataArea =
+DataAreaId`, como na `BusinessDocumentSalesInvoiceBaseEntity` da Microsoft. As duas junções são externas.
+
+- **A mesma dimensão** que a `FSCostCenterBR` lista (15.3) e que a Microsoft usa no SPED: *"Financial dimension for cost
+  center … used to generate SPED"* (Parameters for legal entities in Brazil). O SPED ECD pede o conjunto de dimensões com
+  conta principal e centro de custo.
+- **A view agrupada** (`DimensionAttributeLevelValueView`), e não a `AllView`: uma linha por combinação e atributo.
+- **Vazio** quando a conta não leva a dimensão ou a empresa não a declarou. No fiscosysdev só o `brmf` declara (20 centros).
+- **Por que não o parse do display value** (a Astec pega o segmento [2] do `AccountDisplayValue`): depende da ordem dos
+  segmentos e do delimitador do cliente.
+
+### 32.3 `FSMainAccountBR.AccountCategory` e `AccountCategoryDescription`
+
+**Origem:** `MainAccount.AccountCategoryRef` → `MainAccountCategory.AccountCategoryRef`, externa (tabela compartilhada,
+como a `MainAccount`). No fiscosysdev, 3.833 das 5.236 contas da `MainAccounts` têm categoria.
+
+A conta superior continua sendo o `ParentMainAccountId`. O `ParentMainAccount_BR` antigo foi migrado pela Microsoft para
+o `ParentMainAccount` (`ReleaseUpdateDB72_Ledger`). A Volcafe usa a categoria como conta superior: regra do cliente, no hub.
+
+### 32.4 `FSTaxWithholdBR.WithholdBaseAmount`
+
+*"Basis for withholding tax calculation in default currency"* (CDM `TaxWithholdTrans`). Fecha o par com o
+`TaxWithholdAmount` (valor retido em moeda padrão), que já expomos. As outras duas bases são em moeda do imposto
+(`TaxWithholdBaseAmount`) e da fatura (`InvoiceWithholdBaseAmount`). Em real tendem a coincidir; a diferença aparece com
+moeda estrangeira. 264 retenções no fiscosysdev.
+
+### 32.5 `FSItemBR.ProjCategoryId` e `ProductNamePtBR`
+
+- **`ProjCategoryId`:** `InventTable.projCategoryId` (o nome na tabela começa com minúscula). A regra "T4-CIP" da
+  Chesterton e da Superior é do hub.
+- **`ProductNamePtBR`:** segunda junção externa com a `EcoResProductTranslation`, com range `LanguageId = pt-br` na
+  própria fonte externa, como o `ModuleType` da `InventTableModule` na mesma entidade. O `ProductName` continua no
+  idioma do sistema, que é o padrão da Microsoft. A Chesterton força pt-BR.
+- **No fiscosysdev não há tradução pt-br** (só en-us, zh-hans, fr, ru e ja): o campo vem vazio, e o aceite é a contagem
+  do item não mudar.
+
+### 32.6 Fora, de propósito (do mesmo check)
+
+- `IsCredit`, `LedgerAccount`, `PostingType`, `SubledgerVoucherDataAreaId`, `SubledgerJournalEntry` e
+  `HistoricalExchangeRateDate`: já decididos no 15.1.
+- `MainAccountId` na linha da nota, código do cClassTrib na `FSTaxTransBR` e descrição longa do produto: opcionais, não
+  pedidos.
+- Customizações de cliente, que não existem no padrão: Volcafe `PurchaseOrderLinesV2.EDF_FromCityIBGECode` /
+  `EDF_ToCityIBGECode` e `ReleasedProductsV2.Description`.
+
+### 32.7 Critério de aceite depois do sync
+
+Pasta `FiscalHub — lacunas do legado (2026-10-16)` do Postman e, de novo, as pastas do contábil e do inventário, cujas
+contagens pegam junção duplicando ou cortando linha:
+
+- `FSImportDeclarationBRs` no service document, 7 no `brmf`, e toda nota com DI acha a DI pelo RecId;
+- `FSGeneralJournalLineBRs` com a contagem igual à da raiz (a view do centro de custo não duplicou), e `CostCenter` só
+  com valores da `FSCostCenterBRs`;
+- `FSMainAccountBRs` com a contagem da empresa igual à de antes, e categoria sempre com descrição;
+- `FSTaxWithholdBRs`: 264, com `WithholdBaseAmount` onde há valor retido;
+- `FSItemBRs` com a contagem igual à da `InventTable` (2.901 no total): a junção pt-br não cortou item.
+
+Ferramenta: `node d365/tools/validar-ambiente.js FSImportDeclarationBR --empresa brmf --comparar ImportDeclarations` e
+`node d365/tools/validar-ambiente.js FSGeneralJournalLineBR FSMainAccountBR FSTaxWithholdBR FSItemBR --empresa brmf`.

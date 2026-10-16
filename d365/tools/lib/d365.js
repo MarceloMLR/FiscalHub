@@ -152,10 +152,11 @@ const tag = (xml, nome) => { const m = xml.match(new RegExp('<' + nome + '>([^<]
 
 // Campos de uma tabela (ou view, ou data entity usada como fonte), com extensoes e heranca (Extends).
 const CAMPOS_SISTEMA = ['recid', 'dataareaid', 'partition', 'recversion', 'tableid', 'modifieddatetime', 'createddatetime', 'modifiedby', 'createdby', 'modifiedtransactionid', 'createdtransactionid', 'relationtype', 'instancerelationtype'];
+// (?=[\s>]) evita casar <AxTableFieldGroup>: nome de grupo de campos nao e campo.
 const TIPOS_FONTE = [
-  ['AxTable', 'AxTableExtension', /<AxTableField[^>]*>\s*<Name>([^<]+)<\/Name>/g],
-  ['AxView', 'AxViewExtension', /<AxViewField[^>]*>\s*<Name>([^<]+)<\/Name>/g],
-  ['AxDataEntityView', 'AxDataEntityViewExtension', /<AxDataEntityViewField[^>]*>\s*<Name>([^<]+)<\/Name>/g]
+  ['AxTable', 'AxTableExtension', /<AxTableField(?=[\s>])[^>]*>\s*<Name>([^<]+)<\/Name>/g],
+  ['AxView', 'AxViewExtension', /<AxViewField(?=[\s>])[^>]*>\s*<Name>([^<]+)<\/Name>/g],
+  ['AxDataEntityView', 'AxDataEntityViewExtension', /<AxDataEntityViewField(?=[\s>])[^>]*>\s*<Name>([^<]+)<\/Name>/g]
 ];
 const TIPOS_INDICE = TIPOS_FONTE.flatMap(([t, e]) => [t, e]);
 function camposDaTabela(idx, tabela, visitadas = new Set()) {

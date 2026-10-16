@@ -118,6 +118,12 @@ public class FSTaxWithholdBR extends common
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
+			<Name>WithholdBaseAmount</Name>
+			<DataField>WithholdBaseAmount</DataField>
+			<DataSource>TaxWithholdTrans</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
 			<Name>PartyId</Name>
 			<CountryRegionCodes>BR</CountryRegionCodes>
 			<DataField>PartyId_BR</DataField>

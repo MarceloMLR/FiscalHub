@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7f1a2c0-9d3e-4a6b-9e21-fiscalhub0d365",
     "name": "D365 F&O OData — FiscalHub",
-    "description": "Consulta de data entities do Dynamics 365 Finance & Operations via OData.\n\n- URL do ambiente em variável (`environmentUrl`).\n- Token do Entra ID (OAuth2 client_credentials) obtido AUTOMATICAMENTE por um pre-request script na collection e reaproveitado até expirar.\n- Pasta `OData`: requests genéricos ($metadata, service document, query por entidade, filtro por empresa, $count).\n- Pasta `FiscalHub — entidades (14)`: uma requisição por entidade custom do FiscalHub, com teste de HTTP 200 e formato OData. Rode a pasta inteira pelo Runner para o smoke test completo.\n- Pasta `FiscalHub — regressão`: testes de $count que travam defeitos já encontrados.\n- Pasta `FiscalHub — contábil (3)`: lançamentos, plano de contas e centro de custo, com teste de publicação e o aceite estrutural das junções.\n- Pasta `FiscalHub — inventário (3)`: saldo atual, movimentos e armazéns, com teste de publicação, aceite estrutural das junções e o saldo na data de corte por dois caminhos.\n- Pasta `FiscalHub — reforma e notas referenciadas`: os campos da reforma (por $select, que falha com 400 num pacote antigo) e a FSFiscalDocumentReferencedBR.\n- Pasta `FiscalHub — produção, Bloco K e cadastros próprios`: as 8 entidades da Parte IV do d365/04 e os campos novos da FSInventTransBR.\n\nAntes de usar: preencha `tenantId`, `clientId`, `clientSecret` e `environmentUrl` (no Environment 'FiscosysDev' ou nas variáveis da collection). Veja o README.md em d365/postman/.",
+    "description": "Consulta de data entities do Dynamics 365 Finance & Operations via OData.\n\n- URL do ambiente em variável (`environmentUrl`).\n- Token do Entra ID (OAuth2 client_credentials) obtido AUTOMATICAMENTE por um pre-request script na collection e reaproveitado até expirar.\n- Pasta `OData`: requests genéricos ($metadata, service document, query por entidade, filtro por empresa, $count).\n- Pasta `FiscalHub — entidades (14)`: uma requisição por entidade custom do FiscalHub, com teste de HTTP 200 e formato OData. Rode a pasta inteira pelo Runner para o smoke test completo.\n- Pasta `FiscalHub — regressão`: testes de $count que travam defeitos já encontrados.\n- Pasta `FiscalHub — contábil (3)`: lançamentos, plano de contas e centro de custo, com teste de publicação e o aceite estrutural das junções.\n- Pasta `FiscalHub — inventário (3)`: saldo atual, movimentos e armazéns, com teste de publicação, aceite estrutural das junções e o saldo na data de corte por dois caminhos.\n- Pasta `FiscalHub — reforma e notas referenciadas`: os campos da reforma (por $select, que falha com 400 num pacote antigo) e a FSFiscalDocumentReferencedBR.\n- Pasta `FiscalHub — produção, Bloco K e cadastros próprios`: as 8 entidades da Parte IV do d365/04 e os campos novos da FSInventTransBR.\n- Pasta `FiscalHub — lacunas do legado (2026-10-16)`: a FSImportDeclarationBR e os campos que faltavam frente ao legado dos clientes (centro de custo do lançamento, categoria da conta, base da retenção, categoria de projeto e nome do item em pt-BR).\n\nAntes de usar: preencha `tenantId`, `clientId`, `clientSecret` e `environmentUrl` (no Environment 'FiscosysDev' ou nas variáveis da collection). Veja o README.md em d365/postman/.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -3788,6 +3788,525 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "FiscalHub — lacunas do legado (2026-10-16)",
+      "description": "As lacunas do check do legado de todos os clientes (claude/legado-clientes-d365-gap.md, d365/04 secao 32): a entidade nova FSImportDeclarationBR e os campos novos da FSGeneralJournalLineBR (CostCenter), FSMainAccountBR (AccountCategory, AccountCategoryDescription), FSTaxWithholdBR (WithholdBaseAmount) e FSItemBR (ProjCategoryId, ProductNamePtBR). Rode depois do build, do deploy e do sync, e rode tambem as pastas do contabil e do inventario: as contagens de la pegam juncao duplicando ou cortando linha.",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Vale para todos os requests desta pasta",
+              "pm.test('Entidade publicada (nao 404)', () => pm.expect(pm.response.code, 'HTTP 404: entidade nao publicada. Build + deploy + sync do FiscosysHubIntegration no Visual Studio; o sync sozinho nao publica').to.not.equal(404));",
+              "pm.test('Acesso liberado (nao 401/403)', () => pm.expect([401, 403], 'sem acesso: confira o app no F&O e a role FiscosysHubIntegration (privilegio FS*View da entidade)').to.not.include(pm.response.code));",
+              "pm.test('Status 200 (400 = campo novo ainda nao publicado)', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Publicação — FSImportDeclarationBRs no service document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const nomes = (Array.isArray(j.value) ? j.value : []).map(r => r.name);",
+                  "pm.test('FSImportDeclarationBRs publicada', () => pm.expect(nomes, 'fora do service document: faca build, deploy e sync do FiscosysHubIntegration').to.include('FSImportDeclarationBRs'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data"
+              ],
+              "query": []
+            },
+            "description": "Confere se a entidade nova da declaracao de importacao aparece no service document. Se faltar, o build, o deploy ou o sync nao chegou ao ambiente."
+          },
+          "response": []
+        },
+        {
+          "name": "FSImportDeclarationBRs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.unset('lacunasDI');",
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Lacunas] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "const esperados = [\"ImportDeclarationRecId\",\"ImportDeclarationNumber\",\"ImportDeclarationDate\",\"ImportDeclarationType\",\"Port\",\"PortState\",\"NationalizationDate\",\"DrawBackNumber\",\"TransportMode\",\"AFRMM\"];",
+                  "pm.test('Campos expostos pela entidade', function () {",
+                  "  if (rows.length === 0) { console.warn('[Lacunas] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                  "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                  "  pm.expect(faltando, 'campos ausentes (pacote antigo no ambiente ou sync parcial): ' + faltando.join(', ')).to.be.empty;",
+                  "});",
+                  "pm.test('Chave dataAreaId + ImportDeclarationRecId unica na pagina', function () {",
+                  "  const ids = rows.map(r => r.dataAreaId + '|' + r.ImportDeclarationRecId);",
+                  "  pm.expect(new Set(ids).size, 'chave repetida: a juncao duplicou linhas').to.equal(ids.length);",
+                  "});",
+                  "pm.test('Toda DI tem numero e data', function () {",
+                  "  const sem = rows.filter(r => !r.ImportDeclarationNumber || !r.ImportDeclarationDate);",
+                  "  pm.expect(sem.length, sem.length + ' DI sem numero ou data').to.equal(0);",
+                  "});",
+                  "pm.collectionVariables.set('lacunasDI', JSON.stringify(rows.map(r => r.dataAreaId + '|' + r.ImportDeclarationRecId)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSImportDeclarationBRs?cross-company=true&$top=5000",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSImportDeclarationBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$top",
+                  "value": "5000"
+                }
+              ]
+            },
+            "description": "Declaracao de importacao (PurchImportDeclaration_BR): SPED Fiscal C120 (COD_DOC_IMP, NUM_DOC_IMP, NUM_ACDRAW) e grupo DI da NF-e. A nota aponta para ela pelo FSFiscalDocumentBR.ImportDeclaration (RecId), e a linha traz a adicao (DIAddition).\n\nEntidade custom do FiscalHub (pacote FiscosysHubIntegration). Somente leitura."
+          },
+          "response": []
+        },
+        {
+          "name": "Notas com DI apontam para uma FSImportDeclarationBR",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Lacunas] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "const di = new Set(JSON.parse(pm.collectionVariables.get('lacunasDI') || '[]'));",
+                  "pm.test('Toda nota com DI acha a DI publicada', function () {",
+                  "  pm.expect(di.size, 'a lista de DI nao veio: rode o request anterior').to.be.above(rows.length ? 0 : -1);",
+                  "  const orfas = rows.filter(r => !di.has(r.dataAreaId + '|' + r.ImportDeclaration)).map(r => r.dataAreaId + '/' + r.FiscalDocumentNumber);",
+                  "  pm.expect(orfas, 'notas cuja DI nao esta na FSImportDeclarationBRs: ' + orfas.join(', ')).to.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSFiscalDocumentBRs?cross-company=true&$filter=ImportDeclaration ne 0&$select=dataAreaId,FiscalDocumentRecId,FiscalDocumentNumber,ImportDeclaration&$top=5000",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSFiscalDocumentBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$filter",
+                  "value": "ImportDeclaration ne 0"
+                },
+                {
+                  "key": "$select",
+                  "value": "dataAreaId,FiscalDocumentRecId,FiscalDocumentNumber,ImportDeclaration"
+                },
+                {
+                  "key": "$top",
+                  "value": "5000"
+                }
+              ]
+            },
+            "description": "A ligacao nota -> DI e pelo RecId (FSFiscalDocumentBR.ImportDeclaration = FSImportDeclarationBR.ImportDeclarationRecId), como no SPED da Microsoft (FBSpedFileCreator_Fiscal_BR). Rode o request anterior antes."
+          },
+          "response": []
+        },
+        {
+          "name": "Centros de custo da empresa (FSCostCenterBRs)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.unset('lacunasCentros');",
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Lacunas] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "pm.collectionVariables.set('lacunasCentros', JSON.stringify(rows.map(r => r.CostCenterCode)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSCostCenterBRs?cross-company=true&$filter=dataAreaId eq '{{company}}'&$select=CostCenterCode",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSCostCenterBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$filter",
+                  "value": "dataAreaId eq '{{company}}'"
+                },
+                {
+                  "key": "$select",
+                  "value": "CostCenterCode"
+                }
+              ]
+            },
+            "description": "Lista os valores da dimensao de centro de custo declarada nos parametros do Brasil, para o request seguinte conferir o CostCenter das linhas de lancamento."
+          },
+          "response": []
+        },
+        {
+          "name": "FSGeneralJournalLineBRs: centro de custo por linha",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Lacunas] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "const esperados = [\"GeneralJournalAccountEntryRecId\",\"MainAccountId\",\"CostCenter\"];",
+                  "pm.test('Campos expostos pela entidade', function () {",
+                  "  if (rows.length === 0) { console.warn('[Lacunas] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                  "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                  "  pm.expect(faltando, 'campos ausentes (pacote antigo no ambiente ou sync parcial): ' + faltando.join(', ')).to.be.empty;",
+                  "});",
+                  "pm.test('Chave GeneralJournalAccountEntryRecId unica na pagina', function () {",
+                  "  const ids = rows.map(r => r.GeneralJournalAccountEntryRecId);",
+                  "  pm.expect(new Set(ids).size, 'chave repetida: a juncao duplicou linhas').to.equal(ids.length);",
+                  "});",
+                  "const centros = new Set(JSON.parse(pm.collectionVariables.get('lacunasCentros') || '[]'));",
+                  "const com = rows.filter(r => r.CostCenter);",
+                  "console.log('[Lacunas] linhas com centro de custo: ' + com.length + ' de ' + rows.length);",
+                  "pm.test('Todo CostCenter preenchido existe na FSCostCenterBRs', function () {",
+                  "  const fora = [...new Set(com.map(r => r.CostCenter).filter(v => !centros.has(v)))];",
+                  "  pm.expect(fora, 'valores fora da lista de centros de custo (dimensao errada na juncao?): ' + fora.join(', ')).to.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSGeneralJournalLineBRs?cross-company=true&$filter=DataArea eq '{{company}}'&$select=GeneralJournalAccountEntryRecId,MainAccountId,CostCenter&$top=5000",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSGeneralJournalLineBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$filter",
+                  "value": "DataArea eq '{{company}}'"
+                },
+                {
+                  "key": "$select",
+                  "value": "GeneralJournalAccountEntryRecId,MainAccountId,CostCenter"
+                },
+                {
+                  "key": "$top",
+                  "value": "5000"
+                }
+              ]
+            },
+            "description": "CostCenter: o valor da dimensao de centro de custo dos parametros do Brasil (BrazilParameters.CostCenterDimensionAttribute) na dimensao contabil da linha. E o COD_CCUS do I250 do SPED ECD. Vazio quando a conta nao leva a dimensao ou a empresa nao a declarou. Rode o request anterior antes."
+          },
+          "response": []
+        },
+        {
+          "name": "FSMainAccountBRs: categoria da conta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Lacunas] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "const esperados = [\"MainAccountRecId\",\"MainAccountId\",\"AccountCategory\",\"AccountCategoryDescription\"];",
+                  "pm.test('Campos expostos pela entidade', function () {",
+                  "  if (rows.length === 0) { console.warn('[Lacunas] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                  "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                  "  pm.expect(faltando, 'campos ausentes (pacote antigo no ambiente ou sync parcial): ' + faltando.join(', ')).to.be.empty;",
+                  "});",
+                  "pm.test('Chave MainAccountRecId unica na pagina', function () {",
+                  "  const ids = rows.map(r => r.MainAccountRecId);",
+                  "  pm.expect(new Set(ids).size, 'chave repetida: a juncao duplicou linhas').to.equal(ids.length);",
+                  "});",
+                  "console.log('[Lacunas] contas com categoria: ' + rows.filter(r => r.AccountCategory).length + ' de ' + rows.length);",
+                  "pm.test('Categoria sempre com descricao', function () {",
+                  "  const sem = rows.filter(r => r.AccountCategory && !r.AccountCategoryDescription).map(r => r.MainAccountId);",
+                  "  pm.expect(sem.length, 'contas com categoria sem descricao: ' + sem.slice(0, 20).join(', ')).to.equal(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSMainAccountBRs?cross-company=true&$filter=DataArea eq '{{company}}'&$select=MainAccountRecId,MainAccountId,AccountCategory,AccountCategoryDescription",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSMainAccountBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$filter",
+                  "value": "DataArea eq '{{company}}'"
+                },
+                {
+                  "key": "$select",
+                  "value": "MainAccountRecId,MainAccountId,AccountCategory,AccountCategoryDescription"
+                }
+              ]
+            },
+            "description": "AccountCategory e AccountCategoryDescription: a categoria da conta principal (MainAccount.AccountCategoryRef -> MainAccountCategory). O legado da Volcafe usa como conta superior."
+          },
+          "response": []
+        },
+        {
+          "name": "FSTaxWithholdBRs: base em moeda padrão",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Lacunas] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "const esperados = [\"TaxWithholdTransRecId\",\"TaxWithholdAmount\",\"WithholdBaseAmount\",\"TaxWithholdBaseAmount\",\"InvoiceWithholdBaseAmount\"];",
+                  "pm.test('Campos expostos pela entidade', function () {",
+                  "  if (rows.length === 0) { console.warn('[Lacunas] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                  "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                  "  pm.expect(faltando, 'campos ausentes (pacote antigo no ambiente ou sync parcial): ' + faltando.join(', ')).to.be.empty;",
+                  "});",
+                  "console.log('[Lacunas] base em moeda padrao diferente da base em moeda do imposto: ' + rows.filter(r => r.WithholdBaseAmount !== r.TaxWithholdBaseAmount).length + ' de ' + rows.length);",
+                  "pm.test('Retencao com valor tem base', function () {",
+                  "  const sem = rows.filter(r => r.TaxWithholdAmount && !r.WithholdBaseAmount).map(r => r.TaxWithholdTransRecId);",
+                  "  pm.expect(sem.length, 'retencoes com valor e sem WithholdBaseAmount: ' + sem.slice(0, 20).join(', ')).to.equal(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSTaxWithholdBRs?cross-company=true&$select=TaxWithholdTransRecId,TaxWithholdAmount,WithholdBaseAmount,TaxWithholdBaseAmount,InvoiceWithholdBaseAmount&$top=5000",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSTaxWithholdBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$select",
+                  "value": "TaxWithholdTransRecId,TaxWithholdAmount,WithholdBaseAmount,TaxWithholdBaseAmount,InvoiceWithholdBaseAmount"
+                },
+                {
+                  "key": "$top",
+                  "value": "5000"
+                }
+              ]
+            },
+            "description": "WithholdBaseAmount: base da retencao em moeda padrao, o par do TaxWithholdAmount (valor retido em moeda padrao). As outras bases sao em moeda do imposto e da fatura."
+          },
+          "response": []
+        },
+        {
+          "name": "FSItemBRs: categoria de projeto e nome em pt-BR",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code !== 200) { console.warn('[Lacunas] ' + pm.info.requestName + ': HTTP ' + pm.response.code + ', testes de conteudo pulados'); return; }",
+                  "let j = {};",
+                  "try { j = pm.response.json(); } catch (e) {}",
+                  "const rows = Array.isArray(j.value) ? j.value : [];",
+                  "pm.test('Resposta OData valida (value e um array)', () => pm.expect(j.value, 'value nao e array').to.be.an('array'));",
+                  "console.log('[Lacunas] ' + pm.info.requestName + ' -> HTTP ' + pm.response.code + ' | linhas: ' + rows.length);",
+                  "const esperados = [\"ItemId\",\"ProjCategoryId\",\"ProductName\",\"ProductNamePtBR\"];",
+                  "pm.test('Campos expostos pela entidade', function () {",
+                  "  if (rows.length === 0) { console.warn('[Lacunas] ' + pm.info.requestName + ': 0 linhas, campos nao conferidos'); return; }",
+                  "  const faltando = esperados.filter(c => !(c in rows[0]));",
+                  "  pm.expect(faltando, 'campos ausentes (pacote antigo no ambiente ou sync parcial): ' + faltando.join(', ')).to.be.empty;",
+                  "});",
+                  "pm.test('Chave ItemId unica na pagina', function () {",
+                  "  const ids = rows.map(r => r.ItemId);",
+                  "  pm.expect(new Set(ids).size, 'chave repetida: a juncao duplicou linhas').to.equal(ids.length);",
+                  "});",
+                  "console.log('[Lacunas] itens com ProjCategoryId: ' + rows.filter(r => r.ProjCategoryId).length + ' | com nome em pt-BR: ' + rows.filter(r => r.ProductNamePtBR).length + ' de ' + rows.length);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{environmentUrl}}/data/FSItemBRs?cross-company=true&$filter=dataAreaId eq '{{company}}'&$select=ItemId,ProjCategoryId,ProductName,ProductNamePtBR",
+              "host": [
+                "{{environmentUrl}}"
+              ],
+              "path": [
+                "data",
+                "FSItemBRs"
+              ],
+              "query": [
+                {
+                  "key": "cross-company",
+                  "value": "true"
+                },
+                {
+                  "key": "$filter",
+                  "value": "dataAreaId eq '{{company}}'"
+                },
+                {
+                  "key": "$select",
+                  "value": "ItemId,ProjCategoryId,ProductName,ProductNamePtBR"
+                }
+              ]
+            },
+            "description": "ProjCategoryId (InventTable.ProjCategoryId) e ProductNamePtBR (traducao do produto em pt-br, vazia se nao houver). A contagem do item contra a InventTable fica na pasta do inventario (Item): a juncao da traducao pt-br e externa e nao pode cortar item."
+          },
+          "response": []
         }
       ]
     },

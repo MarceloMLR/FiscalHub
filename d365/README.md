@@ -12,13 +12,13 @@ exposta no OData; cada implementador cria uma entidade pública com nome variáv
 Em vez de customizar o adapter por cliente, **nós publicamos** entidades de **nome fixo** (prefixo `FS`)
 como projeção sobre as tabelas padrão. O adapter sempre lê o mesmo nome.
 
-## As 31 entidades
+## As 32 entidades
 
 Todas públicas, somente leitura, sem Data Management, no modelo `FiscosysHubIntegration`:
 
 | Grupo | Entidades |
 |---|---|
-| Documento | `FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSFiscalDocumentReferencedBR` |
+| Documento | `FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSFiscalDocumentReferencedBR`, `FSImportDeclarationBR` |
 | Impostos e encargos da nota | `FSFiscalDocumentTaxTransBR`, `FSFiscalDocumentMiscChargeBR` |
 | Contábil (fora da montagem) | `FSTaxTransBR`, `FSTaxWithholdBR`, `FSMarkupTransBR`, `FSTaxTableBR` |
 | Cadastros | `FSFiscalDocModelBR`, `FSItemBR`, `FSUnitOfMeasureBR`, `FSAddressCityBR`, `FSCountryRegionBR`, `FSPostalAddressBR`, `FSFiscalEstablishmentBR`, `FSTaxServiceCodeBR` |
@@ -111,13 +111,15 @@ acompanhar as versões do D365. Ela usa as ferramentas de `tools/`. Um conector 
 - [x] **Inventário.** 3 entidades publicadas e aceitas em 2026-10-01 (seção 24.1 do `04`); a `FSItemBR` ganhou
       `InventUnitId` e `ProductName`.
 - [x] **Produção e Bloco K.** 8 entidades publicadas e aceitas em 2026-10-15 (§31.1 do `04`).
+- [ ] **Lacunas do legado.** A `FSImportDeclarationBR` e 7 campos em 4 entidades, escritos em 2026-10-16 (Parte V do
+      `04`); falta build, deploy, sync e o aceite do §32.7.
 - [ ] **Fase 2 — Pacote.** Deployable package + import validado no nosso ambiente primeiro.
 
 ### Fora do roadmap: gatilho por evento
 
 A antiga fase 2 (CoC + business event disparando no status) **saiu do roadmap**. Dois motivos:
 não cobre todos os caminhos de escrita, então nunca poderia ser a garantia (ADR-0023); e exige X++
-no pacote, que hoje é **metadado puro** — 31 entidades, 31 privilégios, uma role (que ainda referencia o privilégio
+no pacote, que hoje é **metadado puro** — 32 entidades, 32 privilégios, uma role (que ainda referencia o privilégio
 padrão `FiscalEstablishmentEntityView`, até o hub ler a `FSFiscalEstablishmentBR`), zero código.
 
 Evento só compra **latência**, e com poll de 10s a detecção fica em 5s na média. Para despachar nota

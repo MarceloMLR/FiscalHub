@@ -109,9 +109,9 @@ Antes de criar abstração nova, procure a porta/analógico que já existe (`gre
 
 O conector do ERP é um **hook fino e genérico**, propositalmente burro:
 
-- **31 data entities** OData com prefixo `FS`, todas públicas, somente leitura e sem Data Management. A lista
+- **32 data entities** OData com prefixo `FS`, todas públicas, somente leitura e sem Data Management. A lista
   completa está em `d365/README.md`.
-  - **19 fiscais** (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR`…): expõem a nota e os cadastros
+  - **20 fiscais** (`FSFiscalDocumentBR`, `FSFiscalDocumentLineBR`, `FSTaxTransBR`…): expõem a nota e os cadastros
     dela, inclusive o estabelecimento (`FSFiscalEstablishmentBR`) e o código de serviço (`FSTaxServiceCodeBR`).
   - **7 do contábil e do inventário** (Partes II e III do `04`) e **5 da produção e do Bloco K** (Parte IV): o hub
     ainda não as lê. Contábil e Inventário são fatias próprias (ADR-0031).

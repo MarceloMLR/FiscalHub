@@ -25,6 +25,9 @@
 			<Name>FSTaxWithholdBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>
+			<Name>FSImportDeclarationBRView</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
 			<Name>FSFiscalDocModelBRView</Name>
 		</AxSecurityPrivilegeReference>
 		<AxSecurityPrivilegeReference>

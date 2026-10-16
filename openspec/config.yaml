@@ -32,8 +32,8 @@ context: |
   adapter em runtime, JWT com escopo por tenant) — variação de cliente é DADO, não branch;
   rastreabilidade por "fotos" no Blob (snapshots de domínio + outbound).
 
-  Lado D365 (em d365/): o pacote é METADADO PURO — 31 data entities OData com prefixo FS, 31
-  privilégios e uma role. ZERO código X++. As 19 fiscais expõem a nota e os cadastros (lista em
+  Lado D365 (em d365/): o pacote é METADADO PURO — 32 data entities OData com prefixo FS, 32
+  privilégios e uma role. ZERO código X++. As 20 fiscais expõem a nota e os cadastros (lista em
   d365/README.md). As 7 do contábil e do inventário (FSGeneralJournalLineBR, FSMainAccountBR,
   FSCostCenterBR, FSInventOnHandBR, FSInventTransBR, FSInventLocationBR, FSInventJournalBR) e as 5 da
   produção e do Bloco K (FSProductionOrderBR, FSProductionBOMLineBR, FSProductionCoProductBR,

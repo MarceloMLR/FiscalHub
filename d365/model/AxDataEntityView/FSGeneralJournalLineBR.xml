@@ -102,6 +102,12 @@ public class FSGeneralJournalLineBR extends common
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
+			<Name>CostCenter</Name>
+			<DataField>DisplayValue</DataField>
+			<DataSource>CostCenterLevelValue</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
 			<Name>AccountingCurrencyAmount</Name>
 			<DataField>AccountingCurrencyAmount</DataField>
 			<DataSource>GeneralJournalAccountEntry</DataSource>
@@ -171,7 +177,53 @@ public class Metadata extends QueryRun
 										<DynamicFields>Yes</DynamicFields>
 										<IsReadOnly>Yes</IsReadOnly>
 										<Table>CompanyInfo</Table>
-										<DataSources />
+										<DataSources>
+											<AxQuerySimpleEmbeddedDataSource>
+												<Name>BrazilParameters</Name>
+												<DynamicFields>Yes</DynamicFields>
+												<IsReadOnly>Yes</IsReadOnly>
+												<Table>BrazilParameters</Table>
+												<DataSources>
+													<AxQuerySimpleEmbeddedDataSource>
+														<Name>CostCenterLevelValue</Name>
+														<DynamicFields>Yes</DynamicFields>
+														<IsReadOnly>Yes</IsReadOnly>
+														<Table>DimensionAttributeLevelValueView</Table>
+														<DataSources />
+														<DerivedDataSources />
+														<Fields />
+														<Ranges />
+														<JoinMode>OuterJoin</JoinMode>
+														<Relations>
+															<AxQuerySimpleDataSourceRelation>
+																<Name>QueryDataSourceRelation1</Name>
+																<Field>CostCenterDimensionAttribute</Field>
+																<JoinDataSource>BrazilParameters</JoinDataSource>
+																<RelatedField>DimensionAttribute</RelatedField>
+															</AxQuerySimpleDataSourceRelation>
+															<AxQuerySimpleDataSourceRelation>
+																<Name>QueryDataSourceRelation2</Name>
+																<Field>LedgerDimension</Field>
+																<JoinDataSource>GeneralJournalAccountEntry</JoinDataSource>
+																<RelatedField>ValueCombinationRecId</RelatedField>
+															</AxQuerySimpleDataSourceRelation>
+														</Relations>
+													</AxQuerySimpleEmbeddedDataSource>
+												</DataSources>
+												<DerivedDataSources />
+												<Fields />
+												<Ranges />
+												<JoinMode>OuterJoin</JoinMode>
+												<Relations>
+													<AxQuerySimpleDataSourceRelation>
+														<Name>QueryDataSourceRelation1</Name>
+														<Field>DataArea</Field>
+														<JoinDataSource>CompanyInfo</JoinDataSource>
+														<RelatedField>DataAreaId</RelatedField>
+													</AxQuerySimpleDataSourceRelation>
+												</Relations>
+											</AxQuerySimpleEmbeddedDataSource>
+										</DataSources>
 										<DerivedDataSources />
 										<Fields />
 										<Ranges />

@@ -77,6 +77,18 @@ public class FSMainAccountBR extends common
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
+			<Name>AccountCategory</Name>
+			<DataField>AccountCategory</DataField>
+			<DataSource>MainAccountCategory</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>AccountCategoryDescription</Name>
+			<DataField>Description</DataField>
+			<DataSource>MainAccountCategory</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
 			<Name>NatureCode</Name>
 			<CountryRegionCodes>BR</CountryRegionCodes>
 			<DataField>NatureCode_BR</DataField>
@@ -213,6 +225,25 @@ public class Metadata extends QueryRun
 								<Field>ParentMainAccount</Field>
 								<JoinDataSource>MainAccount</JoinDataSource>
 								<RelatedField>RecId</RelatedField>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>MainAccountCategory</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>MainAccountCategory</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>AccountCategoryRef</Field>
+								<JoinDataSource>MainAccount</JoinDataSource>
+								<RelatedField>AccountCategoryRef</RelatedField>
 							</AxQuerySimpleDataSourceRelation>
 						</Relations>
 					</AxQuerySimpleEmbeddedDataSource>
