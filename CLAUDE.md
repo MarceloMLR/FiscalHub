@@ -151,7 +151,11 @@ criar entidade, validar, diagnosticar deploy e radar de versões.
 
 - **Fatias verticais finas.** Cada fatia termina com **build verde + testes**. Nada de PR gigante.
 - **ADR para decisão relevante.** Se a mudança envolve uma escolha de arquitetura, registre em
-  `docs/adr/NNNN-*.md` (siga o `0000-template.md`).
+  `docs/adr/NNNN-*.md` (siga o `0000-template.md`). **Antes de abrir o PR**, rode
+  `git fetch origin && node tools/conferir-adr.js`: duas frentes trabalham em paralelo neste
+  repositório e cada uma escolhe o próximo número olhando para o main que ela tem, então duas
+  podem escolher o mesmo — e o git só acusa isso no merge, quando renumerar já custa caro. O
+  script diz qual é o próximo número livre e pega a colisão enquanto ela ainda é um `git mv`.
 - **Teste junto** (o projeto é test-first por fatia). Adapter novo → teste do adapter.
 - **Spec-Driven Development (OpenSpec), incremental.** Ao adotar: spec primeiro via `/opsx:propose`
   para a mudança que você vai fazer; **não** faça backfill de spec do que já existe. As specs
