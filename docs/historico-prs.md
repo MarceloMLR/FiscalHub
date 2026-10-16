@@ -8,7 +8,7 @@ de cada PR é onde ficou escrito *por que* a mudança é assim, o que a conferê
 pegou, e o resultado de cada prova por inversão. Nada disso está na mensagem de commit. Então os corpos vêm
 para dentro do repositório, que é a única coisa que migra.
 
-**O que está aqui:** os 87 PRs, do #1 ao #87, com título,
+**O que está aqui:** os 88 PRs, do #1 ao #88, com título,
 estado, datas, branch, commit de merge, o link original e o corpo **na íntegra e sem edição** — inclusive os
 títulos internos deles, que por isso aparecem nos seus níveis originais de cabeçalho.
 
@@ -110,8 +110,9 @@ git, que migra; os links viram históricos.
 | [#83](#pr-83) | A chamada da trava da chave do conector passa a ter teste | 2026-10-16 | `test/adapter-key-guard-proof` |
 | [#84](#pr-84) | D365: pacote com 32 entidades, ferramentas, /agent-d365 e ADR-0040 (proposto) | 2026-10-16 | `feat/d365-pacote-fiscosys-e-reforma` |
 | [#85](#pr-85) | feat(hub): capturar sem enviar - a chave de envio ao conector de saida | 2026-10-16 | `feat/capture-without-dispatch` |
-| [#86](#pr-86) | chore(tools): guarda da numeracao dos ADRs, para a colisao aparecer antes do merge | _open_ | `chore/conferir-numeracao-adr` |
-| [#87](#pr-87) | fix(servicebus): a dead-letter aprende a diferenca entre invalida e falhou | _open_ | `fix/dead-letter-poison` |
+| [#86](#pr-86) | chore(tools): guarda da numeracao dos ADRs, para a colisao aparecer antes do merge | 2026-10-16 | `chore/conferir-numeracao-adr` |
+| [#87](#pr-87) | fix(servicebus): a dead-letter aprende a diferenca entre invalida e falhou | 2026-10-16 | `fix/dead-letter-poison` |
+| [#88](#pr-88) | docs: traz os pull requests do GitHub para dentro do repositorio | 2026-10-16 | `docs/historico-prs` |
 
 ---
 
@@ -2587,7 +2588,7 @@ https://claude.ai/code/session_01Diy9PB4XnXFjDeNAP1ZfMj
 
 ## PR #86 — chore(tools): guarda da numeracao dos ADRs, para a colisao aparecer antes do merge
 
-**Estado:** open · **Aberto:** 2026-10-16 · **Branch:** `chore/conferir-numeracao-adr` → `main` · **Autor:** MarceloMLR · [original](https://github.com/MarceloMLR/FiscalHub/pull/86)
+**Estado:** merged · **Aberto:** 2026-10-16 · **Mesclado:** 2026-10-16 · **Branch:** `chore/conferir-numeracao-adr` → `main` · **Commit de merge:** `96c45fc` · **Autor:** MarceloMLR · [original](https://github.com/MarceloMLR/FiscalHub/pull/86)
 
 Duas frentes trabalham em paralelo neste repositório e cada uma escolhe o próximo número de ADR olhando para o `main` que ela tem. Quando as duas escrevem um ADR no mesmo dia, as duas escolhem o mesmo número — e o git só acusa no merge. Foi o **0040 de 2026-10-16** (#84 e #85), resolvido renumerando o desta frente para 0041 e acertando 36 citações.
 
@@ -2632,7 +2633,7 @@ https://claude.ai/code/session_01Diy9PB4XnXFjDeNAP1ZfMj
 
 ## PR #87 — fix(servicebus): a dead-letter aprende a diferenca entre invalida e falhou
 
-**Estado:** open · **Aberto:** 2026-10-16 · **Branch:** `fix/dead-letter-poison` → `main` · **Autor:** MarceloMLR · [original](https://github.com/MarceloMLR/FiscalHub/pull/87)
+**Estado:** merged · **Aberto:** 2026-10-16 · **Mesclado:** 2026-10-16 · **Branch:** `fix/dead-letter-poison` → `main` · **Commit de merge:** `24258ff` · **Autor:** MarceloMLR · [original](https://github.com/MarceloMLR/FiscalHub/pull/87)
 
 Uma mensagem cujo corpo não desserializa ficava presa na dead-letter **para sempre**, reentregue sem fim, com uma linha de log por tentativa (**D2** do `STATUS.md`).
 
@@ -2680,6 +2681,42 @@ Seis inversões, com os hashes de produção batendo byte a byte após cada rest
 ## O que fica aberto, dito na cara
 
 Numa execução normal, **as quatro linhas da casca seguem descobertas**: apagar o `CompleteMessageAsync` não quebra nenhum teste da suíte padrão. Quem as cobre é o teste do emulador, que é opt-in por `FISCALHUB_SB_EMULATOR`. É o mesmo padrão "a função tem teste, quem a chama não tem" que motivou a change `adapter-key-guard-proof` no Host — e, como lá, merece fatia própria em vez de alargar esta. Está registrado no `STATUS.md`.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_01Diy9PB4XnXFjDeNAP1ZfMj
+
+---
+
+<a id="pr-88"></a>
+
+## PR #88 — docs: traz os pull requests do GitHub para dentro do repositorio
+
+**Estado:** merged · **Aberto:** 2026-10-16 · **Mesclado:** 2026-10-16 · **Branch:** `docs/historico-prs` → `main` · **Commit de merge:** `b612b17` · **Autor:** MarceloMLR · [original](https://github.com/MarceloMLR/FiscalHub/pull/88)
+
+A importação de um repositório para o Azure Repos leva o git — commits, branches, tags — e **não leva os pull requests**. Aqui isso não é detalhe de ferramenta: a descrição de cada PR é onde ficou escrito *por que* a mudança é assim, o que a conferência em tela achou que a suíte não pegou, e o resultado de cada prova por inversão. Nada disso está na mensagem de commit.
+
+Então os 87 corpos vêm para dentro do repositório, que é a única coisa que migra.
+
+## Por que o script, e não só a saída
+
+`docs/historico-prs.md` é uma **fotografia**: todo PR aberto depois dela fica de fora. Este mesmo arquivo já nasceu desatualizado uma vez — foi gerado com 86 PRs e o #87 abriu meia hora depois. Rodar de novo na véspera da migração precisa ser um comando, e não alguém reconstruindo o formato de memória.
+
+```
+node tools/exportar-prs.js
+```
+
+O script também **confere a cada execução** se existe comentário ou review com texto. Hoje não existe nenhum — a revisão sempre aconteceu na conversa e virou corpo de PR ou comentário de código —, e o cabeçalho do arquivo diz isso. Se algum dia passar a existir, o cabeçalho troca de frase sozinho e avisa que aquilo **não** está sendo exportado, em vez de seguir afirmando que nada se perdeu.
+
+## Conferido
+
+A saída do script reproduz **byte a byte** a exportação que eu havia feito à mão para os PRs #1 a #86, acrescentando só o #87 — a diferença é exatamente uma linha.
+
+## O que continua só no GitHub
+
+Os diffs renderizados e os links `https://github.com/...`. Os diffs estão no git, que migra; os links viram históricos — e por isso o arquivo guarda o link original de cada PR, para quem quiser conferir enquanto o GitHub existir.
+
+Isto não decide nada sobre arquivar ou espelhar o GitHub (a decisão 3 da proposta de Azure DevOps). Só faz com que essa decisão deixe de ser sobre **preservar conteúdo** e passe a ser só sobre o link.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
