@@ -8,6 +8,9 @@ export interface CardSums {
   finalizadas: number;
   emProcessamento: number;
   comErro: number;
+  // As que pararam com o envio ao conector de saída desligado (ADR-0040): contam em "Documentos" e aqui, e em mais
+  // nenhum card.
+  salvas: number;
 }
 
 export function cardSums(totals: readonly ModelTotals[], model: string | null): CardSums {
@@ -18,10 +21,21 @@ export function cardSums(totals: readonly ModelTotals[], model: string | null): 
       finalizadas: acc.finalizadas + t.finalizadas,
       emProcessamento: acc.emProcessamento + t.emProcessamento,
       comErro: acc.comErro + t.comErro,
+      salvas: acc.salvas + t.salvas,
     }),
-    { total: 0, finalizadas: 0, emProcessamento: 0, comErro: 0 },
+    { total: 0, finalizadas: 0, emProcessamento: 0, comErro: 0, salvas: 0 },
   );
 }
+
+// Os subtítulos dos cards. São **definições de categoria** — dizem o que entra naquela contagem —, e nunca um status
+// ao vivo: o card não sabe o estado presente da chave de envio, e "envio desligado" lido com a chave já religada é
+// mentira de tela (conferência de 2026-10-16). O que vale para o da "Salvas" vale para os irmãos dele.
+export const CARD_NOTES = {
+  finalizadas: 'confirmados pelo compliance',
+  emProcessamento: 'aguardando retorno do compliance',
+  salvas: 'gravadas sem enviar ao compliance',
+  comErro: 'rejeitados, sem retorno ou falha',
+} as const;
 
 // Os modelos que o hub conhece: os do mapa padrão do ERP (D365InboundSettings.DefaultModelTypes), o mesmo vocabulário que a
 // descoberta grava no registro. Eles aparecem sempre no filtro, mesmo sem nenhuma nota: a primeira versão tirava as opções

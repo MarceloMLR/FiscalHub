@@ -146,6 +146,9 @@ namespace FiscalHub.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("OutboundDispatchEnabled")
+                        .HasColumnType("bit");
+
                     b.Property<string>("SupportAdapter")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");

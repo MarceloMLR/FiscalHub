@@ -137,6 +137,9 @@ export function ConnectorsPage() {
   // que a tela não mostra (establishments…), ficam aqui e voltam intactos. O ambiente é da instância (D6).
   const [platform, setPlatform] = useState('Avalara');
   const [accounts, setAccounts] = useState<AccountForm[]>([]);
+  // A chave de envio ao conector de saída (ADR-0040). É do tenant e vale para toda a saída, e não de um conector: por
+  // isso fica fora de `accounts`, e muda com o formulário — só o salvar a grava.
+  const [outboundDispatch, setOutboundDispatch] = useState(true);
   // O conector escolhido na lista do painel (grupo 7). Nulo: o do adapter de mesmo nome da plataforma.
   const [selectedAdapter, setSelectedAdapter] = useState<string | null>(null);
   const [typed, setTyped] = useState<Typed>({});
@@ -150,6 +153,7 @@ export function ConnectorsPage() {
     setInboundValues(loaded.inboundValues);
     setPlatform(loaded.platform);
     setAccounts(loaded.accounts);
+    setOutboundDispatch(loaded.outboundDispatch);
     setTyped({});
   }, [data]);
 
@@ -174,6 +178,7 @@ export function ConnectorsPage() {
     inboundValues,
     platform,
     accounts,
+    outboundDispatch,
   };
 
   // Trocar de plataforma mostra a conta dela, e não apaga a da anterior: um tenant tem uma conta por plataforma. A conta
@@ -275,6 +280,20 @@ export function ConnectorsPage() {
 
         {tab === 1 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* A chave é do tenant e vale para toda a saída, e por isso vem antes da plataforma: ela não é de um
+                conector. O rótulo diz o eixo ("ao conector de saída") para não se confundir com "Integração
+                automática", que é da aba de entrada. */}
+            <Box>
+              <FormControlLabel
+                control={<Switch checked={outboundDispatch} onChange={(e) => setOutboundDispatch(e.target.checked)} />}
+                label="Enviar ao conector de saída"
+              />
+              <Typography variant="body2" color="text.secondary">
+                Desligado, o hub continua capturando e gravando o JSON que iria à plataforma, e não envia: a nota fica
+                em "Salva", e o reprocesso fica indisponível. É do tenant, e vale para todos os conectores de saída.
+              </Typography>
+            </Box>
+
             <TextField
               select
               label="Plataforma"

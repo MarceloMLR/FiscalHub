@@ -17,6 +17,18 @@ public sealed record IntegrationReceipt
     public IReadOnlyList<string> Omissions { get; init; } = [];
 }
 
+/// <summary>
+/// Um documento já preparado para o envio: traduzido para o formato do destino e com a foto do payload gravada,
+/// parado na linha imediatamente anterior à requisição de envio.
+/// <para>O conteúdo é opaco para a Application — cada adapter carrega aqui o que o envio dele precisa. O que o tipo
+/// existe para dizer é a ordem: só <see cref="IComplianceDispatcher{TDocument}.PrepareAsync"/> produz um preparado, e
+/// <see cref="IComplianceDispatcher{TDocument}.SendAsync"/> só aceita um — então não há como enviar sem ter preparado
+/// e fotografado, e o compilador recusa a tentativa (ADR-0040).</para>
+/// <para>É classe, e não record, de propósito: sem <c>ToString</c> gerado, o preparado não despeja o payload do
+/// documento num log por acidente (ADR-0027).</para>
+/// </summary>
+public abstract class PreparedDispatch<TDocument>;
+
 /// <summary>Resultado de uma consulta de status.</summary>
 public sealed record IntegrationResult
 {

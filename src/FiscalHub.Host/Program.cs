@@ -98,6 +98,9 @@ builder.Services.AddSingleton<IDocumentMetadataExtractor<GoodsInvoice>, GoodsInv
 // A esteira escolhe o source por documento, pela origem da referência (fallback: perfil do tenant) —
 // o mesmo tenant recebe XML pelo drop e D365 pelo feed (ADR-0025).
 builder.Services.AddScoped(typeof(IInboundSourceResolver<>), typeof(InboundSourceResolver<>));
+// A chave de envio ao conector de saída, do tenant (ADR-0040): quem a lê é a esteira, num lugar só, e o adapter de
+// saída não a recebe. Scoped porque lê o perfil pelo DbContext.
+builder.Services.AddScoped<IOutboundDispatchSwitch, OutboundDispatchSwitch>();
 builder.Services.AddScoped<IDocumentPipeline<GoodsInvoice>, DocumentPipeline<GoodsInvoice>>();
 builder.Services.AddScoped<ManualIngestion>();   // /ingest: tenant do login, locator pela regra da origem (ADR-0028)
 // Os consumidores de fila entram pelo roteador: NF-e 55 vai à esteira; NFS-e/CT-e e o fora-do-escopo

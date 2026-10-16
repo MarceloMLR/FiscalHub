@@ -144,5 +144,6 @@ public class DocumentRouterTests
         public Task MarkPolledAsync(string tenantId, string naturalKey, IntegrationStatus status, string? reason, int attempts, CancellationToken ct = default) => throw new NotSupportedException();
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default) => throw new NotSupportedException();
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task RecordSavedAsync(DocumentReference reference, string reason, CancellationToken ct = default) => throw new NotSupportedException();
     }
 }

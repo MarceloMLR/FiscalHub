@@ -98,7 +98,10 @@ public class StatusPollerTests
     {
         public string Destination => "fake";
 
-        public Task<IntegrationReceipt> SubmitAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
+        public Task<PreparedDispatch<TestDocument>> PrepareAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
+        public Task<IntegrationReceipt> SendAsync(PreparedDispatch<TestDocument> prepared, DispatchContext context, CancellationToken ct = default)
             => throw new NotSupportedException();
 
         public Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
@@ -109,7 +112,10 @@ public class StatusPollerTests
     {
         public string Destination => "fake";
 
-        public Task<IntegrationReceipt> SubmitAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
+        public Task<PreparedDispatch<TestDocument>> PrepareAsync(TestDocument document, DispatchContext context, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
+        public Task<IntegrationReceipt> SendAsync(PreparedDispatch<TestDocument> prepared, DispatchContext context, CancellationToken ct = default)
             => throw new NotSupportedException();
 
         public Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
@@ -142,6 +148,9 @@ public class StatusPollerTests
             => Task.CompletedTask;
 
         public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task RecordSavedAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Task.CompletedTask;
 
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)

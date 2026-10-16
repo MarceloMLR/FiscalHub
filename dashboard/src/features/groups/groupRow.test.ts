@@ -16,6 +16,7 @@ const row = (over: Partial<DocumentGroup> = {}): DocumentGroup => ({
   finalizadas: 1,
   emProcessamento: 0,
   comErro: 0,
+  salvas: 0,
   ...over,
 });
 

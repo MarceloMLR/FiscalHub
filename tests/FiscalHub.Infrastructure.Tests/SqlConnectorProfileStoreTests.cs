@@ -39,6 +39,39 @@ public class SqlConnectorProfileStoreTests
         Assert.Empty(await h.Store.ListByInboundAdapterAsync("Xml"));
     }
 
+    // ---- A chave de envio ao conector de saída (change capture-without-dispatch, 2.1) ----
+
+    [Fact]
+    public async Task The_outbound_dispatch_switch_goes_and_comes_back_and_a_profile_saved_without_it_is_on()
+    {
+        using var h = NewStore();
+
+        await h.Store.UpsertAsync(Profile());   // gravado sem tocar na chave
+
+        Assert.True((await h.Store.GetAsync("tenant-a"))!.OutboundDispatchEnabled);   // o padrão é enviar
+
+        await h.Store.UpsertAsync(Profile() with { OutboundDispatchEnabled = false });
+
+        Assert.False((await h.Store.GetAsync("tenant-a"))!.OutboundDispatchEnabled);   // desligada, e gravada assim
+
+        await h.Store.UpsertAsync(Profile() with { OutboundDispatchEnabled = true });
+
+        Assert.True((await h.Store.GetAsync("tenant-a"))!.OutboundDispatchEnabled);    // e volta a ligar
+    }
+
+    [Fact]
+    public async Task A_profile_created_already_switched_off_is_saved_switched_off()
+    {
+        // O caminho da inserção, e não o da atualização: um perfil que nasce com a chave desligada não pode ser
+        // "corrigido" para ligado pelo padrão da coluna.
+        using var h = NewStore();
+
+        await h.Store.UpsertAsync(Profile() with { OutboundDispatchEnabled = false });
+
+        Assert.False((await h.Store.GetAsync("tenant-a"))!.OutboundDispatchEnabled);
+        Assert.False(await h.Db.ConnectorProfiles.Select(p => p.OutboundDispatchEnabled).SingleAsync());
+    }
+
     // ---- Módulos e integrações viram linhas sob o conector (change platform-account-and-connectors, 6.2) ----
 
     [Fact]

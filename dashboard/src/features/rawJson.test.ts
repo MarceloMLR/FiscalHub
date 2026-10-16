@@ -11,6 +11,7 @@ describe('canViewRawJson', () => {
     inboundScans: false,
     connectors: [{ adapter: 'Avalara', label: 'Tax Compliance', scheduling: true, modules: ['Fiscal'] }],
     canViewRawJson,
+    outboundDispatch: true,
   });
 
   it('não mostra os botões antes de o /info responder, nem se ele falhou', () => {

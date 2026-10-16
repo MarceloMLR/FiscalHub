@@ -608,7 +608,8 @@ public class DispatchToMockTests
                 NullLogger<D365GoodsInvoiceSource>.Instance);
             h._pipeline = new DocumentPipeline<GoodsInvoice>(
                 new InboundSourceResolver<GoodsInvoice>([d365], profiles), new GoodsInvoiceValidator(), dispatcher, h.Store, trace,
-                new GoodsInvoiceMetadataExtractor());
+                new GoodsInvoiceMetadataExtractor(),
+                new OutboundDispatchSwitch(profiles));   // a chave real, lida do perfil real: ligada, como o padrão
             h._poller = new StatusPoller<GoodsInvoice>(h.Store, dispatcher, new StatusPollerOptions());
             return h;
         }
@@ -900,6 +901,12 @@ public class DispatchToMockTests
         }
 
         public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task RecordSavedAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+        {
+            Rows[reference.NaturalKey] = new StoredRow(IntegrationStatus.Saved, null, reason);
+            return Task.CompletedTask;
+        }
 
         public Task RecordDeadLetterAsync(DocumentReference reference, string reason, CancellationToken ct = default) => Task.CompletedTask;
 

@@ -107,6 +107,8 @@ public sealed class ConnectorProfileService
                 Accounts = accounts,
                 SupportAdapter = supportAdapter,
                 SupportSettings = support.Json,
+                // Ausente mantém a gravada (ADR-0040): um dashboard que não recarregou não liga o envio de quem o desligou.
+                OutboundDispatchEnabled = request.OutboundDispatch ?? stored?.OutboundDispatchEnabled ?? true,
             }, ct);
             upserted = true;
 
@@ -157,7 +159,8 @@ public sealed class ConnectorProfileService
         }
 
         return new ConnectorProfileView(profile.TenantId,
-            profile.InboundAdapter, inbound, profile.SupportAdapter, support, secrets, TenantModules.Of(profile), accounts);
+            profile.InboundAdapter, inbound, profile.SupportAdapter, support, secrets, TenantModules.Of(profile), accounts,
+            profile.OutboundDispatchEnabled);
     }
 
     // No máximo um conector por integração, no tenant, contando todas as contas (6.4): dois é erro de configuração, e não

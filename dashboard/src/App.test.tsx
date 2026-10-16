@@ -48,6 +48,7 @@ const INFO: InfoResponse = {
   inboundScans: true,
   connectors: [{ adapter: 'D365', label: 'Dynamics 365 F&O', scheduling: true, modules: ['Fiscal'] }],
   canViewRawJson: true,
+  outboundDispatch: true,
 };
 
 // As telas, pelo texto que cada uma mostra e nenhuma outra mostra.

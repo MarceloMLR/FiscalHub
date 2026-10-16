@@ -16,8 +16,17 @@ namespace FiscalHub.Adapters.Outbound.Avalara.Tests;
 /// status nativo para <see cref="IntegrationStatus"/>, e o token do tenant em cada requisição (ADR-0027). HttpClient é
 /// falso (HttpMessageHandler stub) — sem libs de mock.
 /// </summary>
-public class AvalaraComplianceDispatcherTests
+public class AvalaraComplianceDispatcherTests : ComplianceDispatcherContractTests<GoodsInvoice>
 {
+    // A suíte de conformidade do contrato de saída (ADR-0040): este adapter responde por ela. A nota de exemplo
+    // prepara até o fim — o emitente dela está na tabela establishments do perfil padrão — e o resolvedor deste
+    // harness não lista, então a preparação não teria nem desculpa para fazer requisição.
+    protected override IComplianceDispatcher<GoodsInvoice> Dispatcher(HttpMessageHandler platform) => Build(platform);
+
+    protected override (GoodsInvoice Document, DispatchContext Context) Preparable => (SampleInvoice(), Context());
+
+    protected override string AcceptedResponse => """{"id":"ext-guid-1"}""";
+
     [Fact]
     public async Task Submit_maps_posts_camelCase_and_returns_receipt()
     {
@@ -210,19 +219,21 @@ public class AvalaraComplianceDispatcherTests
     }
 
     [Fact]
-    public async Task Submit_traces_outbound_payload_before_send()
+    public async Task Preparing_traces_the_outbound_payload_without_sending()
     {
         var handler = new StubHttpMessageHandler("""{"id":"ext-guid-1"}""");
         var trace = new RecordingTrace();
         var dispatcher = Build(handler, trace: trace);
 
-        await dispatcher.SubmitAsync(SampleInvoice(), Context());
+        await dispatcher.PrepareAsync(SampleInvoice(), Context());
 
-        // O dispatcher fotografa só o destino; o domínio é responsabilidade da esteira.
+        // O dispatcher fotografa só o destino; o domínio é responsabilidade da esteira. A foto sai na preparação,
+        // antes do envio e sem depender dele: é ela que o "Visualizar JSON" mostra de uma nota que não foi enviada.
         Assert.Null(trace.Domain);
         Assert.NotNull(trace.Outbound);
         Assert.Equal("avalara", trace.Outbound!.Value.Destination);
         Assert.Contains("\"chaveNFe\"", trace.Outbound.Value.Json);
+        Assert.Equal(0, handler.RequestCount);
     }
 
     [Fact]

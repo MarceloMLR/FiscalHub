@@ -30,6 +30,7 @@ const INFO = (canViewRawJson: boolean): InfoResponse => ({
   inboundScans: true,
   connectors: [],
   canViewRawJson,
+  outboundDispatch: true,
 });
 
 const BOTAO = /Baixar arquivos/;

@@ -24,7 +24,7 @@ public class GoodsInvoicePipelineTests
 
         await Pipeline(invoice, dispatcher, store).ProcessAsync(Reference(), Context());
 
-        Assert.Equal(1, dispatcher.SubmitCount);
+        Assert.Equal(1, dispatcher.SendCount);
         Assert.Equal(1, store.SubmissionCount);
         Assert.Empty(store.Rejections);
     }
@@ -37,12 +37,12 @@ public class GoodsInvoicePipelineTests
 
         await Pipeline(Invoice([]), dispatcher, store).ProcessAsync(Reference(), Context());
 
-        Assert.Equal(0, dispatcher.SubmitCount);
+        Assert.Equal(0, dispatcher.SendCount);
         Assert.Equal(["A nota não possui itens."], store.Rejections);
     }
 
     private static DocumentPipeline<GoodsInvoice> Pipeline(GoodsInvoice invoice, CountingDispatcher dispatcher, CountingStore store)
-        => new(new FixedResolver(invoice), new GoodsInvoiceValidator(), dispatcher, store, new NoTrace(), new FixedExtractor());
+        => new(new FixedResolver(invoice), new GoodsInvoiceValidator(), dispatcher, store, new NoTrace(), new FixedExtractor(), new AlwaysOn());
 
     private static GoodsInvoice Invoice(IReadOnlyList<GoodsInvoiceItem> items) => new()
     {
@@ -113,16 +113,21 @@ public class GoodsInvoicePipelineTests
     private sealed class CountingDispatcher : IComplianceDispatcher<GoodsInvoice>
     {
         public string Destination => "fake";
-        public int SubmitCount { get; private set; }
+        public int SendCount { get; private set; }
 
-        public Task<IntegrationReceipt> SubmitAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
+        public Task<PreparedDispatch<GoodsInvoice>> PrepareAsync(GoodsInvoice document, DispatchContext context, CancellationToken ct = default)
+            => Task.FromResult<PreparedDispatch<GoodsInvoice>>(new Prepared());
+
+        public Task<IntegrationReceipt> SendAsync(PreparedDispatch<GoodsInvoice> prepared, DispatchContext context, CancellationToken ct = default)
         {
-            SubmitCount++;
+            SendCount++;
             return Task.FromResult(new IntegrationReceipt { ExternalId = "guid-1", Status = IntegrationStatus.Submitted });
         }
 
         public Task<IntegrationResult> CheckStatusAsync(string externalId, DispatchContext context, CancellationToken ct = default)
             => Task.FromResult(new IntegrationResult { Status = IntegrationStatus.Confirmed });
+
+        private sealed class Prepared : PreparedDispatch<GoodsInvoice>;
     }
 
     private sealed class CountingStore : IProcessingStore
@@ -157,8 +162,17 @@ public class GoodsInvoicePipelineTests
         public Task RecordIgnoredAsync(DocumentReference reference, string reason, CancellationToken ct = default)
             => Task.CompletedTask;
 
+        public Task RecordSavedAsync(DocumentReference reference, string reason, CancellationToken ct = default)
+            => Task.CompletedTask;
+
         public Task RecordMetadataAsync(DocumentReference reference, DocumentMetadata metadata, string contentHash, CancellationToken ct = default)
             => Task.CompletedTask;
+    }
+
+    /// <summary>A chave de envio ligada: estes testes são sobre o que o hub julga, e não sobre o corte do envio.</summary>
+    private sealed class AlwaysOn : IOutboundDispatchSwitch
+    {
+        public Task<bool> IsOnAsync(string tenantId, CancellationToken ct = default) => Task.FromResult(true);
     }
 
     private sealed class NoTrace : IProcessingTrace

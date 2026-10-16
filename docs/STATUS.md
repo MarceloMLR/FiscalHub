@@ -129,6 +129,20 @@ instância por (cliente, ambiente). As duas instâncias por cliente ainda não f
    permissão: "Restringir o acesso por módulo é outra fatia."
 9. **Engordar o `integration-schedules`.** 2 requisitos para uma tela que cria, edita, desativa, reativa e
    exclui agendamento, em dois modos. É a maior desproporção entre spec e superfície no projeto.
+10. **O selo do grupo ainda mente para "Ignorado".** Um grupo de 10 NFS-e ignoradas aparece como "Finalizado" com 10
+    Documentos e 0 em toda parte. A change `capture-without-dispatch` consertou exatamente este defeito para "Salva" —
+    contagem própria em `DocumentGroup`/`ModelTotals`, faixa em `SqlDocumentQueries`, estado no `GroupStatusChip` e card
+    na linha de KPIs —, e **não** o consertou para `Ignored`, por decisão explícita de não alargar o escopo. O conserto é
+    estruturalmente o mesmo, e tem uma decisão de produto junto: se "Ignoradas" merece um card (seriam seis) ou só a
+    contagem e o selo. A alternativa barata — trocar o `senão` do selo por "Finalizado só quando `finalizadas === total`"
+    — resolveria os dois de uma vez, mas exige inventar o rótulo do caso restante, que também é decisão de produto.
+11. **Promover a suíte de conformidade do adapter de saída a biblioteca compartilhada.** A
+    `ComplianceDispatcherContractTests<TDocument>` (ADR-0040) prova que `PrepareAsync` não faz requisição — a mitigação
+    de "um adapter novo posta no método errado" —, e hoje ela mora **dentro** do projeto de teste da Avalara, porque não
+    há projeto de teste compartilhado entre adapters e a Avalara é o único adapter de saída. **No dia do segundo adapter
+    de saída, promovê-la e herdá-la é a primeira tarefa.** Nada no build obriga nenhuma das duas coisas: o
+    `AdapterDeclarationGuard` é guarda de *startup* sobre declarações registradas, e não alcança comportamento de método.
+    Está escrito aqui porque a mitigação é ela própria esquecível.
 
 **Por que o Contábil e o Inventário vêm antes do AvaTax** (decisão do Marcelo, 2026-10-14). É o tipo de ordem que
 alguém reverte por engano, e por isso os motivos ficam escritos:

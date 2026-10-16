@@ -56,6 +56,9 @@ export interface ConnectorForm {
   inboundValues: Json;
   platform: string;
   accounts: AccountForm[];
+  // A chave de envio ao conector de saída (ADR-0040). É do tenant, e não de um conector: fica fora de `accounts`, ao
+  // lado do adapter de entrada, como a chave de outro eixo que é.
+  outboundDispatch: boolean;
 }
 
 // O caminho dos segredos no mapa `secrets` da leitura e no Typed: o da conta e o de cada conector.
@@ -114,6 +117,8 @@ export function formFromProfile(data: ConnectorProfile): ConnectorForm {
     inboundValues: parseObj(data.inboundSettings),
     platform: first && first in CONNECTOR_ADAPTERS ? first : 'Avalara',
     accounts,
+    // Perfil de antes da coluna, ou resposta sem o campo: ligada, que é o comportamento de sempre.
+    outboundDispatch: data.outboundDispatch ?? true,
   };
 }
 
@@ -270,6 +275,7 @@ export function buildConnectorPayload(form: ConnectorForm, typed: Typed): Connec
     inboundAdapter: form.inboundAdapter,
     inboundSettings: JSON.stringify(withTyped(inSchema, form.inboundValues, 'inbound.', typed)),
     accounts: accounts.map((a) => accountRequest(a, typed)),
+    outboundDispatch: form.outboundDispatch,
   };
 }
 

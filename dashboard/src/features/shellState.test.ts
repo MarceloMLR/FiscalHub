@@ -13,6 +13,7 @@ const RESPOSTA: InfoResponse = {
   inboundScans: true,
   connectors: [{ adapter: 'Avalara', label: 'Tax Compliance', scheduling: true, modules: ['Fiscal'] }],
   canViewRawJson: true,
+  outboundDispatch: true,
 };
 
 // A resposta do tenant sem conector nenhum: árvore **vazia**, que é uma resposta — e é ela que nomeia a ausência.

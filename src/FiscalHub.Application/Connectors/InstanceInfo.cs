@@ -13,9 +13,14 @@ namespace FiscalHub.Application.Connectors;
 /// ver as fotos cruas, derivado da mesma lista de papéis que o <c>RequireRole</c> do <c>/trace</c> e do zip usa — quem a
 /// conhece é o Host, e por isso ela chega aqui já respondida. É um booleano, e não a lista: o servidor já sabe quem está
 /// logado, e responde a pergunta em vez de mandar os dados para a tela decidir de novo.</para>
+/// <para>O <see cref="OutboundDispatch"/> é a chave de envio ao conector de saída do tenant (ADR-0040). Ela está nas
+/// <b>duas</b> respostas, por razões diferentes: no <c>GET /connector</c>, que só o Admin lê, para o formulário de
+/// Configurações desenhá-la e gravá-la; e aqui, que qualquer papel lê, para a tela do documento saber se o botão de
+/// reprocessar vale. Sem ela aqui, um Viewer não teria como saber por que o botão está desativado.</para>
 /// </summary>
 public sealed record InstanceInfo(
-    string Environment, bool AutomaticIntegration, bool InboundScans, IReadOnlyList<ConnectorInfo> Connectors, bool CanViewRawJson)
+    string Environment, bool AutomaticIntegration, bool InboundScans, IReadOnlyList<ConnectorInfo> Connectors, bool CanViewRawJson,
+    bool OutboundDispatch)
 {
     /// <param name="instance">O ambiente da instância.</param>
     /// <param name="profile">O perfil do tenant logado; sem perfil, valem os padrões dos selos e a árvore vazia.</param>
@@ -33,7 +38,10 @@ public sealed record InstanceInfo(
             Inbound.AutomaticIntegration.IsOn(profile, origins),
             Inbound.AutomaticIntegration.Scans(profile, origins),
             [.. (profile?.Accounts ?? []).SelectMany(a => a.Connectors.Select(c => Of(a, c, declared)))],
-            canViewRawJson);
+            canViewRawJson,
+            // A chave de envio (ADR-0040): vem aqui, e não só no GET /connector, porque o botão de reprocessar está numa
+            // tela de qualquer papel, e o perfil é 403 para o Viewer. Sem perfil, ligada.
+            profile?.OutboundDispatchEnabled ?? true);
     }
 
     // O conector como a barra lateral o desenha. O rótulo e o agendamento são da declaração, achada pelo par

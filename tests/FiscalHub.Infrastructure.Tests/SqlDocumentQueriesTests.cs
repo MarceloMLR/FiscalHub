@@ -34,8 +34,8 @@ public class SqlDocumentQueriesTests
 
         Assert.Equal(
             [
-                new ModelTotals { Model = "55", Total = 1, Finalizadas = 0, EmProcessamento = 0, ComErro = 1 },
-                new ModelTotals { Model = "SE", Total = 2, Finalizadas = 0, EmProcessamento = 0, ComErro = 0 },   // a ignorada não é erro
+                new ModelTotals { Model = "55", Total = 1, Finalizadas = 0, EmProcessamento = 0, ComErro = 1, Salvas = 0 },
+                new ModelTotals { Model = "SE", Total = 2, Finalizadas = 0, EmProcessamento = 0, ComErro = 0, Salvas = 0 },   // a ignorada não é erro
             ],
             totals);
     }
@@ -66,11 +66,29 @@ public class SqlDocumentQueriesTests
             Row("n4", "2026-08-07", "55", IntegrationStatus.IntegrationError),
             Row("n5", "2026-08-07", "55", IntegrationStatus.DeadLettered),
             Row("n6", "2026-08-07", "55", IntegrationStatus.Unconfirmed),
-            Row("n7", "2026-08-07", "55", IntegrationStatus.Ignored));
+            Row("n7", "2026-08-07", "55", IntegrationStatus.Ignored),
+            Row("n8", "2026-08-07", "55", IntegrationStatus.Saved));
 
         ModelTotals totals = Assert.Single(await h.Queries.CountByModelAsync(new DateOnly(2026, 8, 7), new DateOnly(2026, 8, 7)));
 
-        Assert.Equal(new ModelTotals { Model = "55", Total = 7, Finalizadas = 1, EmProcessamento = 2, ComErro = 3 }, totals);
+        // A salva conta no total e na faixa dela, e fica fora de finalizadas, em processamento e com erro: ela não foi
+        // confirmada por plataforma nenhuma, não aguarda retorno de ninguém e não é falha.
+        Assert.Equal(
+            new ModelTotals { Model = "55", Total = 8, Finalizadas = 1, EmProcessamento = 2, ComErro = 3, Salvas = 1 },
+            totals);
+    }
+
+    [Fact]
+    public async Task A_group_of_only_saved_notes_counts_them_all_as_saved_and_nothing_else()
+    {
+        using var h = await Harness.WithAsync(
+            Row("s1", "2026-08-07", "55", IntegrationStatus.Saved),
+            Row("s2", "2026-08-07", "55", IntegrationStatus.Saved),
+            Row("s3", "2026-08-07", "55", IntegrationStatus.Saved));
+
+        DocumentGroup group = Assert.Single(await h.Queries.ListGroupsAsync(50));
+
+        Assert.Equal((3, 3, 0, 0, 0), (group.Total, group.Salvas, group.Finalizadas, group.EmProcessamento, group.ComErro));
     }
 
     [Fact]
