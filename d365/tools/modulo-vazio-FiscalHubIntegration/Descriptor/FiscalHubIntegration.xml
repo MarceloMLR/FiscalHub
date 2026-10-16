@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxModelInfo xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<AppliedUpdates xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
+	<Customization>Allow</Customization>
+	<Description>Modulo vazio. Substituido pelo FiscosysHubIntegration em 2026-10-15; existe so para tirar do ambiente os objetos duplicados do pacote antigo.</Description>
+	<DisplayName>FiscalHubIntegration (vazio)</DisplayName>
+	<Id>896000949</Id>
+	<InternalsVisibleTo xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays" />
+	<Layer>14</Layer>
+	<Locked>false</Locked>
+	<ModelModule>FiscalHubIntegration</ModelModule>
+	<ModelReferences xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays"
+		i:nil="true" />
+	<ModuleReferences xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+		<d2p1:string>ApplicationPlatform</d2p1:string>
+	</ModuleReferences>
+	<Name>FiscalHubIntegration</Name>
+	<Publisher>FiscalHub</Publisher>
+	<SolutionId>00000000-0000-0000-0000-000000000000</SolutionId>
+	<VersionBuild>1</VersionBuild>
+	<VersionMajor>1</VersionMajor>
+	<VersionMinor>0</VersionMinor>
+	<VersionRevision>0</VersionRevision>
+</AxModelInfo>

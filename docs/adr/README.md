@@ -47,6 +47,7 @@ substitui o anterior (em vez de reescrever a história).
 | [0037](0037-conector-modulo-integracao.md) | Conector → módulo → integração: a integração é a unidade de endpoint, fila e lote; a recusa é por registro; o módulo é do conector | Aceito |
 | [0038](0038-uma-esteira-tres-estilos-de-saida.md) | Uma esteira, três estilos de saída; o cálculo tem estado; a carta de correção é evento; os dois conectores se encontram no ERP | Aceito |
 | [0039](0039-dashboard-por-conector-e-o-tecnico-do-admin.md) | O dashboard é por conector, a linha é o que a ação opera, e a visão técnica é do Admin — a primeira permissão de verdade | Aceito |
+| [0040](0040-azure-devops-pipelines-independentes-e-versoes-do-pacote-d365.md) | Azure DevOps: um pipeline por artefato, disparado pela pasta dele; o pacote D365 com build de verificação e release manual, versionado e guardado num feed | Proposto |
 
 ## Planejados
 

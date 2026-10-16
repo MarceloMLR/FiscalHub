@@ -25,7 +25,7 @@ Descobertas do ambiente (Application Explorer → `FiscalDocument_BR` [FiscalBoo
   - Valores: `Blank, Approved, Cancelled, Created, Denied, Discarded, Rejected, RejectedNoFix, Reversed, CancelledBySubstitution`
 - **Não há** método dedicado de transição de status → o hook robusto é um **post-event handler no `update()`** da tabela (pega a mudança independente de quem escreveu).
 
-Os 3 objetos ficam no model **FiscalHubIntegration** (assim vão no package do cliente). Sugestão de pasta no projeto: `Fiscal/BusinessEvents`.
+Os 3 objetos ficam no model **FiscosysHubIntegration** (assim vão no package do cliente). Sugestão de pasta no projeto: `Fiscal/BusinessEvents`.
 
 ---
 
@@ -185,7 +185,7 @@ Notas técnicas:
 
 ## 4. Onde criar no projeto
 
-Projeto FiscalHubIntegration → botão direito na pasta (ex.: `Fiscal/BusinessEvents`) → **Add → New Item → Dynamics 365 Items → Code → Class**. Crie 3 classes com os nomes acima e cole o corpo.
+Projeto FiscosysHubIntegration → botão direito na pasta (ex.: `Fiscal/BusinessEvents`) → **Add → New Item → Dynamics 365 Items → Code → Class**. Crie 3 classes com os nomes acima e cole o corpo.
 
 ## 5. Build + publicar + ativar
 

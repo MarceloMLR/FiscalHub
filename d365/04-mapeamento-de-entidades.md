@@ -20,6 +20,9 @@ carrega (seção 3.3).
 
 > **Parte III — inventário** (seções 19 a 25): decidida pelo mesmo método. Publicadas e aceitas em 2026-10-01 (§24.1).
 
+> **Parte IV — produção, Bloco K e o pacote autossuficiente** (seções 26 a 31): publicadas e aceitas em 2026-10-15 (§31.1).
+> A §26 estende o princípio acima: nem entidade padrão da Microsoft entra como dependência.
+
 ---
 
 ## 0. Antes de tudo: referência de package
@@ -34,7 +37,7 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 `TaxTrans`, `TaxTrans_BR`, `MarkupTrans`, `TaxTable` e `TaxWithholdTrans` estão em
 `ApplicationSuite\Foundation\AxTable`.
 
-> O model `FiscalHubIntegration` precisa referenciar **`FiscalBooks`** além de `ApplicationSuite`.
+> O model `FiscosysHubIntegration` precisa referenciar **`FiscalBooks`** além de `ApplicationSuite`.
 > O guia `01-criar-e-publicar-data-entity.md` menciona só `ApplicationSuite` — corrigir.
 
 ---
@@ -65,8 +68,20 @@ PackagesLocalDirectory\FiscalBooks\FiscalBooks\AxTable\FiscalDocumentLine_BR.xml
 | 20 | `FSInventOnHandBR` | `InventSum` | saldo atual — Parte III (22.1) |
 | 21 | `FSInventTransBR` | `InventTrans` + `InventDim` + `InventTransOrigin` | movimentos depois da data — Parte III (22.2) |
 | 22 | `FSInventLocationBR` | `InventLocation` → estabelecimento fiscal | armazém, estabelecimento e propriedade — Parte III (22.3) |
+| 23 | `FSFiscalDocumentReferencedBR` | `FiscalDocumentReferenced_BR` + nota original | notas referenciadas (4.4) |
+| 24 | `FSFiscalEstablishmentBR` | `FiscalEstablishment_BR` + endereço | estabelecimento fiscal — Parte IV (30.1); substitui a `FiscalEstablishments` |
+| 25 | `FSTaxServiceCodeBR` | `TaxServiceCode_BR` + natureza de rendimento | código de serviço — Parte IV (30.2); substitui a `TaxServiceCodeEntities` |
+| 26 | `FSProductionOrderBR` | `ProdTable` + `InventDim` | ordem de produção — Parte IV (30.3) |
+| 27 | `FSProductionBOMLineBR` | `ProdBOM` + `InventDim` | lista de materiais da OP — Parte IV (30.4) |
+| 28 | `FSProductionCoProductBR` | `PmfProdCoBy` + `InventDim` | coprodutos e subprodutos — Parte IV (30.5) |
+| 29 | `FSInventJournalBR` | `InventJournalTable` | diários de estoque — Parte IV (30.6) |
+| 30 | `FSFiscalProductionBR` | `FBProductionHeader_BR` | produção dos Livros fiscais — Parte IV (30.7) |
+| 31 | `FSFiscalProductionLineBR` | `FBProductionLine_BR` + cabeçalho | consumo da produção dos Livros fiscais — Parte IV (30.7) |
+| 32 | `FSImportDeclarationBR` | `PurchImportDeclaration_BR` | declaração de importação — Parte V (32.1) |
 
-Todas criadas, publicadas e validadas contra o ambiente.
+Todas criadas, publicadas e validadas contra o ambiente; a 23, os campos da 4.4 e as 24 a 31 da Parte IV, em 2026-10-15 (§31.1).
+A 32 e os campos da Parte V, em 2026-10-16 (§32.8).
+Os campos da 4.4 respondem, mas o fiscosysdev não tem dado da reforma.
 Todas `IsReadOnly = Yes` e `Is Public = Yes`.
 **Data management só na `FSFiscalDocumentBR`**, e talvez nem isso (seção 8).
 
@@ -351,7 +366,7 @@ INSSRetained, CSLL, ICMSST, ICMSDiff, INSSCPRB, CBS, IBSCity, IBSState
    `FiscalDocumentTaxTrans_BR` ele é só RecId: o código (`000001`, por exemplo) mora no cadastro
    `CClassTribTable_BR`, com descrição, CST e redução de base. A tabela é compartilhada entre empresas.
 
-   **Na `FSFiscalDocumentTaxTransBR`, o cClassTrib vem da tabela fiscal** (desde 2026-10-09), com duas junções
+   **Na `FSFiscalDocumentTaxTransBR`, o cClassTrib vem da tabela fiscal** (publicado em 2026-10-14), com duas junções
    externas na `CClassTribTable_BR`, uma por campo:
 
    | Campo da entidade | Origem |
@@ -369,10 +384,65 @@ INSSRetained, CSLL, ICMSST, ICMSDiff, INSSCPRB, CBS, IBSCity, IBSState
    **O hub ainda não lê esses campos.** O `$select` dos impostos não os pede, e a montagem deixa o cClassTrib vazio
    (spec `d365-document-assembly`). Nenhum dos 547 impostos do `fiscosysdev` tem cClassTrib.
 
-> ⚠️ **Imposto Seletivo (IS) não aparece** em `TaxType_BR` nesta versão. Verificar se vem em `OtherTax`,
-> em outra estrutura, ou se ainda não foi implementado.
+> ⚠️ **Imposto Seletivo (IS) não aparece** em `TaxType_BR` na 10.0.47. A Microsoft o prevê para a onda de 2027.
 
-O legado **não mapeia nada disso** — é pré-Reforma.
+O legado da Superior **não mapeia nada disso**. O da Vestacy mapeia CBS e IBS (4.4).
+
+### 4.4 Reforma, notas referenciadas e o legado da Vestacy (2026-10-14)
+
+O legado fiscal da Vestacy (`CallFiscalCompletoAsync`) e uma varredura do metadado da 10.0.47 (build 10.0.2527.160)
+mostraram dados que o D365 já tem e o pacote não expunha. Entraram todos de uma vez, antes do primeiro cliente.
+**XML escrito em 2026-10-14; falta build, deploy, sync e o aceite.**
+
+| Entidade | Campo novo | Origem | Para quê |
+|---|---|---|---|
+| `FSFiscalDocumentTaxTransBR` | `NoPostingTaxAmount` | `FiscalDocumentTaxTrans_BR.NoPostingTaxAmount` | valor de CBS/IBS: na transição de 2026 eles são "No posting", o `TaxAmount` vem zero e o valor fica aqui (o legado da Vestacy lê o da `TaxTrans`) |
+| | `ClassTribCSTCode` | `CSTTable_BR.Code`, pela `CClassTribTable_BR.CSTTable` | CST de IBS/CBS (o legado lê da cClassTrib) |
+| | `ClassTribSuspensionCSTCode` | o mesmo, pela cClassTrib de suspensão | CST da desoneração |
+| | `ClassTribTaxBaseDeductionRate` | `CClassTribTable_BR.TaxBaseDeductionRate` | redução da base da classificação |
+| `FSTaxTransBR` | `NoPostingTaxAmount` | `TaxTrans.NoPostingTaxAmount` | o mesmo valor do lado contábil |
+| `FSFiscalDocumentBR` | `CityWhereServicePerformedIBGECode` | `LogisticsAddressCity.IBGECode_BR`, pelo `CityWhereServicePerformed` | IBGE do município da prestação, sem segunda consulta |
+| | `IsServiceLocationForeign`, `ServiceLocationDomestic`, `ServiceLocationNonDomestic` | extensão da `FiscalDocument_BR` (ApplicationSuite) | grupo "local da prestação" da NFS-e Nacional |
+| | `ServiceLocationDomesticIBGECode` | `LogisticsAddressCity.IBGECode_BR`, pelo `ServiceLocationDomestic_BR` | IBGE do local da prestação no país |
+| | `MissingNIFReasonType` | extensão da `FiscalDocument_BR` | motivo de não informar o NIF do estrangeiro |
+| `FSFiscalDocumentLineBR` | `NBSCode` | `NBSCodes_BR.NBSCode`, pelo `NBSCode_BR` da linha | código NBS |
+| | `IndOpCode` | `IndOpCodes_BR.IndOpCode`, pelo `IndOpCode_BR` da linha | indicador da operação (NFS-e) |
+
+**A junção do município da prestação mudou.** A fonte `LogisticsAddresssCity` da `FSFiscalDocumentBR` existia sem campo,
+com `JoinRelationName` `LogisticsAddressCity`, enquanto a relação da tabela se chama `LogisticsAddresssCity` (três "s").
+Passou a ter `Field`/`JoinDataSource`/`RelatedField` explícitos (`CityWhereServicePerformed` → `RecId`). O aceite
+confere que toda nota com município da prestação traz o IBGE.
+
+**Entidade nova: `FSFiscalDocumentReferencedBR`** (`FiscalDocumentReferenced_BR`). A nota de débito, de crédito, de
+devolução ou complementar aponta para a original, na nota inteira ou numa linha (`FiscalDocumentLineRecId` é a linha da
+nota que referencia). A original vem por um de dois caminhos, cada um com junção externa:
+
+- `ReferencedFiscalDocument` → `FiscalDocument_BR` (nota do sistema): campos `Referenced*` com chave, número, série,
+  modelo, data, direção, emissor, tipo e conta.
+- `ExternalReferencedFiscalDocument` → `ExternalFiscalDocument_BR` (nota de fora, digitada como referência fiscal):
+  campos `External*` com os mesmos dados.
+
+O hub filtra por `FiscalDocumentRecId`. A finalidade (`Purpose`: `DebitNote` = 5, `CreditNote` = 6) e o tipo da nota
+(`DebitCreditNoteType`: multa e juros, adiantamento, perda de estoque, devolução, cancelamento de crédito, devolução
+parcial) já estavam na `FSFiscalDocumentBR`. O fiscosysdev não tem nota referenciada.
+
+**Entidade padrão: `TaxServiceCodeEntities`.** A natureza de rendimento (REINF) dos impostos retidos vem do código de
+serviço (`IncomeCode`, de `IncomeClassification_BR`). A role referencia o privilégio padrão `TaxServiceCodeEntityView`,
+como já fazia com a `FiscalEstablishments`. O código de serviço não é único (a chave da `TaxServiceCode_BR` inclui país,
+UF e cidade), por isso não entrou como junção na linha. No fiscosysdev: 2 códigos (14.06 e 7.10), sem natureza.
+
+**Trocada em 2026-10-15** pela `FSTaxServiceCodeBR` (§30.2), pela regra do pacote autossuficiente (§26). O
+`TaxServiceCodeEntityView` saiu da role.
+
+**O que não existe na 10.0.47** (nada a expor): Imposto Seletivo (IS), crédito presumido de IBS/CBS, devolução
+personalizada, compra governamental, tributação monofásica, CIB, e a chave de 50 posições da NFS-e autorizada (a doc da
+Microsoft manda guardar numa extensão; o `AccessKey` tem 45 posições). A 10.0.47 sai de suporte em 2026-11-20: depois de
+atualizar o ambiente, repetir a varredura.
+
+**O hub ainda não lê nenhum desses campos.** É trabalho do hub, separado do pacote.
+
+**Aceite:** pasta `FiscalHub — reforma e notas referenciadas` do Postman. Cada request faz `$select` dos campos novos, e
+um pacote antigo responde 400.
 
 ---
 
@@ -401,7 +471,8 @@ O legado **não mapeia nada disso** — é pré-Reforma.
 
 ### `FSTaxWithholdBR` (`TaxWithholdTrans`)
 Só nota de serviço de entrada. `VoucherInvoice`, `TaxWithholdCode`, `InvoiceTaxWithholdAmount`,
-`InvoiceWithholdBaseAmount`, `TransDate`.
+`InvoiceWithholdBaseAmount`, `TransDate`. `WithholdBaseAmount` (base em moeda padrão, o par do `TaxWithholdAmount`)
+entrou em 2026-10-16 (§32.4).
 
 > O legado identifica o imposto por `Contains()` no código — frágil. Verificar se há
 > `TaxWithholdType_BR` na `TaxWithholdTable` para discriminar por enum.
@@ -424,7 +495,8 @@ performance is required"* e *"Single thread only"* — ~80 campos a mais que as 
 ### `FSItemBR` — **escopo reduzido**
 Com NCM, origem e tipo vindo da linha (3.3), sobra: `ItemId`, `DataAreaId`, `Description`, `BOMUnitId`
 (unidade da lista de materiais, e **não** a de estoque: ver 21.3). O `CClassTrib` não vive no item: a `InventTable` e
-as 6 extensões dela não têm o campo (conferido no metadado em 2026-10-09).
+as 6 extensões dela não têm o campo (conferido no metadado em 2026-10-09). `ProjCategoryId` e `ProductNamePtBR` entraram
+em 2026-10-16 (§32.5).
 
 ### `FSUnitOfMeasureBR`
 `Symbol`, `Description`, `TranslatedDescription` (se vazia, usa `"Unidade " + símbolo`).
@@ -447,7 +519,9 @@ tenant sem hardcode.
 conta contábil está comentado e a conta vem do `FinancialLedgerDimensionDisplayValue`. Se a dimensão
 resolve, saem do escopo.
 
-**`TaxServiceCodeEntities`** — a query devolve o valor que o código já tinha. Provável descarte.
+**`TaxServiceCodeEntities`** — no legado da Superior, a query devolvia o valor que o código já tinha. No da Vestacy,
+dá a natureza de rendimento dos retidos: entra como entidade padrão, com o privilégio `TaxServiceCodeEntityView` na role
+(4.4). Trocada pela `FSTaxServiceCodeBR` em 2026-10-15 (§30.2).
 
 **`FiscalEstablishments`** — a entidade padrão da Microsoft sobre o cadastro de estabelecimentos fiscais. **O hub a lê
 desde 2026-10-02** (ADR-0032, change `erp-company-directory-and-card-filters`), para duas coisas:
@@ -467,10 +541,12 @@ Os dados do cabeçalho continuam desnormalizados (2.5): a montagem não consulta
 | `CNPJ` (← `CNPJCPFNum_BR`) | a empresa do hub, sem a pontuação e com as letras |
 | `Name` | o nome no dropdown |
 
-- **Por que a da Microsoft, e não uma `FS*`:** as nossas existem porque a Microsoft não publica entidade sobre a
+- **Revisto em 2026-10-15 (§26):** o pacote passa a ser autossuficiente, e a substituta é a `FSFiscalEstablishmentBR`
+  (§30.1), com os mesmos nomes de campo. O hub troca a leitura depois; até lá, o privilégio padrão fica na role.
+- **Por que a da Microsoft, e não uma `FS*` (até 2026-10-15):** as nossas existem porque a Microsoft não publica entidade sobre a
   `FiscalDocument_BR` (ADR-0022). Esta ela publica, pública e com nome fixo, verificada contra o fiscosysdev em
   2026-10-01. Uma `FS*` por cima seria um contrato a mais, sem ganho.
-- **A segurança:** a role `FSFiscalHubIntegration` referencia o privilégio padrão `FiscalEstablishmentEntityView` (Read).
+- **A segurança:** a role `FiscosysHubIntegration` referencia o privilégio padrão `FiscalEstablishmentEntityView` (Read).
   Ele exige build e deploy, e não sync: nenhuma tabela nem entidade nossa mudou.
 - **O que ficou fora de propósito (`07`, passo 5):** `IE`, `CCM` e `FiscalEstablishmentGroup`. Nada no hub os usa, e
   campo lido é contrato.
@@ -479,7 +555,7 @@ Os dados do cabeçalho continuam desnormalizados (2.5): a montagem não consulta
 
 ## 8. Change tracking e data management
 
-**Estado atual (implementado e validado):** as 22 entidades (as 16 fiscais e as 6 do contábil e do inventário) estão com
+**Estado atual (implementado e validado):** as 23 entidades publicadas (as 17 fiscais e as 6 do contábil e do inventário) e as 8 da Parte IV, escritas igual, estão com
 `DataManagementEnabled = No` e **sem staging table** — ver `05`, seção 4. O cabeçalho expõe o campo
 de data como **`SysModifiedDateTime`** (alias de `ModifiedDateTime`, seguindo a convenção das
 entidades padrão da Microsoft); ver `05`, seção 5.
@@ -805,7 +881,7 @@ exatamente o que a `GeneralJournalAccountEntryEntity` padrão (não pública) fa
 **Chaves.** `GeneralJournalEntry` tem índice único `JournalNumber + FiscalCalendarYear + Ledger`. `MainAccount` tem
 chave alternativa `MainAccountId + LedgerChartOfAccounts`.
 
-**Referências do model.** O descritor do `FiscalHubIntegration` já referencia `GeneralLedger`, `Ledger`, `Dimensions` e
+**Referências do model.** O descritor do `FiscosysHubIntegration` já referencia `GeneralLedger`, `Ledger`, `Dimensions` e
 `Directory`. Nada a acrescentar.
 
 ## 14. O que a medição mostrou (passo 3)
@@ -927,6 +1003,7 @@ e a entidade padrão da Microsoft faz igual. No centro de custo, empresa sem a d
 | `IsAccountingClosing` | `GeneralJournalAccountEntry_W.IsAccountingClosing_BR` | a marca de encerramento que o SPED da Microsoft exige |
 | `PostingLayer` | `GeneralJournalEntry` | o saldo da Microsoft usa só `Current` |
 | `MainAccountId` | `MainAccount.MainAccountId`, pela FK | conta sem depender do delimitador do cliente |
+| `CostCenter` | dimensão de centro de custo dos Parâmetros do Brasil, na dimensão da linha | COD_CCUS do I250, sem parse. Acrescentado em 2026-10-16 (§32.2) |
 | `AccountingCurrencyAmount` | `GeneralJournalAccountEntry` | valor com sinal; o D/C sai do sinal |
 | `Description` | `GeneralJournalAccountEntry.Text` | histórico; mesmo nome da entidade padrão da Microsoft |
 | `DataArea` | `CompanyInfo.DataArea` | empresa; é o contexto de empresa da entidade |
@@ -935,8 +1012,8 @@ e a entidade padrão da Microsoft faz igual. No centro de custo, empresa sem a d
 
 - `IsCredit` e `IsCorrection`: o D/C sai do sinal, como no SPED. Com estorno, `IsCredit` dá o lado errado.
 - `LedgerAccount`: é texto com o delimitador do cliente. A conta vem pela FK.
-- `LedgerDimension` e centro de custo por linha: o lançamento do contrato não leva centro de custo. Acrescentar depois é
-  compatível; tirar não é.
+- `LedgerDimension`: o centro de custo, que era o motivo para ler a dimensão, entrou como `CostCenter` em 2026-10-16
+  (§32.2).
 - `SubledgerVoucherDataAreaId`: a empresa vem do razão.
 - `PostingType`, `JournalCategory`, moeda da transação, moeda de relatório, quantidade, `DocumentNumber`,
   `DocumentDate`: nenhum campo do contrato usa.
@@ -963,9 +1040,13 @@ superior.
 | `MainAccountType` | `MainAccount.Type` | natureza pela regra da Microsoft; o hub exclui `Reporting` |
 | `ParentMainAccountId` | superior, pela `ParentMainAccount` | conta superior, sintética/analítica e nível, todos derivados da árvore |
 | `NatureCode` | `MainAccount.NatureCode_BR` | natureza declarada, quando a feature estiver ligada |
+| `ChartOfAccounts` | `LedgerChartOfAccounts.Name` | nome do plano: o legado da Vestacy manda como código do grupo contábil (`COA BRASIL`). Acrescentado em 2026-10-15 |
+| `ChartOfAccountsDescription` | `LedgerChartOfAccounts.Description` | descrição do plano, para o grupo contábil. Acrescentado em 2026-10-15 |
+| `AccountCategory` | `MainAccountCategory.AccountCategory` | categoria da conta; a Volcafe usa como superior. Acrescentado em 2026-10-16 (§32.3) |
+| `AccountCategoryDescription` | `MainAccountCategory.Description` | descrição da categoria. Acrescentado em 2026-10-16 (§32.3) |
 | `DataArea` | `CompanyInfo.DataArea` | empresa; com `MainAccountRecId`, forma a chave, porque a mesma conta aparece em cada empresa do plano |
 
-**Deixados de fora de propósito:** nome do plano (o filtro por empresa já resolve), categoria, controles de lançamento,
+**Deixados de fora de propósito:** controles de lançamento,
 moeda, contas de abertura e consolidação. **Data de alteração:** o legado manda `1999-01-01`; o SPED usa o `ActiveFrom`
 do valor de dimensão da conta. Fica fora até o contrato pedir (§16).
 
@@ -1010,7 +1091,9 @@ cria no primeiro uso. No `brmf`, 20 de 20.
 
 ### 15.5 Grupo contábil — sem entidade
 
-É montado pelo legado sem ler o ERP. Se continuar existindo, é dado do hub.
+O legado da Superior monta sem ler o ERP. O da Vestacy manda o nome do plano de contas como código (`COA BRASIL`, fixo no
+código). Desde 2026-10-15 a `FSMainAccountBR` traz o nome e a descrição do plano (15.2): o hub monta o grupo com dado do ERP,
+sem entidade própria.
 
 ### 15.6 Fora do pacote
 
@@ -1020,7 +1103,7 @@ cria no primeiro uso. No `brmf`, 20 de 20.
 | `OperatingUnits` | substituída pela `FSCostCenterBR` (14.3) |
 | `FiscalEstablishments` | a empresa vem do `dataAreaId`, não do CNPJ lido em memória |
 | `MainAccounts` | substituída pela `FSMainAccountBR`, que filtra pelo plano da empresa |
-| `GeneralJournal*BiEntities` | usadas para medir. São projeções de análise, sem `dataAreaId` (a de linha calcula um JSON de dimensões por linha) e não entram no papel `FSFiscalHubIntegration` |
+| `GeneralJournal*BiEntities` | usadas para medir. São projeções de análise, sem `dataAreaId` (a de linha calcula um JSON de dimensões por linha) e não entram no papel `FiscosysHubIntegration` |
 
 ## 16. Custo da montagem (passo 4)
 
@@ -1284,6 +1367,9 @@ meia-noite, ou o próprio dia entra como "depois".
 
 **Fora:** os campos `_RU` e os de liquidação (`ValueOpen`, `QtySettled`, `CostAmountSettled`), que são do fechamento de
 estoque, e não do saldo.
+
+**Parte IV (2026-10-15):** + `InventTransId`, `Voucher` e `InventTransModifiedDateTime` (§30.8).
+
 ### 22.3 `FSInventLocationBR` — armazém, estabelecimento e propriedade
 
 **Papel:** leva a posição (site, armazém) ao estabelecimento e diz de quem é o estoque.
@@ -1383,3 +1469,378 @@ roda sem segredo porque o token vem do `az`.
 - [ ] **D6 — Trânsito.** Mercadoria em armazém de trânsito (`999` e `888` no `brmf`) na data cai no estabelecimento do site
   do armazém de trânsito, como na Microsoft. Confirmar com o contador. Não exercitado: nenhum saldo em trânsito nas datas
   medidas.
+
+---
+
+# Parte IV — Produção, Bloco K e o pacote autossuficiente
+
+> **Status: publicadas e aceitas em 2026-10-15 (§31.1).** Passos 1, 2 e 5 do [`07`](07-como-decidir-quais-entidades-criar.md).
+> O passo 3 (medir com dado real) fica para o aceite (§31), como na Parte III: o `brmf` tem 24 ordens de produção e o
+> `usmf`, 180. Todos os campos e junções foram conferidos contra o metadado 10.0.2527.160 antes do XML.
+
+## 26. A regra: o pacote é autossuficiente
+
+Decidido pelo Marcelo em 2026-10-15. **O hub só lê entidades `FS*` do nosso pacote, e a role `FiscosysHubIntegration` só
+referencia privilégios nossos.** Entidade padrão da Microsoft é referência de mapeamento, não dependência:
+
+- o cliente instala o pacote e atribui uma role; não há pedido de acesso a mais nenhuma entidade;
+- uma entidade padrão que a Microsoft mude, renomeie, ou que o cliente não libere, não para a integração;
+- os campos são os nossos: a `ProductionOrderHeaders` padrão não expõe `ProdType` nem `PmfReworkBatch`, e a
+  `FiscalEstablishments` padrão expõe o CSC e o token CSC da NFC-e.
+
+Vale para todos os módulos. E o pacote cobre o registro inteiro, e não só o que o primeiro cliente manda: entidade que um
+cliente não usa fica publicada e vazia, pronta para o próximo.
+
+**O que a regra mudou nesta versão:**
+
+| Antes | Agora |
+|---|---|
+| `FiscalEstablishments` (padrão), lida pelo hub | `FSFiscalEstablishmentBR` (§30.1). O privilégio padrão `FiscalEstablishmentEntityView` fica na role só até o hub trocar a leitura; depois sai |
+| `TaxServiceCodeEntities` (padrão), só na role | `FSTaxServiceCodeBR` (§30.2). O `TaxServiceCodeEntityView` saiu da role: o hub não lia |
+
+O §7 conta por que a `FiscalEstablishments` foi lida até aqui. A razão de lá ("uma `FS*` por cima seria um contrato a
+mais") foi revista por esta regra.
+
+## 27. O que o negócio precisa (passo 1)
+
+**Fonte:** o legado da Vestacy, sobre AX 2012, manda K230 e K235:
+
+- **K230:** `ProdTable` só encerrada (`ProdStatus == 7`), com `StUpDate` e `RealDate`, a quantidade boa do
+  `ProdJournalProd.QtyGood`, o site pela `InventDim`, e a empresa `aqia` fixa;
+- **K235:** consumo pela `InventTransOrigin` com `ReferenceCategory == 8` (ProdLine) + `InventTrans` (`Qty`,
+  `DatePhysical`) + `InventDim`.
+
+No D365 as tabelas são as mesmas, e os valores dos enums também (`ProdStatus::Completed` = 7, `InventTransType::ProdLine`
+= 8).
+
+**O erro:** só OP encerrada. OP aberta que produziu no período também entra no K230, com `DT_FIN_OP` em branco; o código
+da Microsoft (§28) faz assim.
+
+**O escopo do pacote** não é o do legado: o Bloco K inteiro, para qualquer cliente — K200, K210/K215, K220, K230/K235,
+K250/K255, K260/K265, K270/K275, K280, K290/K291/K292, K300/K301/K302 — e o 0210.
+
+## 28. O caminho padrão (passo 2)
+
+A referência é o SPED Fiscal da própria localização, na 10.0.47: `FBSpedFiscalBlockKWriter_BR`,
+`FBSpedFileCreator_Fiscal_ProdTable_BR`, `FBSpedFileCreator_Fiscal_FBProduction_BR`, `FBSpedFileCreator_Fiscal_BR.createBlockK`
+e `FBFiscalDocumentBookProcessor_BR`.
+
+| O quê | Como a Microsoft faz |
+|---|---|
+| Registros | K001-K010-K100-K200-K220-K230-K235-K260-K265-K270-K275-K280-K290-K291-K292-K990. Não gera K210/K215, K250/K255 nem K300-K302 |
+| OPs do período | site da OP no estabelecimento; início até o fim do período; encerrada no período ou ainda aberta; com diário de produção (`ProdTableJour`, Release ou Receipt) no período |
+| Classificação da OP | `ProdTable.PmfReworkBatch` → K260/K265; tem `PmfProdCoBy` → K290-K292; senão K230/K235 |
+| Produção | `InventTrans` do apontamento (journal Report as finished), pela `DatePhysical`, sem `PackingSlipReturned` |
+| Consumo | `InventTrans` das linhas da `ProdBOM`, mesma regra |
+| Tipo do item | `InventTable.InventProductType_BR`: produção 03/04; consumo 00 a 05 e 10; correção 00 a 06 e 10; conjunta 05/06 |
+| `DT_INI_OP` | a menor data de start da `ProdParmStartUp` (`FBProdTableMinStartDateView_BR`), e não o `StUpDate` |
+| K270/K275/K280 | diário de perdas e ganhos (`InventLossProfit`) com `DatePhysical` em período anterior, classificado à mão nos Livros fiscais (`FBBookingPeriodInventTrans_BR`, com a OP e o registro corrigido) |
+| K220 | o artifício dela: um código SPED por item + lista (para o 0210) e a reclassificação de volta para o item. Não é movimento real entre itens |
+| K200 | `FBInventBalance_BR`, o saldo físico por dono e parceiro |
+| 0210 | da `ProdBOM` das OPs do período, e não da lista mestre. Não gera para período a partir de 2022-01-01 (`shouldCreate0210`) |
+| Produção sem OP | `FBProductionHeader_BR` / `FBProductionLine_BR`, a produção lançada à mão nos Livros fiscais |
+
+O caminho padrão inteiro depende dos Livros fiscais (período de escrituração e apuração de IPI), como o H010 (§20). O hub
+refaz as regras sobre as tabelas de origem.
+
+**K210, K250 e K300 não têm modelo no D365.** Desmontagem pode ser OP com linha de lista negativa, diário de lista ou
+diário de movimento. Industrialização em terceiro pode ser OP `ProdType = Vendor`, OP num armazém de terceiro
+(`InventCountingGroup_BR = OwnStockInOtherPower`, na `FSInventLocationBR`) ou linha de lista do tipo `Vendor`. O pacote
+expõe as peças, e a classificação é configuração do cliente no hub (ex.: nome de diário X = desmontagem). Cliente novo
+não exige entidade nova.
+
+## 29. Registro → entidade
+
+| Registro | Fonte | Entidades |
+|---|---|---|
+| K200 | `InventSum` + `InventTrans` + armazém | as da Parte III + `FSItemBR.InventProductType` |
+| K210/K215 | OP com lista negativa, diário de lista ou de movimento | `FSProductionOrderBR`, `FSProductionBOMLineBR`, `FSInventTransBR`, `FSInventJournalBR` |
+| K220 | diário que baixa um item e dá entrada em outro, pareados pelo `Voucher` | `FSInventTransBR`, `FSInventJournalBR` |
+| K230/K235 | OP + `InventTrans` (Production, ProdLine) | `FSProductionOrderBR`, `FSInventTransBR` |
+| K230/K235 sem OP | Livros fiscais | `FSFiscalProductionBR`, `FSFiscalProductionLineBR` |
+| K250/K255 | OP de terceiro | `FSProductionOrderBR`, `FSProductionBOMLineBR`, `FSInventLocationBR`, `FSInventTransBR` |
+| K260/K265 | OP com `PmfReworkBatch` | `FSProductionOrderBR`, `FSInventTransBR` |
+| K270/K275/K280 | movimento com `DatePhysical` em período já entregue, alterado depois da entrega | `FSInventTransBR` (`InventTransModifiedDateTime`) + regra no hub |
+| K290/K291/K292 | OP com `PmfProdCoBy`; recebimentos Production e PmfProdCoBy; consumo ProdLine | `FSProductionOrderBR`, `FSProductionCoProductBR`, `FSInventTransBR` |
+| K300/K301/K302 | K290 em terceiro | as do K250 + `FSProductionCoProductBR` |
+| 0210 | `ProdBOM` | `FSProductionBOMLineBR` |
+
+## 30. As entidades (passo 5)
+
+Todas públicas, somente leitura, sem Data Management, com chave no `RecId` por alias (2.2). A `InventDim` entra por junção
+interna, porque toda linha tem; as outras junções são externas.
+
+### 30.1 `FSFiscalEstablishmentBR` — estabelecimento fiscal
+
+**Origem:** `FiscalEstablishment_BR` → `DirPartyLocation` (externa). **Chave:** `FiscalEstablishmentRecId`.
+
+**Campos:** `FiscalEstablishmentRecId`, `FiscalEstablishmentId`, `Name`, `CNPJ` (`CNPJCPFNum_BR`), `IE` (`IENum_BR`),
+`CCM` (`CCMNum_BR`), `NIRE`, `DirPartyLocationRecId` e `AddressLocationRecId` (`DirPartyLocation.Location`, que liga na
+`FSPostalAddressBR.Location`).
+
+`CNPJ`, `IE`, `CCM` e `Name` têm o nome da entidade padrão, para a troca no hub ser só o entity set. **Fora:** CSC, token,
+certificado, ambiente e e-mails da NF-e e da NFC-e, e o responsável técnico.
+
+### 30.2 `FSTaxServiceCodeBR` — código de serviço e natureza de rendimento
+
+**Origem:** `TaxServiceCode_BR` → `IncomeClassification_BR` (externa; tabela compartilhada). **Chave:** `TaxServiceCodeRecId`.
+
+**Campos:** `TaxServiceCodeRecId`, `ServiceCode`, `Name`, `Description`, `ServiceType`, `CountryId`, `StateId`, `City`,
+`ParentServiceCode`, `IncomeCodeRecId`, `IncomeCode` e `IncomeCodeDescription`. O código não é único (a chave da tabela
+inclui país, UF e cidade): por isso a chave é o `RecId`.
+
+### 30.3 `FSProductionOrderBR` — ordem de produção
+
+**Origem:** `ProdTable` → `InventDim`. **Chave:** `ProdTableRecId`.
+
+**Campos:** `ProdTableRecId`, `ProdId`, `ItemId`, `Name`, `ProdType` (Standard, Vendor, Process), `ProdStatus`,
+`PmfReworkBatch`, `CollectRefProdId` (OP pai), `BOMId`, `QtySched`, `QtyStUp`, `RemainInventPhysical`, `StUpDate`,
+`FinishedDate`, `RealDate`, `InventTransId`, `InventSiteId` e `InventLocationId`.
+
+### 30.4 `FSProductionBOMLineBR` — lista de materiais da OP
+
+**Origem:** `ProdBOM` → `InventDim`. **Chave:** `ProdBOMRecId`.
+
+**Campos:** `ProdBOMRecId`, `ProdId`, `LineNum`, `ItemId`, `ProdLineType` (Item, Phantom, PeggedSupply, Vendor),
+`Formula`, `BOMConsump`, `BOMQty`, `BOMQtySerie`, `ScrapVar`, `ScrapConst`, `UnitId`, `InventTransId`, `VendId`,
+`InventSiteId` e `InventLocationId`.
+
+O `InventTransId` liga a linha aos movimentos de consumo (`FSInventTransBR.InventTransId`). Quantidade negativa é
+desmontagem; linha `Vendor` é serviço de terceiro.
+
+### 30.5 `FSProductionCoProductBR` — coprodutos e subprodutos
+
+**Origem:** `PmfProdCoBy` → `InventDim`. **Chave:** `PmfProdCoByRecId`.
+
+**Campos:** `PmfProdCoByRecId`, `ProdId`, `ItemId`, `ProductType` (Co_Product, By_Product), `CoByQty`, `CoByQtySerie`,
+`QtyCoByStUp`, `RemainCoByPhysical`, `StUpDate`, `FinishedDate`, `RealDate`, `InventTransId`, `InventSiteId` e
+`InventLocationId`.
+
+É ela que marca a OP como produção conjunta, mesmo quando só houve consumo no período.
+
+### 30.6 `FSInventJournalBR` — diários de estoque
+
+**Origem:** `InventJournalTable`. **Chave:** `InventJournalRecId`.
+
+**Campos:** `InventJournalRecId`, `JournalId`, `JournalNameId`, `JournalType`, `Description`, `Posted`, `PostedDateTime`,
+`InventSiteId` e `InventLocationId`.
+
+Liga na `FSInventTransBR.ReferenceId` dos movimentos de diário (InventTransaction, InventLossProfit, InventTransfer,
+BOMMain, BOMLine). O `JournalNameId` é o que a configuração do cliente usa para K210, K220 e correções.
+
+### 30.7 `FSFiscalProductionBR` e `FSFiscalProductionLineBR` — produção dos Livros fiscais
+
+Para o cliente que não usa o módulo de produção e lança a produção à mão nos Livros fiscais.
+
+- **Cabeçalho** (`FBProductionHeader_BR`, chave `FiscalProductionRecId`): `ProductionId`, `FiscalEstablishmentId`,
+  `ItemId`, `BOMId`, `BOMDataArea`, `Qty`, `StartDate`, `EndDate` e `TransDate`. A tabela é **compartilhada** (sem
+  empresa): a entidade não tem `PrimaryCompanyContext`, e o `BOMDataArea` diz a empresa da lista.
+- **Linha** (`FBProductionLine_BR`, por empresa, chave `FiscalProductionLineRecId`): `FiscalProductionRecId`,
+  `ProductionId` e `FiscalEstablishmentId` (do cabeçalho, junção externa), `ItemId`, `Qty` e `TransDate`.
+
+### 30.8 `FSInventTransBR` — três campos novos
+
+- `InventTransId` (`InventTransOrigin.InventTransId`): liga o movimento à linha da lista (`ProdBOM`) e ao coproduto
+  (`PmfProdCoBy`).
+- `Voucher`: pareia a saída e a entrada de um mesmo diário (K210, K220).
+- `InventTransModifiedDateTime` (`InventTrans.ModifiedDateTime`, que a tabela tem): o que mudou depois de uma entrega. É a
+  base das correções K270/K275/K280 e da leitura incremental. O nome evita repetir `ModifiedDateTime` (§8).
+
+### 30.9 Fora, de propósito
+
+- `FBBookingPeriodProdTable_BR` e `FBBookingPeriodInventTrans_BR`: a classificação dos Livros fiscais; o hub refaz a regra.
+- `ProdTableJour` e `ProdParmStartUp`: a `InventTrans` dá produção e consumo com data física. Se no aceite o `StUpDate`
+  divergir da menor data de start que a Microsoft usa, entra uma entidade sobre a `ProdParmStartUp`.
+- A lista mestre (`BOM`, `BOMVersion`): a Microsoft monta o 0210 pela lista da OP.
+- `UnitOfMeasureConversion` (0220): é do fiscal (C170), e não do Bloco K. Candidato separado.
+- CIAP (Bloco G, `FBCIAP*_BR`): próximo módulo, com estudo próprio.
+
+## 31. Critério de aceite depois do sync
+
+Pasta `FiscalHub — produção, Bloco K e cadastros próprios` do Postman, mais:
+
+- as 8 entidades no service document e respondendo 200;
+- contagem igual à da tabela raiz: OPs igual à `ProductionOrderHeaders` (24 no `brmf`, 180 no `usmf`), linhas de lista e
+  coprodutos pelas entidades padrão correspondentes;
+- `FSFiscalEstablishmentBRs` com os mesmos estabelecimentos, CNPJ e nome da `FiscalEstablishments`;
+- `FSTaxServiceCodeBRs` com os 2 códigos do fiscosysdev;
+- `FSInventTransBRs` com `$select` dos três campos novos (400 num pacote antigo);
+- numa OP encerrada do `usmf`: a soma dos recebimentos (Production e PmfProdCoBy) e dos consumos (ProdLine) da
+  `FSInventTransBR` bate com o apontamento da OP; e o `StUpDate` contra a menor data de start, que decide o 30.9.
+
+### 31.1 Resultado (2026-10-15)
+
+Publicadas depois de três tentativas de deploy (o módulo antigo duplicado e a sincronização parcial, `05` §12) e de uma
+sincronização completa do banco. Medido no fiscosysdev, já na 10.0.49, com a identidade do `az`.
+
+**Postman, collection inteira:** 72 requests, 302 asserções, 1 falha — o `Get Token`, esperado (o token vem do `az`).
+Todas as pastas verdes, inclusive a da reforma e a nova.
+
+| O que | Resultado |
+|---|---|
+| Service document | 31 entidades FS: as 8 da Parte IV e a `FSFiscalDocumentReferencedBRs` entraram |
+| `FSProductionOrderBRs` | 349 OPs: 210 Standard + 139 Process. As 210 Standard = `ProductionOrderHeaders` (brmf 24, usmf 180), que filtra `ProdType = Standard` |
+| `FSProductionBOMLineBRs` | 1.640 linhas; as 968 das OPs Standard = `ProductionOrderBillOfMaterialLines` (mesmo filtro) |
+| `FSProductionCoProductBRs` | 178 = 118 coprodutos (= `BatchOrderCoProductsV2`, que filtra `Co_Product`) + 60 subprodutos |
+| `FSFiscalEstablishmentBRs` | 4 = `FiscalEstablishments`: empresa, código, CNPJ, nome, IE e CCM idênticos; os 4 endereços acham a `FSPostalAddressBRs` pelo `AddressLocationRecId` |
+| `FSTaxServiceCodeBRs` | 4: os 2 da `TaxServiceCodeEntities` (que filtra `ParentServiceCode` vazio) + os 2 códigos municipais de São Paulo filhos deles (07315 e 01406). Nenhum com natureza de rendimento |
+| `FSInventJournalBRs` | 134 diários (usmf 36, brmf 0), 127 lançados |
+| `FSFiscalProductionBRs` / `LineBRs` | 0: o fiscosysdev não lança produção nos Livros fiscais |
+| `FSInventTransBRs` | 341.955 = `InventTransBiEntities` (brmf 260, usmf 9.372): os campos novos não multiplicaram linha. `InventTransId` e `InventTransModifiedDateTime` em todas |
+| Chaves | únicas nas OPs (usmf 231/231, brmf 24/24) |
+
+**Ligações e fechamento (usmf e brmf):**
+
+- consumo (`ProdLine`) → linha de lista pelo `InventTransId`: usmf 1.075/1.075, brmf 48/48;
+- recebimento de coproduto (`PmfProdCoBy`) → `FSProductionCoProductBRs`: 100/100;
+- OP encerrada, recebimento da `InventTrans` = apontamento lançado: brmf 24/24, usmf 185/186. A P000116 tem 5 recebidos
+  na `InventTrans` e nenhum diário de apontamento lançado: a `InventTrans` é a fonte, como no §28;
+- OP encerrada, consumo da `InventTrans` = lista de separação lançada: brmf 24/24, usmf 186/186;
+- **OP aberta com produção:** 45 no usmf. O legado da Vestacy, que lê só encerrada, as perderia (§27).
+
+**Achados:**
+
+- **`StUpDate` não é o início da OP.** Em 7 das 208 OPs do usmf com movimento, o primeiro movimento é anterior ao
+  `StUpDate` (ex.: P000104, start em 05/02/2017 e primeiro movimento em 18/12/2016). O start posterior sobrescreve a
+  data. Pela regra do 30.9, o `DT_INI_OP` precisa da data do primeiro start: proposta de uma entidade sobre a
+  `ProdTableJour` (diário de produção: start, apontamento e fim, com data e quantidade), que também cobre o caso da
+  P000116. **Decisão do Marcelo (2026-10-15): fica anotada, sem criar agora.** Até lá, o hub usa o menor entre o
+  `StUpDate` e o primeiro movimento da OP.
+- **`Voucher` vazio em 272 movimentos de produção do usmf:** os ainda não lançados (encomendado, reservado) e os lançados
+  só fisicamente. O `Voucher` é o financeiro. Diário lança o financeiro junto, então o pareamento do K210/K220 funciona.
+- **Contagem sem diário:** 41 dos 46 movimentos de contagem do usmf não têm `ReferenceId` (contagem fora de diário). O
+  hub trata `InventCounting` sem diário como ajuste de contagem.
+- **Reforma (4.4):** os campos respondem, mas o fiscosysdev não tem CBS/IBS, cClassTrib, NBS nem nota referenciada; o
+  dado fica para o primeiro cliente. O município da prestação resolve o IBGE em 12/12 notas. Plano de contas: 12.515
+  contas, todas com o nome do plano (`Brasil`: 326).
+
+---
+
+# Parte V — Lacunas do legado dos clientes (2026-10-16)
+
+O check de todos os integradores do legado (`WebApi\Models\Integracoes\DynamicsAX365`: Astec, Chesterton, Danske,
+Polaris, Superior e Volcafe; a Vestacy já tinha sido feita) contra o pacote achou uma entidade e sete campos que o legado
+lê e o pacote não entregava. Cada lacuna foi conferida no metadado da 10.0.47 e na documentação da Microsoft. O relatório
+por cliente está no projeto FiscalHub do Claude (`claude/legado-clientes-d365-gap.md`). **Decisão do Marcelo
+(2026-10-16): fazer todas.**
+
+## 32. As mudanças
+
+| § | Entidade | Campo novo | De | Quem usava no legado | Para |
+|---|---|---|---|---|---|
+| 32.1 | `FSImportDeclarationBR` (nova) | 10 campos | `PurchImportDeclaration_BR` | Astec | SPED Fiscal C120, grupo DI da NF-e |
+| 32.2 | `FSGeneralJournalLineBR` | `CostCenter` | dimensão de centro de custo dos Parâmetros do Brasil | Astec | SPED ECD I250 (COD_CCUS) |
+| 32.3 | `FSMainAccountBR` | `AccountCategory`, `AccountCategoryDescription` | `MainAccountCategory` | Volcafe | plano de contas |
+| 32.4 | `FSTaxWithholdBR` | `WithholdBaseAmount` | `TaxWithholdTrans` | Danske, Vestacy | base da retenção |
+| 32.5 | `FSItemBR` | `ProjCategoryId`, `ProductNamePtBR` | `InventTable`, `EcoResProductTranslation` | Chesterton, Superior | regra do cliente; descrição do 0200 |
+
+### 32.1 `FSImportDeclarationBR` — declaração de importação
+
+**Papel:** os dados da DI que o SPED Fiscal (C120: COD_DOC_IMP, NUM_DOC_IMP, NUM_ACDRAW) e o grupo DI da NF-e pedem. O
+artigo *Import fiscal documents for Brazil* lista os mesmos dados.
+
+**Origem:** `PurchImportDeclaration_BR`, uma fonte, por empresa (`PrimaryCompanyContext = DataAreaId`). Os nomes de
+campo são os da entidade padrão `ImportDeclarations` (`PurchImportDeclarationEntity`), que o legado da Astec já lia.
+
+| Campo | De | Por quê |
+|---|---|---|
+| `ImportDeclarationRecId` | `RecId` | identidade; é o valor que a nota guarda |
+| `ImportDeclarationNumber` | `DINumber` | NUM_DOC_IMP; chave alternativa da tabela |
+| `ImportDeclarationDate` | `DIDate` | data da DI |
+| `ImportDeclarationType` | `Type` (`PurchDIType_BR`) | COD_DOC_IMP |
+| `Port`, `PortState` | `Port`, `PortState` | local e UF do desembaraço |
+| `NationalizationDate` | `NationalizationDate` | data do desembaraço |
+| `DrawBackNumber` | `DrawBackNumber` | NUM_ACDRAW |
+| `TransportMode` | `TransportMode` (`EFDocTransportMode_BR`) | via de transporte da NF-e |
+| `AFRMM` | `AFRMM` | valor do AFRMM da NF-e |
+
+**Ligação com a nota: pelo RecId.** O `FSFiscalDocumentBR.ImportDeclaration` (que já expomos) é o RecId da DI (EDT
+`ImportDeclarationRecId_BR`, sem relação declarada), e o SPED da Microsoft (`FBSpedFileCreator_Fiscal_BR`) liga
+exatamente assim. A adição vem na linha (`FSFiscalDocumentLineBR.DIAddition`). O legado da Astec ligava pelo número
+porque a entidade do implementador trazia o número na nota.
+
+**Medido antes (2026-10-16, `ImportDeclarations` padrão):** 7 DI, todas no `brmf`; 8 notas com DI e 8 linhas com adição.
+
+**Fora, de propósito:** a descrição do porto (`IntrastatPort`): a entidade padrão também não traz, e o código basta para o C120.
+
+### 32.2 `FSGeneralJournalLineBR.CostCenter` — centro de custo da linha
+
+**Origem:** `GeneralJournalAccountEntry.LedgerDimension` → `DimensionAttributeLevelValueView`, só no atributo de
+`BrazilParameters.CostCenterDimensionAttribute` da empresa. A `BrazilParameters` entra por `CompanyInfo.DataArea =
+DataAreaId`, como na `BusinessDocumentSalesInvoiceBaseEntity` da Microsoft. As duas junções são externas.
+
+- **A mesma dimensão** que a `FSCostCenterBR` lista (15.3) e que a Microsoft usa no SPED: *"Financial dimension for cost
+  center … used to generate SPED"* (Parameters for legal entities in Brazil). O SPED ECD pede o conjunto de dimensões com
+  conta principal e centro de custo.
+- **A view agrupada** (`DimensionAttributeLevelValueView`), e não a `AllView`: uma linha por combinação e atributo.
+- **Vazio** quando a conta não leva a dimensão ou a empresa não a declarou. No fiscosysdev só o `brmf` declara (20 centros).
+- **Por que não o parse do display value** (a Astec pega o segmento [2] do `AccountDisplayValue`): depende da ordem dos
+  segmentos e do delimitador do cliente.
+
+### 32.3 `FSMainAccountBR.AccountCategory` e `AccountCategoryDescription`
+
+**Origem:** `MainAccount.AccountCategoryRef` → `MainAccountCategory.AccountCategoryRef`, externa (tabela compartilhada,
+como a `MainAccount`). No fiscosysdev, 3.833 das 5.236 contas da `MainAccounts` têm categoria.
+
+A conta superior continua sendo o `ParentMainAccountId`. O `ParentMainAccount_BR` antigo foi migrado pela Microsoft para
+o `ParentMainAccount` (`ReleaseUpdateDB72_Ledger`). A Volcafe usa a categoria como conta superior: regra do cliente, no hub.
+
+### 32.4 `FSTaxWithholdBR.WithholdBaseAmount`
+
+*"Basis for withholding tax calculation in default currency"* (CDM `TaxWithholdTrans`). Fecha o par com o
+`TaxWithholdAmount` (valor retido em moeda padrão), que já expomos. As outras duas bases são em moeda do imposto
+(`TaxWithholdBaseAmount`) e da fatura (`InvoiceWithholdBaseAmount`). Em real tendem a coincidir; a diferença aparece com
+moeda estrangeira. 264 retenções no fiscosysdev.
+
+### 32.5 `FSItemBR.ProjCategoryId` e `ProductNamePtBR`
+
+- **`ProjCategoryId`:** `InventTable.projCategoryId` (o nome na tabela começa com minúscula). A regra "T4-CIP" da
+  Chesterton e da Superior é do hub.
+- **`ProductNamePtBR`:** segunda junção externa com a `EcoResProductTranslation`, com range `LanguageId = pt-br` na
+  própria fonte externa, como o `ModuleType` da `InventTableModule` na mesma entidade. O `ProductName` continua no
+  idioma do sistema, que é o padrão da Microsoft. A Chesterton força pt-BR.
+- **No fiscosysdev não há tradução pt-br** (só en-us, zh-hans, fr, ru e ja): o campo vem vazio, e o aceite é a contagem
+  do item não mudar.
+
+### 32.6 Fora, de propósito (do mesmo check)
+
+- `IsCredit`, `LedgerAccount`, `PostingType`, `SubledgerVoucherDataAreaId`, `SubledgerJournalEntry` e
+  `HistoricalExchangeRateDate`: já decididos no 15.1.
+- `MainAccountId` na linha da nota, código do cClassTrib na `FSTaxTransBR` e descrição longa do produto: opcionais, não
+  pedidos.
+- Customizações de cliente, que não existem no padrão: Volcafe `PurchaseOrderLinesV2.EDF_FromCityIBGECode` /
+  `EDF_ToCityIBGECode` e `ReleasedProductsV2.Description`.
+
+### 32.7 Critério de aceite depois do sync
+
+Pasta `FiscalHub — lacunas do legado (2026-10-16)` do Postman e, de novo, as pastas do contábil e do inventário, cujas
+contagens pegam junção duplicando ou cortando linha:
+
+- `FSImportDeclarationBRs` no service document, 7 no `brmf`, e toda nota com DI acha a DI pelo RecId;
+- `FSGeneralJournalLineBRs` com a contagem igual à da raiz (a view do centro de custo não duplicou), e `CostCenter` só
+  com valores da `FSCostCenterBRs`;
+- `FSMainAccountBRs` com a contagem da empresa igual à de antes, e categoria sempre com descrição;
+- `FSTaxWithholdBRs`: 264, com `WithholdBaseAmount` onde há valor retido;
+- `FSItemBRs` com a contagem igual à da `InventTable` (2.901 no total): a junção pt-br não cortou item.
+
+Ferramenta: `node d365/tools/validar-ambiente.js FSImportDeclarationBR --empresa brmf --comparar ImportDeclarations` e
+`node d365/tools/validar-ambiente.js FSGeneralJournalLineBR FSMainAccountBR FSTaxWithholdBR FSItemBR --empresa brmf`.
+
+
+### 32.8 Resultado (2026-10-16)
+
+Build, deploy com sincronização e sincronização completa feitos pelo Marcelo, com os avisos esperados do `05` §13. Medido no
+fiscosysdev (10.0.49) com a identidade do `az`.
+
+**Postman, collection inteira:** 80 requests, 348 asserções, 1 falha — o `Get Token`, esperado. A pasta nova e as do
+contábil e do inventário, verdes.
+
+| O que | Resultado |
+|---|---|
+| `validar-ambiente.js` | as 5 publicadas, todos os campos do XML no `$select`, chave única; `FSImportDeclarationBRs` = `ImportDeclarations` (7 = 7) |
+| Contagens contra a raiz | `FSItemBRs` 2.901 = `InventTableBiEntities` (brmf 12, usmf 206): a junção pt-br não cortou item. `FSGeneralJournalLineBRs` 427.230 = `GeneralJournalAccountEntryBiEntities`: a view do centro de custo não duplicou. `FSMainAccountBRs` 12.515 e `FSTaxWithholdBRs` 264, como antes |
+| DI | 7 DI no brmf; as 8 notas com DI acham a DI pelo RecId (a DI 7 tem duas notas); `Port` e `PortState` preenchidos (Santos/SP) |
+| `CostCenter` (brmf) | 150 das 1.307 linhas, todas com o valor da dimensão `COSTCENTER` da própria linha (conferido no `LedgerDimensionValuesJson` da entidade BI padrão, 150/150); nenhuma das 1.157 sem valor tinha centro de custo na dimensão; único valor no brmf, `071`, que está na `FSCostCenterBRs` |
+| Categoria (brmf, plano `Brasil`) | 316 das 326 contas; igual à `MainAccounts` conta a conta (0 diferenças); sempre com descrição |
+| `WithholdBaseAmount` | 264 retenções, todas com base onde há valor; igual à `TaxWithholdBaseAmount` em todas, porque cada empresa retém na própria moeda (brmf BRL, inmf INR, thmf THB, samf SAR) |
+| Item | `ProjCategoryId` em 64 itens (ussi, ex.: `SubContrac`); `ProductNamePtBR` vazio em todos, como previsto (o fiscosysdev não tem tradução pt-br) |

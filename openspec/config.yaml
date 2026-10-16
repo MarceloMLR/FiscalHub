@@ -32,14 +32,17 @@ context: |
   adapter em runtime, JWT com escopo por tenant) — variação de cliente é DADO, não branch;
   rastreabilidade por "fotos" no Blob (snapshots de domínio + outbound).
 
-  Lado D365 (em d365/): o pacote é METADADO PURO — 22 data entities OData com prefixo FS, 22
-  privilégios e uma role. ZERO código X++. As 16 fiscais expõem a nota e os cadastros (lista em
-  d365/README.md). As 6 do contábil e do inventário (FSGeneralJournalLineBR, FSMainAccountBR,
-  FSCostCenterBR, FSInventOnHandBR, FSInventTransBR, FSInventLocationBR) o hub ainda não lê.
+  Lado D365 (em d365/): o pacote é METADADO PURO — 32 data entities OData com prefixo FS, 32
+  privilégios e uma role. ZERO código X++. As 20 fiscais expõem a nota e os cadastros (lista em
+  d365/README.md). As 7 do contábil e do inventário (FSGeneralJournalLineBR, FSMainAccountBR,
+  FSCostCenterBR, FSInventOnHandBR, FSInventTransBR, FSInventLocationBR, FSInventJournalBR) e as 5 da
+  produção e do Bloco K (FSProductionOrderBR, FSProductionBOMLineBR, FSProductionCoProductBR,
+  FSFiscalProductionBR, FSFiscalProductionLineBR) o hub ainda não lê. PACOTE AUTOSSUFICIENTE: o hub só
+  lê entidades FS e a role só referencia privilégios nossos (d365/04, §26).
   Entity set = nome no plural (/data/FSFiscalDocumentBRs). Todas públicas, somente leitura, sem Data
-  Management e sem staging. O hub também lê UMA entidade padrão da Microsoft, a FiscalEstablishments
-  (cadastro de estabelecimentos), para o diretório de empresas e a descoberta por período (ADR-0032); a
-  role referencia o privilégio padrão dela, FiscalEstablishmentEntityView. A empresa do hub é o CNPJ do
+  Management e sem staging. Transição: o hub ainda lê UMA entidade padrão, a
+  FiscalEstablishments (diretório de empresas e descoberta por período, ADR-0032), e a role ainda referencia
+  o privilégio padrão dela, FiscalEstablishmentEntityView, até o hub ler a FSFiscalEstablishmentBRs. A empresa do hub é o CNPJ do
   estabelecimento SEM a pontuação e COM as letras (CNPJ alfanumérico), nunca "só dígitos".
   CAPTURA (ADR-0023): a garantia é DESCOBERTA POR POLLING sobre a FSFiscalDocumentBR, não evento.
   Não existe hook de código que cubra todos os caminhos de escrita; a convergência está no DADO.

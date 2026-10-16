@@ -625,9 +625,9 @@ A tela **Agendamento** (a integração manual e os agendamentos) lê o ERP do te
   já confirmadas vão de novo ao destino ativo do tenant. A agendada, única ou diária, não reenvia o que já foi enviado sem
   alteração. Para testar a imediata sem mandar nada à plataforma real, aponte a saída para o mock antes.
 
-- **O deploy da role vem antes.** A role `FSFiscalHubIntegration` precisa do privilégio padrão
+- **O deploy da role vem antes.** A role `FiscosysHubIntegration` precisa do privilégio padrão
   `FiscalEstablishmentEntityView`, com build e deploy do modelo (sem sync). Sem ele, o dropdown mostra o motivo do 403: "O
-  F&O negou a leitura do cadastro de estabelecimentos (HTTP 403). A role FSFiscalHubIntegration precisa do privilégio
+  F&O negou a leitura do cadastro de estabelecimentos (HTTP 403). A role FiscosysHubIntegration precisa do privilégio
   FiscalEstablishmentEntityView…".
 - **A descoberta** lê a `FSFiscalDocumentBRs` pelo **dia fiscal** do período e pelos estabelecimentos da empresa, ou só
   pelo da filial escolhida. O agendamento diário (D-1) traz as notas com data fiscal de ontem. Todos os modelos entram, e

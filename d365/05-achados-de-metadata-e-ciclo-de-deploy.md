@@ -1,7 +1,7 @@
 # Fase 5 — Achados de metadata das entidades e ciclo de deploy
 
 Registro do que quebrou, por que quebrou e como se detecta, durante a publicação e validação das
-14 entidades do pacote `FiscalHubIntegration` no ambiente `fiscosysdev`.
+14 entidades do pacote `FiscosysHubIntegration` no ambiente `fiscosysdev`.
 
 Tudo aqui foi verificado contra o ambiente real via OData, não inferido do legado nem da
 documentação. Quando a conclusão mudou no meio do caminho, o doc registra a versão final e diz o
@@ -60,7 +60,7 @@ O RecId cru de uma `LedgerDimension` **tem** que ficar Private ou Internal. Quem
 ### Como auditar
 
 ```powershell
-$m = "<model store>\FiscalHubIntegration\FiscalHubIntegration\AxDataEntityView"
+$m = "<model store>\FiscosysHubIntegration\FiscosysHubIntegration\AxDataEntityView"
 Get-ChildItem "$m\*.xml" | ForEach-Object {
   $x = [xml](Get-Content $_.FullName)
   $priv = @($x.AxDataEntityView.Fields.AxDataEntityViewField |
@@ -467,8 +467,8 @@ Solution Explorer não mostra o que não está nela. O arquivo de projeto fica *
 metadados:
 
 ```
-metadados: C:\CustomXppMetadata<hash>\FiscalHubIntegration\FiscalHubIntegration\Ax*
-projeto:   ...\Dynamics365\FiscalHubIntegration\FiscalHubIntegration\FiscalHubIntegration.rnrproj
+metadados: C:\CustomXppMetadata<hash>\FiscosysHubIntegration\FiscosysHubIntegration\Ax*
+projeto:   ...\Dynamics365\FiscosysHubIntegration\FiscosysHubIntegration\FiscosysHubIntegration.rnrproj
 ```
 
 Cada item entra como um `<Content Include="AxDataEntityView\<Nome>">` com `<Name>` e `<Link>`. Pela
@@ -498,7 +498,68 @@ requisição chegaram coladas numa URI única, com 404 interno. Ficou em aberto.
 Não faz falta hoje: a ~4 chamadas por documento contra o limite de 6.000 por 5 minutos, o teto fica
 na ordem de 300 documentos por minuto.
 
+## 12. Renomear o módulo: o antigo tem de sair do ambiente
+
+**O que aconteceu (2026-10-15).** O pacote `FiscalHubIntegration` virou `FiscosysHubIntegration`, com os mesmos objetos.
+O fiscosysdev ainda tinha o módulo antigo. Os dois deploys do módulo novo falharam em *Applying Application Module* com
+`axhost-remoteprocess failed … FailedDependency; Failed to start services`. O motivo está no
+`AXHostStartupTrace*.etl` do `operationlogs.zip`:
+
+```
+AX is shutting down due to an error. Duplicate metadata element has been detected in multiple modules.
+… Element AxDataEntityView/FSAddressCityBR is defined in the following modules: fiscosyshubintegration, fiscalhubintegration
+```
+
+(`MetadataReadCrossAssemblyDuplicateException`). O pacote chega a ser aplicado, o AOS não sobe, e o UDE desfaz: o ambiente
+volta com o pacote antigo. Os dois descriptors também tinham o mesmo Id de modelo (896000948).
+
+**Onde achar o log.** O Visual Studio só baixa o `operationlogs.zip` quando a opção está ligada (**Tools > Options >
+Power Platform Tools**). Fora dele, no app **Finance and Operation Package Manager** do Dataverse, em **Operation
+History**; ou pela Web API do Dataverse, tabela `msprov_operationhistories`, coluna de arquivo `msprov_logs`. O erro de
+subida fica no `.etl`; as mensagens saem lendo as strings do arquivo (o provider não tem manifesto na máquina).
+
+**A saída: o módulo antigo vazio, no mesmo deploy.** A documentação do UDE não tem um "desinstalar módulo" (o
+`ModuleToRemove.txt` é do fluxo do Lifecycle Services). O deploy sobrescreve a pasta do módulo, então um
+`FiscalHubIntegration` sem os objetos tira a duplicidade:
+
+- descriptor com **Id novo** (896000949), referência só ao `ApplicationPlatform` e nenhum outro objeto além de uma classe
+  vazia (`FiscalHubIntegrationRemoved`), como a Microsoft pede no pré-requisito de desinstalação;
+- os arquivos estão em `d365/tools/modulo-vazio-FiscalHubIntegration/` (copiar para a pasta de metadado customizado do
+  UDE, ao lado do `FiscosysHubIntegration`);
+- compila sozinho com o `xppc` (0 erros, 0 avisos);
+- **o deploy exige a pasta `bin` do módulo**: sem o build, o Visual Studio para em `DirectoryNotFoundException … fiscalhubintegration\bin`. Se o **Build models** não listar o pacote (o VS só enxerga pasta nova depois de reaberto), compilar direto: `xppc.exe -metadata=<pasta custom> -compilermetadata=<PackagesLocalDirectory> -modelmodule=FiscalHubIntegration -output=<pasta custom>\FiscalHubIntegration\bin -referenceFolder=<PackagesLocalDirectory> -referenceFolder=<pasta custom>`. Sai o mesmo conjunto de 98 arquivos do build do VS;
+- no **Build models** e no **Deploy models to online environment**, marcar os dois módulos juntos, com sincronização do
+  banco. A role antiga `FSFiscalHubIntegration` some junto: a `FiscosysHubIntegration` precisa ser atribuída de novo.
+- **depois de um deploy que muda nome de módulo, rodar a sincronização completa.** No deploy de 2026-10-15 com os dois
+  módulos, a sincronização que vai junto foi parcial (`syncmode PartialList`): renumerou as 15 entidades novas e alteradas
+  (`TableIdSync`) e não montou nenhuma view (a lista saiu vazia). Essas 15 respondiam *"Cannot select a record in Sub
+  Query (Subquery). The SQL database has issued an error"*; as que não mudaram, normal. **Extensions > Dynamics 365 >
+  Synchronize database** (completa) resolveu;
+
+O módulo vazio fica no ambiente sem efeito. **Só o fiscosysdev precisa disso:** ambiente de cliente que nunca teve o
+`FiscalHubIntegration` recebe só o `FiscosysHubIntegration`.
+
+**Regra para o próximo rename:** antes de publicar o módulo com o nome novo, publicar o antigo vazio (ou os dois no mesmo
+deploy), dar Id novo a cada modelo e, depois do deploy, rodar a sincronização completa do banco.
+
 ---
+
+## 13. Avisos do build que não bloqueiam
+
+O build termina com `Build completed` mesmo com estas mensagens (build de 2026-10-16, com a `FSImportDeclarationBR`). As
+checagens de boas práticas só olham os objetos que mudaram no build, por isso aparecem quando um privilégio é novo ou a
+role muda. Os 32 privilégios e a role estão assim desde o começo e publicam normalmente.
+
+| Mensagem | Por quê | Ação |
+|---|---|---|
+| `BPErrorLabelNotDefined` no privilégio | privilégio sem `Label`; o pacote não tem arquivo de rótulos | nenhuma |
+| `BPErrorPrivilegeNotCoveredByDuty` | o privilégio entra direto na role, sem duty | nenhuma; a role é a única consumidora |
+| `BPErrorLabelIsText` na role | `Label` e `Description` em texto, não em rótulo | nenhuma |
+| `AssemblyFileNotFound … AttributeBasedPricing` | referência do ApplicationSuite ao pricing do Commerce, ausente na máquina | nenhuma; vem do metadado da Microsoft |
+| `path … may be too long (more than 260 characters)` | arquivo de supressão da Microsoft com caminho longo | nenhuma |
+
+Para tirar os três primeiros, seria preciso um arquivo de rótulos e uma duty no pacote. Não compensa enquanto o pacote for
+só leitura.
 
 ## Referências
 

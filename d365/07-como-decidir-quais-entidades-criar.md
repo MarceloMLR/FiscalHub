@@ -116,6 +116,21 @@ Com a decisao escrita, siga o `06-receita-criar-entidade-na-mao.md`.
 
 ---
 
+## Regra do pacote: autossuficiente
+
+Decidida em 2026-10-15 (`04`, secao 26). O hub so le entidades `FS*` do nosso pacote, e a role so referencia privilegios
+nossos. Mesmo quando a Microsoft publica uma entidade que serve, a nossa e criada por cima da mesma tabela:
+
+- o cliente instala o pacote e atribui uma role, e nao precisa liberar mais nada;
+- uma entidade padrao que mude, seja renomeada ou nao seja liberada nao para a integracao;
+- os campos sao os nossos, inclusive o que a padrao nao expoe, e fica de fora o que nao deve sair (credencial, token).
+
+A entidade padrao continua util nos passos 2 e 3: ela mostra como a Microsoft liga as tabelas e serve de base de contagem
+no aceite. E o desenho cobre o registro inteiro do SPED, e nao so o que o primeiro cliente manda: entidade sem uso num
+cliente fica publicada e vazia.
+
+---
+
 ## O resumo em uma frase
 
 Ler o conector antigo diz **o que** o negocio precisa. Ler a documentacao diz **qual** o caminho

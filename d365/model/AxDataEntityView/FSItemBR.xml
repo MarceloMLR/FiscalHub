@@ -133,6 +133,12 @@ public class FSItemBR extends common
 		</AxDataEntityViewField>
 		<AxDataEntityViewField xmlns=""
 			i:type="AxDataEntityViewMappedField">
+			<Name>ProjCategoryId</Name>
+			<DataField>projCategoryId</DataField>
+			<DataSource>InventTable</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
 			<Name>InventUnitId</Name>
 			<DataField>UnitId</DataField>
 			<DataSource>InventTableModuleInvent</DataSource>
@@ -142,6 +148,12 @@ public class FSItemBR extends common
 			<Name>ProductName</Name>
 			<DataField>Name</DataField>
 			<DataSource>EcoResProductTranslationToSystemLanguage</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>ProductNamePtBR</Name>
+			<DataField>Name</DataField>
+			<DataSource>EcoResProductTranslationPtBR</DataSource>
 		</AxDataEntityViewField>
 	</Fields>
 	<Keys>
@@ -244,6 +256,31 @@ public class Metadata extends QueryRun
 								<Field>SystemLanguageId</Field>
 								<JoinDataSource>EcoResProductSystemLanguage</JoinDataSource>
 								<RelatedField>LanguageId</RelatedField>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>EcoResProductTranslationPtBR</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>EcoResProductTranslation</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges>
+							<AxQuerySimpleDataSourceRange>
+								<Name>LanguagePtBR</Name>
+								<Field>LanguageId</Field>
+								<Value>pt-br</Value>
+							</AxQuerySimpleDataSourceRange>
+						</Ranges>
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>Product</Field>
+								<JoinDataSource>InventTable</JoinDataSource>
+								<RelatedField>Product</RelatedField>
 							</AxQuerySimpleDataSourceRelation>
 						</Relations>
 					</AxQuerySimpleEmbeddedDataSource>

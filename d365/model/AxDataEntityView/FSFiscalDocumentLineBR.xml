@@ -319,6 +319,20 @@ public class FSFiscalDocumentLineBR extends common
 			<DataField>RecId</DataField>
 			<DataSource>FiscalDocumentLine_BR</DataSource>
 		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>NBSCode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>NBSCode</DataField>
+			<DataSource>NBSCodes</DataSource>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>IndOpCode</Name>
+			<CountryRegionCodes>BR</CountryRegionCodes>
+			<DataField>IndOpCode</DataField>
+			<DataSource>IndOpCodes</DataSource>
+		</AxDataEntityViewField>
 	</Fields>
 	<Keys>
 		<AxDataEntityViewKey>
@@ -407,6 +421,44 @@ public class Metadata extends QueryRun
 							<AxQuerySimpleDataSourceRelation>
 								<Name>FinancialLedgerDimensionDAVC</Name>
 								<Field>FinancialLedgerDimension</Field>
+								<JoinDataSource>FiscalDocumentLine_BR</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>NBSCodes</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>NBSCodes_BR</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>NBSCode_BR</Field>
+								<JoinDataSource>FiscalDocumentLine_BR</JoinDataSource>
+								<RelatedField>RecId</RelatedField>
+							</AxQuerySimpleDataSourceRelation>
+						</Relations>
+					</AxQuerySimpleEmbeddedDataSource>
+					<AxQuerySimpleEmbeddedDataSource>
+						<Name>IndOpCodes</Name>
+						<DynamicFields>Yes</DynamicFields>
+						<IsReadOnly>Yes</IsReadOnly>
+						<Table>IndOpCodes_BR</Table>
+						<DataSources />
+						<DerivedDataSources />
+						<Fields />
+						<Ranges />
+						<JoinMode>OuterJoin</JoinMode>
+						<Relations>
+							<AxQuerySimpleDataSourceRelation>
+								<Name>QueryDataSourceRelation1</Name>
+								<Field>IndOpCode_BR</Field>
 								<JoinDataSource>FiscalDocumentLine_BR</JoinDataSource>
 								<RelatedField>RecId</RelatedField>
 							</AxQuerySimpleDataSourceRelation>

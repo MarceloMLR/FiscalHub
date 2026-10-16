@@ -7,7 +7,7 @@ change `add-d365-document-assembly`). Os testes rodam sobre esses arquivos, sem 
 
 O script autentica como o conector: client credentials, com o app do conector, e nunca com a sessão do Azure CLI (change
 `explicit-credential-and-execution-cnpj`). A resposta gravada é a que o conector recebe, com a role
-`FSFiscalHubIntegration`. A credencial vem de três variáveis de ambiente, as mesmas dos testes contra o F&O real:
+`FiscosysHubIntegration`. A credencial vem de três variáveis de ambiente, as mesmas dos testes contra o F&O real:
 
 ```powershell
 $env:FISCALHUB_D365_ENTRA_TENANT_ID = '<tenant do Entra do app>'
