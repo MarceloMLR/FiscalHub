@@ -59,6 +59,10 @@ de ativos compartilhada do LCS ou pela extensão Power Platform do Visual Studio
 v3 gera, no mesmo build, o pacote do LCS e o unified package (opção **Create Power Platform Unified Package**). Os
 binários são os mesmos, só muda a embalagem.
 
+**Pipelines, versões e onde ficam os releases:** ADR-0040 (proposto). Um pipeline por artefato, disparado pela pasta dele;
+build de verificação automático e release manual em semver, guardado num feed do Azure Artifacts; `d365/CHANGELOG.md` e
+`d365/implantacoes.md`; antes de mandar, aplicar o release no fiscosysdev com `pac package deploy`.
+
 **O que perguntar ao cliente antes de gerar:**
 
 1. Os ambientes (sandbox e produção) são administrados pelo LCS (projeto, Biblioteca de ativos, Aplicar atualizações) ou
